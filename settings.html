@@ -1,0 +1,364 @@
+<!-- YID PLUS — Settings Page (Module F) -->
+<!-- Embed inside main app shell as #settings-screen -->
+<div id="settings-screen" class="app-screen" style="display:none">
+<style>
+.settings-scroll{flex:1;overflow-y:auto;scrollbar-width:none;padding-bottom:80px;}
+.settings-scroll::-webkit-scrollbar{display:none;}
+.settings-topbar{background:rgba(10,10,15,0.97);border-bottom:0.5px solid var(--border);padding:0.75rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.settings-section{margin-bottom:0.5rem;}
+.settings-section-title{font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);padding:1rem 1rem 0.4rem;}
+.settings-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;margin:0 0.75rem;overflow:hidden;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:0.85rem 1rem;border-bottom:0.5px solid rgba(201,168,76,0.06);cursor:pointer;transition:background 0.15s;}
+.settings-row:last-child{border:none;}
+.settings-row:hover{background:rgba(201,168,76,0.03);}
+.settings-row-left{display:flex;align-items:center;gap:0.75rem;}
+.settings-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.settings-label{font-size:0.85rem;}
+.settings-sub{font-size:0.67rem;color:var(--muted);margin-top:0.1rem;}
+.settings-arrow{color:var(--muted);font-size:0.8rem;}
+/* toggle switch */
+.toggle-sw{width:42px;height:24px;border-radius:12px;background:var(--bg3);border:0.5px solid var(--border);position:relative;cursor:pointer;transition:background 0.25s;flex-shrink:0;}
+.toggle-sw.on{background:var(--gold-d);border-color:var(--gold);}
+.toggle-sw::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:var(--muted);top:2px;left:2px;transition:all 0.22s;}
+.toggle-sw.on::after{left:20px;background:var(--gold-l);}
+/* profile header */
+.profile-header{display:flex;flex-direction:column;align-items:center;padding:1.5rem 1rem 1rem;background:var(--bg2);border-bottom:0.5px solid var(--border);}
+.profile-avatar-wrap{position:relative;margin-bottom:0.75rem;}
+.profile-avatar{width:80px;height:80px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:2.5rem;border:2px solid var(--gold);position:relative;overflow:hidden;}
+.profile-avatar img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
+.avatar-edit{position:absolute;bottom:0;right:0;width:26px;height:26px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:0.75rem;border:2px solid var(--bg);cursor:pointer;}
+.profile-nick{font-size:1.05rem;font-weight:700;}
+.profile-email{font-size:0.72rem;color:var(--muted);margin-top:0.2rem;}
+.edit-profile-btn{margin-top:0.75rem;padding:0.45rem 1.25rem;background:rgba(201,168,76,0.1);border:0.5px solid var(--border2);border-radius:20px;color:var(--gold);font-size:0.78rem;cursor:pointer;font-family:inherit;transition:all 0.2s;}
+/* wallpaper picker */
+.wallpaper-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;padding:0.75rem;}
+.wp-swatch{height:50px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:all 0.18s;}
+.wp-swatch.active{border-color:var(--gold);transform:scale(1.05);}
+/* content manager */
+.content-item{display:flex;align-items:center;gap:0.65rem;padding:0.6rem 1rem;border-bottom:0.5px solid rgba(201,168,76,0.06);}
+.content-item:last-child{border:none;}
+.content-thumb{width:44px;height:44px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;}
+.content-info{flex:1;min-width:0;}
+.content-name{font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.content-meta{font-size:0.65rem;color:var(--muted);}
+.content-del{padding:0.3rem 0.65rem;background:rgba(226,74,74,0.08);border:0.5px solid rgba(226,74,74,0.3);border-radius:6px;color:var(--red);font-size:0.68rem;cursor:pointer;font-family:inherit;}
+/* blocked list */
+.blocked-item{display:flex;align-items:center;gap:0.65rem;padding:0.6rem 1rem;border-bottom:0.5px solid rgba(201,168,76,0.06);}
+.blocked-avatar{width:36px;height:36px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;border:0.5px solid var(--border);}
+.unblock-btn{padding:0.28rem 0.65rem;background:rgba(29,158,117,0.08);border:0.5px solid rgba(29,158,117,0.3);border-radius:6px;color:var(--green);font-size:0.68rem;cursor:pointer;font-family:inherit;}
+/* logout */
+.logout-row{margin:0 0.75rem 1rem;padding:0.85rem;background:rgba(226,74,74,0.07);border:0.5px solid rgba(226,74,74,0.25);border-radius:12px;display:flex;align-items:center;justify-content:center;gap:0.5rem;cursor:pointer;color:var(--red);font-size:0.88rem;transition:all 0.2s;}
+.logout-row:hover{background:rgba(226,74,74,0.13);}
+/* modals */
+.settings-modal{position:fixed;inset:0;z-index:150;background:rgba(0,0,0,0.7);display:none;align-items:flex-end;justify-content:center;}
+.settings-modal.open{display:flex;}
+.modal-sheet{background:var(--bg2);border:0.5px solid var(--border);border-radius:20px 20px 0 0;padding:1.5rem 1.5rem max(1.5rem,env(safe-area-inset-bottom));width:100%;max-width:500px;}
+.modal-title{font-size:0.95rem;font-weight:700;margin-bottom:1.25rem;text-align:center;}
+.modal-field{width:100%;padding:0.7rem 1rem;background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;margin-bottom:0.85rem;transition:border 0.2s;}
+.modal-field:focus{border-color:var(--border2);}
+.modal-save{width:100%;padding:0.75rem;background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#1a1208;font-size:0.85rem;font-weight:700;border:none;border-radius:10px;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;}
+.modal-cancel{width:100%;padding:0.65rem;background:transparent;border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;color:var(--muted);font-size:0.82rem;cursor:pointer;font-family:inherit;}
+</style>
+
+<!-- Top bar -->
+<div class="settings-topbar">
+  <div style="font-size:1rem;font-weight:700;letter-spacing:0.06em;background:linear-gradient(135deg,var(--gold-l),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">⚙️ Settings</div>
+  <div style="font-size:0.72rem;color:var(--muted)" id="settings-version">YID PLUS v1.0</div>
+</div>
+
+<div class="settings-scroll">
+
+  <!-- Profile Header -->
+  <div class="profile-header">
+    <div class="profile-avatar-wrap">
+      <div class="profile-avatar" id="settings-avatar">👤</div>
+      <div class="avatar-edit" onclick="openModal('avatar-modal')">✏️</div>
+    </div>
+    <div class="profile-nick" id="settings-nick">@YidUser</div>
+    <div class="profile-email" id="settings-email">user@email.com</div>
+    <button class="edit-profile-btn" onclick="openModal('profile-modal')">✏️ Edit Profile</button>
+  </div>
+
+  <!-- Account -->
+  <div class="settings-section">
+    <div class="settings-section-title">Account</div>
+    <div class="settings-card">
+      <div class="settings-row" onclick="openModal('profile-modal')">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(201,168,76,0.1)">👤</div><div><div class="settings-label">Edit Profile</div><div class="settings-sub">Nickname, photo, bio</div></div></div>
+        <span class="settings-arrow">›</span>
+      </div>
+      <div class="settings-row" onclick="openModal('phone-modal')">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(55,138,221,0.1)">📱</div><div><div class="settings-label">Phone Number</div><div class="settings-sub">Private — never shown publicly</div></div></div>
+        <span class="settings-arrow">›</span>
+      </div>
+      <div class="settings-row" onclick="openModal('password-modal')">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(226,74,74,0.1)">🔑</div><div><div class="settings-label">Change Password</div><div class="settings-sub">Update your login password</div></div></div>
+        <span class="settings-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- My Content -->
+  <div class="settings-section">
+    <div class="settings-section-title">My Content</div>
+    <div class="settings-card">
+      <div id="my-content-list"></div>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div class="settings-section">
+    <div class="settings-section-title">Chat Customization</div>
+    <div class="settings-card">
+      <div class="settings-row" onclick="openModal('wallpaper-modal')">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(131,74,226,0.1)">🎨</div><div><div class="settings-label">Chat Wallpaper</div><div class="settings-sub">Pick a color or custom background</div></div></div>
+        <div style="width:24px;height:24px;border-radius:6px;border:1px solid var(--border)" id="wallpaper-preview"></div>
+      </div>
+      <div class="settings-row" onclick="openModal('sticker-modal')">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(201,168,76,0.1)">😊</div><div><div class="settings-label">Sticker Pack</div><div class="settings-sub">Manage your sticker library</div></div></div>
+        <span class="settings-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Privacy -->
+  <div class="settings-section">
+    <div class="settings-section-title">Privacy & Security</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(29,158,117,0.1)">👁</div><div><div class="settings-label">Hide Online Status</div><div class="settings-sub">Appear offline to everyone</div></div></div>
+        <div class="toggle-sw" id="toggle-online" onclick="toggleSetting('online')"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(55,138,221,0.1)">✓✓</div><div><div class="settings-label">Read Receipts</div><div class="settings-sub">Show when you read messages</div></div></div>
+        <div class="toggle-sw on" id="toggle-receipts" onclick="toggleSetting('receipts')"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(201,168,76,0.1)">📷</div><div><div class="settings-label">Profile Photo Visibility</div><div class="settings-sub">Who can see your photo</div></div></div>
+        <span style="font-size:0.72rem;color:var(--gold)">Everyone ›</span>
+      </div>
+      <div class="settings-row" onclick="openModal('blocked-modal')">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(226,74,74,0.1)">🚫</div><div><div class="settings-label">Blocked Users</div><div class="settings-sub" id="blocked-count-text">2 users blocked</div></div></div>
+        <span class="settings-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notifications -->
+  <div class="settings-section">
+    <div class="settings-section-title">Notifications & Sound</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(201,168,76,0.1)">🔔</div><div><div class="settings-label">Push Notifications</div><div class="settings-sub">Messages, likes, new followers</div></div></div>
+        <div class="toggle-sw on" id="toggle-notifs" onclick="toggleSetting('notifs')"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(55,138,221,0.1)">🔊</div><div><div class="settings-label">Notification Sounds</div><div class="settings-sub">Alert tones for messages</div></div></div>
+        <div class="toggle-sw on" id="toggle-sounds" onclick="toggleSetting('sounds')"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(131,74,226,0.1)">🔇</div><div><div class="settings-label">Mute All App Sounds</div><div class="settings-sub">Silence videos, music & alerts</div></div></div>
+        <div class="toggle-sw" id="toggle-mute-all" onclick="toggleSetting('mute-all')"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Appearance -->
+  <div class="settings-section">
+    <div class="settings-section-title">Appearance & Data</div>
+    <div class="settings-card">
+      <div class="settings-row">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(10,10,30,0.5);border:0.5px solid var(--border)">🌙</div><div><div class="settings-label">Auto Night Theme</div><div class="settings-sub">Switches dark after 7:00 PM</div></div></div>
+        <div class="toggle-sw on" id="toggle-night" onclick="toggleSetting('night')"></div>
+      </div>
+      <div class="settings-row" onclick="clearCache()">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(226,131,74,0.1)">🗑️</div><div><div class="settings-label">Clear Cache</div><div class="settings-sub">Free up storage from video streams</div></div></div>
+        <span class="settings-arrow">›</span>
+      </div>
+      <div class="settings-row" onclick="openModal('feedback-modal')">
+        <div class="settings-row-left"><div class="settings-icon" style="background:rgba(55,138,221,0.1)">📩</div><div><div class="settings-label">Send Feedback / Report Bug</div><div class="settings-sub">Help improve YID PLUS</div></div></div>
+        <span class="settings-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logout -->
+  <div class="settings-section">
+    <div class="settings-section-title"></div>
+    <div class="logout-row" onclick="doAppLogout()">
+      <span style="font-size:1.1rem">🚪</span>
+      <span>Sign Out</span>
+    </div>
+  </div>
+
+</div><!-- end scroll -->
+
+<!-- ── MODALS ── -->
+
+<!-- Profile Edit -->
+<div class="settings-modal" id="profile-modal">
+  <div class="modal-sheet">
+    <div class="modal-title">✏️ Edit Profile</div>
+    <input class="modal-field" id="edit-nick" placeholder="Nickname">
+    <textarea class="modal-field" id="edit-bio" placeholder="Bio (optional)" rows="3" style="resize:none"></textarea>
+    <button class="modal-save" onclick="saveProfile()">Save Changes</button>
+    <button class="modal-cancel" onclick="closeModal('profile-modal')">Cancel</button>
+  </div>
+</div>
+
+<!-- Phone -->
+<div class="settings-modal" id="phone-modal">
+  <div class="modal-sheet">
+    <div class="modal-title">📱 Update Phone Number</div>
+    <div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.85rem">Your phone number is private and never shown to other users.</div>
+    <input class="modal-field" id="edit-phone" type="tel" placeholder="+1 555 000 0000">
+    <button class="modal-save" onclick="savePhone()">Update Phone</button>
+    <button class="modal-cancel" onclick="closeModal('phone-modal')">Cancel</button>
+  </div>
+</div>
+
+<!-- Password -->
+<div class="settings-modal" id="password-modal">
+  <div class="modal-sheet">
+    <div class="modal-title">🔑 Change Password</div>
+    <input class="modal-field" type="password" id="cur-pass" placeholder="Current password">
+    <input class="modal-field" type="password" id="new-pass" placeholder="New password (min 6 chars)">
+    <input class="modal-field" type="password" id="conf-pass" placeholder="Confirm new password">
+    <button class="modal-save" onclick="savePassword()">Update Password</button>
+    <button class="modal-cancel" onclick="closeModal('password-modal')">Cancel</button>
+  </div>
+</div>
+
+<!-- Wallpaper -->
+<div class="settings-modal" id="wallpaper-modal">
+  <div class="modal-sheet">
+    <div class="modal-title">🎨 Chat Wallpaper</div>
+    <div class="wallpaper-grid" id="wp-grid"></div>
+    <button class="modal-save" onclick="closeModal('wallpaper-modal')">Apply</button>
+    <button class="modal-cancel" onclick="closeModal('wallpaper-modal')">Cancel</button>
+  </div>
+</div>
+
+<!-- Blocked -->
+<div class="settings-modal" id="blocked-modal">
+  <div class="modal-sheet">
+    <div class="modal-title">🚫 Blocked Users</div>
+    <div id="blocked-list"></div>
+    <button class="modal-cancel" style="margin-top:0.75rem" onclick="closeModal('blocked-modal')">Close</button>
+  </div>
+</div>
+
+<!-- Feedback -->
+<div class="settings-modal" id="feedback-modal">
+  <div class="modal-sheet">
+    <div class="modal-title">📩 Send Feedback</div>
+    <select class="modal-field" id="fb-type" style="background:var(--bg3);color:var(--text);appearance:none;cursor:pointer">
+      <option value="bug">🐛 Bug Report</option>
+      <option value="suggest">💡 Feature Suggestion</option>
+      <option value="other">💬 General Feedback</option>
+    </select>
+    <textarea class="modal-field" id="fb-text" placeholder="Describe the issue or suggestion..." rows="4" style="resize:none"></textarea>
+    <button class="modal-save" onclick="submitFeedback()">Submit Feedback</button>
+    <button class="modal-cancel" onclick="closeModal('feedback-modal')">Cancel</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const WALLPAPERS=['#0A0A0F','#0F0A1A','#0A1A0F','#1A0A0A','#0A0F1A','#1A1A0A','#12111C','#0D1A15','#1A0D0D','#101825','#1A150A','#150A1A'];
+  let activeWp=0;
+  let blockedUsers=[{nick:'SpamUser99',emoji:'🚫'},{nick:'BadActor22',emoji:'⚠️'}];
+  const myContent=[
+    {emoji:'🎹',name:'My Niggun Clip',type:'Short',views:'1.2K'},
+    {emoji:'🥘',name:'Cholent Tutorial',type:'Short',views:'843'},
+    {emoji:'🎵',name:'Friday Night Song',type:'Music',plays:'2.1K'},
+  ];
+
+  function buildWallpapers(){
+    const g=document.getElementById('wp-grid'); g.innerHTML='';
+    WALLPAPERS.forEach((c,i)=>{
+      const s=document.createElement('div');
+      s.className='wp-swatch'+(i===activeWp?' active':'');
+      s.style.background=c;
+      s.onclick=()=>{activeWp=i;document.querySelectorAll('#settings-screen .wp-swatch').forEach((x,j)=>x.classList.toggle('active',j===i));document.getElementById('wallpaper-preview').style.background=c;};
+      g.appendChild(s);
+    });
+    document.getElementById('wallpaper-preview').style.background=WALLPAPERS[0];
+  }
+
+  function buildContent(){
+    const el=document.getElementById('my-content-list');
+    if(!el)return; el.innerHTML='';
+    myContent.forEach((c,i)=>{
+      const row=document.createElement('div'); row.className='content-item';
+      row.innerHTML=`<div class="content-thumb">${c.emoji}</div><div class="content-info"><div class="content-name">${c.name}</div><div class="content-meta">${c.type} · ${c.type==='Short'?'👁 '+c.views+' views':'▶ '+c.plays+' plays'}</div></div><button class="content-del" onclick="deleteContent(${i})">🗑 Delete</button>`;
+      el.appendChild(row);
+    });
+    if(!myContent.length) el.innerHTML='<div style="padding:1rem;font-size:0.78rem;color:var(--muted);text-align:center">No content uploaded yet</div>';
+  }
+
+  window.deleteContent=function(i){if(confirm('Delete "'+myContent[i].name+'"?')){myContent.splice(i,1);buildContent();showSettingsToast('🗑 Content deleted.');}};
+
+  function buildBlocked(){
+    const el=document.getElementById('blocked-list'); el.innerHTML='';
+    blockedUsers.forEach((u,i)=>{
+      el.innerHTML+=`<div class="blocked-item"><div class="blocked-avatar">${u.emoji}</div><div style="flex:1;font-size:0.82rem">@${u.nick}</div><button class="unblock-btn" onclick="unblock(${i})">Unblock</button></div>`;
+    });
+    if(!blockedUsers.length) el.innerHTML='<div style="padding:0.75rem;font-size:0.78rem;color:var(--muted);text-align:center">No blocked users</div>';
+    const ct=document.getElementById('blocked-count-text');
+    if(ct) ct.textContent=blockedUsers.length+' user'+(blockedUsers.length!==1?'s':'')+' blocked';
+  }
+
+  window.unblock=function(i){blockedUsers.splice(i,1);buildBlocked();showSettingsToast('✅ User unblocked.');};
+
+  window.toggleSetting=function(id){
+    const el=document.getElementById('toggle-'+id);
+    if(el) el.classList.toggle('on');
+    const on=el&&el.classList.contains('on');
+    const msgs={online:on?'Online status hidden':'Online status visible',receipts:on?'Read receipts on':'Read receipts off',notifs:on?'Notifications on':'Notifications off',sounds:on?'Sounds on':'Sounds off','mute-all':on?'All sounds muted':'Sounds unmuted',night:on?'Auto night theme on':'Auto night theme off'};
+    showSettingsToast(msgs[id]||'Setting updated');
+  };
+
+  window.openModal=function(id){document.getElementById(id).classList.add('open');if(id==='wallpaper-modal')buildWallpapers();if(id==='blocked-modal')buildBlocked();if(id==='profile-modal'){const n=document.getElementById('settings-nick');if(n&&document.getElementById('edit-nick'))document.getElementById('edit-nick').value=n.textContent.replace('@','');}};
+  window.closeModal=function(id){document.getElementById(id).classList.remove('open');};
+  window.saveProfile=function(){const n=document.getElementById('edit-nick').value.trim();if(n){const el=document.getElementById('settings-nick');if(el)el.textContent='@'+n;}closeModal('profile-modal');showSettingsToast('✅ Profile updated!');};
+  window.savePhone=function(){const p=document.getElementById('edit-phone').value.trim();if(!p)return showSettingsToast('⚠ Enter a phone number.');closeModal('phone-modal');showSettingsToast('✅ Phone number updated!');};
+  window.savePassword=function(){
+    const c=document.getElementById('cur-pass').value,n=document.getElementById('new-pass').value,cf=document.getElementById('conf-pass').value;
+    if(!c||!n||!cf)return showSettingsToast('⚠ Fill in all fields.');
+    if(n.length<6)return showSettingsToast('⚠ Min 6 characters.');
+    if(n!==cf)return showSettingsToast('⚠ Passwords don\'t match.');
+    closeModal('password-modal');showSettingsToast('✅ Password updated!');
+  };
+  window.clearCache=function(){showSettingsToast('🗑 Cache cleared! Freed 24.3 MB.');};
+  window.submitFeedback=function(){
+    const t=document.getElementById('fb-text').value.trim();
+    if(!t)return showSettingsToast('⚠ Please describe your feedback.');
+    closeModal('feedback-modal');
+    document.getElementById('fb-text').value='';
+    showSettingsToast('📩 Feedback sent to admin! Thank you.');
+  };
+  window.doAppLogout=function(){if(confirm('Sign out of YID PLUS?')){localStorage.removeItem('yp_remember');showSettingsToast('👋 Signed out. Redirecting...');setTimeout(()=>window.location.reload(),1200);}};
+
+  function showSettingsToast(msg){
+    let t=document.getElementById('settings-toast');
+    if(!t){t=document.createElement('div');t.id='settings-toast';t.style.cssText='position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);background:rgba(19,19,26,0.97);border:0.5px solid var(--border2);border-radius:10px;padding:0.6rem 1.25rem;font-size:0.8rem;color:var(--gold-l);z-index:999;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap;';document.body.appendChild(t);}
+    t.textContent=msg; t.style.opacity='1';
+    clearTimeout(t._t); t._t=setTimeout(()=>t.style.opacity='0',2200);
+  }
+
+  buildContent();
+  buildWallpapers();
+
+  /* night theme auto-switcher */
+  function checkNightTheme(){
+    const h=new Date().getHours();
+    const toggle=document.getElementById('toggle-night');
+    if(!toggle||!toggle.classList.contains('on'))return;
+    document.body.classList.toggle('night-theme',h>=19||h<7);
+  }
+  checkNightTheme();
+  setInterval(checkNightTheme,60000);
+})();
+</script>
+</div>
