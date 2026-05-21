@@ -1,0 +1,260 @@
+<!-- YID PLUS — Channel Profile Page (Module G) -->
+<div id="channel-screen" class="app-screen" style="display:none">
+<style>
+.channel-scroll{flex:1;overflow-y:auto;scrollbar-width:none;}
+.channel-scroll::-webkit-scrollbar{display:none;}
+/* topbar */
+.channel-topbar{position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;background:linear-gradient(to bottom,rgba(0,0,0,0.6),transparent);}
+.ch-back{font-size:1.3rem;color:#fff;cursor:pointer;text-shadow:0 1px 4px rgba(0,0,0,0.5);}
+.ch-topbar-actions{display:flex;gap:0.4rem;}
+.ch-topbar-btn{width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;font-size:0.85rem;cursor:pointer;border:0.5px solid rgba(255,255,255,0.15);}
+/* cover */
+.channel-cover{width:100%;height:200px;background:var(--bg3);position:relative;overflow:hidden;flex-shrink:0;}
+.channel-cover-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10rem;opacity:0.15;filter:blur(20px);transform:scale(1.3);}
+.channel-cover-img{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:6rem;}
+/* profile row */
+.channel-profile-row{padding:0 1rem;margin-top:-40px;position:relative;z-index:5;margin-bottom:0.75rem;}
+.channel-avatar-outer{width:80px;height:80px;border-radius:50%;background:var(--bg3);border:3px solid var(--bg);display:flex;align-items:center;justify-content:center;font-size:2.5rem;position:relative;overflow:hidden;margin-bottom:0.75rem;}
+.ch-verified-crown{position:absolute;top:-4px;right:-4px;font-size:1rem;filter:drop-shadow(0 0 4px rgba(201,168,76,0.8));}
+.channel-meta{display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;}
+.channel-identity{flex:1;}
+.channel-name{font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:0.35rem;}
+.channel-handle{font-size:0.75rem;color:var(--muted);margin-top:0.15rem;}
+.channel-bio-text{font-size:0.8rem;color:var(--muted);margin-top:0.35rem;line-height:1.5;}
+/* stats */
+.channel-stats{display:flex;gap:1.5rem;padding:0.75rem 1rem;border-bottom:0.5px solid var(--border);}
+.stat-item{text-align:center;}
+.stat-val{font-size:1rem;font-weight:700;}
+.stat-name{font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;}
+/* action buttons */
+.channel-actions{display:flex;gap:0.6rem;padding:0.75rem 1rem;border-bottom:0.5px solid var(--border);}
+.follow-big-btn{flex:1;padding:0.6rem;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.2s;border:none;background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#1a1208;}
+.follow-big-btn.following{background:var(--bg3);color:var(--text);border:0.5px solid var(--border);}
+.dm-btn{width:46px;height:46px;border-radius:10px;background:var(--bg3);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all 0.2s;flex-shrink:0;}
+.dm-btn:hover{border-color:var(--border2);}
+.notif-btn{width:46px;height:46px;border-radius:10px;background:var(--bg3);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;flex-shrink:0;}
+/* tabs */
+.channel-tabs{display:flex;border-bottom:0.5px solid var(--border);}
+.chtab{flex:1;padding:0.7rem;text-align:center;font-size:0.78rem;letter-spacing:0.05em;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;}
+.chtab.active{color:var(--gold);border-bottom-color:var(--gold);}
+/* shorts grid */
+.shorts-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:2px;}
+.grid-short{aspect-ratio:9/16;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:2rem;cursor:pointer;position:relative;overflow:hidden;transition:opacity 0.18s;}
+.grid-short:hover{opacity:0.85;}
+.grid-short-overlay{position:absolute;bottom:0;left:0;right:0;padding:0.35rem;background:linear-gradient(to top,rgba(0,0,0,0.7),transparent);display:flex;align-items:center;gap:0.25rem;}
+.grid-view-count{font-size:0.6rem;color:rgba(255,255,255,0.85);}
+/* music list */
+.ch-music-item{display:flex;align-items:center;gap:0.75rem;padding:0.65rem 1rem;border-bottom:0.5px solid rgba(201,168,76,0.06);cursor:pointer;}
+.ch-music-thumb{width:48px;height:48px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;border:0.5px solid var(--border);}
+.ch-music-info{flex:1;min-width:0;}
+.ch-music-name{font-size:0.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ch-music-meta{font-size:0.67rem;color:var(--muted);margin-top:0.1rem;}
+.ch-music-play{width:32px;height:32px;border-radius:50%;background:var(--gold-d);display:flex;align-items:center;justify-content:center;font-size:0.85rem;flex-shrink:0;cursor:pointer;}
+/* about tab */
+.about-section{padding:1rem;}
+.about-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:0.75rem;}
+.about-label{font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem;}
+.about-value{font-size:0.85rem;line-height:1.6;}
+.about-link{color:var(--gold-l);text-decoration:none;}
+.about-tag{display:inline-block;background:rgba(201,168,76,0.1);border:0.5px solid var(--border);border-radius:12px;padding:0.2rem 0.65rem;font-size:0.72rem;color:var(--gold);margin:0.2rem;}
+</style>
+
+<div class="channel-scroll" id="ch-scroll">
+  <!-- Cover -->
+  <div class="channel-cover" style="position:relative">
+    <div class="channel-topbar">
+      <div class="ch-back" onclick="closeChannel()">‹</div>
+      <div class="ch-topbar-actions">
+        <div class="ch-topbar-btn" onclick="shareChannel()">📤</div>
+        <div class="ch-topbar-btn" onclick="reportChannel()">⋯</div>
+      </div>
+    </div>
+    <div class="channel-cover-bg" id="ch-cover-bg"></div>
+    <div class="channel-cover-img" id="ch-cover-img"></div>
+  </div>
+
+  <!-- Profile row -->
+  <div class="channel-profile-row">
+    <div class="channel-avatar-outer" id="ch-avatar-outer">
+      <span id="ch-avatar-emoji"></span>
+      <div class="ch-verified-crown" id="ch-crown" style="display:none">👑</div>
+    </div>
+    <div class="channel-meta">
+      <div class="channel-identity">
+        <div class="channel-name" id="ch-name"></div>
+        <div class="channel-handle" id="ch-handle"></div>
+        <div class="channel-bio-text" id="ch-bio"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="channel-stats">
+    <div class="stat-item"><div class="stat-val" id="ch-followers">0</div><div class="stat-name">Followers</div></div>
+    <div class="stat-item"><div class="stat-val" id="ch-following">0</div><div class="stat-name">Following</div></div>
+    <div class="stat-item"><div class="stat-val" id="ch-total-views">0</div><div class="stat-name">Total Views</div></div>
+    <div class="stat-item"><div class="stat-val" id="ch-shorts-count">0</div><div class="stat-name">Shorts</div></div>
+  </div>
+
+  <!-- Actions -->
+  <div class="channel-actions">
+    <button class="follow-big-btn" id="ch-follow-btn" onclick="toggleChannelFollow()">+ Follow</button>
+    <div class="dm-btn" onclick="openChannelDM()" title="Send Message">💬</div>
+    <div class="notif-btn" id="ch-notif-btn" onclick="toggleNotif()" title="Notifications">🔔</div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="channel-tabs">
+    <button class="chtab active" onclick="switchChTab(this,'shorts')">🎥 Shorts</button>
+    <button class="chtab" onclick="switchChTab(this,'music')">🎵 Music</button>
+    <button class="chtab" onclick="switchChTab(this,'about')">📜 About</button>
+  </div>
+
+  <!-- Shorts Grid -->
+  <div id="ch-shorts-tab">
+    <div class="shorts-grid" id="ch-shorts-grid"></div>
+  </div>
+
+  <!-- Music Tab -->
+  <div id="ch-music-tab" style="display:none">
+    <div id="ch-music-list"></div>
+  </div>
+
+  <!-- About Tab -->
+  <div id="ch-about-tab" style="display:none">
+    <div class="about-section" id="ch-about-content"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const CHANNEL_DATA = {
+    'MosheMusic':{emoji:'🎹',bg:'#1a0a2e',verified:true,nick:'MosheMusic',bio:'Jewish composer & musician. New album every Friday. Torah-inspired melodies. 🎵✡️',joined:'January 2024',location:'Brooklyn, NY',website:'moshemusic.com',followers:'12.4K',following:'341',totalViews:'892K',tags:['#JewishMusic','#Niggun','#Torah','#NewMusic'],
+      shorts:[{e:'🎹',v:'12.4K'},{e:'🎵',v:'8.1K'},{e:'🎼',v:'5.3K'},{e:'🎶',v:'22K'},{e:'🎹',v:'3.8K'},{e:'🎵',v:'11K'}],
+      music:[{e:'🎹',n:'Niggunim Vol. 3',m:'Album · 8 tracks',d:'3:42'},{e:'🎵',n:'Am Yisrael Chai',m:'Single · 1.2M plays',d:'3:45'},{e:'🎼',n:'Friday Night',m:'Single · 890K plays',d:'4:12'}]},
+    'ShlomoBeats':{emoji:'🎤',bg:'#001020',verified:true,nick:'ShlomoBeats',bio:'Producer & vocalist. Creating music that moves the Jewish soul. New single every week 🎤🔥',joined:'February 2024',location:'Manhattan, NY',website:'shlomo.music',followers:'8.1K',following:'219',totalViews:'541K',tags:['#Producer','#JewishPop','#NewMusic'],
+      shorts:[{e:'🎤',v:'31.5K'},{e:'🎵',v:'15K'},{e:'🎧',v:'9.2K'},{e:'🎤',v:'7.8K'},{e:'🎵',v:'4.1K'},{e:'🎧',v:'18K'}],
+      music:[{e:'🎤',n:'Soulful Beats Album',m:'Album · 10 tracks',d:'2:55'},{e:'🎵',n:'Dance Floor',m:'Single · 654K plays',d:'3:48'},{e:'🎤',n:'Together',m:'Single · 432K plays',d:'4:01'}]},
+    'RebbeVibes':{emoji:'📖',bg:'#0a1500',verified:true,nick:'RebbeVibes',bio:'Torah thoughts, Jewish wisdom, and music for the soul. Learning together every day. 📖✨',joined:'March 2024',location:'Crown Heights, NY',website:'rebbevibes.com',followers:'31K',following:'88',totalViews:'1.2M',tags:['#Torah','#JewishWisdom','#Shabbos','#Learning'],
+      shorts:[{e:'📖',v:'18.9K'},{e:'✡️',v:'24K'},{e:'📖',v:'11K'},{e:'🕯️',v:'31K'},{e:'📖',v:'8.4K'},{e:'✡️',v:'16K'}],
+      music:[{e:'🕊️',n:'Shalom Aleichem',m:'Single · 1.8M plays',d:'4:12'},{e:'🌅',n:'Modeh Ani',m:'Single · 920K plays',d:'2:58'}]},
+    'default':{emoji:'👤',bg:'#111',verified:false,nick:'YidUser',bio:'YID PLUS member',joined:'2024',location:'',website:'',followers:'124',following:'55',totalViews:'8.4K',tags:[],
+      shorts:[{e:'📱',v:'124'},{e:'🎵',v:'89'},{e:'📖',v:'210'}],
+      music:[]},
+  };
+
+  let currentChannel=null, isFollowing=false, notifOn=false;
+
+  window.openChannel=function(nickOrData){
+    const data = typeof nickOrData==='string' ? (CHANNEL_DATA[nickOrData]||{...CHANNEL_DATA['default'],nick:nickOrData}) : nickOrData;
+    currentChannel=data; isFollowing=false; notifOn=false;
+    const bg=data.bg||'#111';
+    document.getElementById('ch-cover-bg').textContent=data.emoji;
+    document.getElementById('ch-cover-img').textContent=data.emoji;
+    document.getElementById('channel-cover').style.background=bg;
+    document.getElementById('ch-avatar-outer').style.background=bg;
+    document.getElementById('ch-avatar-emoji').textContent=data.emoji;
+    document.getElementById('ch-crown').style.display=data.verified?'block':'none';
+    document.getElementById('ch-name').textContent=data.nick+(data.verified?' 👑':'');
+    document.getElementById('ch-handle').textContent='@'+data.nick.toLowerCase();
+    document.getElementById('ch-bio').textContent=data.bio||'';
+    document.getElementById('ch-followers').textContent=data.followers;
+    document.getElementById('ch-following').textContent=data.following;
+    document.getElementById('ch-total-views').textContent=data.totalViews;
+    document.getElementById('ch-shorts-count').textContent=data.shorts.length;
+    document.getElementById('ch-follow-btn').textContent='+ Follow';
+    document.getElementById('ch-follow-btn').className='follow-big-btn';
+    buildShortsGrid(data.shorts);
+    buildMusicList(data.music);
+    buildAbout(data);
+    switchChTab(document.querySelector('#channel-screen .chtab'),'shorts');
+    document.getElementById('ch-scroll').scrollTop=0;
+    showScreen('channel');
+  };
+
+  function buildShortsGrid(shorts){
+    const g=document.getElementById('ch-shorts-grid'); g.innerHTML='';
+    shorts.forEach((s,i)=>{
+      const item=document.createElement('div'); item.className='grid-short';
+      item.style.background=currentChannel.bg||'var(--bg3)';
+      item.innerHTML=`${s.e}<div class="grid-short-overlay"><span style="font-size:0.7rem">▶</span><span class="grid-view-count">${s.v}</span></div>`;
+      item.onclick=()=>alert('Opening short '+(i+1)+' by @'+currentChannel.nick);
+      g.appendChild(item);
+    });
+    if(!shorts.length) g.innerHTML='<div style="padding:2rem;text-align:center;color:var(--muted);font-size:0.82rem;grid-column:1/-1">No shorts uploaded yet</div>';
+  }
+
+  function buildMusicList(music){
+    const el=document.getElementById('ch-music-list'); el.innerHTML='';
+    music.forEach(m=>{
+      const item=document.createElement('div'); item.className='ch-music-item';
+      item.innerHTML=`<div class="ch-music-thumb">${m.e}</div><div class="ch-music-info"><div class="ch-music-name">${m.n}</div><div class="ch-music-meta">${m.m} · ${m.d}</div></div><div class="ch-music-play">▶</div>`;
+      el.appendChild(item);
+    });
+    if(!music.length) el.innerHTML='<div style="padding:2rem;text-align:center;color:var(--muted);font-size:0.82rem">No music uploaded yet</div>';
+  }
+
+  function buildAbout(data){
+    const el=document.getElementById('ch-about-content'); el.innerHTML='';
+    if(data.bio) el.innerHTML+=`<div class="about-card"><div class="about-label">Bio</div><div class="about-value">${data.bio}</div></div>`;
+    const details=[];
+    if(data.joined) details.push(['📅 Joined',data.joined]);
+    if(data.location) details.push(['📍 Location',data.location]);
+    if(data.website) details.push(['🔗 Website',`<a class="about-link" href="https://${data.website}" target="_blank">${data.website}</a>`]);
+    if(details.length){
+      el.innerHTML+=`<div class="about-card"><div class="about-label">Details</div>${details.map(([k,v])=>`<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem"><span style="color:var(--muted);font-size:0.82rem;min-width:90px">${k}</span><span style="font-size:0.82rem">${v}</span></div>`).join('')}</div>`;
+    }
+    if(data.tags&&data.tags.length){
+      el.innerHTML+=`<div class="about-card"><div class="about-label">Tags</div><div>${data.tags.map(t=>`<span class="about-tag">${t}</span>`).join('')}</div></div>`;
+    }
+    el.innerHTML+=`<div style="font-size:0.68rem;color:var(--muted2);text-align:center;padding:0.5rem">No private contact info is displayed on this page.</div>`;
+  }
+
+  window.switchChTab=function(btn,tab){
+    document.querySelectorAll('#channel-screen .chtab').forEach(t=>t.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+    document.getElementById('ch-shorts-tab').style.display=tab==='shorts'?'block':'none';
+    document.getElementById('ch-music-tab').style.display=tab==='music'?'block':'none';
+    document.getElementById('ch-about-tab').style.display=tab==='about'?'block':'none';
+  };
+
+  window.toggleChannelFollow=function(){
+    isFollowing=!isFollowing;
+    const btn=document.getElementById('ch-follow-btn');
+    btn.textContent=isFollowing?'✓ Following':'+ Follow';
+    btn.classList.toggle('following',isFollowing);
+    if(currentChannel){
+      const cur=parseFollowers(currentChannel.followers)+(isFollowing?1:-1);
+      document.getElementById('ch-followers').textContent=fmtNum(cur);
+    }
+  };
+
+  window.toggleNotif=function(){
+    notifOn=!notifOn;
+    document.getElementById('ch-notif-btn').textContent=notifOn?'🔕':'🔔';
+  };
+
+  window.openChannelDM=function(){
+    if(currentChannel) alert('Opening DM with @'+currentChannel.nick+'...');
+  };
+
+  window.closeChannel=function(){
+    const prev=window._prevScreen||'home';
+    showScreen(prev);
+  };
+
+  window.shareChannel=function(){
+    if(currentChannel) alert('Share channel:\nyidplus.com/channel/'+currentChannel.nick.toLowerCase());
+  };
+
+  window.reportChannel=function(){
+    const opts=['Share Channel','Report User','Block User','Cancel'];
+    const choice=opts[Math.floor(Math.random()*3)];
+    alert('Options:\n1. Share Channel\n2. Report User\n3. Block User');
+  };
+
+  function parseFollowers(s){const n=parseFloat(s);return s.includes('K')?n*1000:n;}
+  function fmtNum(n){return n>=1000?(n/1000).toFixed(1).replace(/\.0$/,'')+'K':Math.round(n);}
+})();
+</script>
+</div>
