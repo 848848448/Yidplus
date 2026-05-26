@@ -4,28 +4,253 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YID PLUS — Sign In</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-/* סטילינג */
 * { box-sizing: border-box; margin: 0; padding: 0; }
-:root { --gold: #C9A84C; --gold-light: #F0D080; --gold-dark: #8B6914; --bg: #0A0A0F; --bg-card: #13131A; --bg-input: #1C1C26; --border: rgba(201,168,76,0.25); --border-hover: rgba(201,168,76,0.6); --text: #F0EDE6; --muted: #8A8070; --red: #E24B4A; --green: #1D9E75; }
-body { background: var(--bg); font-family: Georgia, serif; color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; position: relative; overflow: hidden; }
-canvas#stars-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
-.wrap { position: relative; z-index: 1; width: 100%; max-width: 400px; }
-.card { background: var(--bg-card); border: 0.5px solid var(--border); border-radius: 18px; padding: 2rem 1.75rem; width: 100%; }
-.tabs { display: flex; background: var(--bg-input); border-radius: 10px; padding: 3px; margin-bottom: 1.75rem; }
-.tab { flex: 1; padding: 0.5rem; text-align: center; font-size: 0.82rem; cursor: pointer; color: var(--muted); border: none; background: transparent; }
-.tab.active { background: var(--bg-card); color: var(--gold); border: 0.5px solid var(--border); }
+:root {
+  --gold: #C9A84C;
+  --gold-light: #F0D080;
+  --gold-dark: #8B6914;
+  --bg: #0A0A0F;
+  --bg-card: #13131A;
+  --bg-input: #1C1C26;
+  --border: rgba(201,168,76,0.25);
+  --border-hover: rgba(201,168,76,0.6);
+  --text: #F0EDE6;
+  --muted: #8A8070;
+  --red: #E24B4A;
+  --green: #1D9E75;
+}
+body {
+  background: var(--bg);
+  font-family: Georgia, serif;
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+canvas#stars-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.wrap {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: fadeIn 0.7s ease;
+}
+@keyframes fadeIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+.logo { text-align: center; margin-bottom: 2rem; }
+.logo-crown { font-size: 3rem; filter: drop-shadow(0 0 18px rgba(201,168,76,0.5)); }
+.logo-name {
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 50%, var(--gold-dark) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-top: 0.2rem;
+}
+.logo-tag {
+  font-size: 0.7rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.3rem;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: 18px;
+  padding: 2rem 1.75rem;
+  width: 100%;
+  box-shadow: 0 0 60px rgba(201,168,76,0.05);
+}
+
+.tabs {
+  display: flex;
+  background: var(--bg-input);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 0;
+  margin-bottom: 1.75rem;
+}
+.tab {
+  flex: 1;
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.82rem;
+  letter-spacing: 0.07em;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.25s;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+}
+.tab.active {
+  background: var(--bg-card);
+  color: var(--gold);
+  border: 0.5px solid var(--border);
+}
+
 .form-group { margin-bottom: 1rem; }
-input { width: 100%; padding: 0.72rem 1rem; background: var(--bg-input); border: 0.5px solid var(--border); border-radius: 8px; color: var(--text); }
-.btn { width: 100%; padding: 0.85rem; background: linear-gradient(135deg, var(--gold-dark), var(--gold)); color: #1a1208; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; }
-.msg { display: none; padding: 0.7rem 1rem; border-radius: 8px; margin-bottom: 1rem; }
+label {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+input {
+  width: 100%;
+  padding: 0.72rem 1rem;
+  background: var(--bg-input);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+  transition: border 0.2s;
+}
+input:focus { border-color: var(--border-hover); }
+input::placeholder { color: var(--muted); }
+
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+.remember-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.5rem 0 1.25rem;
+}
+.toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.toggle {
+  width: 36px;
+  height: 20px;
+  background: var(--bg-input);
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  position: relative;
+  transition: background 0.2s;
+}
+.toggle.on { background: var(--gold-dark); border-color: var(--gold); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  background: var(--muted);
+  border-radius: 50%;
+  top: 2px; left: 2px;
+  transition: all 0.22s;
+}
+.toggle.on::after { left: 18px; background: var(--gold-light); }
+
+.forgot {
+  font-size: 0.78rem;
+  color: var(--gold);
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  transition: opacity 0.2s;
+}
+.forgot:hover { opacity: 0.7; }
+
+.btn {
+  width: 100%;
+  padding: 0.85rem;
+  background: linear-gradient(135deg, var(--gold-dark), var(--gold));
+  color: #1a1208;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+.btn:active:not(:disabled) { transform: scale(0.98); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.dots { display: none; gap: 4px; align-items: center; }
+.dots span {
+  width: 7px; height: 7px;
+  background: #1a1208;
+  border-radius: 50%;
+  animation: pulse 0.9s infinite;
+}
+.dots span:nth-child(2) { animation-delay: 0.2s; }
+.dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes pulse { 0%,80%,100%{transform:scale(0.6);opacity:0.5} 40%{transform:scale(1);opacity:1} }
+
+.msg {
+  display: none;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  margin-bottom: 1rem;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.msg.err { background: rgba(226,75,74,0.1); border: 0.5px solid var(--red); color: #F09595; display: flex; }
+.msg.ok  { background: rgba(29,158,117,0.1); border: 0.5px solid var(--green); color: #5DCAA5; display: flex; }
+
+.fb-box {
+  background: rgba(201,168,76,0.05);
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  margin-top: 1.25rem;
+  font-size: 0.73rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.fb-box strong { color: var(--gold); display: block; margin-bottom: 0.3rem; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; }
+code { background: var(--bg-input); padding: 1px 5px; border-radius: 3px; color: var(--gold-light); font-size: 0.7rem; }
 </style>
 </head>
 <body>
 <canvas id="stars-bg"></canvas>
 
 <div class="wrap">
+  <div class="logo">
+    <div class="logo-crown">👑</div>
+    <div class="logo-name">YID PLUS</div>
+    <div class="logo-tag">Jewish Entertainment Platform</div>
+  </div>
+
   <div class="card">
     <div class="tabs">
       <button class="tab active" onclick="switchTab('login')">Sign In</button>
@@ -34,44 +259,195 @@ input { width: 100%; padding: 0.72rem 1rem; background: var(--bg-input); border:
 
     <div class="msg" id="msg"></div>
 
+    <!-- LOGIN -->
     <div id="login-form">
       <div class="form-group">
         <label>Email Address</label>
         <input type="email" id="l-email" placeholder="your@email.com">
       </div>
-      <button class="btn" onclick="doLogin()">Sign In</button>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="l-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="remember-row">
+        <div class="toggle-wrap" onclick="toggleRemember()">
+          <div class="toggle" id="rem-tog"></div>
+          <span>Remember Me</span>
+        </div>
+        <button class="forgot">Forgot password?</button>
+      </div>
+      <button class="btn" id="l-btn" onclick="doLogin()">
+        <span id="l-txt">Sign In</span>
+        <div class="dots" id="l-dots"><span></span><span></span><span></span></div>
+      </button>
     </div>
 
+    <!-- REGISTconfig
     <div id="reg-form" style="display:none">
       <div class="form-group">
         <label>Email Address</label>
         <input type="email" id="r-email" placeholder="your@email.com">
       </div>
-      <div class="form-group">
-        <label>Nickname</label>
-        <input type="text" id="r-nick" placeholder="YidUser123">
+      <div class="row2">
+        <div class="form-group">
+          <label>Nickname</label>
+          <input type="text" id="r-nick" placeholder="YidUser123">
+        </div>
+        <div class="form-group">
+          <label>Phone <span style="font-size:0.6rem;color:var(--muted)">(Private)</span></label>
+          <input type="tel" id="r-phone" placeholder="+1 555...">
+        </div>
       </div>
       <div class="form-group">
         <label>Password</label>
         <input type="password" id="r-pass" placeholder="Min 6 characters">
       </div>
-      <button class="btn" onclick="doRegister()">Create Account</button>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="r-pass2" placeholder="Repeat password">
+      </div>
+      <button class="btn" id="r-btn" onclick="doRegister()">
+        <span id="r-txt">Create Account</span>
+        <div class="dots" id="r-dots"><span></span><span></span><span></span></div>
+      </button>
     </div>
-  </div>
-</div>
 
-<script>
+    
+
+
+/* ── CONSTANTS ── */
+const OWNER_EMAIL = "avrumy5872877@gmail.com";
+
+/* ── SUPABASE CONNECTION ── */
+
+/* ── STARS BACKGROUND ── */
+(function() {
+  const c = document.getElementById('stars-bg');
+  const ctx = c.getContext('2d');
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  const stars = Array.from({length:60}, () => ({
+    x: Math.random()*c.width,
+    y: Math.random()*c.height,
+    r: Math.random()*1.5+0.5,
+    a: Math.random(),
+    da: (Math.random()*0.01+0.003)*(Math.random()>.5?1:-1)
+  }));
+  function draw() {
+    ctx.clearRect(0,0,c.width,c.height);
+    stars.forEach(s => {
+      s.a = Math.max(0.05, Math.min(0.9, s.a+s.da));
+      if(s.a<=0.05||s.a>=0.9) s.da*=-1;
+      ctx.beginPath();
+      ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle = `rgba(240,208,128,${s.a})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ── STATE ── */
+let remMe = false;
+const savedEmail = localStorage.getItem('yp_remember');
+if (savedEmail) {
+  document.getElementById('l-email').value = savedEmail;
+  remMe = true;
+  document.getElementById('rem-tog').classList.add('on');
+}
+
 /* ── UI HELPERS ── */
 function switchTab(t) {
   document.getElementById('login-form').style.display = t==='login'?'block':'none';
-  document.getElementById('reg-form').style.display = t==='register'?'block':'none';
+  document.getElementById('reg-form').style.display   = t==='register'?'block':'none';
   document.querySelectorAll('.tab').forEach((el,i) => el.classList.toggle('active', (i===0&&t==='login')||(i===1&&t==='register')));
+  hideMsg();
+}
+function toggleRemember() {
+  remMe = !remMe;
+  document.getElementById('rem-tog').classList.toggle('on', remMe);
+}
+function showMsg(type, text) {
+  const el = document.getElementById('msg');
+  el.className = 'msg ' + (type==='err'?'err':'ok');
+  el.innerHTML = (type==='err'?'⚠ ':' ✓ ') + text;
+}
+function hideMsg() {
+  const el = document.getElementById('msg');
+  el.className = 'msg';
+  el.innerHTML = '';
+}
+function setLoad(id, on) {
+  document.getElementById(id+'-btn').disabled = on;
+  document.getElementById(id+'-txt').style.display = on?'none':'inline';
+  document.getElementById(id+'-dots').style.display = on?'flex':'none';
+}
+
+function validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+
+/* ── LOGIN ── */
+async function doLogin() {
+  const email = document.getElementById('l-email').value.trim();
+  const pass  = document.getElementById('l-pass').value;
+  hideMsg();
+  if (!email||!pass) return showMsg('err','Please fill in all fields.');
+  if (!validEmail(email)) return showMsg('err','Enter a valid email address.');
+  setLoad('l', true);
+  try {
+    // Real Firebase call:
+    // await auth.signInWithEmailAndPassword(email, pass);
+    await new Promise(r=>setTimeout(r,1300));
+    if (remMe) localStorage.setItem('yp_remember', email);
+    else localStorage.removeItem('yp_remember');
+    const isOwner = email === OWNER_EMAIL;
+    showMsg('ok', isOwner ? 'Welcome back, Owner! Loading admin dashboard...' : 'Signed in! Loading your feed...');
+    // Redirect: window.location.href = isOwner ? '/admin' : '/home';
+  } catch(e) {
+    showMsg('err', 'Wrong email or password. Please try again.');
+  }
+  setLoad('l', false);
+}
+
+/* ── REGISTER ── */
+async function doRegister() {
+  const email = document.getElementById('r-email').value.trim();
+  const nick  = document.getElementById('r-nick').value.trim();
+  const phone = document.getElementById('r-phone').value.trim();
+  const pass  = document.getElementById('r-pass').value;
+  const pass2 = document.getElementById('r-pass2').value;
+  hideMsg();
+  if (!email||!nick||!pass||!pass2) return showMsg('err','Please fill in all required fields.');
+  if (!validEmail(email)) return showMsg('err','Enter a valid email address.');
+  if (nick.length < 3) return showMsg('err','Nickname must be at least 3 characters.');
+  if (pass.length < 6) return showMsg('err','Password must be at least 6 characters.');
+  if (pass !== pass2) return showMsg('err','Passwords do not match.');
+  setLoad('r', true);
+  try {
+    // Real Firebase call:
+    // const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    // await db.collection('users').doc(cred.user.uid).set({
+    //   email, nickname: nick, phone, role: 'user',
+    //   createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    // });
+    // // Auto-create channel:
+    // await db.collection('channels').doc(cred.user.uid).set({
+    //   ownerUID: cred.user.uid, nickname: nick,
+    //   followers: 0, following: 0,
+    //   createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    // });
+    await new Promise(r=>setTimeout(r,1500));
+    showMsg('ok', 'Account created! Your personal channel is being set up...');
+  } catch(e) {
+    const code = e.code||'';
+    if (code==='auth/email-already-in-use') showMsg('err','This email is already registered.');
+    else showMsg('err','Registration failed. Please try again.');
+  }
+  setLoad('r', false);
 }
 </script>
-
-<script src="js/app.js"></script>
+  <script src="js/app.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/home.js"></script>
 <script src="js/admin.js"></script>
 </body>
-  </html>
+</html>
