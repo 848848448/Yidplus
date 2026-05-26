@@ -1,127 +1,236 @@
-// js/auth.js — Login, Register, Logout
-import { auth, db, OWNER_EMAIL, COL } from '../firebase/config.js';
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import {
-  doc, setDoc, getDoc, updateDoc, serverTimestamp,
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+// ============================================================
+// js/auth.js
+// REPLACES: old firebase auth completely
+// Handles: login, register, logout, session restore, RBAC
+// ============================================================
 
-let remMe = !!localStorage.getItem('yp_remember');
+import { supabase, T, ROLES, OWNER_EMAIL } from '../supabase/client.js';
 
-// Session observer — runs on every page load
-onAuthStateChanged(auth, async user => {
-  if (user) {
-    const snap = await getDoc(doc(db, COL.users, user.uid)).catch(() => null);
-    const data = snap?.data() || {};
-    APP.user = {
-      uid:      user.uid,
-      email:    user.email,
-      nickname: data.nickname || user.email.split('@')[0],
-      role:     data.role || 'user',
-      isOwner:  user.email === OWNER_EMAIL,
-    };
-    if (APP.screen === 'auth') navTo('home');
-  } else {
+// ── Remember which page the user was on ──
+const PAGE_KEY = 'yp_page';
+
+// ── Session listener — runs on every page load ──
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_IN' && session) {
+    await loadUserProfile(session.user);
+    // Restore last page
+    const lastPage = localStorage.getItem(PAGE_KEY) || 'home';
+    navTo(lastPage);
+  } else if (event === 'SIGNED_OUT') {
     APP.user = null;
     navTo('auth');
   }
 });
 
+// ── Load user profile from users table ──
+async function loadUserProfile(authUser) {
+  const { data, error } = await supabase
+    .from(T.users)
+    .select('*')
+    .eq('id', authUser.id)
+    .single();
+
+  if (data) {
+    APP.user = {
+      id:        data.id,
+      email:     data.email,
+      nickname:  data.nickname,
+      role:      data.role || ROLES.member,
+      isOwner:   data.email === OWNER_EMAIL,
+      verified:  data.verified,
+      photo:     data.photo_url,
+      // Only expose phone to the user themselves
+      phone:     data.phone,
+    };
+  } else {
+    // Profile missing — create it
+    await createUserProfile(authUser);
+  }
+}
+
+async function createUserProfile(authUser) {
+  const role = authUser.email === OWNER_EMAIL ? 'admin_super' : ROLES.member;
+  const { data } = await supabase.from(T.users).insert({
+    id:        authUser.id,
+    email:     authUser.email,
+    nickname:  authUser.email.split('@')[0],
+    role,
+    verified:  false,
+    online:    true,
+  }).select().single();
+
+  if (data) {
+    APP.user = { ...data, isOwner: data.email === OWNER_EMAIL };
+    // Auto-create channel
+    await supabase.from(T.channels).insert({
+      owner_id:   authUser.id,
+      nickname:   data.nickname,
+      followers:  0,
+      following:  0,
+      total_views: 0,
+      verified:   false,
+      bio:        '',
+    });
+  }
+}
+
+// ── AUTH TAB SWITCHER ──
 window.authTab = function(tab) {
   document.getElementById('auth-login').style.display    = tab === 'login'    ? 'block' : 'none';
   document.getElementById('auth-register').style.display = tab === 'register' ? 'block' : 'none';
   document.querySelectorAll('.auth-tab').forEach((t, i) =>
     t.classList.toggle('active', i === 0 ? tab === 'login' : tab === 'register')
   );
-  const m = document.getElementById('auth-msg');
-  if (m) m.className = 'auth-msg';
+  clearAuthMsg();
 };
 
+// ── REMEMBER ME ──
+let remMe = !!localStorage.getItem('yp_remember');
 window.toggleRemember = function() {
   remMe = !remMe;
   document.getElementById('rem-tog').classList.toggle('on', remMe);
 };
 
-function authMsg(type, text) {
+function showAuthMsg(type, text) {
   const el = document.getElementById('auth-msg');
   if (!el) return;
   el.className = 'auth-msg ' + type;
   el.innerHTML = (type === 'err' ? '⚠ ' : '✓ ') + text;
 }
+function clearAuthMsg() {
+  const el = document.getElementById('auth-msg');
+  if (el) el.className = 'auth-msg';
+}
 
+// ── LOGIN ──
 window.doLogin = async function() {
   const email = document.getElementById('l-email').value.trim();
   const pass  = document.getElementById('l-pass').value;
-  if (!email || !pass)    return authMsg('err', 'Please fill in all fields.');
-  if (!validEmail(email)) return authMsg('err', 'Enter a valid email address.');
+  clearAuthMsg();
+  if (!email || !pass)    return showAuthMsg('err', 'Please fill in all fields.');
+  if (!validEmail(email)) return showAuthMsg('err', 'Enter a valid email address.');
+
   setLoad('l', true);
-  try {
-    await signInWithEmailAndPassword(auth, email, pass);
-    if (remMe) localStorage.setItem('yp_remember', email);
-    else       localStorage.removeItem('yp_remember');
-    authMsg('ok', APP.user?.isOwner ? 'Welcome back, Owner! 👑' : 'Signed in! Loading your feed...');
-  } catch(e) {
-    authMsg('err', e.code === 'auth/invalid-credential' ? 'Wrong email or password.' : e.message);
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+
+  if (error) {
+    showAuthMsg('err', error.message === 'Invalid login credentials'
+      ? 'Wrong email or password.'
+      : error.message);
+    setLoad('l', false);
+    return;
   }
+
+  if (remMe) localStorage.setItem('yp_remember', email);
+  else       localStorage.removeItem('yp_remember');
+
+  showAuthMsg('ok', APP.user?.isOwner ? 'Welcome back, Owner! 👑' : 'Signed in! Loading your feed...');
   setLoad('l', false);
 };
 
+// ── REGISTER ──
 window.doRegister = async function() {
   const email = document.getElementById('r-email').value.trim();
   const nick  = document.getElementById('r-nick').value.trim();
   const phone = document.getElementById('r-phone').value.trim();
   const pass  = document.getElementById('r-pass').value;
   const pass2 = document.getElementById('r-pass2').value;
-  if (!email || !nick || !pass || !pass2) return authMsg('err', 'Please fill in all required fields.');
-  if (!validEmail(email))                 return authMsg('err', 'Enter a valid email address.');
-  if (nick.length < 3)                    return authMsg('err', 'Nickname must be at least 3 characters.');
-  if (pass.length < 6)                    return authMsg('err', 'Password must be at least 6 characters.');
-  if (pass !== pass2)                     return authMsg('err', 'Passwords do not match.');
+  clearAuthMsg();
+
+  if (!email || !nick || !pass || !pass2) return showAuthMsg('err', 'Please fill in all required fields.');
+  if (!validEmail(email))                 return showAuthMsg('err', 'Enter a valid email address.');
+  if (nick.length < 3)                    return showAuthMsg('err', 'Nickname must be at least 3 characters.');
+  if (pass.length < 6)                    return showAuthMsg('err', 'Password must be at least 6 characters.');
+  if (pass !== pass2)                     return showAuthMsg('err', 'Passwords do not match.');
+
   setLoad('r', true);
-  try {
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    const uid  = cred.user.uid;
-    const role = email === OWNER_EMAIL ? 'owner' : 'user';
-    await setDoc(doc(db, COL.users, uid), {
-      uid, email, nickname: nick, phone, role,
-      verified: false, blocked: false, onlineStatus: true,
-      createdAt: serverTimestamp(),
-    });
-    await setDoc(doc(db, COL.channels, uid), {
-      ownerUID: uid, nickname: nick,
-      followers: 0, following: 0, totalViews: 0,
-      verified: false, bio: '', createdAt: serverTimestamp(),
-    });
-    authMsg('ok', 'Account created! Your channel is being set up...');
-  } catch(e) {
-    authMsg('err', e.code === 'auth/email-already-in-use' ? 'This email is already registered.' : e.message);
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password: pass,
+    options: {
+      data: { nickname: nick, phone },
+    },
+  });
+
+  if (error) {
+    showAuthMsg('err', error.message.includes('already registered')
+      ? 'This email is already registered.'
+      : error.message);
+    setLoad('r', false);
+    return;
   }
+
+  // Insert profile immediately
+  const role = email === OWNER_EMAIL ? 'admin_super' : ROLES.member;
+  await supabase.from(T.users).insert({
+    id:       data.user.id,
+    email,
+    nickname: nick,
+    phone,
+    role,
+    verified: false,
+    online:   true,
+  });
+
+  // Auto-create channel
+  await supabase.from(T.channels).insert({
+    owner_id:    data.user.id,
+    nickname:    nick,
+    followers:   0,
+    following:   0,
+    total_views: 0,
+    verified:    false,
+    bio:         '',
+  });
+
+  showAuthMsg('ok', 'Account created! Your channel is ready.');
   setLoad('r', false);
 };
 
+// ── LOGOUT ──
 window.doLogout = async function() {
   if (!confirm('Sign out of YID PLUS?')) return;
-  if (APP.user?.uid) {
-    await updateDoc(doc(db, COL.users, APP.user.uid), { onlineStatus: false }).catch(() => {});
+  // Mark offline
+  if (APP.user?.id) {
+    await supabase.from(T.users).update({ online: false }).eq('id', APP.user.id);
   }
-  await signOut(auth);
+  await supabase.auth.signOut();
+  localStorage.removeItem(PAGE_KEY);
   toast('👋 Signed out.');
 };
 
-// Restore saved email on load
-document.addEventListener('DOMContentLoaded', () => {
+// ── ROLE HELPERS (used across the app) ──
+window.userCan = function(action) {
+  if (!APP.user) return false;
+  const role = APP.user.role;
+  switch(action) {
+    case 'delete_content': return ['admin_limited','admin_super','admin_super'.replace('_super','_super')].includes(role);
+    case 'view_pii':       return role === 'admin_super' || APP.user.isOwner;
+    case 'manage_users':   return role === 'admin_super' || APP.user.isOwner;
+    case 'broadcast':      return role === 'admin_super' || APP.user.isOwner;
+    case 'promote_users':  return APP.user.isOwner;
+    default:               return false;
+  }
+};
+
+// ── RESTORE SESSION ON LOAD ──
+document.addEventListener('DOMContentLoaded', async () => {
+  // Restore remembered email
   const saved = localStorage.getItem('yp_remember');
   if (saved) {
     const el = document.getElementById('l-email');
-    if (el) el.value = saved;
-    remMe = true;
-    const tog = document.getElementById('rem-tog');
-    if (tog) tog.classList.add('on');
+    if (el) { el.value = saved; remMe = true; document.getElementById('rem-tog')?.classList.add('on'); }
   }
-  const lp = document.getElementById('l-pass');
-  if (lp) lp.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  // Enter key on password
+  document.getElementById('l-pass')?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  // Check for existing session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    await loadUserProfile(session.user);
+    const lastPage = localStorage.getItem(PAGE_KEY) || 'home';
+    navTo(lastPage);
+  } else {
+    navTo('auth');
+  }
 });
