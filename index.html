@@ -282,7 +282,7 @@ code { background: var(--bg-input); padding: 1px 5px; border-radius: 3px; color:
       </button>
     </div>
 
-    <!-- REGISTER -->
+    <!-- REGISTconfig
     <div id="reg-form" style="display:none">
       <div class="form-group">
         <label>Email Address</label>
@@ -312,11 +312,7 @@ code { background: var(--bg-input); padding: 1px 5px; border-radius: 3px; color:
       </button>
     </div>
 
-    <div class="fb-box">
-      <strong>🔥 Firebase Config Placeholder</strong>
-      Replace with your real config in <code>firebase.config.js</code><br>
-      Owner email locked in: <code>avrumy5872877@gmail.com</code>
-    </div>
+    
   </div>
 </div>
 
@@ -324,20 +320,9 @@ code { background: var(--bg-input); padding: 1px 5px; border-radius: 3px; color:
 /* ── CONSTANTS ── */
 const OWNER_EMAIL = "avrumy5872877@gmail.com";
 
-/* ── FIREBASE PLACEHOLDER CONFIG ── */
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-// When Firebase SDK is loaded:
-// firebase.initializeApp(firebaseConfig);
-// const auth = firebase.auth();
-// const db = firebase.firestore();
-
+/* ── SUPABASE CONNECTION ── */
+import { supabase } from './supabase/client.js';
+window.supabase = supabase;
 /* ── STARS BACKGROUND ── */
 (function() {
   const c = document.getElementById('stars-bg');
