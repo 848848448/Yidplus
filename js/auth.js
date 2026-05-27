@@ -1,3 +1,5 @@
+alert("auth.js is active!");
+window.authTab = function(...) { ... };
 console.log("auth.js loaded!");
 window.authTab = function(tabName) { alert("Auth Tab Clicked: " + tabName); };
 window.doLogin = function() { alert("Login Clicked!"); };
