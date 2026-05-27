@@ -10,10 +10,6 @@
 <!-- ① CSS -->
 <link rel="stylesheet" href="css/style.css">
 
-<!-- ② Supabase CDN — MUST be first, gives window.supabase -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-</head>
-<body>
 
 <!-- ════════════════════════════════
      AUTH SCREEN
@@ -144,7 +140,7 @@
       <button class="cmt-send-btn" onclick="sendCmt()">➤</button>
     </div>
   </div>
-  <!-- Upload Modal -->
+ displaypload Modal -->
   <div class="modal-overlay" id="upload-modal" onclick="if(event.target===this)this.classList.remove('open')">
     <div class="modal-sheet">
       <div class="modal-title">📤 Upload a Short</div>
@@ -531,11 +527,16 @@
 <script src="js/home.js"></script>
 <script src="js/admin.js"></script>
 
-<!-- TO THIS: -->
-<script src="supabase/client.js" defer></script>
-<script src="js/app.js" defer></script>
-<script src="js/auth.js" defer></script>
-<script src="js/home.js" defer></script>
-<script src="js/admin.js" defer></script>
+     <!-- REMOVE from <head>:
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+-->
+
+<!-- PUT THIS at the bottom of <body>, FIRST before all your files: -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="supabase/client.js"></script>
+<script src="js/app.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/home.js"></script>
+<script src="js/admin.js"></script>
 </body>
   </html>
