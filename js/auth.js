@@ -1,6 +1,4 @@
 // js/auth.js — Supabase Auth (Login, Register, Logout, Session Restore)
-import { supabase, T, ROLES, OWNER_EMAIL } from '../supabase/client.js';
-
 const PAGE_KEY = 'yp_page';
 let remMe = !!localStorage.getItem('yp_remember');
 
