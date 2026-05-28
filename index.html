@@ -497,24 +497,6 @@
 ════════════════════════════════ -->
 
 <script>
-  window.onerror = function(msg, url, line) {
-    alert("Error: " + msg + " at line " + line);
-  };
-</script>
-     <script>
-  window.onload = function() {
-    setTimeout(function() {
-      let errors = [];
-      if (typeof window.authTab === 'undefined') errors.push("authTab is missing");
-      if (typeof window.doLogin === 'undefined') errors.push("doLogin is missing");
-      
-      if (errors.length > 0) {
-        alert("CRITICAL ERROR: " + errors.join(", "));
-      } else {
-        alert("SUCCESS: All functions are loaded!");
-      }
-    }, 1000);
-  };
           </script>
      <!-- CHANGE THIS: -->
 <!-- STEP 1: Supabase CDN — must be FIRST -->
