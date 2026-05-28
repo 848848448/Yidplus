@@ -1,5 +1,5 @@
 // js/auth.js — Supabase Auth (Login, Register, Logout, Session Restore)
-const PAGE_KEY = 'yp_page';
+
 let remMe = !!localStorage.getItem('yp_remember');
 
 // ── SESSION OBSERVER — keeps user logged in across refreshes ──
