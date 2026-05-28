@@ -205,7 +205,6 @@ window.doRegister = function () {
           verified:    false,
           bio:         '',
         });
-      });
 }).then(function() {
     // דאָס פירט דעם באנוצער צום הויפט בלאט נאך 2 סעקונדן
     setTimeout(function() {
