@@ -1,94 +1,135 @@
-// js/app.js
-// NO type="module" — pure global vanilla JS
-// PAGE_KEY lives HERE only — auth.js uses window.PAGE_KEY
-'use strict';
+// ================================================
+// js/app.js  —  Router + Global Utilities
+// No PAGE_KEY variable — uses the string 'yp_page' directly
+// No imports/exports — pure window globals
+// ================================================
 
-window.APP      = { user: null, screen: 'auth', prevScreen: 'home' };
-window.PAGE_KEY = 'yp_page';
+window.APP = {
+  user:       null,
+  screen:     'auth',
+  prevScreen: 'home',
+};
 
-window.navTo = function(id) {
-  var prev = APP.screen;
+// ── ROUTER ──────────────────────────────────────
+window.navTo = function (screenId) {
+  var prev   = APP.screen;
   APP.prevScreen = prev;
-  APP.screen     = id;
-  if (id !== 'auth') localStorage.setItem(window.PAGE_KEY, id);
-  document.querySelectorAll('.screen').forEach(function(s) {
+  APP.screen     = screenId;
+
+  // Persist page so refresh restores it
+  if (screenId !== 'auth') {
+    localStorage.setItem('yp_page', screenId);
+  }
+
+  // Animate screens
+  document.querySelectorAll('.screen').forEach(function (s) {
     s.classList.remove('active', 'prev');
   });
+
   var prevEl = document.getElementById('screen-' + prev);
-  var nextEl = document.getElementById('screen-' + id);
+  var nextEl = document.getElementById('screen-' + screenId);
+
   if (prevEl) {
     prevEl.classList.add('prev');
-    setTimeout(function() { prevEl.classList.remove('prev'); }, 350);
+    setTimeout(function () { prevEl.classList.remove('prev'); }, 350);
   }
-  if (nextEl) nextEl.classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(function(b) {
-    b.classList.toggle('active', b.dataset.nav === id);
+  if (nextEl) {
+    nextEl.classList.add('active');
+  }
+
+  // Update bottom nav highlights
+  document.querySelectorAll('.nav-item').forEach(function (btn) {
+    btn.classList.toggle('active', btn.dataset.nav === screenId);
   });
-  var fn = window['init_' + id];
-  if (typeof fn === 'function') fn();
+
+  // Call screen-specific init function if it exists
+  var initFn = window['init_' + screenId];
+  if (typeof initFn === 'function') {
+    initFn();
+  }
 };
 
-window.toast = function(msg) {
-  var t = document.getElementById('app-toast');
-  if (!t) return;
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(t._t);
-  t._t = setTimeout(function() { t.classList.remove('show'); }, 2400);
+// ── TOAST ────────────────────────────────────────
+window.toast = function (msg) {
+  var el = document.getElementById('app-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(function () {
+    el.classList.remove('show');
+  }, 2400);
 };
 
-window.setLoad = function(id, on) {
-  var b = document.getElementById(id + '-btn');
-  var t = document.getElementById(id + '-txt');
-  var d = document.getElementById(id + '-dots');
-  if (b) b.disabled = on;
-  if (t) t.style.display = on ? 'none'  : 'inline';
-  if (d) d.style.display = on ? 'flex'  : 'none';
+// ── BUTTON LOADING STATE ─────────────────────────
+window.setLoad = function (prefix, on) {
+  var btn  = document.getElementById(prefix + '-btn');
+  var txt  = document.getElementById(prefix + '-txt');
+  var dots = document.getElementById(prefix + '-dots');
+  if (btn)  btn.disabled     = on;
+  if (txt)  txt.style.display  = on ? 'none'  : 'inline';
+  if (dots) dots.style.display = on ? 'flex'  : 'none';
 };
 
-window.fmtN = function(n) {
+// ── UTILITIES ────────────────────────────────────
+window.validEmail = function (e) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+};
+
+window.fmtN = function (n) {
   if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
   if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
   return String(n);
 };
-window.validEmail = function(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); };
-window.delay      = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
-window.nowTime    = function() { return new Date().toLocaleTimeString('en', {hour:'2-digit',minute:'2-digit',hour12:false}); };
 
-window.userCan = function(action) {
-  if (!APP.user) return false;
-  var r = APP.user.role;
-  if (action === 'delete_content') return r==='admin_limited'||r==='admin_super'||APP.user.isOwner;
-  if (action === 'view_pii')       return r==='admin_super'||APP.user.isOwner;
-  if (action === 'manage_users')   return r==='admin_super'||APP.user.isOwner;
-  if (action === 'broadcast')      return r==='admin_super'||APP.user.isOwner;
-  if (action === 'promote_users')  return APP.user.isOwner;
-  return false;
+window.nowTime = function () {
+  return new Date().toLocaleTimeString('en', {
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
 };
 
-window.applyRoleUI = function() {
+// ── ROLE-BASED ACCESS CONTROL ────────────────────
+window.userCan = function (action) {
+  if (!APP.user) return false;
+  var role    = APP.user.role;
+  var isOwner = APP.user.isOwner;
+
+  switch (action) {
+    case 'delete_content': return isOwner || role === 'admin_super' || role === 'admin_limited';
+    case 'view_pii':       return isOwner || role === 'admin_super';
+    case 'manage_users':   return isOwner || role === 'admin_super';
+    case 'broadcast':      return isOwner || role === 'admin_super';
+    case 'promote_users':  return isOwner;
+    default:               return false;
+  }
+};
+
+window.applyRoleUI = function () {
   if (!APP.user) return;
-  document.querySelectorAll('[data-role]').forEach(function(el) {
+  document.querySelectorAll('[data-role]').forEach(function (el) {
     el.style.display = userCan(el.dataset.role) ? '' : 'none';
   });
 };
 
-window.openChannel = function(nick) {
+// ── CHANNEL NAV ──────────────────────────────────
+window.openChannel = function (nick) {
   APP.prevScreen = APP.screen;
   if (typeof init_channel === 'function') init_channel(nick);
   navTo('channel');
 };
 
-function checkNight() {
+// ── NIGHT THEME ──────────────────────────────────
+function applyNightTheme() {
   var h = new Date().getHours();
   document.body.classList.toggle('night', h >= 19 || h < 7);
 }
-checkNight();
-setInterval(checkNight, 60000);
+applyNightTheme();
+setInterval(applyNightTheme, 60000);
 
-document.addEventListener('click', function(e) {
-  var m = document.getElementById('ctx-menu');
-  if (m && !m.contains(e.target)) m.classList.remove('open');
-  var a = document.getElementById('attach-sheet');
-  if (a && !a.contains(e.target)) a.classList.remove('open');
+// ── CLOSE MENUS ON OUTSIDE CLICK ─────────────────
+document.addEventListener('click', function (e) {
+  var ctx    = document.getElementById('ctx-menu');
+  var attach = document.getElementById('attach-sheet');
+  if (ctx    && !ctx.contains(e.target))    ctx.classList.remove('open');
+  if (attach && !attach.contains(e.target)) attach.classList.remove('open');
 });
