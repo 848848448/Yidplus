@@ -1,9 +1,3 @@
-alert("auth.js is active!");
-window.authTab = function(...) { ... };
-console.log("auth.js loaded!");
-window.authTab = function(tabName) { alert("Auth Tab Clicked: " + tabName); };
-window.doLogin = function() { alert("Login Clicked!"); };
-window.doLogin = function() { alert("It works!"); };
 // js/auth.js — Supabase Auth (Login, Register, Logout, Session Restore)
 const PAGE_KEY = 'yp_page';
 let remMe = !!localStorage.getItem('yp_remember');
