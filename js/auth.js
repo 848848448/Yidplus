@@ -205,7 +205,23 @@ window.doRegister = function () {
           verified:    false,
           bio:         '',
         });
-      });
+
+           });
+
+}).then(function() {
+
+    // דאָס פירט דעם באנוצער צום הויפט בלאט נאך 2 סעקונדן
+
+    setTimeout(function() {
+
+        navTo('home');
+
+        applyRoleUI();
+
+    }, 2000);
+
+});
+
 
       AUTH_showMsg('ok', 'Account created! Your channel is being set up...');
     })
