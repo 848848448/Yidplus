@@ -66,7 +66,7 @@ window.loadDynamicFeed = function () {
   // ── 2. FETCH FROM SUPABASE ───────────────────────────────
   sb
     .from('posts')
-    .select('id, username, caption, content, likes, comments, created_at')
+    .select('*')
     .order('created_at', { ascending: false })
     .limit(20)
     .then(function (res) {
