@@ -400,5 +400,24 @@ function timeAgo(isoString) {
   if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
   return Math.floor(diff/86400) + 'd ago';
 }
+window.publishPost = async function() {
+  const content = document.getElementById('new-post-content').value;
+  if (!content) {
+    alert("ביטע שרייב עפעס!");
+    return;
+  }
 
+  const { data, error } = await supabase
+    .from('posts')
+    .insert([{ content: content, username: 'Yidplus User' }]);
+
+  if (error) {
+    console.error("Error inserting post:", error);
+    alert("טעות: " + error.message);
+  } else {
+    alert("פאוסט ארויף!");
+    document.getElementById('new-post-content').value = '';
+    loadDynamicFeed(); // דאס לאדנט איבער דעם פיעד אז דו זאלסט זען דעם נייעם פאוסט
+  }
+};
 console.log('YID PLUS: home.js loaded ✓');
