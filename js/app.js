@@ -1,135 +1,104 @@
-// ================================================
-// js/app.js  —  Router + Global Utilities
-// No PAGE_KEY variable — uses the string 'yp_page' directly
-// No imports/exports — pure window globals
-// ================================================
+// js/app.js — Global State + Router + Utilities
+// Loads after supabase/client.js
 
-window.APP = {
-  user:       null,
-  screen:     'auth',
-  prevScreen: 'home',
+window.STATE = { user:null, screen:'auth', prevScreen:'home', settings:{}, initialized:false };
+window.APP   = window.STATE; // alias
+
+// ── ROUTER ──
+window.navTo = function(id) {
+  var prev = STATE.screen;
+  STATE.prevScreen = prev;
+  STATE.screen     = id;
+  if (id !== 'auth') localStorage.setItem('yp_page', id);
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active','prev'); });
+  var p = document.getElementById('screen-'+prev);
+  var n = document.getElementById('screen-'+id);
+  if (p){ p.classList.add('prev'); setTimeout(function(){ p.classList.remove('prev'); }, 350); }
+  if (n) n.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(b){ b.classList.toggle('active', b.dataset.nav===id); });
+  var fn = window['init_'+id];
+  if (typeof fn === 'function') fn();
 };
 
-// ── ROUTER ──────────────────────────────────────
-window.navTo = function (screenId) {
-  var prev   = APP.screen;
-  APP.prevScreen = prev;
-  APP.screen     = screenId;
-
-  // Persist page so refresh restores it
-  if (screenId !== 'auth') {
-    localStorage.setItem('yp_page', screenId);
-  }
-
-  // Animate screens
-  document.querySelectorAll('.screen').forEach(function (s) {
-    s.classList.remove('active', 'prev');
-  });
-
-  var prevEl = document.getElementById('screen-' + prev);
-  var nextEl = document.getElementById('screen-' + screenId);
-
-  if (prevEl) {
-    prevEl.classList.add('prev');
-    setTimeout(function () { prevEl.classList.remove('prev'); }, 350);
-  }
-  if (nextEl) {
-    nextEl.classList.add('active');
-  }
-
-  // Update bottom nav highlights
-  document.querySelectorAll('.nav-item').forEach(function (btn) {
-    btn.classList.toggle('active', btn.dataset.nav === screenId);
-  });
-
-  // Call screen-specific init function if it exists
-  var initFn = window['init_' + screenId];
-  if (typeof initFn === 'function') {
-    initFn();
-  }
-};
-
-// ── TOAST ────────────────────────────────────────
-window.toast = function (msg) {
+// ── TOAST ──
+window.toast = function(msg, ms) {
   var el = document.getElementById('app-toast');
   if (!el) return;
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(el._timer);
-  el._timer = setTimeout(function () {
-    el.classList.remove('show');
-  }, 2400);
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(el._t); el._t = setTimeout(function(){ el.classList.remove('show'); }, ms||2400);
 };
 
-// ── BUTTON LOADING STATE ─────────────────────────
-window.setLoad = function (prefix, on) {
-  var btn  = document.getElementById(prefix + '-btn');
-  var txt  = document.getElementById(prefix + '-txt');
-  var dots = document.getElementById(prefix + '-dots');
-  if (btn)  btn.disabled     = on;
-  if (txt)  txt.style.display  = on ? 'none'  : 'inline';
-  if (dots) dots.style.display = on ? 'flex'  : 'none';
+// ── BUTTON LOADER ──
+window.setLoad = function(prefix, on) {
+  var b=document.getElementById(prefix+'-btn'), t=document.getElementById(prefix+'-txt'), d=document.getElementById(prefix+'-dots');
+  if(b) b.disabled=on; if(t) t.style.display=on?'none':'inline'; if(d) d.style.display=on?'flex':'none';
 };
 
-// ── UTILITIES ────────────────────────────────────
-window.validEmail = function (e) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+// ── UTILS ──
+window.validEmail = function(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); };
+window.fmtN = function(n){ return n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,'')+'M':n>=1e3?(n/1e3).toFixed(1).replace(/\.0$/,'')+'K':String(n); };
+window.nowTime = function(){ return new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}); };
+
+// ── ROLE CHECKS ──
+window.isOwner      = function(){ return !!(STATE.user && STATE.user.email === OWNER_EMAIL); };
+window.isSuperAdmin = function(){ return !!(STATE.user && (STATE.user.role==='admin_super' || isOwner())); };
+window.isAnyAdmin   = function(){ return !!(STATE.user && (STATE.user.role==='admin_super'||STATE.user.role==='admin_limited'||isOwner())); };
+window.userCan = function(action) {
+  if (!STATE.user) return false;
+  if (action==='delete_content') return isAnyAdmin();
+  if (action==='view_pii')       return isSuperAdmin();
+  if (action==='manage_users')   return isSuperAdmin();
+  if (action==='broadcast')      return isSuperAdmin();
+  if (action==='promote_users')  return isOwner();
+  if (action==='edit_settings')  return isSuperAdmin();
+  return false;
 };
 
-window.fmtN = function (n) {
-  if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
-  if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
-  return String(n);
+// ── APPLY ROLE UI ──
+window.applyRoleUI = function() {
+  if (!STATE.user) return;
+  document.querySelectorAll('[data-role="admin"]').forEach(function(el){ el.style.display=isAnyAdmin()?'':'none'; });
+  document.querySelectorAll('[data-role="super"]').forEach(function(el){ el.style.display=isSuperAdmin()?'':'none'; });
+  document.querySelectorAll('[data-role="owner"]').forEach(function(el){ el.style.display=isOwner()?'':'none'; });
+  var al=document.getElementById('admin-gate-link'); if(al) al.style.display=isAnyAdmin()?'flex':'none';
+  document.querySelectorAll('.user-nickname-display').forEach(function(el){ el.textContent='@'+(STATE.user.nickname||STATE.user.email.split('@')[0]); });
 };
 
-window.nowTime = function () {
-  return new Date().toLocaleTimeString('en', {
-    hour: '2-digit', minute: '2-digit', hour12: false,
+// ── APP SETTINGS (from Supabase 'settings' table) ──
+window.loadAppSettings = function() {
+  return sb.from('settings').select('key,value').then(function(res) {
+    if (res.error || !res.data) return;
+    res.data.forEach(function(row){ STATE.settings[row.key] = row.value; });
+    applyAppSettings();
   });
 };
-
-// ── ROLE-BASED ACCESS CONTROL ────────────────────
-window.userCan = function (action) {
-  if (!APP.user) return false;
-  var role    = APP.user.role;
-  var isOwner = APP.user.isOwner;
-
-  switch (action) {
-    case 'delete_content': return isOwner || role === 'admin_super' || role === 'admin_limited';
-    case 'view_pii':       return isOwner || role === 'admin_super';
-    case 'manage_users':   return isOwner || role === 'admin_super';
-    case 'broadcast':      return isOwner || role === 'admin_super';
-    case 'promote_users':  return isOwner;
-    default:               return false;
+window.applyAppSettings = function() {
+  var s = STATE.settings;
+  if (s.app_title){
+    document.querySelectorAll('.app-title-display').forEach(function(el){ el.textContent=s.app_title; });
+    document.title = s.app_title;
   }
-};
-
-window.applyRoleUI = function () {
-  if (!APP.user) return;
-  document.querySelectorAll('[data-role]').forEach(function (el) {
-    el.style.display = userCan(el.dataset.role) ? '' : 'none';
+  if (s.primary_color) document.documentElement.style.setProperty('--gold', s.primary_color);
+  if (s.gold_light)    document.documentElement.style.setProperty('--gold-l', s.gold_light);
+  ['home','shorts','music','chats','settings'].forEach(function(k){
+    if (s['nav_'+k]) document.querySelectorAll('[data-nav-label="'+k+'"]').forEach(function(el){ el.textContent=s['nav_'+k]; });
   });
 };
 
-// ── CHANNEL NAV ──────────────────────────────────
-window.openChannel = function (nick) {
-  APP.prevScreen = APP.screen;
-  if (typeof init_channel === 'function') init_channel(nick);
-  navTo('channel');
+// ── NIGHT THEME ──
+window.applyNightTheme = function() {
+  var h=new Date().getHours(), auto=STATE.settings.auto_night!=='false';
+  if(auto) document.body.classList.toggle('night',h>=19||h<7);
 };
+applyNightTheme(); setInterval(applyNightTheme,60000);
 
-// ── NIGHT THEME ──────────────────────────────────
-function applyNightTheme() {
-  var h = new Date().getHours();
-  document.body.classList.toggle('night', h >= 19 || h < 7);
-}
-applyNightTheme();
-setInterval(applyNightTheme, 60000);
+// ── CHANNEL NAV ──
+window.openChannel = function(nick) { STATE.prevScreen=STATE.screen; if(typeof init_channel==='function')init_channel(nick); else navTo('channel'); };
 
-// ── CLOSE MENUS ON OUTSIDE CLICK ─────────────────
-document.addEventListener('click', function (e) {
-  var ctx    = document.getElementById('ctx-menu');
-  var attach = document.getElementById('attach-sheet');
-  if (ctx    && !ctx.contains(e.target))    ctx.classList.remove('open');
-  if (attach && !attach.contains(e.target)) attach.classList.remove('open');
+// ── CLOSE MENUS ON OUTSIDE CLICK ──
+document.addEventListener('click',function(e){
+  var m=document.getElementById('ctx-menu'); if(m&&!m.contains(e.target)) m.classList.remove('open');
+  var a=document.getElementById('attach-sheet'); if(a&&!a.contains(e.target)) a.classList.remove('open');
 });
+
+console.log('YID PLUS: app.js loaded ✓');
