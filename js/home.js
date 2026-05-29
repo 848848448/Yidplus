@@ -1,78 +1,404 @@
-// js/home.js — Home Dashboard with Supabase Realtime broadcasts
-import { supabase, T } from '../supabase/client.js';
+// ============================================================
+// js/home.js  —  Home Dashboard
+// Dynamic feed from Supabase 'posts' table
+// States: loading / empty / error / success
+// NO static buildFeed() — only loadDynamicFeed()
+// ============================================================
 
-const STATUSES = [
-  { nick:'MosheMusic', emoji:'🎹', slides:[{bg:'#1a0a2e',text:'New niggun dropping Friday! 🎵',color:'#F0D080'},{bg:'#0a1a1a',text:'Studio was fire 🎧',color:'#5DCAA5'}], time:'5m', viewed:false },
+// ── LOCAL STATE ──────────────────────────────────────────
+var HOME_adIdx    = 0;
+var HOME_adRaf    = null;
+var HOME_adStart  = 0;
+var HOME_svUser   = null;
+var HOME_svSlide  = 0;
+var HOME_svTimer  = null;
+var HOME_bcChan   = null;
+var HOME_feedSub  = null;
+
+// ── STATIC DATA (Statuses + Ads stay local) ───────────────
+var HOME_STATUSES = [
+  { nick:'MosheMusic', emoji:'🎹', slides:[{bg:'#1a0a2e',text:'New niggun dropping Friday! 🎵',color:'#F0D080'},{bg:'#0a1a1a',text:'Studio session was fire 🎧',color:'#5DCAA5'}], time:'5m', viewed:false },
   { nick:'RebbeVibes', emoji:'📖', slides:[{bg:'#1a0f00',text:'Torah thought: Be kind 💛',color:'#F0D080'}], time:'12m', viewed:false },
   { nick:'ShlomoBeats',emoji:'🎤', slides:[{bg:'#001020',text:'Live performance SUNDAY! 🎤',color:'#85B7EB'}], time:'2h',  viewed:false },
   { nick:'KosherChef', emoji:'🥘', slides:[{bg:'#1a0a0a',text:'Cholent reveal TOMORROW 👀',color:'#F09595'}], time:'3h',  viewed:true  },
 ];
-const ADS = [
-  { title:"Moshe's Judaica",  sub:"Free worldwide shipping!",          icon:"🕎",  bg:"#1a1000", dur:5000 },
-  { title:"Kosher Vacations", sub:"Exclusive glatt kosher resorts",     icon:"🏖️", bg:"#001a1a", dur:6000 },
-  { title:"Torah Academy",    sub:"Learn with the best · Free trial!",  icon:"📚", bg:"#0a001a", dur:5000 },
+var HOME_ADS = [
+  { title:"Moshe's Judaica",  sub:"Free worldwide shipping!",           icon:"🕎",  bg:"#1a1000", dur:5000 },
+  { title:"Kosher Vacations", sub:"Exclusive glatt kosher resorts",      icon:"🏖️", bg:"#001a1a", dur:6000 },
+  { title:"Torah Academy",    sub:"Learn with the best · Free trial!",   icon:"📚", bg:"#0a001a", dur:5000 },
 ];
 
-let adIdx=0, adRaf=null, adStart=0, svUser=null, svSlide=0, svTimer=null, bcChannel=null;
-
-window.init_home = function() {
-  buildStatusRow(); buildAds(); buildShortsPrev(); buildChannelsPrev();
-  loadDynamicFeed(); // <--- דאס לויפט יעצט לעצט, און עס וועט אויפפיקן די פאסטס!
+// ── INIT (called by router) ───────────────────────────────
+window.init_home = function () {
+  console.log('[HOME] init_home() called');
+  buildStatusRow();
+  buildAds();
+  buildShortsPrev();
+  buildChannelsPrev();
+  loadDynamicFeed();      // ← Supabase feed
   listenBroadcasts();
-  applyRoleUI();
+  if (typeof applyRoleUI  === 'function') applyRoleUI();
+  if (typeof loadAppSettings === 'function') loadAppSettings();
 };
 
-/* ── BROADCASTS ── */
-async function listenBroadcasts() {
-  const { data } = await supabase.from('broadcasts').select('text').order('created_at',{ascending:false}).limit(1);
-  if (data?.[0]) showBroadcast(data[0].text);
-  if (bcChannel) supabase.removeChannel(bcChannel);
-  bcChannel = supabase.channel('public:broadcasts')
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'broadcasts'}, p => showBroadcast(p.new.text))
-    .subscribe();
+// ══════════════════════════════════════════════════════════
+//  DYNAMIC FEED — reads from Supabase 'posts' table
+//  Columns expected: id, username, caption, content,
+//                    likes (int), comments (int),
+//                    created_at (timestamp)
+//  'content' can be a URL or an emoji for preview
+// ══════════════════════════════════════════════════════════
+window.loadDynamicFeed = function () {
+  var feed = document.getElementById('home-feed');
+  if (!feed) {
+    console.warn('[HOME] #home-feed element not found in DOM');
+    return;
+  }
+
+  // ── 1. LOADING STATE ────────────────────────────────────
+  console.log('[HOME] loadDynamicFeed() → fetching posts...');
+  feed.innerHTML =
+    '<div class="feed-state">' +
+      '<div class="feed-spinner"></div>' +
+      '<div class="feed-state-text">Loading posts...</div>' +
+    '</div>';
+
+  // ── 2. FETCH FROM SUPABASE ───────────────────────────────
+  sb
+    .from('posts')
+    .select('id, username, caption, content, likes, comments, created_at')
+    .order('created_at', { ascending: false })
+    .limit(20)
+    .then(function (res) {
+
+      console.log('[HOME] Supabase response:', res);
+
+      // ── 3. ERROR STATE ─────────────────────────────────
+      if (res.error) {
+        console.error('[HOME] Supabase error:', res.error.message);
+        feed.innerHTML =
+          '<div class="feed-state feed-state-error">' +
+            '<div style="font-size:2rem">⚠️</div>' +
+            '<div class="feed-state-text">Could not load posts.</div>' +
+            '<div class="feed-state-sub">' + res.error.message + '</div>' +
+            '<button class="feed-retry-btn" onclick="loadDynamicFeed()">Try Again</button>' +
+          '</div>';
+        return;
+      }
+
+      var posts = res.data || [];
+      console.log('[HOME] Posts received:', posts.length);
+
+      // ── 4. EMPTY STATE ─────────────────────────────────
+      if (posts.length === 0) {
+        console.log('[HOME] No posts in database yet');
+        feed.innerHTML =
+          '<div class="feed-state">' +
+            '<div style="font-size:2.5rem">📭</div>' +
+            '<div class="feed-state-text">No posts yet</div>' +
+            '<div class="feed-state-sub">Be the first to share something!</div>' +
+          '</div>';
+        return;
+      }
+
+      // ── 5. SUCCESS — RENDER POSTS ──────────────────────
+      console.log('[HOME] Rendering ' + posts.length + ' posts');
+      feed.innerHTML = '';
+      posts.forEach(function (p) {
+        feed.appendChild(buildPostCard(p));
+      });
+
+      // ── 6. REALTIME SUBSCRIPTION ──────────────────────
+      // Listen for new posts and prepend them live
+      if (HOME_feedSub) sb.removeChannel(HOME_feedSub);
+      HOME_feedSub = sb
+        .channel('public:posts')
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'posts' },
+          function (payload) {
+            console.log('[HOME] New post received via realtime:', payload.new);
+            var card = buildPostCard(payload.new);
+            card.style.animation = 'fadeIn .5s ease';
+            feed.insertBefore(card, feed.firstChild);
+          }
+        )
+        .subscribe(function (status) {
+          console.log('[HOME] Realtime feed subscription status:', status);
+        });
+    })
+    .catch(function (err) {
+      // Unexpected JS error (not a Supabase error)
+      console.error('[HOME] Unexpected fetch error:', err);
+      feed.innerHTML =
+        '<div class="feed-state feed-state-error">' +
+          '<div style="font-size:2rem">❌</div>' +
+          '<div class="feed-state-text">Something went wrong.</div>' +
+          '<div class="feed-state-sub">' + (err.message || 'Unknown error') + '</div>' +
+          '<button class="feed-retry-btn" onclick="loadDynamicFeed()">Try Again</button>' +
+        '</div>';
+    });
+};
+
+// ── BUILD ONE POST CARD ───────────────────────────────────
+function buildPostCard(p) {
+  var article = document.createElement('article');
+  article.className  = 'feed-post';
+  article.dataset.id = p.id;
+
+  var nick    = p.username || 'Anonymous';
+  var caption = p.caption  || '';
+  var likes   = p.likes    || 0;
+  var cmts    = p.comments || 0;
+  var emoji   = /^[\p{Emoji}]+$/u.test(p.content||'') ? p.content : '🎬';
+  var timeStr = p.created_at ? timeAgo(p.created_at) : '';
+
+  article.innerHTML =
+    // Header
+    '<div style="display:flex;align-items:center;gap:.6rem;padding:.75rem;cursor:pointer" onclick="openChannel(\'' + nick + '\')">' +
+      '<div style="width:38px;height:38px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1.1rem;border:1px solid var(--border);flex-shrink:0">' +
+        (nick.charAt(0).toUpperCase()) +
+      '</div>' +
+      '<div>' +
+        '<div style="font-size:.85rem;font-weight:700">@' + escHtml(nick) + '</div>' +
+        '<div style="font-size:.65rem;color:var(--muted)">' + escHtml(timeStr) + '</div>' +
+      '</div>' +
+    '</div>' +
+    // Thumbnail
+    '<div class="post-thumb" onclick="toast(\'Opening post...\')">' +
+      emoji +
+      '<div class="post-play">▶</div>' +
+    '</div>' +
+    // Caption
+    (caption ? '<div style="padding:.6rem .75rem;font-size:.82rem;color:var(--muted);border-bottom:.5px solid var(--border)">' + escHtml(caption) + '</div>' : '') +
+    // Actions
+    '<div style="display:flex;gap:1rem;padding:.75rem">' +
+      '<button class="post-action" id="like-btn-' + p.id + '" onclick="handleLike(this,\'' + p.id + '\',' + likes + ')">' +
+        '🤍 ' + fmtN(likes) +
+      '</button>' +
+      '<button class="post-action" onclick="toast(\'Comments coming soon\')">' +
+        '💬 ' + fmtN(cmts) +
+      '</button>' +
+      '<button class="post-action" onclick="copyPostLink(\'' + p.id + '\')">' +
+        '📤 Share' +
+      '</button>' +
+      // Delete button — only visible to admins
+      (isAnyAdmin() ?
+        '<button class="post-action" style="color:var(--red);margin-left:auto" data-role="admin" onclick="adminDeletePost(\'' + p.id + '\')">' +
+          '🗑 Delete' +
+        '</button>' : '') +
+    '</div>';
+
+  return article;
+}
+
+// ── POST ACTIONS ─────────────────────────────────────────
+window.handleLike = function (btn, postId, currentLikes) {
+  var liked   = btn.classList.toggle('liked');
+  var newCount = liked ? currentLikes + 1 : currentLikes - 1;
+  btn.innerHTML = (liked ? '❤️ ' : '🤍 ') + fmtN(newCount);
+  // Update Supabase
+  sb.from('posts').update({ likes: newCount }).eq('id', postId)
+    .then(function (res) {
+      if (res.error) console.warn('[HOME] Like update error:', res.error.message);
+    });
+};
+
+window.copyPostLink = function (postId) {
+  var url = window.location.origin + window.location.pathname + '?post=' + postId;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(function () { toast('🔗 Link copied!'); });
+  } else {
+    toast('🔗 ' + url);
+  }
+};
+
+window.adminDeletePost = function (postId) {
+  if (!isAnyAdmin()) return;
+  if (!confirm('Delete this post permanently?')) return;
+  sb.from('posts').delete().eq('id', postId).then(function (res) {
+    if (res.error) return toast('❌ Delete failed: ' + res.error.message);
+    var card = document.querySelector('[data-id="' + postId + '"]');
+    if (card) card.remove();
+    toast('🗑 Post deleted.');
+  });
+};
+
+// ── BROADCASTS ───────────────────────────────────────────
+function listenBroadcasts() {
+  sb.from('broadcasts').select('text').order('created_at',{ascending:false}).limit(1)
+    .then(function(res) {
+      if (res.data && res.data[0]) showBroadcast(res.data[0].text);
+    });
+  if (HOME_bcChan) sb.removeChannel(HOME_bcChan);
+  HOME_bcChan = sb.channel('public:broadcasts')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'broadcasts'},function(p){
+      showBroadcast(p.new.text);
+    }).subscribe();
 }
 function showBroadcast(text) {
-  const bar = document.getElementById('broadcast-bar'); if (!bar) return;
-  bar.innerHTML = `<div style="margin:.5rem .75rem;background:rgba(201,168,76,.08);border:.5px solid var(--border2);border-radius:10px;padding:.65rem 1rem;display:flex;align-items:flex-start;gap:.6rem"><span style="font-size:1rem;flex-shrink:0">📢</span><span style="font-size:.8rem;color:var(--gold-l);line-height:1.4;flex:1">${text}</span><button style="background:none;border:none;color:var(--muted);cursor:pointer" onclick="this.parentElement.remove()">✕</button></div>`;
+  var bar = document.getElementById('broadcast-bar');
+  if (!bar) return;
+  bar.innerHTML =
+    '<div style="margin:.5rem .75rem;background:rgba(201,168,76,.08);border:.5px solid var(--border2);border-radius:10px;padding:.65rem 1rem;display:flex;align-items:flex-start;gap:.6rem">' +
+      '<span style="font-size:1rem;flex-shrink:0">📢</span>' +
+      '<span style="font-size:.8rem;color:var(--gold-l);line-height:1.4;flex:1">' + escHtml(text) + '</span>' +
+      '<button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem" onclick="this.parentElement.remove()">✕</button>' +
+    '</div>';
 }
 
-/* ── STATUS ROW & ADS (בלייבט די זעלבע) ── */
-function buildStatusRow() { /* ... */ }
-function buildAds() { /* ... */ }
-function runAd() { /* ... */ }
+// ── STATUS ROW ───────────────────────────────────────────
+function buildStatusRow() {
+  var row = document.getElementById('status-row');
+  if (!row) return;
+  row.innerHTML =
+    '<div class="status-item" onclick="toast(\'Upload a status!\')">' +
+      '<div class="status-ring mine"><div class="status-inner">👤<div class="status-plus">+</div></div></div>' +
+      '<div class="status-name">My Status</div>' +
+    '</div>';
+  HOME_STATUSES.forEach(function (s, i) {
+    var el = document.createElement('div');
+    el.className = 'status-item';
+    el.onclick   = function () { HOME_openSV(i); };
+    el.innerHTML =
+      '<div class="status-ring' + (s.viewed ? ' viewed' : '') + '">' +
+        '<div class="status-inner">' + s.emoji + '</div>' +
+      '</div>' +
+      '<div class="status-name">' + escHtml(s.nick) + '</div>';
+    row.appendChild(el);
+  });
+}
 
-/* ── DYNAMIC FEED (פארעכט) ── */
-async function loadDynamicFeed() {
-  const feed = document.getElementById('home-feed');
-  if (!feed) return;
-  
-  const { data, error } = await supabase
-    .from('posts')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) { console.error('Error fetching posts:', error); return; }
-
-  if (data) {
-    feed.innerHTML = ''; 
-    data.forEach(p => {
-      const post = document.createElement('article');
-      post.className = 'feed-post';
-      post.innerHTML = `
-        <div style="padding:10px;"><b>${p.username || 'User'}</b></div>
-        <div style="padding:20px; background:#222; text-align:center;">${p.content || ''}</div>
-        <div style="padding:10px; font-size:0.8rem; color:var(--muted);">${p.caption || ''}</div>
-      `;
-      feed.appendChild(post);
-    });
+// ── ADS BANNER ───────────────────────────────────────────
+function buildAds() {
+  var frame = document.getElementById('ad-frame');
+  var dots  = document.getElementById('ad-dots');
+  if (!frame || !dots) return;
+  HOME_ADS.forEach(function (ad, i) {
+    var s = document.createElement('div');
+    s.className        = 'ad-slide' + (i===0?' active':'');
+    s.style.background = ad.bg;
+    s.innerHTML =
+      '<div style="font-size:2.5rem">' + ad.icon + '</div>' +
+      '<div class="ad-badge">Sponsored</div>' +
+      '<div class="ad-title">' + ad.title + '</div>' +
+      '<div class="ad-sub">' + ad.sub + '</div>';
+    frame.appendChild(s);
+    var d = document.createElement('div');
+    d.className = 'ad-dot' + (i===0?' active':'');
+    dots.appendChild(d);
+  });
+  HOME_runAd();
+}
+function HOME_runAd() {
+  cancelAnimationFrame(HOME_adRaf);
+  HOME_adStart = performance.now();
+  var dur = HOME_ADS[HOME_adIdx].dur;
+  var bar = document.getElementById('ad-prog');
+  function tick(now) {
+    var pct = Math.min(100, (now - HOME_adStart) / dur * 100);
+    if (bar) bar.style.width = pct + '%';
+    if (pct < 100) {
+      HOME_adRaf = requestAnimationFrame(tick);
+    } else {
+      HOME_adIdx = (HOME_adIdx + 1) % HOME_ADS.length;
+      document.querySelectorAll('#ad-frame .ad-slide').forEach(function(s,i){ s.classList.toggle('active',i===HOME_adIdx); });
+      document.querySelectorAll('#ad-dots  .ad-dot' ).forEach(function(d,i){ d.classList.toggle('active',i===HOME_adIdx); });
+      HOME_runAd();
+    }
   }
+  HOME_adRaf = requestAnimationFrame(tick);
 }
 
-/* ── STATUS VIEWER (בלייבט די זעלבע) ── */
-function openSV(i){ /* ... */ }
-window.openStatusViewer=openSV;
-function showSVSlide(idx){ /* ... */ }
-window.svNext=()=>{/* ... */};
-window.svPrev=()=>{/* ... */};
-window.closeSV=()=>{/* ... */};
-window.svMute=()=>{/* ... */};
+// ── SHORTS PREVIEW ───────────────────────────────────────
+function buildShortsPrev() {
+  var row = document.getElementById('home-shorts');
+  if (!row) return; row.innerHTML = '';
+  [{e:'🎹',v:'12.4K',n:'@Moshe'},{e:'🕺',v:'8.7K',n:'@YidDancer'},{e:'🎤',v:'22K',n:'@Shlomo'},
+   {e:'🥘',v:'5.1K',n:'@Chef'}, {e:'📖',v:'3.2K',n:'@Rebbe'},    {e:'🎻',v:'9.8K',n:'@Fiddle'}]
+  .forEach(function(s) {
+    var c = document.createElement('div');
+    c.className = 'short-prev-card'; c.onclick = function(){ navTo('shorts'); };
+    c.innerHTML =
+      '<div style="width:100%;height:100%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:2.5rem">' + s.e + '</div>' +
+      '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.75),transparent);display:flex;flex-direction:column;justify-content:flex-end;padding:.5rem">' +
+        '<div style="font-size:.68rem;color:var(--gold-l)">' + s.n + '</div>' +
+        '<div style="font-size:.65rem;color:rgba(255,255,255,.8)">👁 ' + s.v + '</div>' +
+      '</div>' +
+      '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:32px;height:32px;border-radius:50%;background:rgba(201,168,76,.8);display:flex;align-items:center;justify-content:center">▶</div>';
+    row.appendChild(c);
+  });
+}
+
+// ── CHANNELS PREVIEW ─────────────────────────────────────
+function buildChannelsPrev() {
+  var row = document.getElementById('home-channels');
+  if (!row) return; row.innerHTML = '';
+  [{e:'🎹',n:'MosheMusic',f:'12.4K',v:true},{e:'🎤',n:'ShlomoBeats',f:'8.1K',v:false},
+   {e:'📖',n:'RebbeVibes',f:'31K',  v:true},{e:'🥘',n:'KosherFood', f:'5.6K',v:false}]
+  .forEach(function(c) {
+    var card = document.createElement('div');
+    card.className = 'ch-preview-card'; card.onclick = function(){ openChannel(c.n); };
+    card.innerHTML =
+      '<div style="width:50px;height:50px;border-radius:50%;background:var(--bg3);margin:0 auto .5rem;display:flex;align-items:center;justify-content:center;font-size:1.5rem;border:1.5px solid var(--border);position:relative">' +
+        c.e + (c.v ? '<div style="position:absolute;top:-6px;right:-4px;font-size:.8rem">👑</div>' : '') +
+      '</div>' +
+      '<div style="font-size:.8rem;font-weight:700">' + c.n + '</div>' +
+      '<div style="font-size:.65rem;color:var(--muted)">' + c.f + ' followers</div>' +
+      '<button class="follow-pill" onclick="event.stopPropagation();this.classList.toggle(\'following\');this.textContent=this.classList.contains(\'following\')?\'✓ Following\':\'+ Follow\'">+ Follow</button>';
+    row.appendChild(card);
+  });
+}
+
+// ── STATUS VIEWER ────────────────────────────────────────
+function HOME_openSV(i) {
+  HOME_svUser  = HOME_STATUSES[i];
+  HOME_svSlide = 0;
+  HOME_STATUSES[i].viewed = true;
+  var rings = document.querySelectorAll('#status-row .status-ring');
+  if (rings[i + 1]) rings[i + 1].classList.add('viewed');
+  var el = document.getElementById('sv-overlay');
+  if (!el) return;
+  document.getElementById('sv-avatar').textContent = HOME_svUser.emoji;
+  document.getElementById('sv-nick').textContent   = '@' + HOME_svUser.nick;
+  document.getElementById('sv-time').textContent   = HOME_svUser.time + ' ago';
+  el.classList.add('open');
+  HOME_showSVSlide(0);
+}
+window.openStatusViewer = HOME_openSV;
+
+function HOME_showSVSlide(idx) {
+  clearTimeout(HOME_svTimer);
+  var sl   = HOME_svUser.slides[idx];
+  var el   = document.getElementById('sv-slide');
+  var bars = document.getElementById('sv-bars');
+  if (!el || !bars) return;
+  bars.innerHTML = HOME_svUser.slides.map(function(_, j) {
+    return '<div class="sv-bar"><div class="sv-bar-fill ' + (j<idx?'done':j===idx?'running':'') + '"></div></div>';
+  }).join('');
+  el.style.opacity    = '0';
+  el.style.background = sl.bg    || '#111';
+  el.style.color      = sl.color || '#fff';
+  setTimeout(function() { el.textContent = sl.text || ''; el.style.opacity = '1'; }, 120);
+  HOME_svTimer = setTimeout(function() { window.svNext(); }, 5000);
+}
+window.svNext  = function() { if(HOME_svUser&&HOME_svSlide<HOME_svUser.slides.length-1) HOME_showSVSlide(++HOME_svSlide); else closeSV(); };
+window.svPrev  = function() { if(HOME_svUser&&HOME_svSlide>0) HOME_showSVSlide(--HOME_svSlide); };
+window.closeSV = function() { var el=document.getElementById('sv-overlay'); if(el)el.classList.remove('open'); clearTimeout(HOME_svTimer); };
+window.svMute  = function() { var b=document.getElementById('sv-mute'); if(b)b.textContent=b.textContent==='🔊'?'🔇':'🔊'; };
+
+// ── HELPERS ──────────────────────────────────────────────
+function escHtml(str) {
+  return String(str||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function timeAgo(isoString) {
+  var diff = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
+  if (diff <    60) return diff + 's ago';
+  if (diff <  3600) return Math.floor(diff/60)  + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  return Math.floor(diff/86400) + 'd ago';
+}
+
+console.log('YID PLUS: home.js loaded ✓');
