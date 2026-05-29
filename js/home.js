@@ -16,6 +16,7 @@ const ADS = [
 let adIdx=0, adRaf=null, adStart=0, svUser=null, svSlide=0, svTimer=null, bcChannel=null;
 
 window.init_home = function() {
+  loadDynamicFeed();
   buildStatusRow(); buildAds(); buildShortsPrev(); buildChannelsPrev(); buildFeed();
   listenBroadcasts();
   applyRoleUI();
@@ -77,3 +78,24 @@ window.svNext=()=>{svUser&&svSlide<svUser.slides.length-1?showSVSlide(++svSlide)
 window.svPrev=()=>{svUser&&svSlide>0?showSVSlide(--svSlide):null;};
 window.closeSV=()=>{document.getElementById('sv-overlay').classList.remove('open');clearTimeout(svTimer);};
 window.svMute=()=>{const b=document.getElementById('sv-mute');if(b)b.textContent=b.textContent==='🔊'?'🔇':'🔊';};
+
+// נייע פונקציע פאר סופאבייס פיעד
+async function loadDynamicFeed() {
+  const feed = document.getElementById('home-feed');
+  if (!feed) return;
+  
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (!error && data) {
+    feed.innerHTML = ''; // מעק די אלטע סטאטישע זאכן
+    data.forEach(p => {
+      const post = document.createElement('article');
+      post.className = 'feed-post';
+      post.innerHTML = `<div><b>${p.username || 'User'}</b></div><div>${p.content || ''}</div>`;
+      feed.appendChild(post);
+    });
+  }
+}
