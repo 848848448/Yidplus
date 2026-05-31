@@ -599,13 +599,41 @@ function closeUpload(e) {
   }
 }
 function triggerFileUpload() { document.getElementById('file-input').click(); }
-function handleUpload(e) {
-  const file = e.target.files[0];
-  if (file) {
+async function handleUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
     closeUpload();
-    alert(`Uploading "${file.name}" to Firebase Storage...\n\n✅ Video uploaded!\n✅ Added to your channel Shorts tab automatically.`);
+    alert(`Uploading "${file.name}" to Supabase Storage...`);
+
+    const fileName = `${Date.now()}_${file.name}`;
+    
+    // 🚀 לאָדן אַרויף דעם פֿייל צונעם נייעם 'shorts' באַקעט אין Supabase
+    const { data, error } = await window.sb.storage
+        .from('shorts')
+        .upload(fileName, file);
+
+    if (error) {
+        alert('❌ Upload failed: ' + error.message);
+    } else {
+        const { data: urlData } = window.sb.storage.from('shorts').getPublicUrl(fileName);
+        const videoUrl = urlData.publicUrl;
+
+        // 📝 שרייבן דעם לינק אינעם 'shorts' טייבל אין די דאַטאַבּעיס
+        const { error: dbError } = await window.sb.from('shorts').insert([{
+            video_url: videoUrl,
+            caption: 'New Short',
+            created_at: new Date()
+        }]);
+
+        if (dbError) {
+            alert('❌ Database save failed: ' + dbError.message);
+        } else {
+            alert('✅ Video uploaded successfully to the new company system!');
+            location.reload();
+        }
+    }
   }
-}
 
 /* ─── NAV ─── */
 function setNav(el) {
