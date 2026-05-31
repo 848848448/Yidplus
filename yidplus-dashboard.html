@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="supabase/client.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>YID PLUS — Home</title>
@@ -393,25 +394,37 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,serif;min-height
 /* ─── DATA ─── */
 const OWNER_EMAIL = "avrumy5872877@gmail.com";
 
-const STATUSES = [
-  {nick:"Moshe_Music", emoji:"🎹", slides:[
-    {type:"text",bg:"#1a0a2e",text:"New album dropping THIS FRIDAY! 🎶🔥",color:"#F0D080"},
-    {type:"text",bg:"#0a1a1a",text:"Studio session was FIRE tonight 🎧",color:"#5DCAA5"}
-  ], time:"5m ago", viewed:false},
-  {nick:"RebbeVibes", emoji:"📖", slides:[
-    {type:"text",bg:"#1a0f00",text:"Torah thought of the day: Be kind to everyone you meet 💛",color:"#F0D080"}
-  ], time:"12m ago", viewed:false},
-  {nick:"YidFoodieNY", emoji:"🍕", slides:[
-    {type:"text",bg:"#1a0a0a",text:"Best cholent recipe reveal tomorrow 👀🥘",color:"#F09595"}
-  ], time:"1h ago", viewed:true},
-  {nick:"ShlomoBeats", emoji:"🎤", slides:[
-    {type:"text",bg:"#0a0a1a",text:"Live performance Sunday 8PM! Who's coming?",color:"#85B7EB"},
-    {type:"text",bg:"#0a1a0a",text:"Link in bio for tickets 🎟️",color:"#5DCAA5"}
-  ], time:"2h ago", viewed:false},
-  {nick:"KosherFit", emoji:"💪", slides:[
-    {type:"text",bg:"#0f1a0a",text:"Morning workout done ✅ Feeling great!",color:"#97C459"}
-  ], time:"3h ago", viewed:true},
-];
+let STATUSES = [];
+
+async function loadLiveStatuses() {
+    try {
+        if (!window.sb) {
+            console.error("Supabase client is not loaded yet.");
+            return;
+        }
+        
+        // 🌍 ציען די לעבעדיגע סטאַטוסעס פֿון דעם נייעם 'statuses' טייבל
+        const { data, error } = await window.sb
+            .from('statuses')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            STATUSES = data;
+            if (typeof renderStatuses === 'function') renderStatuses();
+        }
+    } catch (err) {
+        console.error('Error loading live statuses:', err.message);
+    }
+}
+
+// לאָדן די דאַטן אויטאָמאַטיש ווען דער בלאַט עפֿנט זיך
+document.addEventListener("DOMContentLoaded", function() {
+    setTimeout(loadLiveStatuses, 500);
+});
+
 
 const ADS = [
   {title:"Moshe's Judaica", sub:"Finest Judaica worldwide — Free shipping!", bg:"#1a1000", icon:"🕎", url:"https://example.com", duration:5},
