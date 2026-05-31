@@ -647,20 +647,27 @@ function likeStatus(){
   setTimeout(()=>h.textContent='🤍',1000);
 }
 function showViewers(){alert('Viewers:\n• YidUser1\n• Moshe_Fan\n• ShlomoBeats\n• 21 others');}
-  // 🚀 דאָס גיט כּוח פֿאַר די נאַוויגאַציע קנעפּלעך צו פֿליען געהעריג!
+  // 🚀 באָמבּע-פרוף נאַוויגאַציע לויט די ווערטער אויפ'ן סקרין!
 setTimeout(function() {
     const items = document.querySelectorAll('.nav-item, .bottom-nav div, [onclick*="setNav"]');
-    items.forEach((el, index) => {
-        el.removeAttribute('onclick'); // מיר נעמען אראפ די אלטע פונקציע
-        el.style.cursor = 'pointer';   // עס זאל אויסזען ווי א קליקעדיגע קנעפּל
+    items.forEach(el => {
+        el.removeAttribute('onclick'); // נעמען אראפ די אלטע חולאת'ן
+        el.style.cursor = 'pointer';   
         
-        // מיר קאָנעקטן לויט די סדר פונעם מעניו: Home, Shorts, Music, Chats, Settings
-        if (index === 0) el.onclick = () => window.location.href = "yidplus-dashboard.html";
-        if (index === 1) el.onclick = () => window.location.href = "yidplus-shorts.html";
-        if (index === 2) el.onclick = () => window.location.href = "yidplus-music.html";
-        if (index === 3) el.onclick = () => window.location.href = "yidplus-chat.html";
+        const txt = el.textContent.trim().toLowerCase();
+        
+        // ער קוקט וואסערע ווארט שטייט אינעווייניג אינעם קנעפּל
+        if (txt.includes('home')) {
+            el.onclick = () => window.location.href = "yidplus-dashboard.html";
+        } else if (txt.includes('shorts')) {
+            el.onclick = () => window.location.href = "yidplus-shorts.html";
+        } else if (txt.includes('music')) {
+            el.onclick = () => window.location.href = "yidplus-music.html";
+        } else if (txt.includes('chat')) {
+            el.onclick = () => window.location.href = "yidplus-chat.html";
+        }
     });
-}, 200);
+}, 300);
 </script>
 </body>
 </html>
