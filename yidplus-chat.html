@@ -806,11 +806,11 @@ function ctxCopy() {
 
 function ctxDelete() {
   currentChat.history.splice(ctxTarget.idx, 1);
-  currentChat.preview = currentChat.history.length ? currentChat.history[currentChat.history.length-1].text || "Media" : "No messages";
+  currentChat.preview = currentChat.history.length ? (currentChat.history[currentChat.history.length-1].text || "Media") : "No messages";
   renderMessages();
   buildList();
   closeCtx();
-}
+  }
 
 // Initial Run
 buildList();
