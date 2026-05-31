@@ -6,7 +6,15 @@ window.STATE = { user:null, screen:'auth', prevScreen:'home', settings:{} };
 window.APP   = window.STATE; // alias
 
 // ── ROUTER ──────────────────────────────────────────────
-window.navTo = function(id) {
+
+  window.navTo = function(id) {
+    // 🚀 אויב דער באַנוצער קליקט אויף אַן אנדערן קאַנאַל, פֿיר אים אַריבער צונעם ריכטיגן פֿייל!
+    if (id === 'chats' || id === 'chat') { window.location.href = "yidplus-chat.html"; return; }
+    if (id === 'music') { window.location.href = "yidplus-music.html"; return; }
+    if (id === 'shorts') { window.location.href = "yidplus-shorts.html"; return; }
+    if (id === 'home' || id === 'dashboard') { window.location.href = "yidplus-dashboard.html"; return; }
+
+    
   var prev = STATE.screen;
   STATE.prevScreen = prev;
   STATE.screen     = id;
