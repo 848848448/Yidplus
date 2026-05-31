@@ -826,20 +826,17 @@ try {
   console.error("Error building list, but keeping buttons alive:", e);
   }
 <script>
-// פֿונקציע צו פרעגן דעם נאָמען און עפֿענען די גרופּע
-function promptNewGroup() {
-    const groupName = prompt("אַרייַנלייגן נאָמען פֿאַר דער נייער גרופּע:");
+  function promptNewGroup() {
+    const groupName = prompt("Enter new group name:");
     if (groupName && groupName.trim() !== "") {
         saveNewGroupToSupabase(groupName);
     }
 }
 
-// פֿונקציע צו שיקן דעם נאָמען צו Supabase
 async function saveNewGroupToSupabase(name) {
     try {
-        // מיר טשעקן צו זען אויב Supabase איז גרייט
         if (typeof window.sb === 'undefined' || !window.sb) {
-            throw new Error("Supabase is not initialized. Please refresh.");
+            throw new Error("Supabase is not initialized");
         }
 
         const { data, error } = await window.sb
@@ -848,19 +845,19 @@ async function saveNewGroupToSupabase(name) {
 
         if (error) throw error;
 
-        alert("✅ גרופּע '" + name + "' איז געשאפן געוואָרן!");
+        alert("Group '" + name + "' created successfully!");
         
-        // ריפרעשן די רשימה
         if (typeof loadGroups === 'function') {
             loadGroups();
         } else {
-            location.reload(); 
+            location.reload();
         }
     } catch (err) {
-        alert("❌ Error: " + err.message);
+        alert("Error: " + err.message);
         console.error(err);
     }
-}
+  }
+    
 </script>
 </body>
   </html>
