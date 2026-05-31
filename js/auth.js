@@ -211,11 +211,11 @@ window.doRegister = function () {
           bio:         '',
         });
 }).then(function() {
-    // דאָס פירט דעם באנוצער צום הויפט בלאט נאך 2 סעקונדן
-    setTimeout(function() {
-        navTo('home');
-        applyRoleUI();
-    }, 2000);
+   // דאָס פֿירט דעם באַנוצער צום הויפּט בלאַט נאָך 1 סעקונדע //
+setTimeout(function() {
+  window.location.href = "yidplus-dashboard.html";
+  applyRoleUI();
+}, 1000);
 });
    AUTH_showMsg('ok', 'Account created! Your channel is being set up...');
     })
