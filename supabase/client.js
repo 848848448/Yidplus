@@ -1,7 +1,8 @@
-// supabase/client.js — loads first, sets window.sb
+// supabase/client.js — FILE 1 OF 6
+// Must load FIRST — sets window.sb and all globals
 (function () {
   if (typeof supabase === 'undefined') {
-    console.error('YID PLUS ERROR: Supabase CDN missing!');
+    console.error('[YID PLUS] Supabase CDN not loaded!');
     return;
   }
   window.sb = supabase.createClient(
@@ -11,7 +12,7 @@
   );
   window.OWNER_EMAIL = 'avrumy5872877@gmail.com';
   window.ADMIN_PIN   = '1234';
-  window.T = { users:'users', channels:'channels', media:'media', messages:'messages' };
+  window.T = { users:'users', channels:'channels', media:'media', messages:'messages', posts:'posts', broadcasts:'broadcasts', settings:'settings' };
   window.ROLES = { member:'member', adminLimited:'admin_limited', adminSuper:'admin_super' };
-  console.log('YID PLUS: Supabase ready ✓');
+  console.log('[YID PLUS] Supabase ready ✓');
 })();
