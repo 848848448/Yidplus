@@ -647,6 +647,20 @@ function likeStatus(){
   setTimeout(()=>h.textContent='🤍',1000);
 }
 function showViewers(){alert('Viewers:\n• YidUser1\n• Moshe_Fan\n• ShlomoBeats\n• 21 others');}
+  // 🚀 דאָס גיט כּוח פֿאַר די נאַוויגאַציע קנעפּלעך צו פֿליען געהעריג!
+setTimeout(function() {
+    const items = document.querySelectorAll('.nav-item, .bottom-nav div, [onclick*="setNav"]');
+    items.forEach((el, index) => {
+        el.removeAttribute('onclick'); // מיר נעמען אראפ די אלטע פונקציע
+        el.style.cursor = 'pointer';   // עס זאל אויסזען ווי א קליקעדיגע קנעפּל
+        
+        // מיר קאָנעקטן לויט די סדר פונעם מעניו: Home, Shorts, Music, Chats, Settings
+        if (index === 0) el.onclick = () => window.location.href = "yidplus-dashboard.html";
+        if (index === 1) el.onclick = () => window.location.href = "yidplus-shorts.html";
+        if (index === 2) el.onclick = () => window.location.href = "yidplus-music.html";
+        if (index === 3) el.onclick = () => window.location.href = "yidplus-chat.html";
+    });
+}, 200);
 </script>
 </body>
 </html>
