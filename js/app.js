@@ -122,5 +122,35 @@ document.addEventListener('click',function(e){
   var m=document.getElementById('ctx-menu'); if(m&&!m.contains(e.target)) m.classList.remove('open');
   var a=document.getElementById('attach-sheet'); if(a&&!a.contains(e.target)) a.classList.remove('open');
 });
-
+// 🌍 גלאָבאַלע נאַוויגאַציע פֿאַר אַלע בלעטער אין YID PLUS
+setInterval(function() {
+    const items = document.querySelectorAll('.nav-item, .bottom-nav div, [onclick*="setNav"], [onclick*="navTo"]');
+    items.forEach(el => {
+        if (el.getAttribute('data-nav-hooked')) return; // אויב שוין פֿאַרראָכטן, דאַרף מען נישט איבערמאַכן
+        
+        const txt = el.textContent.trim().toLowerCase();
+        
+        if (txt.includes('home') || txt.includes('dashboard')) {
+            el.removeAttribute('onclick');
+            el.onclick = () => window.location.href = "yidplus-dashboard.html";
+            el.setAttribute('data-nav-hooked', 'true');
+            el.style.cursor = 'pointer';
+        } else if (txt.includes('shorts')) {
+            el.removeAttribute('onclick');
+            el.onclick = () => window.location.href = "yidplus-shorts.html";
+            el.setAttribute('data-nav-hooked', 'true');
+            el.style.cursor = 'pointer';
+        } else if (txt.includes('music')) {
+            el.removeAttribute('onclick');
+            el.onclick = () => window.location.href = "yidplus-music.html";
+            el.setAttribute('data-nav-hooked', 'true');
+            el.style.cursor = 'pointer';
+        } else if (txt.includes('chat')) {
+            el.removeAttribute('onclick');
+            el.onclick = () => window.location.href = "yidplus-chat.html";
+            el.setAttribute('data-nav-hooked', 'true');
+            el.style.cursor = 'pointer';
+        }
+    });
+}, 400); // ער קאָנטראָלירט יעדער 400 מיליסעקונדעס אויב עס זענען דאָ קנעפּלעך אויפ'ן סקרין
 console.log('[YID PLUS] app.js loaded ✓');
