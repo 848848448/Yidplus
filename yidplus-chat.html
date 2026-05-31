@@ -317,7 +317,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:Georgia,s
   <div class="list-topbar">
     <div class="list-logo">👑 YID PLUS</div>
     <div class="list-actions">
-      <div class="icon-btn" onclick="alert('New group setup...')">👥</div>
+      <div class="icon-btn" onclick="promptNewGroup()">
+    +
+      </div>
       <div class="icon-btn" onclick="alert('Start direct conversation...')">✏️</div>
     </div>
   </div>
@@ -818,6 +820,42 @@ try {
 } catch(e) {
   console.error("Error building list, but keeping buttons alive:", e);
   }
+<script>
+// פֿונקציע צו פרעגן דעם נאָמען און עפֿענען די גרופּע
+function promptNewGroup() {
+    const groupName = prompt("אַרייַנלייגן נאָמען פֿאַר דער נייער גרופּע:");
+    if (groupName && groupName.trim() !== "") {
+        saveNewGroupToSupabase(groupName);
+    }
+}
+
+// פֿונקציע צו שיקן דעם נאָמען צו Supabase
+async function saveNewGroupToSupabase(name) {
+    try {
+        // מיר טשעקן צו זען אויב Supabase איז גרייט
+        if (typeof window.sb === 'undefined' || !window.sb) {
+            throw new Error("Supabase is not initialized. Please refresh.");
+        }
+
+        const { data, error } = await window.sb
+            .from('groups')
+            .insert([{ name: name, created_at: new Date() }]);
+
+        if (error) throw error;
+
+        alert("✅ גרופּע '" + name + "' איז געשאפן געוואָרן!");
+        
+        // ריפרעשן די רשימה
+        if (typeof loadGroups === 'function') {
+            loadGroups();
+        } else {
+            location.reload(); 
+        }
+    } catch (err) {
+        alert("❌ Error: " + err.message);
+        console.error(err);
+    }
+}
 </script>
 </body>
   </html>
