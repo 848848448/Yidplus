@@ -606,12 +606,51 @@ function openStatus(i){
   showSlide(0);
   document.getElementById('sv').classList.add('open');
 }
-function openMyStatus(){alert('Upload a photo, video, or text status!');}
+  function openMyStatus() {
+    document.getElementById('status-file-input').click();
+                          }
 function closeStatus(){
   document.getElementById('sv').classList.remove('open');
   clearTimeout(svTimer);
   document.querySelectorAll('.sv-bar-fill').forEach(b=>b.style.animation='none');
 }
+  async function handleUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    alert(`Uploading "${file.name}" to Supabase...`);
+    const fileName = `status_${Date.now()}_${file.name}`;
+
+    try {
+        // 1. ארויפלאדן דעם פייל צו Supabase Storage
+        const { data, error } = await window.sb.storage
+            .from('statuses')
+            .upload(fileName, file);
+
+        if (error) throw error;
+
+        // 2. באקומען דעם פובליק לינק
+        const { data: urlData } = window.sb.storage.from('statuses').getPublicUrl(fileName);
+        
+        // 3. אריינשרייבן דעם סטאתוס אין דאטאבעיס
+        const { error: dbError } = await window.sb.from('statuses').insert([{
+            nick: "Me", 
+            emoji: "👑",
+            slides: JSON.stringify([{ type: "image", bg: "#1a0a2e", text: "", url: urlData.publicUrl }]),
+            created_at: new Date()
+        }]);
+
+        if (dbError) throw dbError;
+
+        alert("✅ סטאַטוס ארויפגעלאדנט!");
+        
+        // ריפרעשן די ליסטע
+        if (typeof loadLiveStatuses === 'function') loadLiveStatuses();
+
+    } catch (err) {
+        alert("❌ Error: " + err.message);
+    }
+  }
 function buildBars(){
   const cont=document.getElementById('sv-bars');
   cont.innerHTML='';
@@ -683,4 +722,5 @@ setTimeout(function() {
 }, 300);
 </script>
 </body>
+  <input type="file" id="status-file-input" style="display:none" onchange="handleUpload(event)">
 </html>
