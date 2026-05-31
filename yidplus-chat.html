@@ -321,23 +321,22 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:Georgia,s
 
 <div class="screen" id="list-screen">
 <div class="list-topbar">
-      <div class="list-logo">👑 YID PLUS</div>
-      <div class="list-actions">
-        <div class="icon-btn" onclick="promptNewGroup()" style="cursor: pointer; padding: 5px 15px;">+</div>
-      </div>
-    </div>
+  <div class="list-logo">👑 YID PLUS</div>
+  <div class="list-actions">
+    <div class="icon-btn" onclick="promptNewGroup()" style="cursor: pointer; padding: 10px 15px; color: white; font-size: 24px; font-weight: bold;">+</div>
+  </div>
+</div>
 
-    <div class="search-wrap">
-      <span class="search-icon">🔍</span>
-      <input class="search-box" placeholder="Search chats, groups, nicknames..." id="search-input" oninput="filterChats()">
-    </div>
+<div class="search-wrap">
+  <span class="search-icon">🔍</span>
+  <input class="search-box" placeholder="Search chats, groups, nicknames..." id="search-input" oninput="filterChats()">
+</div>
 
-    <div class="chat-tabs">
-      <button class="ctab active" onclick="switchTab(this,'all')">All</button>
-      <button class="ctab" onclick="switchTab(this,'private')">Private</button>
-      <button class="ctab" onclick="switchTab(this,'groups')">Groups</button>
-    </div>
-</div> 
+<div class="chat-tabs">
+  <button class="ctab active" onclick="switchTab(this,'all')">All</button>
+  <button class="ctab" onclick="switchTab(this,'private')">Private</button>
+  <button class="ctab" onclick="switchTab(this,'groups')">Groups</button>
+</div>
 
 
 
