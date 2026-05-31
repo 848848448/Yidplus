@@ -813,7 +813,11 @@ function ctxDelete() {
   }
 
 // Initial Run
-buildList();
+try {
+  buildList();
+} catch(e) {
+  console.error("Error building list, but keeping buttons alive:", e);
+  }
 </script>
 </body>
   </html>
