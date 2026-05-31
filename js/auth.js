@@ -140,10 +140,15 @@ window.doLogin = function () {
       if (AUTH_remMe) localStorage.setItem('yp_remember', email);
       else            localStorage.removeItem('yp_remember');
 
-      AUTH_showMsg('ok', APP.user && APP.user.isOwner
-        ? 'Welcome back, Owner! 👑'
+      AUTH_showMsg('ok', APP.user && APP.user.isOwner 
+        ? 'Welcome back, Owner! 👑' 
         : 'Signed in! Loading your feed...'
       );
+
+      // 🚀 קאָנעקט די סיסטעם גלייך צום Dashboard פֿייל!
+      setTimeout(function() {
+        window.location.href = "yidplus-dashboard.html";
+      }, 1000); // עס וואַרט איין סעקונדע כדי דער באַנוצער זאָל קענען זען די "Signed in" מעסעדזש
     })
     .catch(function (err) {
       setLoad('l', false);
