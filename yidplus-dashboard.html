@@ -279,6 +279,7 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,serif;min-height
 </head>
 <body>
 
+<!-- TOP NAV -->
 <div class="topnav">
   <div class="topnav-logo"><span>👑</span> YID PLUS</div>
   <div class="topnav-icons">
@@ -288,19 +289,23 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,serif;min-height
   </div>
 </div>
 
+<!-- FEED -->
 <div class="feed" id="feed">
 
+  <!-- BROADCAST BANNER -->
   <div class="broadcast" id="broadcast">
     <span class="broadcast-icon">📢</span>
     <span class="broadcast-text">Welcome to <strong>YID PLUS</strong>! New music drops every Friday. Follow your favorite artists to stay updated!</span>
     <button class="broadcast-close" onclick="document.getElementById('broadcast').remove()">✕</button>
   </div>
 
+  <!-- STATUS STORIES ROW -->
   <div class="status-section">
     <div class="status-label">Status Updates</div>
     <div class="status-row" id="status-row">
 
-      <div class="status-item" onclick="document.getElementById('status-file-input').click()">
+      <!-- My Status -->
+      <div class="status-item" onclick="openMyStatus()">
         <div class="status-ring mine">
           <div class="status-inner">
             👤
@@ -310,29 +315,35 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,serif;min-height
         <div class="status-name">My Status</div>
       </div>
 
-      </div>
+      <!-- Other statuses (generated) -->
+    </div>
   </div>
 
+  <!-- AD BANNER -->
   <div class="ad-section">
     <div class="ad-label">Sponsored</div>
     <div class="ad-frame" id="ad-frame" onclick="adClick()">
+      <!-- Ad slides injected by JS -->
       <div class="ad-progress" id="ad-progress"></div>
     </div>
     <div class="ad-dots" id="ad-dots"></div>
   </div>
 
+  <!-- TRENDING SHORTS -->
   <div class="section-hdr">
     <h2>🎬 Trending Shorts</h2>
     <button class="see-all" onclick="alert('Go to Shorts tab')">See All →</button>
   </div>
   <div class="shorts-scroll" id="shorts-scroll"></div>
 
+  <!-- FEATURED CHANNELS -->
   <div class="section-hdr">
     <h2>⭐ Featured Channels</h2>
     <button class="see-all" onclick="alert('Browse all channels')">See All →</button>
   </div>
   <div class="channels-scroll" id="channels-row"></div>
 
+  <!-- FEED POSTS -->
   <div class="section-hdr">
     <h2>📰 Latest from Following</h2>
   </div>
@@ -340,6 +351,7 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,serif;min-height
 
 </div>
 
+<!-- BOTTOM NAV -->
 <div class="bottom-nav">
   <div class="nav-item active" onclick="setNav(this)"><div class="nav-icon">🏠</div><div class="nav-label">Home</div></div>
   <div class="nav-item" onclick="setNav(this)"><div class="nav-icon">🎬</div><div class="nav-label">Shorts</div></div>
@@ -348,6 +360,7 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,serif;min-height
   <div class="nav-item" onclick="setNav(this)"><div class="nav-icon">⚙️</div><div class="nav-label">Settings</div></div>
 </div>
 
+<!-- STATUS VIEWER OVERLAY -->
 <div class="status-viewer" id="sv">
   <div class="sv-header">
     <div class="sv-bars" id="sv-bars"></div>
@@ -377,48 +390,358 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,serif;min-height
   </div>
 </div>
 
-<input type="file" id="status-file-input" style="display:none" onchange="handleUpload(event)">
-
 <script>
-/* ─── DATA & INITIALIZATION ─── */
+/* ─── DATA ─── */
+const OWNER_EMAIL = "avrumy5872877@gmail.com";
+
 let STATUSES = [];
+
+async function loadLiveStatuses() {
+    try {
+        if (!window.sb) {
+            console.error("Supabase client is not loaded yet.");
+            return;
+        }
+        
+        // 🌍 ציען די לעבעדיגע סטאַטוסעס פֿון דעם נייעם 'statuses' טייבל
+        const { data, error } = await window.sb
+            .from('statuses')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            STATUSES = data;
+            if (typeof renderStatuses === 'function') renderStatuses();
+        }
+    } catch (err) {
+        console.error('Error loading live statuses:', err.message);
+    }
+}
+
+// לאָדן די דאַטן אויטאָמאַטיש ווען דער בלאַט עפֿנט זיך
+document.addEventListener("DOMContentLoaded", function() {
+    setTimeout(loadLiveStatuses, 500);
+});
+
+
 const ADS = [
   {title:"Moshe's Judaica", sub:"Finest Judaica worldwide — Free shipping!", bg:"#1a1000", icon:"🕎", url:"https://example.com", duration:5},
   {title:"Kosher Vacations", sub:"Exclusive resorts. Fully glatt kosher.", bg:"#001a1a", icon:"🏖️", url:"https://example.com", duration:6},
   {title:"Torah Academy Online", sub:"Learn with the best. Free trial today!", bg:"#0a001a", icon:"📚", url:"https://example.com", duration:5},
 ];
-const SHORTS = [{emoji:"🎹",views:"12.4K",nick:"@Moshe"},{emoji:"🕺",views:"8.7K",nick:"@YidDancer"},{emoji:"🎤",views:"22K",nick:"@Shlomo"}];
-const CHANNELS = [{emoji:"🎹",name:"MosheMusic",followers:"12.4K",verified:true},{emoji:"📖",name:"RebbeVibes",followers:"31K",verified:true}];
-const POSTS = [{emoji:"🎹",nick:"MosheMusic",time:"10 min ago",content:"🎬",caption:"Just dropped a new clip! Check it out 🔥",likes:142,comments:23}];
 
-/* ─── UPLOAD LOGIC (FIXED) ─── */
-async function handleUpload(e) {
+const SHORTS = [
+  {emoji:"🎹",views:"12.4K",nick:"@Moshe"},
+  {emoji:"🕺",views:"8.7K",nick:"@YidDancer"},
+  {emoji:"🎤",views:"22K",nick:"@Shlomo"},
+  {emoji:"🥘",views:"5.1K",nick:"@KosherChef"},
+  {emoji:"📖",views:"3.2K",nick:"@RebbeVibes"},
+  {emoji:"🎻",views:"9.8K",nick:"@FiddlerNY"},
+];
+
+const CHANNELS = [
+  {emoji:"🎹",name:"MosheMusic",followers:"12.4K",verified:true},
+  {emoji:"🎤",name:"ShlomoBeats",followers:"8.1K",verified:false},
+  {emoji:"📖",name:"RebbeVibes",followers:"31K",verified:true},
+  {emoji:"🥘",name:"KosherFoodNY",followers:"5.6K",verified:false},
+];
+
+const POSTS = [
+  {emoji:"🎹",nick:"MosheMusic",time:"10 min ago",content:"🎬",caption:"Just dropped a new clip! Check it out 🔥",likes:142,comments:23},
+  {emoji:"📖",nick:"RebbeVibes",time:"1 hour ago",content:"🎬",caption:"Weekly Torah class recording is up!",likes:87,comments:11},
+  {emoji:"🎤",nick:"ShlomoBeats",time:"3 hours ago",content:"🎬",caption:"Studio behind the scenes 👀🎧",likes:204,comments:38},
+];
+
+/* ─── BUILD STATUS ROW ─── */
+const row = document.getElementById('status-row');
+STATUSES.forEach((s,i)=>{
+  const item = document.createElement('div');
+  item.className = 'status-item';
+  item.onclick = ()=>openStatus(i);
+  item.innerHTML = `
+    <div class="status-ring${s.viewed?' viewed':''}">
+      <div class="status-inner">${s.emoji}</div>
+    </div>
+    <div class="status-name">${s.nick}</div>`;
+  row.appendChild(item);
+});
+
+/* ─── BUILD ADS ─── */
+let adIdx=0, adTimer=null, adAnimFrame=null;
+const adFrame=document.getElementById('ad-frame');
+const adDots=document.getElementById('ad-dots');
+const adProgress=document.getElementById('ad-progress');
+
+ADS.forEach((ad,i)=>{
+  const slide=document.createElement('div');
+  slide.className='ad-slide'+(i===0?' active':'');
+  slide.style.background=ad.bg;
+  slide.innerHTML=`
+    <div class="ad-slide-inner">
+      <div style="font-size:2.5rem">${ad.icon}</div>
+      <div class="ad-badge">Sponsored</div>
+      <div class="ad-title">${ad.title}</div>
+      <div class="ad-sub">${ad.sub}</div>
+    </div>`;
+  adFrame.insertBefore(slide, adProgress);
+  const dot=document.createElement('div');
+  dot.className='ad-dot'+(i===0?' active':'');
+  adDots.appendChild(dot);
+});
+
+function adClick(){window.open(ADS[adIdx].url,'_blank');}
+function setAd(idx){
+  document.querySelectorAll('.ad-slide').forEach((s,i)=>s.classList.toggle('active',i===idx));
+  document.querySelectorAll('.ad-dot').forEach((d,i)=>d.classList.toggle('active',i===idx));
+  adIdx=idx;
+  startAdTimer();
+}
+function startAdTimer(){
+  clearInterval(adTimer);
+  const dur=ADS[adIdx].duration*1000;
+  const start=Date.now();
+  adProgress.style.transition='none';
+  adProgress.style.width='0%';
+  cancelAnimationFrame(adAnimFrame);
+  function step(){
+    const pct=Math.min(100,(Date.now()-start)/dur*100);
+    adProgress.style.width=pct+'%';
+    if(pct<100) adAnimFrame=requestAnimationFrame(step);
+    else{
+      const next=(adIdx+1)%ADS.length;
+      setAd(next);
+    }
+  }
+  requestAnimationFrame(step);
+}
+startAdTimer();
+
+/* ─── BUILD SHORTS ─── */
+const shortsEl=document.getElementById('shorts-scroll');
+SHORTS.forEach(s=>{
+  const card=document.createElement('div');
+  card.className='short-card';
+  card.onclick=()=>alert(`Opening @${s.nick.replace('@','')} short...`);
+  card.innerHTML=`
+    <div class="short-thumb">${s.emoji}</div>
+    <div class="short-overlay">
+      <div class="short-nick">${s.nick}</div>
+      <div class="short-views">👁 ${s.views}</div>
+    </div>
+    <div class="short-play">▶</div>`;
+  shortsEl.appendChild(card);
+});
+
+/* ─── BUILD CHANNELS ─── */
+const chRow=document.getElementById('channels-row');
+CHANNELS.forEach(c=>{
+  const card=document.createElement('div');
+  card.className='channel-card';
+  card.innerHTML=`
+    <div class="ch-avatar">${c.emoji}${c.verified?'<div class="ch-crown">👑</div>':''}</div>
+    <div class="ch-name">${c.name}</div>
+    <div class="ch-followers">${c.followers} followers</div>
+    <button class="follow-btn" onclick="toggleFollow(this,event)">+ Follow</button>`;
+  chRow.appendChild(card);
+});
+function toggleFollow(btn,e){
+  e.stopPropagation();
+  btn.classList.toggle('following');
+  btn.textContent=btn.classList.contains('following')?'✓ Following':'+ Follow';
+}
+
+/* ─── BUILD FEED POSTS ─── */
+const postsEl=document.getElementById('feed-posts');
+POSTS.forEach((p,i)=>{
+  const post=document.createElement('div');
+  post.className='post';
+  post.innerHTML=`
+    <div class="post-header">
+      <div class="post-avatar">${p.emoji}</div>
+      <div class="post-meta">
+        <div class="post-nick">${p.nick}</div>
+        <div class="post-time">${p.time}</div>
+      </div>
+    </div>
+    <div class="post-thumb">
+      ${p.content}
+      <div class="post-play-icon">▶</div>
+    </div>
+    <div style="padding:0.6rem 0.75rem;font-size:0.82rem;color:var(--muted);border-bottom:0.5px solid var(--border)">${p.caption}</div>
+    <div class="post-actions">
+      <button class="action-btn" onclick="likePost(this,${i})"><span>🤍</span> ${p.likes}</button>
+      <button class="action-btn" onclick=""><span>💬</span> ${p.comments}</button>
+      <button class="action-btn" onclick=""><span>📤</span> Share</button>
+    </div>`;
+  postsEl.appendChild(post);
+});
+
+function likePost(btn,i){
+  const liked=btn.classList.toggle('liked');
+  const count=POSTS[i].likes+(liked?1:-1);
+  btn.innerHTML=`<span>${liked?'❤️':'🤍'}</span> ${count}`;
+}
+
+/* ─── NAV ─── */
+function setNav(el){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+}
+
+/* ─── STATUS VIEWER ─── */
+let svUser=null, svSlideIdx=0, svTimer=null, svMuted=false, svHeld=false;
+const SLIDE_DUR=5000;
+
+function openStatus(i){
+  svUser=STATUSES[i]; svSlideIdx=0;
+  STATUSES[i].viewed=true;
+  document.querySelectorAll('.status-ring')[i+1]?.classList.add('viewed');
+  document.getElementById('sv-avatar').textContent=svUser.emoji;
+  document.getElementById('sv-nick').textContent=svUser.nick;
+  document.getElementById('sv-time').textContent=svUser.time;
+  document.getElementById('sv-views-btn').className='views-btn';
+  buildBars();
+  showSlide(0);
+  document.getElementById('sv').classList.add('open');
+}
+  function openMyStatus() {
+    document.getElementById('status-file-input').click();
+                          }
+function closeStatus(){
+  document.getElementById('sv').classList.remove('open');
+  clearTimeout(svTimer);
+  document.querySelectorAll('.sv-bar-fill').forEach(b=>b.style.animation='none');
+}
+  async function handleUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
 
-    alert("Uploading to Supabase...");
+    alert(`Uploading "${file.name}" to Supabase...`);
+    const fileName = `status_${Date.now()}_${file.name}`;
+
     try {
-        if (!window.sb) throw new Error("Supabase not loaded!");
+        // 1. ארויפלאדן דעם פייל צו Supabase Storage
+        const { data, error } = await window.sb.storage
+            .from('statuses')
+            .upload(fileName, file);
+
+        if (error) throw error;
+
+        // 2. באקומען דעם פובליק לינק
+        const { data: urlData } = window.sb.storage.from('statuses').getPublicUrl(fileName);
+        
+        // 3. אריינשרייבן דעם סטאתוס אין דאטאבעיס
+        const { error: dbError } = await window.sb.from('statuses').insert([{
+            nick: "Me", 
+            emoji: "👑",
+            slides: JSON.stringify([{ type: "image", bg: "#1a0a2e", text: "", url: urlData.publicUrl }]),
+            created_at: new Date()
+        }]);
+
+        if (dbError) throw dbError;
+
+        alert("✅ סטאַטוס ארויפגעלאדנט!");
+        
+        // ריפרעשן די ליסטע
+        if (typeof loadLiveStatuses === 'function') loadLiveStatuses();
+
+    } catch (err) {
+        alert("❌ Error: " + err.message);
+    }
+  }
+function buildBars(){
+  const cont=document.getElementById('sv-bars');
+  cont.innerHTML='';
+  svUser.slides.forEach((_,i)=>{
+    cont.innerHTML+=`<div class="sv-bar"><div class="sv-bar-fill" id="bar${i}"></div></div>`;
+  });
+}
+function showSlide(idx){
+  clearTimeout(svTimer);
+  const slide=svUser.slides[idx];
+  const el=document.getElementById('sv-slide');
+  el.style.opacity='0';
+  el.style.background=slide.bg||'#111';
+  el.style.color=slide.color||'#fff';
+  el.style.fontSize='1.3rem';
+  el.style.lineHeight='1.6';
+  setTimeout(()=>{
+    el.textContent=slide.text||'';
+    el.style.opacity='1';
+  },100);
+  document.querySelectorAll('.sv-bar-fill').forEach((b,i)=>{
+    b.style.animation='none';
+    b.className='sv-bar-fill'+(i<idx?' done':'');
+  });
+  const bar=document.getElementById('bar'+idx);
+  if(bar){
+    bar.className='sv-bar-fill active';
+    bar.style.animation=`barfill ${SLIDE_DUR}ms linear forwards`;
+  }
+  svTimer=setTimeout(nextSlide, SLIDE_DUR);
+}
+function nextSlide(){
+  if(svSlideIdx<svUser.slides.length-1){svSlideIdx++;showSlide(svSlideIdx);}
+  else closeStatus();
+}
+function prevSlide(){
+  if(svSlideIdx>0){svSlideIdx--;showSlide(svSlideIdx);}
+}
+function toggleMute(){
+  svMuted=!svMuted;
+  document.getElementById('sv-mute-btn').textContent=svMuted?'🔇':'🔊';
+}
+function likeStatus(){
+  const h=document.querySelector('.sv-heart-btn');
+  h.textContent='❤️';
+  setTimeout(()=>h.textContent='🤍',1000);
+}
+function showViewers(){alert('Viewers:\n• YidUser1\n• Moshe_Fan\n• ShlomoBeats\n• 21 others');}
+  // 🚀 באָמבּע-פרוף נאַוויגאַציע לויט די ווערטער אויפ'ן סקרין!
+setTimeout(function() {
+    const items = document.querySelectorAll('.nav-item, .bottom-nav div, [onclick*="setNav"]');
+    items.forEach(el => {
+        el.removeAttribute('onclick'); // נעמען אראפ די אלטע חולאת'ן
+        el.style.cursor = 'pointer';   
+        
+        const txt = el.textContent.trim().toLowerCase();
+        
+        // ער קוקט וואסערע ווארט שטייט אינעווייניג אינעם קנעפּל
+        if (txt.includes('home')) {
+            el.onclick = () => window.location.href = "yidplus-dashboard.html";
+        } else if (txt.includes('shorts')) {
+            el.onclick = () => window.location.href = "yidplus-shorts.html";
+        } else if (txt.includes('music')) {
+            el.onclick = () => window.location.href = "yidplus-music.html";
+        } else if (txt.includes('chat')) {
+            el.onclick = () => window.location.href = "yidplus-chat.html";
+        }
+    });
+}, 300);
+</script>
+</body>
+  <input type="file" id="status-file-input" style="display:none" onchange="handleUpload(event)">
+  <script>
+document.getElementById('status-file-input').addEventListener('change', async (event) => {
+    alert("Uploading started..."); // דאָס וועט דיר זאָגן אויב דער קאָד הייבט זיך אָן
+    try {
+        const file = event.target.files[0];
+        if (!file) return;
 
         const { data, error } = await window.sb
             .from('groups')
             .insert([{ name: file.name }]);
         
-        if (error) throw error;
-        alert("✅ Success!");
-        location.reload();
+        if (error) {
+            alert("Supabase Error: " + error.message);
+        } else {
+            alert("Success!");
+        }
     } catch (err) {
-        alert("Error: " + err.message);
+        alert("Fatal Error: " + err.message);
     }
-}
-
-/* ─── EXISTING SCRIPTS ─── */
-// (די איבעריגע פונקציעס פון דיין קאד בלייבן דא)
-function setNav(el){
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  el.classList.add('active');
-}
-// ... (rest of your logic)
-</script>
-</body>
+});
+          </script>
   </html>
