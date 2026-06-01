@@ -723,4 +723,25 @@ setTimeout(function() {
 </script>
 </body>
   <input type="file" id="status-file-input" style="display:none" onchange="handleUpload(event)">
+  <script>
+document.getElementById('status-file-input').addEventListener('change', async (event) => {
+    alert("Uploading started..."); // דאָס וועט דיר זאָגן אויב דער קאָד הייבט זיך אָן
+    try {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const { data, error } = await window.sb
+            .from('groups')
+            .insert([{ name: file.name }]);
+        
+        if (error) {
+            alert("Supabase Error: " + error.message);
+        } else {
+            alert("Success!");
+        }
+    } catch (err) {
+        alert("Fatal Error: " + err.message);
+    }
+});
+          </script>
 </html>
