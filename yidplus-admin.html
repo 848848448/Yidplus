@@ -255,6 +255,7 @@ html,body{min-height:100%;background:var(--bg);font-family:Georgia,serif;color:v
     <button class="anav" onclick="switchPanel(this,'music')">🎵 Music</button>
     <button class="anav" onclick="switchPanel(this,'broadcast')">📢 Broadcast</button>
     <button class="anav" onclick="switchPanel(this,'feedback')">📩 Feedback</button>
+    <button class="anav" onclick="switchPanel(this, 'admin-settings')">Admin Settings</button>
   </div>
 
   <div class="admin-content">
@@ -325,6 +326,10 @@ html,body{min-height:100%;background:var(--bg);font-family:Georgia,serif;color:v
         <input class="table-search" placeholder="Search by nickname or email..." id="user-search" oninput="filterUsers()">
         <div id="user-list"></div>
       </div>
+    </div>
+    <div id="panel-admin-settings" class="panel" style="display:none;">
+    <h2 class="panel-title">Admin Settings</h2>
+    <p>דאָ וועט זיין די אדמין סעטינגס.</p>
     </div>
 
     <!-- ── SHORTS ── -->
