@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>YID PLUS — Admin Panel</title>
@@ -389,37 +390,64 @@ let adminPin     = ADMIN_PIN;
 let navLabels    = {Home:"Home",Shorts:"Shorts",Music:"Music",Chats:"Chats",Settings:"Settings"};
 
 /* ─── GATE LOGIC ─── */
-async function checkEmail(){
-  const email = document.getElementById('gate-email').value.trim();
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return gateMsg('err','Enter a valid email address.');
-  if (!MOCK_ADMIN_EMAILS.includes(email)) return gateMsg('err','This email is not authorized for admin access.');
-  gateLoad('email', true);
-  await delay(1000);
-  gateLoad('email', false);
-  currentEmail = email;
-  currentRole  = email === OWNER_EMAIL ? 'owner' : 'admin';
-  document.getElementById('email-step').style.display = 'none';
-  document.getElementById('pin-step').style.display   = 'block';
-  document.getElementById('step0').classList.replace('active','done');
-  document.getElementById('step1').classList.add('active');
-  document.getElementById('p0').focus();
-  hideGateMsg();
-}
+async function checkEmail() {
+    const email = document.getElementById('gate-email').value.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return gateMsg('err', 'Enter a valid email.');
 
+    gateLoad('email', true);
+
+    const { data, error } = await window.sb
+        .from('admins')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+    gateLoad('email', false);
+
+    if (error || !data) {
+        return gateMsg('err', 'This email is not authorized.');
+    }
+
+    currentEmail = email;
+    currentRole = data.role;
+    
+    document.getElementById('email-step').style.display = 'none';
+    document.getElementById('pin-step').style.display = 'block';
+    document.getElementById('step0').classList.replace('active','done');
+    document.getElementById('step1').classList.add('active');
+    document.getElementById('p0').focus();
+    hideGateMsg();
+}
 function pinInput(i){
   const val = document.getElementById('p'+i).value;
   if (val && i < 3) document.getElementById('p'+(i+1)).focus();
 }
 
-async function checkPin(){
-  const pin = [0,1,2,3].map(i=>document.getElementById('p'+i).value).join('');
-  if (pin.length < 4) return gateMsg('err','Enter all 4 digits.');
-  if (pin !== adminPin) { gateMsg('err','Incorrect PIN. Access denied.'); [0,1,2,3].forEach(i=>document.getElementById('p'+i).value=''); document.getElementById('p0').focus(); return; }
-  gateLoad('pin',true);
-  await delay(1200);
-  gateLoad('pin',false);
-  openAdmin();
-}
+async function checkPin() {
+    const pin = [0,1,2,3].map(i => document.getElementById('p'+i).value).join('');
+    if (pin.length < 4) return gateMsg('err', 'Enter all 4 digits.');
+    
+    gateLoad('pin', true);
+
+    // מיר פרעגן סופעבייס: איז דאס דער ריכטיגער PIN פאר דעם אימעיל?
+    const { data, error } = await window.sb
+        .from('admins')
+        .select('pin')
+        .eq('email', currentEmail)
+        .single();
+
+    gateLoad('pin', false);
+
+    if (error || !data || data.pin != pin) {
+        gateMsg('err', 'Incorrect PIN. Access denied.');
+        [0,1,2,3].forEach(i => document.getElementById('p'+i).value = '');
+        document.getElementById('p0').focus();
+        return;
+    }
+
+    // אויב אלעס איז גוט
+    openAdmin();
+  }
 
 function backToEmail(){
   document.getElementById('pin-step').style.display='none';
@@ -488,47 +516,55 @@ function buildAnalytics(){
 }
 
 /* ─── USERS ─── */
-const USERS_DATA=[
-  {nick:'avrumy5872',email:OWNER_EMAIL,phone:'***-***-****',role:'owner',joined:'Owner Account',online:true,verified:true,blocked:false},
-  {nick:'MosheMusic',email:'moshe@example.com',phone:'***-***-****',role:'admin',joined:'Jan 2024',online:true,verified:true,blocked:false},
-  {nick:'ShlomoBeats',email:'shlomo@example.com',phone:'***-***-****',role:'user',joined:'Feb 2024',online:true,verified:true,blocked:false},
-  {nick:'RebbeVibes',email:'rebbe@example.com',phone:'***-***-****',role:'user',joined:'Mar 2024',online:false,verified:true,blocked:false},
-  {nick:'YidFoodieNY',email:'food@example.com',phone:'***-***-****',role:'user',joined:'Apr 2024',online:false,verified:false,blocked:false},
-  {nick:'KosherFit',email:'fit@example.com',phone:'***-***-****',role:'user',joined:'Apr 2024',online:true,verified:false,blocked:false},
-  {nick:'FiddlerNY',email:'fiddle@example.com',phone:'***-***-****',role:'user',joined:'May 2024',online:false,verified:false,blocked:true},
-];
+async function buildUsers(filter = '') {
+    const el = document.getElementById('user-list');
+    el.innerHTML = 'Loading...';
 
-function buildUsers(filter=''){
-  const el=document.getElementById('user-list'); el.innerHTML='';
-  USERS_DATA.filter(u=>!filter||u.nick.toLowerCase().includes(filter)||u.email.includes(filter)).forEach(u=>{
-    const isOwnerRow = u.email===OWNER_EMAIL;
-    const canEdit    = currentRole==='owner' || (!isOwnerRow && u.role!=='owner');
-    const row=document.createElement('div'); row.className='user-row';
-    row.innerHTML=`
-      <div class="user-avatar">${u.online?'<div class="online-ring"></div>':''}${u.nick.slice(0,2).toUpperCase()}</div>
-      <div class="user-info">
-        <div class="user-nick">@${u.nick} <span class="role-badge role-${u.role}">${u.role}</span> ${u.verified?'👑':''} ${u.blocked?'🚫':''}</div>
-        <div class="user-email">${u.email}</div>
-        <div class="user-meta">Joined: ${u.joined} · Phone: ${u.phone}</div>
-      </div>
-      <div class="user-actions">
-        ${canEdit?`
-          <button class="act-btn act-verify${u.verified?' done':''}" onclick="toggleVerify('${u.email}')">${u.verified?'✓ Verified':'👑 Verify'}</button>
-          ${currentRole==='owner'&&u.role!=='owner'?`<button class="act-btn act-promote" onclick="togglePromote('${u.email}')">${u.role==='admin'?'Demote':'Promote'}</button>`:''}
-          <button class="act-btn act-block${u.blocked?' blocked':''}" onclick="toggleBlock('${u.email}')">${u.blocked?'Unblock':'Block'}</button>
-        `:`<span style="font-size:0.65rem;color:var(--muted)">Protected</span>`}
-      </div>`;
-    el.appendChild(row);
-  });
+    const { data, error } = await window.sb.from('users').select('*');
+    if (error) { el.innerHTML = 'Error loading users.'; return; }
+
+    el.innerHTML = '';
+    data.filter(u => !filter || u.nick.toLowerCase().includes(filter.toLowerCase())).forEach(u => {
+        const row = document.createElement('div');
+        row.className = 'user-row';
+        row.innerHTML = `
+            <div class="user-avatar">${u.nick.slice(0, 2).toUpperCase()}</div>
+            <div class="user-info">
+                <div class="user-nick">@${u.nick}</div>
+                <div class="user-email">${u.email}</div>
+            </div>
+            <div class="user-actions">
+                <button class="act-btn" onclick="toggleVerify('${u.email}')">${u.verified ? '✅' : 'Verify'}</button>
+                <button class="act-btn" onclick="toggleBlock('${u.email}')">${u.blocked ? 'Unblock' : 'Block'}</button>
+                ${currentRole === 'owner' ? `<button class="act-btn" onclick="togglePromote('${u.email}')">Promote</button>` : ''}
+            </div>`;
+        el.appendChild(row);
+    });
 }
-function filterUsers(){buildUsers(document.getElementById('user-search').value.trim().toLowerCase());}
-function toggleVerify(email){const u=USERS_DATA.find(x=>x.email===email);if(u){u.verified=!u.verified;buildUsers();toast(u.verified?'👑 Verified badge granted!':'Badge removed.');}};
-function toggleBlock(email){const u=USERS_DATA.find(x=>x.email===email);if(u){u.blocked=!u.blocked;buildUsers();toast(u.blocked?'🚫 User blocked.':'✅ User unblocked.');}};
-function togglePromote(email){
-  if(currentRole!=='owner')return;
-  const u=USERS_DATA.find(x=>x.email===email);
-  if(u&&u.role!=='owner'){u.role=u.role==='admin'?'user':'admin';buildUsers();toast(u.role==='admin'?'🛡 User promoted to Admin!':'User demoted to standard account.');}
+
+function filterUsers() {
+    const val = document.getElementById('user-search').value;
+    buildUsers(val);
 }
+
+async function toggleVerify(email) {
+    const { error } = await window.sb.from('users').update({ verified: true }).eq('email', email);
+    if (!error) { showToast("Verified!"); buildUsers(); }
+}
+
+async function toggleBlock(email) {
+    // מיר טרעפן די יעצטיגע מצב צו וויסן צו מיר בלאקן אדער אנבלאקן
+    const { data } = await window.sb.from('users').select('blocked').eq('email', email).single();
+    const { error } = await window.sb.from('users').update({ blocked: !data.blocked }).eq('email', email);
+    if (!error) { showToast("Status updated!"); buildUsers(); }
+}
+
+async function togglePromote(email) {
+    if (currentRole !== 'owner') return;
+    const { error } = await window.sb.from('users').update({ role: 'admin' }).eq('email', email);
+    if (!error) { showToast("Promoted!"); buildUsers(); }
+  }
+
 
 /* ─── SHORTS ─── */
 const SHORTS_DATA=[
@@ -675,5 +711,15 @@ function saveSetting(type){
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 function delay(ms){return new Promise(r=>setTimeout(r,ms));}
 </script>
+  <script>
+  // דא לייג אריין דיינע סופעבייס פרטים פון דיין דאשבארד
+  const SUPABASE_URL = 'https://plsdwsnstszatabywdfs.supabase.co'; 
+  const SUPABASE_KEY = 'sb_publishable_y0N66nnsFmaZ1sl4jH8HvA_e0tWtzL-';
+  
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  window.sb = sb; 
+  
+  console.log("Supabase איז קאנעקטעד!");
+  </script>
 </body>
 </html>
