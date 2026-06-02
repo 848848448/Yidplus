@@ -505,16 +505,16 @@ async function submitStatus() {
     if(STATUS_type==='text') {
         var txt = document.getElementById('status-text-content').value;
         if(!txt) return toast('⚠ Type something first.');
-        sb.from(T.statuses).insert({owner_id:STATE.user.id, content:txt, type:'text'}).then(function(r){
+        sb.from(posts).insert({owner_id:STATE.user.id, content:txt, type:'text'}).then(function(r){
             if(r.error) return toast('❌ '+r.error.message);
             closeStatusModal(); toast('✅ Status posted!');
         });
     } else if(STATUS_selectedFile) {
         var path = 'statuses/'+STATE.user.id+'/'+Date.now();
-        sb.storage.from('statuses').upload(path, STATUS_selectedFile).then(function(r){
+        sb.storage.from('posts').upload(path, STATUS_selectedFile).then(function(r){
             if(r.error) return toast('❌ Upload failed: '+r.error.message);
-            var url = sb.storage.from('statuses').getPublicUrl(path).data.publicUrl;
-            sb.from(T.statuses).insert({owner_id:STATE.user.id, content:url, type:'media'}).then(function(r2){
+            var url = sb.storage.from('posts').getPublicUrl(path).data.publicUrl;
+            sb.from(posts).insert({owner_id:STATE.user.id, content:url, type:'media'}).then(function(r2){
                 if(r2.error) return toast('❌ '+r2.error.message);
                 closeStatusModal(); toast('✅ Status posted!');
             });
