@@ -421,7 +421,7 @@ function initHome(){
 
 // ── STATUSES ──
 function listenStatuses(){
-  sb.from(T.statuses).select('*').order('created_at',{ascending:false}).limit(10).then(function(r){
+  sb.from(posts).select('*').order('created_at',{ascending:false}).limit(10).then(function(r){
     if(r.data&&r.data.length)buildStatusRow(r.data);
   });
 }
