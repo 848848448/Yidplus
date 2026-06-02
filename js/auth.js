@@ -36,7 +36,7 @@ function AUTH_loadProfile(authUser) {
     .single()
     .then(function (res) {
       if (res.data) {
-        APP.user = {
+   window.STATE.user = APP.user = {     
           id:       res.data.id,
           email:    res.data.email,
           nickname: res.data.nickname || authUser.email.split('@')[0],
@@ -54,7 +54,7 @@ function AUTH_loadProfile(authUser) {
 }
 
 function AUTH_createProfile(authUser) {
-  var role = authUser.email === OWNER_EMAIL ? 'admin_super' : ROLES.member;
+  var role = authUser.email === OWNER_EMAIL ? 'admin_super' : ROLES.membewindow.STATE.user = APP.user = {r;
   var nick = authUser.email.split('@')[0];
 
   return sb.from(T.users).insert({
