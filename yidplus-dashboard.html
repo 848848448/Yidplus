@@ -490,27 +490,39 @@ function onStatusFileSelected(e){
   STATUS_selectedFile=e.target.files[0];
   if(STATUS_selectedFile){STATUS_type='media';document.getElementById('status-text-panel').style.display='none';document.getElementById('status-media-panel').style.display='block';}
 }
-function submitStatus(){
-  if(!STATE.user)return toast('⚠ Please sign in first.');
-  if(STATUS_type==='text'){
-    var txt=(document.getElementById('status-text-content').value||'').trim();
-    if(!txt)return toast('⚠ Type something first.');
-    sb.from(T.statuses).insert({owner_id:STATE.user.id,nickname:STATE.user.nickname,type:'text',text:txt,bg:STATUS_selectedBg,emoji:'✏️',expires_at:new Date(Date.now()+86400000).toISOString()}).then(function(r){
-      if(r.error)return toast('❌ '+r.error.message);
-      closeStatusModal();document.getElementById('status-text-content').value='';toast('✅ Status posted!');listenStatuses();
-    });
-  } else if(STATUS_selectedFile){
-    var path='statuses/'+STATE.user.id+'/'+Date.now()+'_'+STATUS_selectedFile.name;
-    sb.storage.from('statuses').upload(path,STATUS_selectedFile).then(function(r){
-      if(r.error)return toast('❌ Upload failed: '+r.error.message);
-      var url=sb.storage.from('statuses').getPublicUrl(path).data.publicUrl;
-      sb.from(T.statuses).insert({owner_id:STATE.user.id,nickname:STATE.user.nickname,type:'media',media_url:url,emoji:'🖼️',expires_at:new Date(Date.now()+86400000).toISOString()}).then(function(r2){
-        if(r2.error)return toast('❌ '+r2.error.message);
-        closeStatusModal();toast('✅ Status posted!');listenStatuses();
-      });
-    });
-  } else {toast('⚠ Please select a type.');}
-}
+async function submitStatus() {
+    // פוקס: אויב STATE.user איז נאך ליידיג, פרוביר עס צו כאפן גלייך פון סופּעבייס
+    if (!STATE.user) {
+        const { data: { user } } = await sb.auth.getUser();
+        if (user) {
+            STATE.user = user;
+        } else {
+            return toast('⚠ Please sign in first.');
+        }
+    }
+
+    // איצט ווען מיר ווייסן אז STATE.user איז דא, גיי ווייטער:
+    if(STATUS_type==='text') {
+        var txt = document.getElementById('status-text-content').value;
+        if(!txt) return toast('⚠ Type something first.');
+        sb.from(T.statuses).insert({owner_id:STATE.user.id, content:txt, type:'text'}).then(function(r){
+            if(r.error) return toast('❌ '+r.error.message);
+            closeStatusModal(); toast('✅ Status posted!');
+        });
+    } else if(STATUS_selectedFile) {
+        var path = 'statuses/'+STATE.user.id+'/'+Date.now();
+        sb.storage.from('statuses').upload(path, STATUS_selectedFile).then(function(r){
+            if(r.error) return toast('❌ Upload failed: '+r.error.message);
+            var url = sb.storage.from('statuses').getPublicUrl(path).data.publicUrl;
+            sb.from(T.statuses).insert({owner_id:STATE.user.id, content:url, type:'media'}).then(function(r2){
+                if(r2.error) return toast('❌ '+r2.error.message);
+                closeStatusModal(); toast('✅ Status posted!');
+            });
+        });
+    } else {
+        toast('⚠ Please select a type.');
+    }
+                       }
 
 // ── BROADCASTS ──
 function listenBroadcasts(){
