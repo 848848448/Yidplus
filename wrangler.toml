@@ -1,7 +1,7 @@
 name = "yidplus"
-main = "./functions/api/posts.js"
+pages_build_output_dir = "."
 
 [[d1_databases]]
 binding = "DB"
 database_name = "yidplus-db"
-database_id = "דיין-דאַטאַבייס-ID-נומער"
+database_id = "5133d1c1-4b1d-444e-a13a-73489e173a11"
