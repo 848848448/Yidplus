@@ -509,6 +509,26 @@
   <script src="js/app.js" defer></script>
   <script src="js/auth.js" defer></script>
   <script src="js/home.js" defer></script>
-  <script src="js/admin.js" defer></scripTHI
-</body>
+  <script src="js/admin.js" defer></script>
+<script>
+  async function loadPosts() {
+    try {
+      const response = await fetch('/api/posts');
+      const data = await response.json();
+      if (data.ok) {
+        const feed = document.getElementById('home-feed');
+        feed.innerHTML = data.posts.map(post => `
+          <div class="post">
+            <h3>${post.username}</h3>
+            <p>${post.content}</p>
+          </div>
+        `).join('');
+      }
+    } catch (err) {
+      console.error("קען נישט לאָדן פאָסטן:", err);
+    }
+  }
+  loadPosts();
+</script> 
+     </body>
   </html>
