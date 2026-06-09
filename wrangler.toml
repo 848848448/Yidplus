@@ -1,0 +1,7 @@
+name = "yidplus"
+main = "./functions/api/posts.js"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "yidplus-db"
+database_id = "דיין-דאַטאַבייס-ID-נומער"
