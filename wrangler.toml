@@ -1,7 +1,9 @@
-name = "yidplus"
-pages_build_output_dir = "."
+"d1_databases": [{
 
-[[d1_databases]]
-binding = "DB"
-database_name = "yidplus-db"
-database_id = "5133d1c1-4b1d-444e-a13a-73489e173a11"
+    "binding": "DB",
+
+    "database_name": "yidplus-db",
+
+    "database_id": "cfedf9e5-8c65-4f6f-995d-9f7c93eeeb45"
+
+ }]
