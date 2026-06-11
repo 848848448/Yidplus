@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,31 +8,22 @@
 <meta name="theme-color" content="#0A0A0F">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>👑 YID PLUS</title>
-
-<!-- ① CSS -->
 <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
 
-
-<!-- ════════════════════════════════
-     AUTH SCREEN
-════════════════════════════════ -->
+<!-- AUTH SCREEN -->
 <div class="screen active" id="screen-auth">
   <div style="margin:auto;width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;padding:1.5rem;animation:fadeIn .7s ease">
     <div style="font-size:2.8rem;filter:drop-shadow(0 0 18px rgba(201,168,76,.5))">👑</div>
     <div style="font-size:2rem;font-weight:700;letter-spacing:.14em;background:linear-gradient(135deg,var(--gold-l),var(--gold),var(--gold-d));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-top:.3rem">YID PLUS</div>
     <div style="font-size:.7rem;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);margin-top:.25rem;margin-bottom:2rem">Jewish Entertainment Platform</div>
-
     <div style="background:var(--bg2);border:.5px solid var(--border);border-radius:18px;padding:2rem 1.75rem;width:100%">
-      <!-- Tabs -->
       <div style="display:flex;background:var(--bg3);border-radius:10px;padding:3px;margin-bottom:1.75rem">
         <button class="auth-tab active" onclick="authTab('login')">Sign In</button>
         <button class="auth-tab" onclick="authTab('register')">Register</button>
       </div>
-
-      <!-- Message -->
       <div class="auth-msg" id="auth-msg"></div>
-
-      <!-- LOGIN FORM -->
       <div id="auth-login">
         <input class="field" type="email" id="l-email" placeholder="Email address">
         <input class="field" type="password" id="l-pass" placeholder="Password">
@@ -46,8 +39,6 @@
           <div class="loading-dots" id="l-dots"><span></span><span></span><span></span></div>
         </button>
       </div>
-
-      <!-- REGISTER FORM -->
       <div id="auth-register" style="display:none">
         <input class="field" type="email" id="r-email" placeholder="Email address">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
@@ -62,20 +53,17 @@
           <div class="loading-dots" id="r-dots"><span></span><span></span><span></span></div>
         </button>
       </div>
-
       <div style="background:rgba(201,168,76,.05);border:.5px solid var(--border);border-radius:10px;padding:.85rem 1rem;margin-top:1.25rem;font-size:.72rem;color:var(--muted);line-height:1.6">
-        🔗 Connected to <strong style="color:var(--gold)">Supabase</strong> · Project: plsdwsnstszatabywdfs
+        🔗 Powered by <strong style="color:var(--gold)">Cloudflare D1 + R2</strong>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ════════════════════════════════
-     HOME SCREEN
-════════════════════════════════ -->
+<!-- HOME SCREEN -->
 <div class="screen" id="screen-home">
   <div class="topbar">
-    <div class="topbar-logo">👑 <span id="home-app-title">YID PLUS</span></div>
+    <div class="topbar-logo">👑 <span class="app-title-display" id="home-app-title">YID PLUS</span></div>
     <div style="display:flex;gap:.5rem">
       <div class="icon-btn" onclick="toast('Search')">🔍</div>
       <div class="icon-btn" style="position:relative" onclick="navTo('chats')">🔔<div class="badge" id="notif-badge">3</div></div>
@@ -84,11 +72,12 @@
   </div>
   <div class="scroll-area" style="padding-bottom:80px">
     <div id="broadcast-bar"></div>
-       <div id="home-feed" style="padding: 10px;"></div>
-       <div style="background:#1a1a1a; padding:15px; margin:10px; border-radius:10px;">
-  <textarea id="new-post-content" placeholder="וואס גייט פאר?..." style="width:100%; height:60px; background:#222; color:white; border:none; padding:10px; border-radius:5px;"></textarea>
-  <button onclick="publishPost()" style="width:100%; margin-top:10px; padding:10px; background:gold; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">פאוסט!</button>
-       </div>
+
+    <div style="background:var(--bg2); padding:15px; margin:10px; border-radius:10px;">
+      <textarea id="new-post-content" placeholder="וואס גייט פאר?..." style="width:100%; height:60px; background:var(--bg3); color:var(--text); border:.5px solid var(--border); padding:10px; border-radius:5px; font-family:inherit; resize:none"></textarea>
+      <button onclick="publishPost()" style="width:100%; margin-top:10px; padding:10px; background:var(--gold); border:none; border-radius:5px; font-weight:bold; cursor:pointer; color:#1a1208;">פאוסט!</button>
+    </div>
+
     <div style="padding:.75rem .75rem .25rem">
       <div style="font-size:.63rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:.6rem">Status Updates</div>
       <div style="display:flex;gap:.75rem;overflow-x:auto;padding-bottom:.5rem;scrollbar-width:none" id="status-row"></div>
@@ -102,21 +91,19 @@
     <div style="display:flex;gap:.6rem;overflow-x:auto;padding:0 .75rem .5rem;scrollbar-width:none" id="home-shorts"></div>
     <div class="section-hdr"><h2>⭐ Featured Channels</h2><button class="see-all" onclick="toast('Browse all')">See All →</button></div>
     <div style="display:flex;gap:.75rem;overflow-x:auto;padding:0 .75rem .5rem;scrollbar-width:none" id="home-channels"></div>
-    <div class="section-hdr"><h2>📰 Latest from Following</h2></div>
+    <div class="section-hdr"><h2>📰 Latest Posts</h2></div>
     <div style="padding:0 .75rem" id="home-feed"></div>
   </div>
   <nav class="bottom-nav">
-    <button class="nav-item active" data-nav="home"     onclick="navTo('home')">    <span class="nav-icon">🏠</span><span class="nav-label">Home</span></button>
-    <button class="nav-item"        data-nav="shorts"   onclick="navTo('shorts')">  <span class="nav-icon">🎬</span><span class="nav-label">Shorts</span></button>
-    <button class="nav-item"        data-nav="music"    onclick="navTo('music')">   <span class="nav-icon">🎵</span><span class="nav-label">Music</span></button>
-    <button class="nav-item"        data-nav="chats"    onclick="navTo('chats')">   <span class="nav-icon">💬</span><span class="nav-label">Chats</span></button>
-    <button class="nav-item"        data-nav="settings" onclick="navTo('settings')"><span class="nav-icon">⚙️</span><span class="nav-label">Settings</span></button>
+    <button class="nav-item active" data-nav="home"     onclick="navTo('home')">    <span class="nav-icon">🏠</span><span class="nav-label" data-nav-label="home">Home</span></button>
+    <button class="nav-item"        data-nav="shorts"   onclick="navTo('shorts')">  <span class="nav-icon">🎬</span><span class="nav-label" data-nav-label="shorts">Shorts</span></button>
+    <button class="nav-item"        data-nav="music"    onclick="navTo('music')">   <span class="nav-icon">🎵</span><span class="nav-label" data-nav-label="music">Music</span></button>
+    <button class="nav-item"        data-nav="chats"    onclick="navTo('chats')">   <span class="nav-icon">💬</span><span class="nav-label" data-nav-label="chats">Chats</span></button>
+    <button class="nav-item"        data-nav="settings" onclick="navTo('settings')"><span class="nav-icon">⚙️</span><span class="nav-label" data-nav-label="settings">Settings</span></button>
   </nav>
 </div>
 
-<!-- ════════════════════════════════
-     SHORTS SCREEN
-════════════════════════════════ -->
+<!-- SHORTS SCREEN -->
 <div class="screen" id="screen-shorts">
   <div class="shorts-topbar">
     <div class="topbar-logo">👑 YID PLUS</div>
@@ -132,7 +119,6 @@
     <button class="nav-item"        data-nav="chats"    onclick="navTo('chats')">   <span class="nav-icon">💬</span><span class="nav-label">Chats</span></button>
     <button class="nav-item"        data-nav="settings" onclick="navTo('settings')"><span class="nav-icon">⚙️</span><span class="nav-label">Settings</span></button>
   </nav>
-  <!-- Comments Drawer -->
   <div class="comments-drawer" id="cmt-drawer">
     <div class="drawer-handle"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem .5rem;font-size:.9rem">
@@ -145,7 +131,6 @@
       <button class="cmt-send-btn" onclick="sendCmt()">➤</button>
     </div>
   </div>
- displaypload Modal -->
   <div class="modal-overlay" id="upload-modal" onclick="if(event.target===this)this.classList.remove('open')">
     <div class="modal-sheet">
       <div class="modal-title">📤 Upload a Short</div>
@@ -165,9 +150,7 @@
   </div>
 </div>
 
-<!-- ════════════════════════════════
-     CHAT LIST SCREEN
-════════════════════════════════ -->
+<!-- CHAT LIST SCREEN -->
 <div class="screen" id="screen-chats">
   <div class="topbar">
     <div class="topbar-logo">👑 Chats</div>
@@ -195,9 +178,7 @@
   </nav>
 </div>
 
-<!-- ════════════════════════════════
-     CHAT ROOM SCREEN
-════════════════════════════════ -->
+<!-- CHAT ROOM SCREEN -->
 <div class="screen" id="screen-chatroom">
   <div class="chatroom-topbar">
     <div class="icon-btn" onclick="navTo('chats')" style="margin-right:.4rem">‹</div>
@@ -250,9 +231,7 @@
   </div>
 </div>
 
-<!-- ════════════════════════════════
-     MUSIC SCREEN
-════════════════════════════════ -->
+<!-- MUSIC SCREEN -->
 <div class="screen" id="screen-music">
   <div class="topbar">
     <div class="topbar-logo">👑 Music</div>
@@ -284,7 +263,6 @@
   </nav>
 </div>
 
-<!-- Mini Player -->
 <div class="mini-player" id="mini-player" onclick="navTo('player')">
   <div id="mini-prog"></div>
   <div class="mini-thumb" id="mini-thumb">🎵</div>
@@ -296,9 +274,7 @@
   </div>
 </div>
 
-<!-- ════════════════════════════════
-     FULL PLAYER SCREEN
-════════════════════════════════ -->
+<!-- FULL PLAYER SCREEN -->
 <div class="screen" id="screen-player">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;flex-shrink:0">
     <div class="icon-btn" onclick="navTo('music')">‹</div>
@@ -341,9 +317,7 @@
   </div>
 </div>
 
-<!-- ════════════════════════════════
-     SETTINGS SCREEN
-════════════════════════════════ -->
+<!-- SETTINGS SCREEN -->
 <div class="screen" id="screen-settings">
   <div class="topbar">
     <div class="topbar-logo">⚙️ Settings</div>
@@ -371,13 +345,11 @@
   </nav>
 </div>
 
-<!-- ════════════════════════════════
-     CHANNEL SCREEN
-════════════════════════════════ -->
+<!-- CHANNEL SCREEN -->
 <div class="screen" id="screen-channel">
   <div class="channel-cover" id="ch-cover" style="background:var(--bg3)">
     <div class="channel-topbar-over">
-      <div class="icon-btn" style="background:rgba(0,0,0,.4);color:#fff" onclick="navTo(APP.prevScreen||'home')">‹</div>
+      <div class="icon-btn" style="background:rgba(0,0,0,.4);color:#fff" onclick="navTo(STATE.prevScreen||'home')">‹</div>
       <div style="display:flex;gap:.4rem">
         <div class="icon-btn" style="background:rgba(0,0,0,.4);color:#fff" onclick="shareChannel()">📤</div>
         <div class="icon-btn" style="background:rgba(0,0,0,.4);color:#fff" onclick="toast('Options')">⋯</div>
@@ -414,9 +386,7 @@
   </div>
 </div>
 
-<!-- ════════════════════════════════
-     ADMIN GATE + SCREEN
-════════════════════════════════ -->
+<!-- ADMIN GATE + SCREEN -->
 <div id="admin-gate" style="min-height:100vh;background:var(--bg);display:none;align-items:center;justify-content:center;padding:1.5rem;position:fixed;inset:0;z-index:300">
   <div style="width:100%;max-width:360px;background:var(--bg2);border:.5px solid var(--border);border-radius:18px;padding:2rem 1.75rem;animation:fadeIn .6s ease">
     <div style="text-align:center;font-size:2.8rem;margin-bottom:.5rem;filter:drop-shadow(0 0 16px rgba(201,168,76,.5))">👑</div>
@@ -460,9 +430,7 @@
   <div class="scroll-area" id="admin-content"></div>
 </div>
 
-<!-- ════════════════════════════════
-     STATUS VIEWER OVERLAY
-════════════════════════════════ -->
+<!-- STATUS VIEWER OVERLAY -->
 <div class="sv-overlay" id="sv-overlay">
   <div class="sv-header">
     <div class="sv-bars" id="sv-bars"></div>
@@ -488,47 +456,82 @@
   </div>
 </div>
 
-<!-- Toast -->
 <div id="app-toast"></div>
 
 <!-- ════════════════════════════════
      SCRIPTS — ORDER MATTERS!
-     ① Supabase CDN  (already in <head>)
-     ② client.js     (sets window.sb)
-     ③ app.js        (sets window.APP, navTo, toast…)
-     ④ auth.js       (uses window.sb + window.navTo)
-     ⑤ home.js       (uses window.sb + window.navTo)
-     ⑥ admin.js      (uses window.sb + window.userCan)
+     ① state.js   → window.STATE, api, navTo, toast, AUTH, ChatState...
+     ② app.js     → router/init helpers (uses state.js)
+     ③ auth.js    → login/register/logout (uses AUTH)
+     ④ home.js    → home feed + posts (uses api)
+     ⑤ admin.js   → admin panel (uses userCan)
 ════════════════════════════════ -->
+<script src="js/state.js"></script>
+<script src="js/app.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/home.js"></script>
+<script src="js/admin.js"></script>
 
+<!-- Posts feed loader (Cloudflare D1 via /api/posts) -->
 <script>
-          </script>
-     <!-- CHANGE THIS: -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase/client.js" defer></script>
-  <script src="js/app.js" defer></script>
-  <script src="js/auth.js" defer></script>
-  <script src="js/home.js" defer></script>
-  <script src="js/admin.js" defer></script>
-<script>
-  async function loadPosts() {
-    try {
-      const response = await fetch('/api/posts');
-      const data = await response.json();
-      if (data.ok) {
-        const feed = document.getElementById('home-feed');
-        feed.innerHTML = data.posts.map(post => `
-          <div class="post">
-            <h3>${post.username}</h3>
-            <p>${post.content}</p>
-          </div>
-        `).join('');
-      }
-    } catch (err) {
-      console.error("קען נישט לאָדן פאָסטן:", err);
+async function loadPosts() {
+  var feed = document.getElementById('home-feed');
+  if (!feed) return;
+  feed.innerHTML = '<div class="feed-state"><div class="spinner"></div><div>Loading posts...</div></div>';
+  try {
+    var data = await api.get('/posts');
+    var posts = data.posts || [];
+    if (!posts.length) {
+      feed.innerHTML = '<div class="feed-state"><div style="font-size:2.5rem">📭</div><div>No posts yet</div></div>';
+      return;
     }
+    feed.innerHTML = posts.map(function (post) {
+      return '<div class="feed-post" style="padding:.85rem"><div style="font-weight:700;margin-bottom:.3rem">' +
+        escHtml(post.username || 'Anonymous') + '</div><div style="font-size:.85rem;color:var(--muted)">' +
+        escHtml(post.caption || post.content || '') + '</div></div>';
+    }).join('');
+  } catch (err) {
+    feed.innerHTML = '<div class="feed-state"><div style="font-size:2rem">⚠️</div><div>Could not load posts</div>' +
+      '<div style="font-size:.75rem">' + escHtml(err.message) + '</div>' +
+      '<button class="feed-retry" onclick="loadPosts()">Try Again</button></div>';
   }
-  loadPosts();
-</script> 
-     </body>
-  </html>
+}
+
+window.publishPost = function () {
+  var ta = document.getElementById('new-post-content');
+  var text = (ta.value || '').trim();
+  if (!text) return toast('⚠ Type something first.');
+  if (!STATE.user) return toast('⚠ Please sign in first.');
+  api.post('/posts', {
+    username: STATE.user.nickname || STATE.user.email,
+    caption: text,
+    content: '📝',
+  }).then(function () {
+    ta.value = '';
+    toast('✅ Posted!');
+    loadPosts();
+  }).catch(function (err) {
+    toast('❌ ' + err.message);
+  });
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+  AUTH.restore().then(function (user) {
+    if (user) {
+      navTo(localStorage.getItem('yp_page') || 'home');
+      applyRoleUI();
+      loadAppSettings();
+    } else {
+      navTo('auth');
+    }
+    loadPosts();
+  });
+});
+</script>
+
+</body>
+</html>
+
+
+
+
