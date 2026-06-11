@@ -1,8 +1,8 @@
 // ============================================================
 // js/home.js  —  Home Dashboard
-// Dynamic feed from Supabase 'posts' table
+// Dynamic feed from Cloudflare D1 via /api/posts
 // States: loading / empty / error / success
-// NO static buildFeed() — only loadDynamicFeed()
+// Uses api/escHtml/fmtN/timeAgo/isAnyAdmin from js/state.js
 // ============================================================
 
 // ── LOCAL STATE ──────────────────────────────────────────
@@ -12,8 +12,7 @@ var HOME_adStart  = 0;
 var HOME_svUser   = null;
 var HOME_svSlide  = 0;
 var HOME_svTimer  = null;
-var HOME_bcChan   = null;
-var HOME_feedSub  = null;
+var HOME_bcTimer  = null;
 
 // ── STATIC DATA (Statuses + Ads stay local) ───────────────
 var HOME_STATUSES = [
@@ -35,17 +34,16 @@ window.init_home = function () {
   buildAds();
   buildShortsPrev();
   buildChannelsPrev();
-  loadDynamicFeed();      // ← Supabase feed
+  loadDynamicFeed();      // ← Cloudflare D1 feed
   listenBroadcasts();
   if (typeof applyRoleUI  === 'function') applyRoleUI();
   if (typeof loadAppSettings === 'function') loadAppSettings();
 };
 
 // ══════════════════════════════════════════════════════════
-//  DYNAMIC FEED — reads from Supabase 'posts' table
-//  Columns expected: id, username, caption, content,
-//                    likes (int), comments (int),
-//                    created_at (timestamp)
+//  DYNAMIC FEED — reads from /api/posts (D1-backed)
+//  Row shape: { id, username, caption, content, likes,
+//                comments, created_at }
 //  'content' can be a URL or an emoji for preview
 // ══════════════════════════════════════════════════════════
 window.loadDynamicFeed = function () {
@@ -59,37 +57,19 @@ window.loadDynamicFeed = function () {
   console.log('[HOME] loadDynamicFeed() → fetching posts...');
   feed.innerHTML =
     '<div class="feed-state">' +
-      '<div class="feed-spinner"></div>' +
+      '<div class="spinner"></div>' +
       '<div class="feed-state-text">Loading posts...</div>' +
     '</div>';
 
-  // ── 2. FETCH FROM SUPABASE ───────────────────────────────
-  sb
-    .from('posts')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(20)
+  // ── 2. FETCH FROM /api/posts ─────────────────────────────
+  api.get('/posts')
     .then(function (res) {
+      console.log('[HOME] /api/posts response:', res);
 
-      console.log('[HOME] Supabase response:', res);
-
-      // ── 3. ERROR STATE ─────────────────────────────────
-      if (res.error) {
-        console.error('[HOME] Supabase error:', res.error.message);
-        feed.innerHTML =
-          '<div class="feed-state feed-state-error">' +
-            '<div style="font-size:2rem">⚠️</div>' +
-            '<div class="feed-state-text">Could not load posts.</div>' +
-            '<div class="feed-state-sub">' + res.error.message + '</div>' +
-            '<button class="feed-retry-btn" onclick="loadDynamicFeed()">Try Again</button>' +
-          '</div>';
-        return;
-      }
-
-      var posts = res.data || [];
+      var posts = res.posts || [];
       console.log('[HOME] Posts received:', posts.length);
 
-      // ── 4. EMPTY STATE ─────────────────────────────────
+      // ── 3. EMPTY STATE ─────────────────────────────────
       if (posts.length === 0) {
         console.log('[HOME] No posts in database yet');
         feed.innerHTML =
@@ -101,40 +81,22 @@ window.loadDynamicFeed = function () {
         return;
       }
 
-      // ── 5. SUCCESS — RENDER POSTS ──────────────────────
+      // ── 4. SUCCESS — RENDER POSTS ──────────────────────
       console.log('[HOME] Rendering ' + posts.length + ' posts');
       feed.innerHTML = '';
       posts.forEach(function (p) {
         feed.appendChild(buildPostCard(p));
       });
-
-      // ── 6. REALTIME SUBSCRIPTION ──────────────────────
-      // Listen for new posts and prepend them live
-      if (HOME_feedSub) sb.removeChannel(HOME_feedSub);
-      HOME_feedSub = sb
-        .channel('public:posts')
-        .on('postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'posts' },
-          function (payload) {
-            console.log('[HOME] New post received via realtime:', payload.new);
-            var card = buildPostCard(payload.new);
-            card.style.animation = 'fadeIn .5s ease';
-            feed.insertBefore(card, feed.firstChild);
-          }
-        )
-        .subscribe(function (status) {
-          console.log('[HOME] Realtime feed subscription status:', status);
-        });
     })
     .catch(function (err) {
-      // Unexpected JS error (not a Supabase error)
-      console.error('[HOME] Unexpected fetch error:', err);
+      // ── 5. ERROR STATE ─────────────────────────────────
+      console.error('[HOME] /api/posts error:', err.message);
       feed.innerHTML =
-        '<div class="feed-state feed-state-error">' +
-          '<div style="font-size:2rem">❌</div>' +
-          '<div class="feed-state-text">Something went wrong.</div>' +
-          '<div class="feed-state-sub">' + (err.message || 'Unknown error') + '</div>' +
-          '<button class="feed-retry-btn" onclick="loadDynamicFeed()">Try Again</button>' +
+        '<div class="feed-state">' +
+          '<div style="font-size:2rem">⚠️</div>' +
+          '<div class="feed-state-text">Could not load posts.</div>' +
+          '<div class="feed-state-sub">' + escHtml(err.message || 'Unknown error') + '</div>' +
+          '<button class="feed-retry" onclick="loadDynamicFeed()">Try Again</button>' +
         '</div>';
     });
 };
@@ -149,14 +111,14 @@ function buildPostCard(p) {
   var caption = p.caption  || '';
   var likes   = p.likes    || 0;
   var cmts    = p.comments || 0;
-  var emoji   = /^[\p{Emoji}]+$/u.test(p.content||'') ? p.content : '🎬';
+  var emoji   = /^[\p{Emoji}]+$/u.test(p.content || '') ? p.content : '🎬';
   var timeStr = p.created_at ? timeAgo(p.created_at) : '';
 
   article.innerHTML =
     // Header
-    '<div style="display:flex;align-items:center;gap:.6rem;padding:.75rem;cursor:pointer" onclick="openChannel(\'' + nick + '\')">' +
+    '<div style="display:flex;align-items:center;gap:.6rem;padding:.75rem;cursor:pointer" onclick="openChannel(\'' + escHtml(nick) + '\')">' +
       '<div style="width:38px;height:38px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1.1rem;border:1px solid var(--border);flex-shrink:0">' +
-        (nick.charAt(0).toUpperCase()) +
+        escHtml(nick.charAt(0).toUpperCase()) +
       '</div>' +
       '<div>' +
         '<div style="font-size:.85rem;font-weight:700">@' + escHtml(nick) + '</div>' +
@@ -192,14 +154,41 @@ function buildPostCard(p) {
 }
 
 // ── POST ACTIONS ─────────────────────────────────────────
+window.publishPost = function () {
+  var ta = document.getElementById('new-post-content');
+  if (!ta) return;
+  var content = (ta.value || '').trim();
+
+  if (!content) {
+    toast('⚠ ביטע שרייב עפעס!');
+    return;
+  }
+  if (!STATE.user) {
+    toast('⚠ Please sign in first.');
+    return;
+  }
+
+  api.post('/posts', {
+    username: STATE.user.nickname || (STATE.user.email || '').split('@')[0],
+    caption:  content,
+    content:  '📝',
+  }).then(function () {
+    toast('✅ פאוסט ארויף!');
+    ta.value = '';
+    loadDynamicFeed(); // refresh feed so the new post shows up
+  }).catch(function (err) {
+    toast('❌ ' + err.message);
+  });
+};
+
 window.handleLike = function (btn, postId, currentLikes) {
-  var liked   = btn.classList.toggle('liked');
+  var liked    = btn.classList.toggle('liked');
   var newCount = liked ? currentLikes + 1 : currentLikes - 1;
   btn.innerHTML = (liked ? '❤️ ' : '🤍 ') + fmtN(newCount);
-  // Update Supabase
-  sb.from('posts').update({ likes: newCount }).eq('id', postId)
-    .then(function (res) {
-      if (res.error) console.warn('[HOME] Like update error:', res.error.message);
+
+  api.put('/posts', { id: postId, likes: newCount })
+    .catch(function (err) {
+      console.warn('[HOME] Like update error:', err.message);
     });
 };
 
@@ -215,25 +204,32 @@ window.copyPostLink = function (postId) {
 window.adminDeletePost = function (postId) {
   if (!isAnyAdmin()) return;
   if (!confirm('Delete this post permanently?')) return;
-  sb.from('posts').delete().eq('id', postId).then(function (res) {
-    if (res.error) return toast('❌ Delete failed: ' + res.error.message);
-    var card = document.querySelector('[data-id="' + postId + '"]');
-    if (card) card.remove();
-    toast('🗑 Post deleted.');
-  });
+
+  api.del('/posts?id=' + encodeURIComponent(postId))
+    .then(function () {
+      var card = document.querySelector('[data-id="' + postId + '"]');
+      if (card) card.remove();
+      toast('🗑 Post deleted.');
+    })
+    .catch(function (err) {
+      toast('❌ Delete failed: ' + err.message);
+    });
 };
 
 // ── BROADCASTS ───────────────────────────────────────────
 function listenBroadcasts() {
-  sb.from('broadcasts').select('text').order('created_at',{ascending:false}).limit(1)
-    .then(function(res) {
-      if (res.data && res.data[0]) showBroadcast(res.data[0].text);
-    });
-  if (HOME_bcChan) sb.removeChannel(HOME_bcChan);
-  HOME_bcChan = sb.channel('public:broadcasts')
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'broadcasts'},function(p){
-      showBroadcast(p.new.text);
-    }).subscribe();
+  fetchLatestBroadcast();
+  // Poll every 30s for new broadcasts (cheap "realtime" via D1)
+  clearInterval(HOME_bcTimer);
+  HOME_bcTimer = setInterval(fetchLatestBroadcast, 30000);
+}
+function fetchLatestBroadcast() {
+  api.get('/broadcasts?limit=1')
+    .then(function (res) {
+      var list = res.broadcasts || [];
+      if (list[0]) showBroadcast(list[0].text);
+    })
+    .catch(function () { /* silent */ });
 }
 function showBroadcast(text) {
   var bar = document.getElementById('broadcast-bar');
@@ -386,38 +382,4 @@ window.svPrev  = function() { if(HOME_svUser&&HOME_svSlide>0) HOME_showSVSlide(-
 window.closeSV = function() { var el=document.getElementById('sv-overlay'); if(el)el.classList.remove('open'); clearTimeout(HOME_svTimer); };
 window.svMute  = function() { var b=document.getElementById('sv-mute'); if(b)b.textContent=b.textContent==='🔊'?'🔇':'🔊'; };
 
-// ── HELPERS ──────────────────────────────────────────────
-function escHtml(str) {
-  return String(str||'')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function timeAgo(isoString) {
-  var diff = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
-  if (diff <    60) return diff + 's ago';
-  if (diff <  3600) return Math.floor(diff/60)  + 'm ago';
-  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
-  return Math.floor(diff/86400) + 'd ago';
-}
-window.publishPost = async function() {
-  const content = document.getElementById('new-post-content').value;
-  if (!content) {
-    alert("ביטע שרייב עפעס!");
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from('posts')
-    .insert([{ content: content, username: 'Yidplus User' }]);
-
-  if (error) {
-    console.error("Error inserting post:", error);
-    alert("טעות: " + error.message);
-  } else {
-    alert("פאוסט ארויף!");
-    document.getElementById('new-post-content').value = '';
-    loadDynamicFeed(); // דאס לאדנט איבער דעם פיעד אז דו זאלסט זען דעם נייעם פאוסט
-  }
-};
-console.log('YID PLUS: home.js loaded ✓');
+console.log('YID PLUS: home.js loaded ✓ (Cloudflare D1 mode)');
