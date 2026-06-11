@@ -1,11 +1,40 @@
+# wrangler.toml
+# Cloudflare Pages + Workers configuration for YID PLUS
+# Deploy command: npx wrangler pages deploy . --project-name=yidplus
+
 name = "yidplus"
+compatibility_date = "2024-09-23"
 pages_build_output_dir = "."
 
+# ── D1 DATABASE ──────────────────────────────────────────
 [[d1_databases]]
-binding = "DB"
+binding      = "DB"
 database_name = "yidplus-db"
-database_id = "cfedf9e5-8c65-4f6f-995d-9f7c93eeeb45"
+database_id  = "cfedf9e5-8c65-4f6f-995d-9f7c93eeeb45"
 
+# ── R2 STORAGE ───────────────────────────────────────────
 [[r2_buckets]]
-binding = "MY_BUCKET"
+binding     = "MY_BUCKET"
+bucket_name = "yidplus-media"
+
+# ── ENVIRONMENT VARIABLES ────────────────────────────────
+[vars]
+OWNER_EMAIL = "avrumy5872877@gmail.com"
+APP_NAME    = "YID PLUS"
+
+# ── PRODUCTION ENVIRONMENT ───────────────────────────────
+[env.production]
+name = "yidplus"
+
+[env.production.vars]
+OWNER_EMAIL = "avrumy5872877@gmail.com"
+APP_NAME    = "YID PLUS"
+
+[[env.production.d1_databases]]
+binding      = "DB"
+database_name = "yidplus-db"
+database_id  = "cfedf9e5-8c65-4f6f-995d-9f7c93eeeb45"
+
+[[env.production.r2_buckets]]
+binding     = "MY_BUCKET"
 bucket_name = "yidplus-media"
