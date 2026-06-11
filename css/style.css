@@ -45,7 +45,7 @@ html, body {
   background: var(--bg);
   transform: translateX(100%);
   transition: transform .32s cubic-bezier(.32,.72,0,1);
-  pointer-events: none;
+  
   overflow: hidden;
 }
 .screen.active { transform: translateX(0);   pointer-events: all; }
