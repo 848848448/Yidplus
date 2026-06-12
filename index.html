@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,6 +7,23 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>👑 YID PLUS</title>
 <link rel="stylesheet" href="css/style.css">
+<script>
+// Apply saved user theme ASAP (before paint) to avoid flash-of-default-colors
+(function () {
+  try {
+    var raw = localStorage.getItem('yp_theme');
+    if (!raw) return;
+    var t = JSON.parse(raw);
+    var r = document.documentElement.style;
+    r.setProperty('--gold', t.gold);
+    r.setProperty('--gold-l', t.goldL);
+    r.setProperty('--gold-d', t.gold);
+    r.setProperty('--bg', t.bg);
+    r.setProperty('--bg2', t.bg2);
+    r.setProperty('--text', t.text);
+  } catch (e) {}
+})();
+</script>
 </head>
 <body>
 
@@ -333,6 +348,7 @@
       <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem" id="settings-email">user@email.com</div>
       <button style="margin-top:.75rem;padding:.45rem 1.25rem;background:rgba(201,168,76,.1);border:.5px solid var(--border2);border-radius:20px;color:var(--gold);font-size:.78rem;cursor:pointer;font-family:inherit" onclick="openEditProfile()">✏️ Edit Profile</button>
     </div>
+    <div id="theme-picker-host"></div>
     <div id="settings-body"></div>
     <div class="logout-row" onclick="doLogout()"><span>🚪</span><span>Sign Out</span></div>
   </div>
@@ -467,6 +483,7 @@
      ⑤ admin.js   → admin panel (uses userCan)
 ════════════════════════════════ -->
 <script src="js/state.js"></script>
+<script src="js/theme.js"></script>
 <script src="js/app.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/home.js"></script>
@@ -530,8 +547,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-</html>
-
-
-
-
+          </html>
