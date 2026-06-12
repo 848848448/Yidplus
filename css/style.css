@@ -651,3 +651,17 @@ body.night {
 
 .status-bg-sw { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; flex-shrink: 0; transition: transform .15s; }
 .status-bg-sw.active { border-color: #000; transform: scale(1.1); }
+
+/* =============================================
+   THEME PICKER — user-customizable colors
+   ============================================= */
+.theme-picker-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; margin: 0 .75rem 1rem; padding: 1.25rem; box-shadow: 0 1px 6px rgba(0,0,0,.04); }
+.theme-picker-title { font-size: .72rem; letter-spacing: .15em; text-transform: uppercase; color: #333; font-weight: 700; margin-bottom: 1rem; }
+.theme-swatch-row { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.theme-swatch { width: 36px; height: 36px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: transform .15s, border-color .15s; flex-shrink: 0; }
+.theme-swatch:hover { transform: scale(1.1); }
+.theme-swatch.active { border-color: #000; transform: scale(1.12); }
+.theme-custom-row { display: flex; align-items: center; gap: .6rem; margin-top: .5rem; }
+.theme-custom-row label { font-size: .8rem; color: var(--muted); flex: 1; }
+.theme-custom-row input[type="color"] { width: 44px; height: 32px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; background: none; padding: 2px; }
+.theme-reset-btn { margin-top: .85rem; width: 100%; padding: .55rem; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: .8rem; cursor: pointer; font-family: inherit; }
