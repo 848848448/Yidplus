@@ -1,92 +1,141 @@
 // ============================================================
-// js/admin.js — Admin Panel with full Supabase RBAC
+// js/admin.js — Admin Panel (Cloudflare D1)
 // Roles: member / admin_limited / admin_super / owner
+// Uses: window.api, window.STATE, window.CONFIG, window.ROLES,
+//       window.userCan, window.toast, window.setLoad,
+//       window.validEmail, window.navTo, window.delay
+// NO ES module imports — plain script, attaches to window.
 // ============================================================
 
-import { supabase, T, ROLES, OWNER_EMAIL, ADMIN_PIN } from '../supabase/client.js';
+var ADMIN_pinLocal  = CONFIG.ADMIN_PIN;
+var ADMIN_gateEmail = '';
+var ADMIN_allUsers  = [];
 
-let adminPinLocal = ADMIN_PIN;
-let gateEmail     = '';
-let allUsers      = [];
+function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
 /* ══════════════════════════════════
    ADMIN GATE — 2-step: email + PIN
 ══════════════════════════════════ */
-window.openAdminGate = function() {
+window.openAdminGate = function () {
   document.getElementById('admin-gate').classList.add('open');
-  [0,1,2,3].forEach(i => { const el=document.getElementById('p'+i); if(el) el.value=''; });
+  [0,1,2,3].forEach(function (i) {
+    var el = document.getElementById('p'+i);
+    if (el) el.value = '';
+  });
   document.getElementById('gate-pin-step').style.display   = 'none';
   document.getElementById('gate-email-step').style.display = 'block';
   clearGateMsg();
 };
 
 function showGateMsg(type, text) {
-  const el = document.getElementById('gate-msg');
+  var el = document.getElementById('gate-msg');
   if (!el) return;
   el.className = 'gate-msg ' + type;
-  el.innerHTML = (type==='err'?'⚠ ':'✓ ') + text;
+  el.innerHTML = (type === 'err' ? '⚠ ' : '✓ ') + text;
 }
 function clearGateMsg() {
-  const el = document.getElementById('gate-msg');
+  var el = document.getElementById('gate-msg');
   if (el) el.className = 'gate-msg';
 }
 
-window.checkGateEmail = async function() {
-  const email = document.getElementById('gate-email')?.value.trim();
-  if (!email || !validEmail(email)) return showGateMsg('err', 'Enter a valid email address.');
+window.checkGateEmail = function () {
+  var emailEl = document.getElementById('gate-email');
+  var email   = (emailEl && emailEl.value || '').trim();
+
+  if (!email || !validEmail(email)) {
+    return showGateMsg('err', 'Enter a valid email address.');
+  }
   setLoad('gate-email', true);
 
-  // Check role in Supabase
-  const { data } = await supabase.from(T.users).select('role,email').eq('email', email).single();
-  setLoad('gate-email', false);
+  // Check role via /api/admin/check-email
+  api.post('/admin/check-email', { email: email })
+    .then(function (res) {
+      setLoad('gate-email', false);
 
-  if (!data || (data.role !== 'admin_super' && data.role !== 'admin_limited' && email !== OWNER_EMAIL)) {
-    return showGateMsg('err', 'This email is not authorized for admin access.');
-  }
-  gateEmail = email;
-  document.getElementById('gate-email-step').style.display = 'none';
-  document.getElementById('gate-pin-step').style.display   = 'block';
-  document.getElementById('p0')?.focus();
-  clearGateMsg();
+      var role = res.role;
+      var authorized = email === CONFIG.OWNER_EMAIL ||
+        role === 'admin_super' || role === 'admin_limited';
+
+      if (!authorized) {
+        return showGateMsg('err', 'This email is not authorized for admin access.');
+      }
+
+      ADMIN_gateEmail = email;
+      document.getElementById('gate-email-step').style.display = 'none';
+      document.getElementById('gate-pin-step').style.display   = 'block';
+      var p0 = document.getElementById('p0');
+      if (p0) p0.focus();
+      clearGateMsg();
+    })
+    .catch(function (err) {
+      setLoad('gate-email', false);
+      showGateMsg('err', err.message || 'Could not verify email.');
+    });
 };
 
-window.backToEmailStep = function() {
+window.backToEmailStep = function () {
   document.getElementById('gate-pin-step').style.display   = 'none';
   document.getElementById('gate-email-step').style.display = 'block';
-  [0,1,2,3].forEach(i => { const el=document.getElementById('p'+i); if(el) el.value=''; });
+  [0,1,2,3].forEach(function (i) {
+    var el = document.getElementById('p'+i);
+    if (el) el.value = '';
+  });
 };
 
-window.pinFocus = function(i) {
-  const v = document.getElementById('p'+i)?.value;
-  if (v && i < 3) document.getElementById('p'+(i+1))?.focus();
+window.pinFocus = function (i) {
+  var el = document.getElementById('p'+i);
+  var v  = el && el.value;
+  if (v && i < 3) {
+    var next = document.getElementById('p'+(i+1));
+    if (next) next.focus();
+  }
 };
 
-window.checkPin = async function() {
-  const pin = [0,1,2,3].map(i => document.getElementById('p'+i)?.value || '').join('');
+window.checkPin = function () {
+  var pin = [0,1,2,3].map(function (i) {
+    var el = document.getElementById('p'+i);
+    return el ? el.value : '';
+  }).join('');
+
   if (pin.length < 4) return showGateMsg('err', 'Enter all 4 digits.');
-  if (pin !== adminPinLocal) {
+
+  if (pin !== ADMIN_pinLocal) {
     showGateMsg('err', 'Incorrect PIN. Access denied.');
-    [0,1,2,3].forEach(i => { const el=document.getElementById('p'+i); if(el) el.value=''; });
-    document.getElementById('p0')?.focus();
+    [0,1,2,3].forEach(function (i) {
+      var el = document.getElementById('p'+i);
+      if (el) el.value = '';
+    });
+    var p0 = document.getElementById('p0');
+    if (p0) p0.focus();
     return;
   }
+
   setLoad('gate-pin', true);
-  await delay(800);
-  setLoad('gate-pin', false);
-  document.getElementById('admin-gate').classList.remove('open');
 
-  // Set admin role badge
-  const role = gateEmail === OWNER_EMAIL ? 'owner' : (await supabase.from(T.users).select('role').eq('email',gateEmail).single())?.data?.role;
-  document.getElementById('admin-role-badge').textContent = role === 'owner' ? '👑 OWNER' : role === 'admin_super' ? '🛡 SUPER ADMIN' : '🔒 LIMITED ADMIN';
+  delay(800).then(function () {
+    setLoad('gate-pin', false);
+    document.getElementById('admin-gate').classList.remove('open');
 
-  buildAdminNav();
-  navTo('admin');
+    var role = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL)
+      ? 'owner'
+      : (STATE.user && STATE.user.role) || 'member';
+
+    var badge = document.getElementById('admin-role-badge');
+    if (badge) {
+      badge.textContent = role === 'owner'        ? '👑 OWNER'
+                         : role === 'admin_super'  ? '🛡 SUPER ADMIN'
+                         :                           '🔒 LIMITED ADMIN';
+    }
+
+    buildAdminNav();
+    navTo('admin');
+  });
 };
 
 /* ══════════════════════════════════
    ADMIN NAV
 ══════════════════════════════════ */
-const PANELS = [
+var ADMIN_PANELS = [
   { id:'analytics',    icon:'📊', label:'Analytics',  roles:['admin_limited','admin_super','owner'] },
   { id:'app-settings', icon:'⚙️', label:'App',        roles:['admin_super','owner'] },
   { id:'users',        icon:'👥', label:'Users',       roles:['admin_super','owner'] },
@@ -98,229 +147,326 @@ const PANELS = [
 ];
 
 function buildAdminNav() {
-  const nav = document.getElementById('admin-nav-row');
+  var nav = document.getElementById('admin-nav-row');
   if (!nav) return;
   nav.innerHTML = '';
-  const userRole = gateEmail === OWNER_EMAIL ? 'owner' : APP.user?.role || 'member';
-  PANELS.filter(p => p.roles.includes(userRole)).forEach((p, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'anav' + (i===0?' active':'');
-    btn.textContent = p.icon + ' ' + p.label;
-    btn.onclick = () => {
-      document.querySelectorAll('.anav').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      buildAdminPanel(p.id);
-    };
-    nav.appendChild(btn);
-  });
+
+  var userRole = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL)
+    ? 'owner'
+    : (STATE.user && STATE.user.role) || 'member';
+
+  ADMIN_PANELS
+    .filter(function (p) { return p.roles.indexOf(userRole) !== -1; })
+    .forEach(function (p, i) {
+      var btn = document.createElement('button');
+      btn.className   = 'anav' + (i === 0 ? ' active' : '');
+      btn.textContent = p.icon + ' ' + p.label;
+      btn.onclick = function () {
+        document.querySelectorAll('.anav').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        buildAdminPanel(p.id);
+      };
+      nav.appendChild(btn);
+    });
+
   buildAdminPanel('analytics');
 }
 
-window.init_admin = function() {};
+window.init_admin = function () {};
 
 /* ══════════════════════════════════
    ADMIN PANELS
 ══════════════════════════════════ */
-async function buildAdminPanel(id) {
-  const content = document.getElementById('admin-content');
+function buildAdminPanel(id) {
+  var content = document.getElementById('admin-content');
   if (!content) return;
 
   if (id === 'analytics') {
-    // Live online count from Supabase
-    const { count } = await supabase.from(T.users).select('*', {count:'exact',head:true}).eq('online',true);
-    const { count: total } = await supabase.from(T.users).select('*', {count:'exact',head:true});
-    const vals = [320,410,280,520,610,490,570], max = Math.max(...vals);
-    content.innerHTML = `<div class="admin-panel">
-      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem">
-        <div class="live-dot"></div>
-        <div id="live-ct" style="font-size:.78rem;color:var(--green)">● ${count||0} users online now</div>
-      </div>
-      <div class="stats-grid">
-        ${[['Total Users',total||0,'↑ Today','up'],['Online Now',count||0,'Live count','up'],['Shorts','—','Firebase migrated','up'],['Messages','—','Supabase realtime','up']].map(([l,n,t,c])=>`
-          <div class="stat-card">
-            <div class="stat-num">${n}</div>
-            <div class="stat-lbl">${l}</div>
-            <div class="stat-${c}">${t}</div>
-          </div>`).join('')}
-      </div>
-      <div class="admin-card">
-        <div class="admin-card-title">📈 Daily Visitors — Last 7 Days</div>
-        <div style="height:80px;display:flex;align-items:flex-end;gap:3px;margin-bottom:.5rem">
-          ${vals.map((v,i)=>`<div class="chart-bar${i===6?' today':''}" style="flex:1;height:${Math.max(6,v/max*74)}px" title="${v}"></div>`).join('')}
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:.58rem;color:var(--muted2)">
-          <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
-        </div>
-      </div>
-    </div>`;
-    // Refresh online count every 10s
-    setInterval(async()=>{
-      const {count:c}=await supabase.from(T.users).select('*',{count:'exact',head:true}).eq('online',true);
-      const el=document.getElementById('live-ct');
-      if(el)el.textContent='● '+(c||0)+' users online now';
-    },10000);
+    content.innerHTML =
+      '<div class="admin-panel">' +
+        '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem">' +
+          '<div class="live-dot"></div>' +
+          '<div id="live-ct" style="font-size:.78rem;color:var(--green)">● loading...</div>' +
+        '</div>' +
+        '<div class="stats-grid" id="stats-grid"></div>' +
+        '<div class="admin-card">' +
+          '<div class="admin-card-title">📈 Daily Visitors — Last 7 Days</div>' +
+          '<div style="height:80px;display:flex;align-items:flex-end;gap:3px;margin-bottom:.5rem" id="chart-bars"></div>' +
+          '<div style="display:flex;justify-content:space-between;font-size:.58rem;color:var(--muted2)">' +
+            '<span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    refreshAnalytics();
+    clearInterval(window._adminAnalyticsTimer);
+    window._adminAnalyticsTimer = setInterval(refreshAnalytics, 10000);
 
   } else if (id === 'users') {
-    await buildUsersPanel(content);
+    buildUsersPanel(content);
 
   } else if (id === 'broadcast') {
-    content.innerHTML = `<div class="admin-panel">
-      <div class="admin-card">
-        <div class="admin-card-title">📢 Global Broadcast</div>
-        <div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">Sends to all registered users instantly via Supabase Realtime.</div>
-        <textarea class="bc-textarea" id="bc-textarea" rows="4" placeholder="Type your announcement..."></textarea>
-        <button class="bc-send-btn" onclick="sendBroadcast()">📢 Send to All Users</button>
-      </div>
-      <div class="admin-card" id="bc-history-card">
-        <div class="admin-card-title">📜 Broadcast History</div>
-        <div id="bc-history-list"></div>
-      </div>
-    </div>`;
+    content.innerHTML =
+      '<div class="admin-panel">' +
+        '<div class="admin-card">' +
+          '<div class="admin-card-title">📢 Global Broadcast</div>' +
+          '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">Sends to all registered users (shown next time they load Home).</div>' +
+          '<textarea class="bc-textarea" id="bc-textarea" rows="4" placeholder="Type your announcement..."></textarea>' +
+          '<button class="bc-send-btn" onclick="sendBroadcast()">📢 Send to All Users</button>' +
+        '</div>' +
+        '<div class="admin-card" id="bc-history-card">' +
+          '<div class="admin-card-title">📜 Broadcast History</div>' +
+          '<div id="bc-history-list"></div>' +
+        '</div>' +
+      '</div>';
     loadBroadcastHistory();
 
   } else if (id === 'app-settings') {
-    const userRole = gateEmail === OWNER_EMAIL ? 'owner' : APP.user?.role;
-    content.innerHTML = `<div class="admin-panel">
-      <div class="admin-card">
-        <div class="admin-card-title">🏷️ Platform Identity</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 0;border-bottom:.5px solid rgba(201,168,76,.06)">
-          <div><div style="font-size:.82rem">Platform Title</div></div>
-          <input style="padding:.45rem .75rem;background:var(--bg3);border:.5px solid var(--border);border-radius:8px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none;max-width:150px" id="site-title" value="YID PLUS">
-          <button class="save-pill" onclick="toast('✅ Title updated!')">Save</button>
-        </div>
-        <div style="padding:.75rem 0">
-          <div style="font-size:.82rem;color:var(--red)">🔒 Hardcoded Owner: <strong>${OWNER_EMAIL}</strong></div>
-          <div style="font-size:.68rem;color:var(--muted);margin-top:.25rem">Cannot be changed by anyone.</div>
-        </div>
-      </div>
-      <div class="admin-card">
-        <div class="admin-card-title">🔒 Admin PIN</div>
-        <div style="display:flex;align-items:center;gap:.5rem;padding:.75rem 0">
-          <input type="password" maxlength="4" id="new-pin-input" placeholder="New 4-digit PIN"
-            style="flex:1;padding:.6rem;background:var(--bg3);border:.5px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;outline:none">
-          <button class="save-pill" onclick="updateAdminPin()">Update</button>
-        </div>
-      </div>
-      ${userRole==='owner'?`<div class="admin-card">
-        <div class="admin-card-title">🗄️ Supabase SQL — Run Migrations</div>
-        <div style="font-size:.75rem;color:var(--muted);line-height:1.6">
-          Go to <a href="https://supabase.com/dashboard/project/plsdwsnstszatabywdfs/sql" target="_blank" style="color:var(--gold)">Supabase SQL Editor →</a> to run schema changes, RLS policies, and triggers.
-        </div>
-      </div>`:''}
-    </div>`;
+    var userRole = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL)
+      ? 'owner'
+      : (STATE.user && STATE.user.role);
+
+    content.innerHTML =
+      '<div class="admin-panel">' +
+        '<div class="admin-card">' +
+          '<div class="admin-card-title">🏷️ Platform Identity</div>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 0;border-bottom:.5px solid rgba(201,168,76,.06)">' +
+            '<div><div style="font-size:.82rem">Platform Title</div></div>' +
+            '<input style="padding:.45rem .75rem;background:var(--bg3);border:.5px solid var(--border);border-radius:8px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none;max-width:150px" id="site-title" value="' + escHtml(STATE.settings.app_title || 'YID PLUS') + '">' +
+            '<button class="save-pill" onclick="adminSaveTitle()">Save</button>' +
+          '</div>' +
+          '<div style="padding:.75rem 0">' +
+            '<div style="font-size:.82rem;color:var(--red)">🔒 Hardcoded Owner: <strong>' + escHtml(CONFIG.OWNER_EMAIL) + '</strong></div>' +
+            '<div style="font-size:.68rem;color:var(--muted);margin-top:.25rem">Cannot be changed by anyone.</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="admin-card">' +
+          '<div class="admin-card-title">🔒 Admin PIN</div>' +
+          '<div style="display:flex;align-items:center;gap:.5rem;padding:.75rem 0">' +
+            '<input type="password" maxlength="4" id="new-pin-input" placeholder="New 4-digit PIN" style="flex:1;padding:.6rem;background:var(--bg3);border:.5px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;outline:none">' +
+            '<button class="save-pill" onclick="updateAdminPin()">Update</button>' +
+          '</div>' +
+        '</div>' +
+        (userRole === 'owner' ?
+          '<div class="admin-card">' +
+            '<div class="admin-card-title">🗄️ Cloudflare D1 — Database</div>' +
+            '<div style="font-size:.75rem;color:var(--muted);line-height:1.6">' +
+              'Run schema changes via <code>npx wrangler d1 execute yidplus-db --file=./schema.sql</code> or the ' +
+              '<a href="https://dash.cloudflare.com" target="_blank" style="color:var(--gold)">Cloudflare Dashboard →</a> D1 console.' +
+            '</div>' +
+          '</div>' : '') +
+      '</div>';
 
   } else {
-    content.innerHTML = `<div class="admin-panel"><div class="admin-card" style="text-align:center;padding:2rem">
-      <div style="font-size:2.5rem;margin-bottom:.75rem">🚧</div>
-      <div style="font-size:.88rem;color:var(--muted)">${id} panel — connected to Supabase · ready to use</div>
-    </div></div>`;
+    content.innerHTML =
+      '<div class="admin-panel"><div class="admin-card" style="text-align:center;padding:2rem">' +
+        '<div style="font-size:2.5rem;margin-bottom:.75rem">🚧</div>' +
+        '<div style="font-size:.88rem;color:var(--muted)">' + escHtml(id) + ' panel — connected to Cloudflare D1 · ready to use</div>' +
+      '</div></div>';
   }
 }
 
-/* ── USERS PANEL ── */
-async function buildUsersPanel(content) {
-  // admin_limited cannot see PII
-  const canSeePII = userCan('view_pii');
-  const fields    = canSeePII ? 'id,email,nickname,phone,role,verified,blocked,online,created_at' : 'id,nickname,role,verified,blocked,online';
-  const { data: users, error } = await supabase.from(T.users).select(fields).order('created_at',{ascending:false});
-  allUsers = users || [];
+/* ── ANALYTICS ── */
+function refreshAnalytics() {
+  api.get('/admin/stats')
+    .then(function (res) {
+      var online = res.online || 0;
+      var total  = res.total  || 0;
+      var vals   = res.dailyVisitors || [320,410,280,520,610,490,570];
+      var max    = Math.max.apply(null, vals);
 
-  content.innerHTML = `<div class="admin-panel">
-    <div class="admin-card">
-      <div class="admin-card-title">👥 Registered Users <span style="color:var(--muted);font-size:.7rem">(${allUsers.length} total)</span></div>
-      <input class="admin-search" placeholder="Search by nickname${canSeePII?' or email':''}..." id="usr-search" oninput="filterAdminUsers()">
-      <div id="usr-list"></div>
-    </div>
-  </div>`;
-  renderUsersList(allUsers, canSeePII);
+      var liveCt = document.getElementById('live-ct');
+      if (liveCt) liveCt.textContent = '● ' + online + ' users online now';
+
+      var grid = document.getElementById('stats-grid');
+      if (grid) {
+        var cards = [
+          ['Total Users', total,  '↑ Today',          'up'],
+          ['Online Now',  online, 'Live count',       'up'],
+          ['Shorts',      res.shorts   || '—', 'Cloudflare R2',     'up'],
+          ['Messages',    res.messages || '—', 'Cloudflare D1',     'up'],
+        ];
+        grid.innerHTML = cards.map(function (c) {
+          return '<div class="stat-card">' +
+            '<div class="stat-num">' + c[1] + '</div>' +
+            '<div class="stat-lbl">' + c[0] + '</div>' +
+            '<div class="stat-' + c[3] + '">' + c[2] + '</div>' +
+          '</div>';
+        }).join('');
+      }
+
+      var bars = document.getElementById('chart-bars');
+      if (bars) {
+        bars.innerHTML = vals.map(function (v, i) {
+          var h = Math.max(6, v / max * 74);
+          return '<div class="chart-bar' + (i === 6 ? ' today' : '') + '" style="flex:1;height:' + h + 'px" title="' + v + '"></div>';
+        }).join('');
+      }
+    })
+    .catch(function (err) {
+      console.warn('[ADMIN] stats error:', err.message);
+    });
+}
+
+/* ── USERS PANEL ── */
+function buildUsersPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">👥 Registered Users <span style="color:var(--muted);font-size:.7rem" id="usr-count"></span></div>' +
+        '<input class="admin-search" placeholder="Search by nickname...' + (userCan('view_pii') ? ' or email' : '') + '" id="usr-search" oninput="filterAdminUsers()">' +
+        '<div id="usr-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+
+  api.get('/admin/users')
+    .then(function (res) {
+      ADMIN_allUsers = res.users || [];
+      var ct = document.getElementById('usr-count');
+      if (ct) ct.textContent = '(' + ADMIN_allUsers.length + ' total)';
+      renderUsersList(ADMIN_allUsers, userCan('view_pii'));
+    })
+    .catch(function (err) {
+      var el = document.getElementById('usr-list');
+      if (el) el.innerHTML = '<div class="feed-state"><div>⚠️ ' + escHtml(err.message) + '</div></div>';
+    });
 }
 
 function renderUsersList(users, canSeePII) {
-  const el = document.getElementById('usr-list');
+  var el = document.getElementById('usr-list');
   if (!el) return;
-  el.innerHTML = '';
-  users.forEach(u => {
-    const isOwnerRow = u.email === OWNER_EMAIL;
-    const canEdit    = userCan('manage_users') && !isOwnerRow;
-    const roleBadge  = `<span class="role-badge role-${u.role==='admin_super'?'admin':u.role==='admin_limited'?'admin':'user'}">${u.role||'member'}</span>`;
-    el.innerHTML += `<div class="user-row">
-      <div style="width:36px;height:36px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;border:.5px solid var(--border);position:relative">
-        ${u.online?'<div class="online-dot"></div>':''}
-        ${(u.nickname||'?').slice(0,2).toUpperCase()}
-      </div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap">
-          @${u.nickname||'user'} ${roleBadge} ${u.verified?'👑':''} ${u.blocked?'🚫':''}
-        </div>
-        ${canSeePII && u.email ? `<div style="font-size:.67rem;color:var(--muted)">${u.email}</div>` : ''}
-      </div>
-      <div style="display:flex;gap:.3rem;flex-shrink:0;flex-wrap:wrap">
-        ${canEdit ? `
-          <button class="act-btn act-verify" onclick="adminVerify('${u.id}','${u.verified}')">${u.verified?'✓ Verified':'👑 Verify'}</button>
-          ${userCan('promote_users') ? `<button class="act-btn act-promote" onclick="adminPromote('${u.id}','${u.role||'member'}')">${u.role==='admin_super'?'Demote':'Promote'}</button>` : ''}
-          <button class="act-btn act-block" onclick="adminBlock('${u.id}','${u.blocked}')">${u.blocked?'Unblock':'Block'}</button>
-        ` : '<span style="font-size:.65rem;color:var(--muted)">Protected</span>'}
-      </div>
-    </div>`;
-  });
-  if (!users.length) el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No users found</div>';
+
+  if (!users.length) {
+    el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No users found</div>';
+    return;
+  }
+
+  el.innerHTML = users.map(function (u) {
+    var isOwnerRow = u.email === CONFIG.OWNER_EMAIL;
+    var canEdit    = userCan('manage_users') && !isOwnerRow;
+    var roleClass  = (u.role === 'admin_super' || u.role === 'admin_limited') ? 'admin' : 'user';
+    var roleBadge  = '<span class="role-badge role-' + roleClass + '">' + (u.role || 'member') + '</span>';
+
+    var actions = canEdit
+      ? '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + (u.verified ? '✓ Verified' : '👑 Verify') + '</button>' +
+        (userCan('promote_users')
+          ? '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? 'Demote' : 'Promote') + '</button>'
+          : '') +
+        '<button class="act-btn act-block" onclick="adminBlock(\'' + u.id + '\',\'' + !!u.blocked + '\')">' + (u.blocked ? 'Unblock' : 'Block') + '</button>'
+      : '<span style="font-size:.65rem;color:var(--muted)">Protected</span>';
+
+    return '<div class="user-row">' +
+      '<div style="width:36px;height:36px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;border:.5px solid var(--border);position:relative">' +
+        (u.online ? '<div class="online-dot"></div>' : '') +
+        escHtml((u.nickname || '?').slice(0, 2).toUpperCase()) +
+      '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap">' +
+          '@' + escHtml(u.nickname || 'user') + ' ' + roleBadge + ' ' + (u.verified ? '👑' : '') + ' ' + (u.blocked ? '🚫' : '') +
+        '</div>' +
+        (canSeePII && u.email ? '<div style="font-size:.67rem;color:var(--muted)">' + escHtml(u.email) + '</div>' : '') +
+      '</div>' +
+      '<div style="display:flex;gap:.3rem;flex-shrink:0;flex-wrap:wrap">' + actions + '</div>' +
+    '</div>';
+  }).join('');
 }
 
-window.filterAdminUsers = function() {
-  const q = document.getElementById('usr-search')?.value.toLowerCase() || '';
-  renderUsersList(allUsers.filter(u => (u.nickname||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q)), userCan('view_pii'));
+window.filterAdminUsers = function () {
+  var q = (document.getElementById('usr-search') || {}).value || '';
+  q = q.toLowerCase();
+  var filtered = ADMIN_allUsers.filter(function (u) {
+    return (u.nickname || '').toLowerCase().indexOf(q) !== -1 ||
+           (u.email    || '').toLowerCase().indexOf(q) !== -1;
+  });
+  renderUsersList(filtered, userCan('view_pii'));
 };
 
-window.adminVerify = async function(id, current) {
-  const verified = current === 'true' ? false : true;
-  const { error } = await supabase.from(T.users).update({ verified }).eq('id', id);
-  if (!error) { toast(verified ? '👑 Verified badge granted!' : 'Badge removed.'); await buildUsersPanel(document.getElementById('admin-content')); }
+window.adminVerify = function (id, currentStr) {
+  var verified = currentStr !== 'true';
+  api.put('/admin/users', { id: id, verified: verified })
+    .then(function () {
+      toast(verified ? '👑 Verified badge granted!' : 'Badge removed.');
+      buildUsersPanel(document.getElementById('admin-content'));
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
 };
 
-window.adminBlock = async function(id, current) {
-  const blocked = current === 'true' ? false : true;
-  const { error } = await supabase.from(T.users).update({ blocked }).eq('id', id);
-  if (!error) { toast(blocked ? '🚫 User blocked.' : '✅ User unblocked.'); await buildUsersPanel(document.getElementById('admin-content')); }
+window.adminBlock = function (id, currentStr) {
+  var blocked = currentStr !== 'true';
+  api.put('/admin/users', { id: id, blocked: blocked })
+    .then(function () {
+      toast(blocked ? '🚫 User blocked.' : '✅ User unblocked.');
+      buildUsersPanel(document.getElementById('admin-content'));
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
 };
 
-window.adminPromote = async function(id, currentRole) {
+window.adminPromote = function (id, currentRole) {
   if (!userCan('promote_users')) return toast('⚠ Only the owner can promote users.');
-  const newRole = currentRole === 'admin_super' ? ROLES.member : 'admin_super';
-  const { error } = await supabase.from(T.users).update({ role: newRole }).eq('id', id);
-  if (!error) { toast(newRole === 'admin_super' ? '🛡 Promoted to Super Admin!' : 'Demoted to member.'); await buildUsersPanel(document.getElementById('admin-content')); }
+  var newRole = currentRole === 'admin_super' ? ROLES.member : 'admin_super';
+  api.put('/admin/users', { id: id, role: newRole })
+    .then(function () {
+      toast(newRole === 'admin_super' ? '🛡 Promoted to Super Admin!' : 'Demoted to member.');
+      buildUsersPanel(document.getElementById('admin-content'));
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
 };
 
 /* ── BROADCAST ── */
-window.sendBroadcast = async function() {
-  const text = document.getElementById('bc-textarea')?.value.trim();
+window.sendBroadcast = function () {
+  var ta   = document.getElementById('bc-textarea');
+  var text = (ta && ta.value || '').trim();
   if (!text) return toast('⚠ Type a message first.');
   if (!confirm('Send this to ALL users?\n\n"' + text + '"')) return;
-  const { error } = await supabase.from('broadcasts').insert({
-    text,
-    sender_email: gateEmail,
-  });
-  if (error) return toast('❌ Failed: ' + error.message);
-  document.getElementById('bc-textarea').value = '';
-  toast('📢 Broadcast sent to all users!');
-  loadBroadcastHistory();
+
+  api.post('/broadcasts', {
+    text: text,
+    sender_email: ADMIN_gateEmail || (STATE.user && STATE.user.email) || '',
+  })
+    .then(function () {
+      ta.value = '';
+      toast('📢 Broadcast sent to all users!');
+      loadBroadcastHistory();
+    })
+    .catch(function (err) { toast('❌ Failed: ' + err.message); });
 };
 
-async function loadBroadcastHistory() {
-  const el = document.getElementById('bc-history-list');
+function loadBroadcastHistory() {
+  var el = document.getElementById('bc-history-list');
   if (!el) return;
-  const { data } = await supabase.from('broadcasts').select('*').order('created_at',{ascending:false}).limit(10);
-  if (!data?.length) { el.innerHTML = '<div style="font-size:.78rem;color:var(--muted);text-align:center;padding:1rem">No broadcasts yet</div>'; return; }
-  el.innerHTML = data.map(b => `
-    <div style="background:var(--bg3);border:.5px solid var(--border);border-radius:8px;padding:.65rem .85rem;margin-bottom:.5rem">
-      <div style="font-size:.82rem;margin-bottom:.25rem">${b.text}</div>
-      <div style="font-size:.63rem;color:var(--muted)">Sent by ${b.sender_email} · ${new Date(b.created_at).toLocaleString()}</div>
-    </div>`).join('');
+
+  api.get('/broadcasts?limit=10')
+    .then(function (res) {
+      var list = res.broadcasts || [];
+      if (!list.length) {
+        el.innerHTML = '<div style="font-size:.78rem;color:var(--muted);text-align:center;padding:1rem">No broadcasts yet</div>';
+        return;
+      }
+      el.innerHTML = list.map(function (b) {
+        return '<div style="background:var(--bg3);border:.5px solid var(--border);border-radius:8px;padding:.65rem .85rem;margin-bottom:.5rem">' +
+          '<div style="font-size:.82rem;margin-bottom:.25rem">' + escHtml(b.text) + '</div>' +
+          '<div style="font-size:.63rem;color:var(--muted)">Sent by ' + escHtml(b.sender_email) + ' · ' + new Date(b.created_at).toLocaleString() + '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) {
+      el.innerHTML = '<div style="font-size:.78rem;color:var(--muted);text-align:center;padding:1rem">⚠ ' + escHtml(err.message) + '</div>';
+    });
 }
 
-window.updateAdminPin = function() {
-  const p = document.getElementById('new-pin-input')?.value;
-  if (!p || p.length !== 4 || isNaN(p)) return toast('⚠ Enter exactly 4 digits.');
-  adminPinLocal = p;
-  document.getElementById('new-pin-input').value = '';
-  toast('✅ Admin PIN updated!');
+/* ── SETTINGS HELPERS ── */
+window.adminSaveTitle = function () {
+  var v = (document.getElementById('site-title') || {}).value || '';
+  if (!v.trim()) return toast('⚠ Title cannot be empty.');
+  saveSetting('app_title', v.trim());
 };
+
+window.updateAdminPin = function () {
+  var p = (document.getElementById('new-pin-input') || {}).value;
+  if (!p || p.length !== 4 || isNaN(p)) return toast('⚠ Enter exactly 4 digits.');
+  ADMIN_pinLocal = p;
+  document.getElementById('new-pin-input').value = '';
+  toast('✅ Admin PIN updated! (this session only — set ADMIN_PIN in wrangler.toml for persistence)');
+};
+
+console.log('[YID PLUS] admin.js loaded ✓ (Cloudflare D1 mode)');
