@@ -1,87 +1,14 @@
 // ================================================
-// js/auth.js  —  Supabase Authentication
-// Uses: window.sb, window.APP, window.T, window.ROLES,
-//       window.OWNER_EMAIL, window.navTo, window.setLoad,
-//       window.validEmail, window.applyRoleUI, window.toast
-// Zero local var/let/const that conflict with other files
+// js/auth.js  —  Cloudflare D1 Authentication
+// Uses: window.AUTH, window.api, window.STATE,
+//       window.CONFIG, window.ROLES, window.navTo,
+//       window.setLoad, window.validEmail,
+//       window.applyRoleUI, window.toast
+// All session/profile logic lives in AUTH (state.js).
+// This file is just the UI glue for the auth screen.
 // ================================================
 
-// Prefix all local vars with AUTH_ to avoid any conflict
 var AUTH_remMe = !!localStorage.getItem('yp_remember');
-
-// ── SESSION OBSERVER ────────────────────────────
-// Fires automatically when user signs in or out
-sb.auth.onAuthStateChange(function (event, session) {
-  if (event === 'SIGNED_IN' && session) {
-    AUTH_loadProfile(session.user).then(function () {
-      var page = localStorage.getItem('yp_page') || 'home';
-      navTo(page);
-      applyRoleUI();
-      if (typeof init_home === 'function' && page === 'home') {
-        init_home();
-      }
-    });
-  } else if (event === 'SIGNED_OUT') {
-    APP.user = null;
-    navTo('auth');
-  }
-});
-
-// ── LOAD PROFILE FROM SUPABASE ───────────────────
-function AUTH_loadProfile(authUser) {
-  return sb
-    .from(T.users)
-    .select('*')
-    .eq('id', authUser.id)
-    .single()
-    .then(function (res) {
-      if (res.data) {
-   window.STATE.user = APP.user = {     
-          id:       res.data.id,
-          email:    res.data.email,
-          nickname: res.data.nickname || authUser.email.split('@')[0],
-          role:     res.data.role     || ROLES.member,
-          isOwner:  res.data.email    === OWNER_EMAIL,
-          verified: res.data.verified || false,
-          photo:    res.data.photo_url || null,
-          phone:    res.data.phone     || null,
-        };
-      } else {
-        // First login — create profile automatically
-        return AUTH_createProfile(authUser);
-      }
-    });
-}
-
-function AUTH_createProfile(authUser) {
-  var role = authUser.email === OWNER_EMAIL ? 'admin_super' : ROLES.membewindow.STATE.user = APP.user = {r;
-  var nick = authUser.email.split('@')[0];
-
-  return sb.from(T.users).insert({
-    id:       authUser.id,
-    email:    authUser.email,
-    nickname: nick,
-    role:     role,
-    verified: false,
-    online:   true,
-  }).select().single().then(function (res) {
-    if (res.data) {
-      APP.user = Object.assign({}, res.data, {
-        isOwner: res.data.email === OWNER_EMAIL,
-      });
-      // Auto-create personal channel
-      sb.from(T.channels).insert({
-        owner_id:    authUser.id,
-        nickname:    nick,
-        followers:   0,
-        following:   0,
-        total_views: 0,
-        verified:    false,
-        bio:         '',
-      });
-    }
-  });
-}
 
 // ── MESSAGE HELPERS ──────────────────────────────
 function AUTH_showMsg(type, text) {
@@ -117,6 +44,15 @@ window.toggleRemember = function () {
   if (tog) tog.classList.toggle('on', AUTH_remMe);
 };
 
+// ── AFTER SUCCESSFUL LOGIN/REGISTER ──────────────
+function AUTH_goHome() {
+  var page = localStorage.getItem('yp_page') || 'home';
+  navTo(page);
+  applyRoleUI();
+  if (typeof loadAppSettings === 'function') loadAppSettings();
+  if (page === 'home' && typeof init_home === 'function') init_home();
+}
+
 // ── LOGIN ────────────────────────────────────────
 window.doLogin = function () {
   var email = (document.getElementById('l-email').value || '').trim();
@@ -128,31 +64,27 @@ window.doLogin = function () {
 
   setLoad('l', true);
 
-  sb.auth.signInWithPassword({ email: email, password: pass })
-    .then(function (res) {
+  AUTH.login(email, pass)
+    .then(function (user) {
       setLoad('l', false);
-      if (res.error) {
-        var msg = res.error.message.indexOf('Invalid') !== -1
-          ? 'Wrong email or password.'
-          : res.error.message;
-        return AUTH_showMsg('err', msg);
-      }
+
       if (AUTH_remMe) localStorage.setItem('yp_remember', email);
       else            localStorage.removeItem('yp_remember');
 
-      AUTH_showMsg('ok', APP.user && APP.user.isOwner 
-        ? 'Welcome back, Owner! 👑' 
-        : 'Signed in! Loading your feed...'
+      AUTH_showMsg('ok',
+        (user && user.isOwner)
+          ? 'Welcome back, Owner! 👑'
+          : 'Signed in! Loading your feed...'
       );
 
-      // 🚀 קאָנעקט די סיסטעם גלייך צום Dashboard פֿייל!
-      setTimeout(function() {
-        window.location.href = "yidplus-dashboard.html";
-      }, 1000); // עס וואַרט איין סעקונדע כדי דער באַנוצער זאָל קענען זען די "Signed in" מעסעדזש
+      setTimeout(AUTH_goHome, 600);
     })
     .catch(function (err) {
       setLoad('l', false);
-      AUTH_showMsg('err', err.message || 'Login failed.');
+      var msg = (err.message || '').indexOf('Invalid') !== -1
+        ? 'Wrong email or password.'
+        : (err.message || 'Login failed.');
+      AUTH_showMsg('err', msg);
     });
 };
 
@@ -178,68 +110,40 @@ window.doRegister = function () {
 
   setLoad('r', true);
 
-  sb.auth.signUp({ email: email, password: pass })
-    .then(function (res) {
+  AUTH.register({
+    email: email,
+    password: pass,
+    nickname: nick,
+    phone: phone,
+  })
+    .then(function () {
       setLoad('r', false);
-      if (res.error) {
-        var msg = res.error.message.indexOf('already') !== -1
-          ? 'This email is already registered.'
-          : res.error.message;
-        return AUTH_showMsg('err', msg);
-      }
-
-      var userId = res.data.user.id;
-      var role   = email === OWNER_EMAIL ? 'admin_super' : ROLES.member;
-
-      // Write profile to Supabase
-      sb.from(T.users).insert({
-        id:       userId,
-        email:    email,
-        nickname: nick,
-        phone:    phone,
-        role:     role,
-        verified: false,
-        online:   true,
-      }).then(function () {
-        sb.from(T.channels).insert({
-          owner_id:    userId,
-          nickname:    nick,
-          followers:   0,
-          following:   0,
-          total_views: 0,
-          verified:    false,
-          bio:         '',
-        });
-}).then(function() {
-   // דאָס פֿירט דעם באַנוצער צום הויפּט בלאַט נאָך 1 סעקונדע //
-setTimeout(function() {
-  window.location.href = "yidplus-dashboard.html";
-  applyRoleUI();
-}, 1000);
-});
-   AUTH_showMsg('ok', 'Account created! Your channel is being set up...');
+      AUTH_showMsg('ok', 'Account created! Your channel is being set up...');
+      setTimeout(AUTH_goHome, 600);
     })
     .catch(function (err) {
       setLoad('r', false);
-      AUTH_showMsg('err', err.message || 'Registration failed.');
+      var msg = (err.message || '').indexOf('already') !== -1
+        ? 'This email is already registered.'
+        : (err.message || 'Registration failed.');
+      AUTH_showMsg('err', msg);
     });
 };
 
 // ── LOGOUT ───────────────────────────────────────
 window.doLogout = function () {
   if (!confirm('Sign out of YID PLUS?')) return;
-  if (APP.user && APP.user.id) {
-    sb.from(T.users).update({ online: false }).eq('id', APP.user.id);
-  }
-  sb.auth.signOut().then(function () {
+  AUTH.logout().then(function () {
     localStorage.removeItem('yp_page');
     toast('👋 Signed out successfully.');
+    navTo('auth');
+  }).catch(function (err) {
+    toast('❌ ' + err.message);
   });
 };
 
-// ── RESTORE SESSION + EMAIL ON PAGE LOAD ─────────
+// ── RESTORE SAVED EMAIL ON PAGE LOAD ─────────────
 document.addEventListener('DOMContentLoaded', function () {
-  // Restore saved email
   var savedEmail = localStorage.getItem('yp_remember');
   if (savedEmail) {
     var emailInput = document.getElementById('l-email');
@@ -259,16 +163,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // Check for existing Supabase session
-  sb.auth.getSession().then(function (res) {
-    if (res.data && res.data.session) {
-      AUTH_loadProfile(res.data.session.user).then(function () {
-        var page = localStorage.getItem('yp_page') || 'home';
-        navTo(page);
-        applyRoleUI();
-      });
-    } else {
-      navTo('auth');
-    }
-  });
+  // NOTE: session restore (AUTH.restore()) + initial navTo()
+  // is handled centrally in index.html's bottom script,
+  // so we don't duplicate it here.
 });
+
+console.log('YID PLUS: auth.js loaded ✓ (Cloudflare D1 mode)');
