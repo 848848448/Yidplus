@@ -155,6 +155,11 @@ window.navTo = function (id) {
   if (typeof fn === 'function') fn();
 };
 
+// Cross-page navigation (multi-page architecture: dashboard/chat/music/shorts/admin)
+window.goPage = function (page) {
+  window.location.href = page;
+};
+
 // ============================================================
 // ROLE / PERMISSION HELPERS
 // ============================================================
