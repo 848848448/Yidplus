@@ -144,6 +144,7 @@ var ADMIN_PANELS = [
   { id:'music-mod',    icon:'🎵', label:'Music',       roles:['admin_limited','admin_super','owner'] },
   { id:'broadcast',    icon:'📢', label:'Broadcast',   roles:['admin_super','owner'] },
   { id:'feedback',     icon:'📩', label:'Feedback',    roles:['admin_limited','admin_super','owner'] },
+  { id:'admin-settings', icon:'🛠️', label:'Admin Settings', roles:['owner'] },
 ];
 
 function buildAdminNav() {
@@ -257,6 +258,30 @@ function buildAdminPanel(id) {
           '</div>' : '') +
       '</div>';
 
+  } else if (id === 'shorts-mod') {
+    buildShortsModPanel(content);
+
+  } else if (id === 'chat-watch') {
+    buildChatWatchPanel(content);
+
+  } else if (id === 'music-mod') {
+    buildMusicModPanel(content);
+
+  } else if (id === 'feedback') {
+    buildFeedbackPanel(content);
+
+  } else if (id === 'admin-settings') {
+    content.innerHTML =
+      '<div class="admin-panel">' +
+        '<div class="admin-card">' +
+          '<div class="admin-card-title">🛠️ Admin Settings</div>' +
+          '<div style="font-size:.78rem;color:var(--muted);line-height:1.6">' +
+            'Admin roles are managed from the <strong>Users</strong> tab (promote/demote). ' +
+            'The admin gate PIN can be changed under <strong>App</strong> → Security.' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
   } else {
     content.innerHTML =
       '<div class="admin-panel"><div class="admin-card" style="text-align:center;padding:2rem">' +
@@ -265,6 +290,202 @@ function buildAdminPanel(id) {
       '</div></div>';
   }
 }
+
+/* ── SHORTS MODERATION ── */
+function buildShortsModPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🎬 Video Uploads Moderation</div>' +
+        '<div id="shorts-mod-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+
+  api.get('/shorts')
+    .then(function (res) {
+      var shorts = res.shorts || [];
+      var el = document.getElementById('shorts-mod-list');
+      if (!el) return;
+      if (!shorts.length) {
+        el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No shorts uploaded yet</div>';
+        return;
+      }
+      el.innerHTML = shorts.map(function (s) {
+        return '<div class="video-row">' +
+          '<video class="vid-thumb" src="' + s.media_url + '" style="object-fit:cover" muted></video>' +
+          '<div class="vid-info">' +
+            '<div class="vid-title">' + escHtml(s.caption || '(no caption)') + '</div>' +
+            '<div class="vid-meta">@' + escHtml(s.nick) + ' · ❤️ ' + fmtN(s.likes) + ' · ' + timeAgo(s.created_at) + '</div>' +
+          '</div>' +
+          '<button class="del-btn" onclick="adminDeleteShort(\'' + s.id + '\')">🗑 Delete</button>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) {
+      var el = document.getElementById('shorts-mod-list');
+      if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
+    });
+}
+
+window.adminDeleteShort = function (id) {
+  if (!confirm('Delete this short?')) return;
+  api.del('/shorts?id=' + encodeURIComponent(id))
+    .then(function () { toast('🗑 Deleted.'); buildShortsModPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ── CHAT WATCH ── */
+function buildChatWatchPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">💬 God-Mode Chat Access</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem;padding:.5rem;background:rgba(226,75,74,.06);border:1px solid rgba(226,75,74,.2);border-radius:8px">⚠️ Admin view only. Use responsibly.</div>' +
+        '<div id="chat-watch-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+
+  api.get('/admin/rooms')
+    .then(function (res) {
+      var rooms = res.rooms || [];
+      var el = document.getElementById('chat-watch-list');
+      if (!el) return;
+      if (!rooms.length) {
+        el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No chat rooms yet</div>';
+        return;
+      }
+      el.innerHTML = rooms.map(function (r) {
+        return '<div class="chat-room-row" onclick="adminViewRoom(\'' + r.id + '\',\'' + escHtml(r.name).replace(/'/g, "\\'") + '\')">' +
+          '<div class="cr-icon">' + r.emoji + '</div>' +
+          '<div class="cr-info"><div class="cr-name">' + escHtml(r.name) + ' <span style="font-size:.63rem;color:var(--muted)">(' + r.members + ' members)</span></div>' +
+          '<div class="cr-preview">' + escHtml(r.preview) + '</div></div>' +
+          '<button class="cr-view-btn">👁 View</button>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) {
+      var el = document.getElementById('chat-watch-list');
+      if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
+    });
+}
+
+window.adminViewRoom = function (roomId, name) {
+  api.get('/chat?room_id=' + encodeURIComponent(roomId))
+    .then(function (res) {
+      var msgs = res.messages || [];
+      var text = msgs.slice(-15).map(function (m) {
+        return '@' + (m.sender_nick || '?') + ': ' + (m.type === 'text' ? m.text : '[' + m.type + ']');
+      }).join('\n') || '(no messages)';
+      alert('📋 God-Mode View: ' + name + '\n\n' + text);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ── MUSIC ADMIN ── */
+var MUSIC_ADMIN_DATA = [
+  { emoji: '🎵', name: 'Am Yisrael Chai', artist: 'ShlomoBeats', cat: 'Single', trending: true },
+  { emoji: '🎹', name: 'Niggunim Vol. 3', artist: 'Moshe Levi', cat: 'Album', trending: true },
+  { emoji: '🌅', name: 'Modeh Ani', artist: 'RebbeChoir', cat: 'Single', trending: false },
+  { emoji: '🎻', name: 'Klezmer Dreams', artist: 'FiddlerNY', cat: 'Album', trending: false },
+  { emoji: '🎤', name: 'Soulful Beats', artist: 'ShlomoBeats', cat: 'Album', trending: false },
+];
+
+function buildMusicModPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🎵 Music Library Control</div>' +
+        '<div id="music-mod-list"></div>' +
+      '</div>' +
+    '</div>';
+  renderMusicMod();
+}
+
+function renderMusicMod() {
+  var el = document.getElementById('music-mod-list');
+  if (!el) return;
+  el.innerHTML = MUSIC_ADMIN_DATA.map(function (t, i) {
+    return '<div class="music-admin-row">' +
+      '<div class="ma-thumb">' + t.emoji + '</div>' +
+      '<div class="ma-info"><div class="ma-name">' + escHtml(t.name) + '</div><div class="ma-artist">' + escHtml(t.artist) + ' · <span style="color:var(--blue);font-size:.62rem">' + t.cat + '</span></div></div>' +
+      '<div class="ma-actions">' +
+        '<button class="ma-btn ma-trend' + (t.trending ? ' on' : '') + '" onclick="toggleMusicTrending(' + i + ')">' + (t.trending ? '⭐ Trending' : '☆ Set Trending') + '</button>' +
+        '<button class="ma-btn ma-del" onclick="deleteMusicAdmin(' + i + ')">🗑</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+window.toggleMusicTrending = function (i) {
+  MUSIC_ADMIN_DATA[i].trending = !MUSIC_ADMIN_DATA[i].trending;
+  renderMusicMod();
+  toast(MUSIC_ADMIN_DATA[i].trending ? '⭐ Set as Trending!' : 'Removed from Trending.');
+};
+window.deleteMusicAdmin = function (i) {
+  if (!confirm('Remove "' + MUSIC_ADMIN_DATA[i].name + '" from the platform?')) return;
+  MUSIC_ADMIN_DATA.splice(i, 1);
+  renderMusicMod();
+  toast('🗑 Track removed.');
+};
+
+/* ── FEEDBACK INBOX ── */
+function buildFeedbackPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">📩 User Feedback & Bug Reports <span id="fb-count-badge" style="background:rgba(226,75,74,.12);color:var(--red);border:1px solid rgba(226,75,74,.25);border-radius:10px;padding:.1rem .5rem;font-size:.65rem;margin-left:.3rem"></span></div>' +
+        '<div id="feedback-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+
+  api.get('/feedback')
+    .then(function (res) {
+      var list = res.feedback || [];
+      var unresolved = list.filter(function (f) { return !f.resolved; }).length;
+      var badge = document.getElementById('fb-count-badge');
+      if (badge) badge.textContent = unresolved + ' new';
+
+      var el = document.getElementById('feedback-list');
+      if (!el) return;
+      if (!list.length) {
+        el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No feedback yet</div>';
+        return;
+      }
+      el.innerHTML = list.map(function (f) {
+        return '<div class="fb-item" style="opacity:' + (f.resolved ? '.5' : '1') + '">' +
+          '<div class="fb-header">' +
+            '<div style="display:flex;align-items:center;gap:.5rem">' +
+              '<span class="fb-nick">@' + escHtml(f.nickname || 'user') + '</span>' +
+              '<span class="fb-type ' + (f.type === 'bug' ? 'fb-bug' : 'fb-suggest') + '">' + (f.type === 'bug' ? '🐛 Bug' : '💡 Suggestion') + '</span>' +
+            '</div>' +
+            '<span class="fb-time">' + timeAgo(f.created_at) + '</span>' +
+          '</div>' +
+          '<div class="fb-text">' + escHtml(f.text) + '</div>' +
+          (f.device ? '<div class="fb-device">📱 ' + escHtml(f.device) + '</div>' : '') +
+          '<div class="fb-actions">' +
+            (!f.resolved ? '<button class="fb-resolve" onclick="resolveFeedback(\'' + f.id + '\')">✓ Resolve</button>' : '<span style="font-size:.68rem;color:var(--green)">✓ Resolved</span>') +
+            '<button class="fb-delete" onclick="deleteFeedback(\'' + f.id + '\')">🗑 Delete</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) {
+      var el = document.getElementById('feedback-list');
+      if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
+    });
+}
+
+window.resolveFeedback = function (id) {
+  api.put('/feedback', { id: id, resolved: true })
+    .then(function () { toast('✅ Marked as resolved.'); buildFeedbackPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+window.deleteFeedback = function (id) {
+  if (!confirm('Delete this feedback?')) return;
+  api.del('/feedback?id=' + encodeURIComponent(id))
+    .then(function () { toast('🗑 Deleted.'); buildFeedbackPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 /* ── ANALYTICS ── */
 function refreshAnalytics() {
