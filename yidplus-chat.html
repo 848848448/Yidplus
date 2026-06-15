@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>💬 YID PLUS — Chats</title>
+<link rel="stylesheet" href="css/style.css">
+<script>
+(function () {
+  try {
+    var raw = localStorage.getItem('yp_theme');
+    if (!raw) return;
+    var t = JSON.parse(raw);
+    var r = document.documentElement.style;
+    r.setProperty('--gold', t.gold);
+    r.setProperty('--gold-l', t.goldL);
+    r.setProperty('--gold-d', t.gold);
+    r.setProperty('--bg', t.bg);
+    r.setProperty('--bg2', t.bg2);
+    r.setProperty('--text', t.text);
+  } catch (e) {}
+})();
+</script>
+</head>
+<body>
+
+<!-- ══ CHAT LIST SCREEN ══ -->
+<div class="screen active" id="screen-chats">
+  <div class="topbar">
+    <div class="topbar-logo">👑 Chats</div>
+    <div style="display:flex;gap:.5rem">
+      <div class="icon-btn" onclick="openNewGroupModal()">👥</div>
+      <div class="icon-btn" onclick="openNewChatModal()">✏️</div>
+    </div>
+  </div>
+  <div class="chat-search-wrap">
+    <span class="chat-search-icon">🔍</span>
+    <input class="chat-search-input" placeholder="Search chats, groups..." id="chat-search" oninput="filterChats()">
+  </div>
+  <div class="chat-tabs">
+    <button class="ctab active" onclick="switchChatTab(this,'all')">All</button>
+    <button class="ctab" onclick="switchChatTab(this,'private')">Private</button>
+    <button class="ctab" onclick="switchChatTab(this,'groups')">Groups</button>
+  </div>
+  <div class="scroll-area" id="chat-list-area"></div>
+  <nav class="bottom-nav">
+    <button class="nav-item"        onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon">🏠</span><span class="nav-label">Home</span></button>
+    <button class="nav-item"        onclick="goPage('yidplus-shorts.html')">  <span class="nav-icon">🎬</span><span class="nav-label">Shorts</span></button>
+    <button class="nav-item"        onclick="goPage('yidplus-music.html')">   <span class="nav-icon">🎵</span><span class="nav-label">Music</span></button>
+    <button class="nav-item active" onclick="navTo('chats')">              <span class="nav-icon">💬</span><span class="nav-label">Chats</span></button>
+    <button class="nav-item"        onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon">⚙️</span><span class="nav-label">Settings</span></button>
+  </nav>
+</div>
+
+<!-- ══ CHAT ROOM SCREEN ══ -->
+<div class="screen" id="screen-chatroom">
+  <div class="chatroom-topbar">
+    <div class="icon-btn" onclick="navTo('chats')" style="margin-right:.4rem">‹</div>
+    <div class="chatroom-avatar" id="cr-avatar"></div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:.9rem;font-weight:700" id="cr-name"></div>
+      <div style="font-size:.68rem;color:var(--green)" id="cr-status"></div>
+    </div>
+    <div style="display:flex;gap:.4rem">
+      <div class="icon-btn" onclick="toast('Voice call')">📞</div>
+      <div class="icon-btn" onclick="toast('Video call')">📹</div>
+    </div>
+  </div>
+  <div id="join-banner" style="display:none;background:rgba(201,168,76,.07);border-top:1px solid var(--border);padding:.75rem 1rem;align-items:center;justify-content:space-between;flex-shrink:0">
+    <span style="font-size:.8rem;color:var(--muted)">Join this group to send messages</span>
+    <button class="join-group-btn" onclick="joinGroup()">Join Group</button>
+  </div>
+  <div id="reply-bar" style="display:none;background:rgba(201,168,76,.07);border-left:2px solid var(--gold);padding:.4rem .75rem;align-items:center;justify-content:space-between;font-size:.75rem;color:var(--muted);flex-shrink:0">
+    <div><strong id="reply-nick" style="color:var(--gold-d)"></strong> <span id="reply-snip"></span></div>
+    <button style="background:none;border:none;color:var(--muted);cursor:pointer" onclick="cancelReply()">✕</button>
+  </div>
+  <div class="chat-messages" id="chat-msgs"></div>
+  <div id="typing-bar" style="display:none;align-items:center;gap:.4rem;padding:.4rem .75rem;flex-shrink:0">
+    <div class="typing-dots"><span></span><span></span><span></span></div>
+    <div style="font-size:.72rem;color:var(--muted)" id="typing-label"></div>
+  </div>
+  <div class="sticker-tray" id="sticker-tray"></div>
+  <div class="chat-input-bar" id="chat-input-bar">
+    <div style="position:relative;flex-shrink:0">
+      <button class="icon-btn" style="background:var(--bg3)" onclick="toggleAttach()">📎</button>
+      <div class="attach-sheet" id="attach-sheet">
+        <div class="attach-opt" onclick="triggerChatMedia('image/*')"><div class="attach-opt-icon">🖼️</div><div class="attach-opt-label">Photo</div></div>
+        <div class="attach-opt" onclick="triggerChatMedia('video/*')"><div class="attach-opt-icon">🎬</div><div class="attach-opt-label">Video</div></div>
+        <div class="attach-opt" onclick="startVoiceRec()"><div class="attach-opt-icon">🎤</div><div class="attach-opt-label">Voice</div></div>
+        <div class="attach-opt" onclick="triggerChatMedia('*/*')"><div class="attach-opt-icon">📁</div><div class="attach-opt-label">File</div></div>
+      </div>
+      <input type="file" id="chat-media-input" style="display:none" onchange="handleChatMedia(event)">
+    </div>
+    <textarea class="chat-input" id="chat-input" placeholder="Message..." rows="1" oninput="onChatType()" onkeydown="onChatKey(event)"></textarea>
+    <button class="icon-btn" style="background:var(--bg3);flex-shrink:0" onclick="toggleStickers()">😊</button>
+    <button class="voice-rec-btn" id="voice-rec-btn" onclick="toggleVoiceRec()">🎙️</button>
+    <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMsg()" style="display:none">➤</button>
+  </div>
+  <div class="ctx-menu" id="ctx-menu">
+    <div class="ctx-item" onclick="ctxReply()">↩️ Reply</div>
+    <div class="ctx-item" onclick="ctxCopy()">📋 Copy</div>
+    <div class="ctx-item" onclick="ctxForward()">📤 Forward</div>
+    <div class="ctx-item danger" onclick="ctxDelete()">🗑️ Delete</div>
+    <div class="ctx-item" onclick="document.getElementById('ctx-menu').classList.remove('open')">✕ Cancel</div>
+  </div>
+</div>
+
+<!-- ══ NEW CHAT MODAL ══ -->
+<div class="modal-overlay" id="new-chat-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-title">✏️ New Chat</div>
+    <input class="field" id="new-chat-search" placeholder="Search by nickname..." oninput="searchNewChatUsers()">
+    <div id="user-search-results" style="max-height:240px;overflow-y:auto"></div>
+    <button class="modal-cancel" onclick="document.getElementById('new-chat-modal').classList.remove('open')">Cancel</button>
+  </div>
+</div>
+
+<!-- ══ NEW GROUP MODAL ══ -->
+<div class="modal-overlay" id="new-group-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-title">👥 New Group</div>
+    <input class="field" id="new-group-name" placeholder="Group name" maxlength="50">
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem">Choose an icon:</div>
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem">
+      <label style="cursor:pointer"><input type="radio" name="group-emoji" value="👥" checked style="display:none"><div class="group-emoji-opt">👥</div></label>
+      <label style="cursor:pointer"><input type="radio" name="group-emoji" value="🎵" style="display:none"><div class="group-emoji-opt">🎵</div></label>
+      <label style="cursor:pointer"><input type="radio" name="group-emoji" value="📖" style="display:none"><div class="group-emoji-opt">📖</div></label>
+      <label style="cursor:pointer"><input type="radio" name="group-emoji" value="🥘" style="display:none"><div class="group-emoji-opt">🥘</div></label>
+      <label style="cursor:pointer"><input type="radio" name="group-emoji" value="🎬" style="display:none"><div class="group-emoji-opt">🎬</div></label>
+      <label style="cursor:pointer"><input type="radio" name="group-emoji" value="🕎" style="display:none"><div class="group-emoji-opt">🕎</div></label>
+    </div>
+    <button class="btn-primary" onclick="createNewGroup()" style="margin-bottom:.5rem">Create Group</button>
+    <button class="modal-cancel" onclick="document.getElementById('new-group-modal').classList.remove('open')">Cancel</button>
+  </div>
+</div>
+
+<div id="app-toast"></div>
+
+<style>
+.group-emoji-opt { width: 44px; height: 44px; border-radius: 12px; background: var(--bg3); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; transition: all .15s; }
+input[name="group-emoji"]:checked + .group-emoji-opt { border-color: var(--gold); background: rgba(201,168,76,.1); transform: scale(1.08); }
+</style>
+
+<script src="js/state.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/app.js"></script>
+<script src="js/chat.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  AUTH.restore().then(function (user) {
+    if (!user) { goPage('yidplus-dashboard.html'); return; }
+    applyRoleUI();
+    navTo('chats');
+  });
+});
+</script>
+
+</body>
+</html>
