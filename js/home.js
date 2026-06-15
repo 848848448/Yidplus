@@ -313,7 +313,9 @@ function buildShortsPrev() {
    {e:'🥘',v:'5.1K',n:'@Chef'}, {e:'📖',v:'3.2K',n:'@Rebbe'},    {e:'🎻',v:'9.8K',n:'@Fiddle'}]
   .forEach(function(s) {
     var c = document.createElement('div');
-    c.className = 'short-prev-card'; c.onclick = function(){ navTo('shorts'); };
+    c.className = 'short-prev-card';
+    c.style.cssText = 'flex-shrink:0;width:110px;height:185px;border-radius:12px;background:var(--bg2);border:1px solid var(--border);overflow:hidden;position:relative;cursor:pointer';
+    c.onclick = function(){ navTo('shorts'); };
     c.innerHTML =
       '<div style="width:100%;height:100%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:2.5rem">' + s.e + '</div>' +
       '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.75),transparent);display:flex;flex-direction:column;justify-content:flex-end;padding:.5rem">' +
@@ -333,7 +335,9 @@ function buildChannelsPrev() {
    {e:'📖',n:'RebbeVibes',f:'31K',  v:true},{e:'🥘',n:'KosherFood', f:'5.6K',v:false}]
   .forEach(function(c) {
     var card = document.createElement('div');
-    card.className = 'ch-preview-card'; card.onclick = function(){ openChannel(c.n); };
+    card.className = 'ch-preview-card';
+    card.style.cssText = 'flex-shrink:0;width:130px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:.9rem .75rem;text-align:center;cursor:pointer';
+    card.onclick = function(){ openChannel(c.n); };
     card.innerHTML =
       '<div style="width:50px;height:50px;border-radius:50%;background:var(--bg3);margin:0 auto .5rem;display:flex;align-items:center;justify-content:center;font-size:1.5rem;border:1.5px solid var(--border);position:relative">' +
         c.e + (c.v ? '<div style="position:absolute;top:-6px;right:-4px;font-size:.8rem">👑</div>' : '') +
