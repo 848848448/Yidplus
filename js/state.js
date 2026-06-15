@@ -132,6 +132,16 @@ window.setLoad = function (prefix, on) {
 // ============================================================
 window.navTo = function (id) {
   var prev = STATE.screen;
+  var nextEl = document.getElementById('screen-' + id);
+
+  // Multi-page safety: if this screen doesn't exist on the current page
+  // (e.g. stale 'yp_page' from another page), fall back to 'home'.
+  if (!nextEl) {
+    id = 'home';
+    nextEl = document.getElementById('screen-home');
+    if (!nextEl) return; // this page has no 'home' screen either — nothing to do
+  }
+
   STATE.prevScreen = prev;
   STATE.screen = id;
   if (id !== 'auth') localStorage.setItem('yp_page', id);
@@ -140,12 +150,11 @@ window.navTo = function (id) {
     s.classList.remove('active', 'prev');
   });
   var prevEl = document.getElementById('screen-' + prev);
-  var nextEl = document.getElementById('screen-' + id);
   if (prevEl) {
     prevEl.classList.add('prev');
     setTimeout(function () { prevEl.classList.remove('prev'); }, 350);
   }
-  if (nextEl) nextEl.classList.add('active');
+  nextEl.classList.add('active');
 
   document.querySelectorAll('.nav-item').forEach(function (b) {
     b.classList.toggle('active', b.dataset.nav === id);
