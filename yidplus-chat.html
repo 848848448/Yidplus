@@ -28,21 +28,22 @@
 
 <!-- ══ CHAT LIST SCREEN ══ -->
 <div class="screen active" id="screen-chats">
-  <div class="topbar" style="background:var(--blue);color:#fff">
-    <div class="topbar-logo" style="-webkit-text-fill-color:#fff;background:none">💬 Chats</div>
-    <div style="display:flex;gap:.5rem">
-      <div class="icon-btn" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.25);color:#fff" onclick="openNewGroupModal()">👥</div>
-      <div class="icon-btn" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.25);color:#fff" onclick="openNewChatModal()">✏️</div>
+  <div class="topbar" style="background:#fff;border-bottom:1px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:.75rem;flex:1">
+      <div class="icon-btn" style="background:none;border:none;font-size:1.3rem" onclick="openHamburgerMenu()">☰</div>
+      <div class="tg-search-pill" onclick="document.getElementById('chat-search').focus()">
+        <span style="opacity:.5">🔍</span>
+        <input id="chat-search" placeholder="Search" oninput="filterChats()">
+      </div>
+    </div>
+    <div style="display:flex;gap:.3rem">
+      <div class="icon-btn" style="background:none;border:none;color:var(--blue);font-size:1.4rem" onclick="openNewChatModal()">✏️</div>
     </div>
   </div>
-  <div class="chat-search-wrap">
-    <span class="chat-search-icon">🔍</span>
-    <input class="chat-search-input" placeholder="Search chats, groups..." id="chat-search" oninput="filterChats()">
-  </div>
-  <div class="chat-tabs">
-    <button class="ctab active" onclick="switchChatTab(this,'all')">All</button>
-    <button class="ctab" onclick="switchChatTab(this,'private')">Private</button>
-    <button class="ctab" onclick="switchChatTab(this,'groups')">Groups</button>
+  <div class="tg-tabs-row">
+    <button class="tg-tab active" onclick="switchChatTab(this,'all')">Chats</button>
+    <button class="tg-tab" onclick="switchChatTab(this,'groups')">Groups</button>
+    <button class="tg-tab" onclick="switchChatTab(this,'private')">Private</button>
   </div>
   <div class="scroll-area" id="chat-list-area"></div>
   <nav class="bottom-nav">
@@ -79,7 +80,7 @@
     <button onclick="event.stopPropagation();cancelReply()">✕</button>
   </div>
 
-  <div class="chat-messages" id="chat-msgs"></div>
+  <div class="chat-messages tg-chat-bg" id="chat-msgs"></div>
 
   <button class="new-arrow" id="new-arrow" style="display:none" onclick="scrollToBottom()">
     <span class="new-count">0</span> new ↓
@@ -122,17 +123,43 @@
 </div>
 
 <!-- ══ MEMBERS LIST MODAL ══ -->
-<div class="modal-overlay" id="members-modal" onclick="if(event.target===this)this.classList.remove('open')">
-  <div class="modal-sheet">
-    <div class="modal-title" id="members-modal-title">Group Members</div>
-    <div style="display:flex;justify-content:center;margin-bottom:1rem">
-      <div class="avatar-upload-circle" id="group-photo-circle" onclick="document.getElementById('group-photo-input').click()">
-        📷<div class="avatar-upload-hint">Change photo</div>
-      </div>
+<!-- ══ INFO SCREEN (User Info / Group Info — Telegram style) ══ -->
+<div class="screen" id="screen-chatinfo">
+  <div class="topbar" style="background:#fff;border-bottom:1px solid var(--border)">
+    <div class="icon-btn" style="background:none;border:none" onclick="navTo('chatroom')">‹</div>
+    <div style="font-size:.95rem;font-weight:700;flex:1">Info</div>
+    <div class="icon-btn" style="background:none;border:none;color:var(--blue)" id="info-edit-btn" onclick="toast('Edit not available yet')">✏️</div>
+  </div>
+  <div class="scroll-area" style="padding-bottom:20px">
+    <div class="userinfo-hero">
+      <div class="userinfo-avatar-big" id="info-avatar-big" onclick="document.getElementById('group-photo-input').click()">👤</div>
+      <div class="userinfo-name" id="info-name">Name</div>
+      <div class="userinfo-sub" id="info-sub">last seen recently</div>
       <input type="file" id="group-photo-input" accept="image/*" style="display:none" onchange="handleGroupPhoto(event)">
     </div>
-    <div id="members-list" style="max-height:280px;overflow-y:auto"></div>
-    <button class="modal-cancel" onclick="document.getElementById('members-modal').classList.remove('open')">Close</button>
+    <div class="userinfo-action-row">
+      <div class="setting-row" style="cursor:pointer;border:none" onclick="toast('Notifications toggled')"><span>🔔</span><span style="font-size:.78rem">Mute</span></div>
+      <div class="setting-row" style="cursor:pointer;border:none" id="info-leave-btn" onclick="confirmLeaveGroup()"><span>🚪</span><span style="font-size:.78rem">Leave</span></div>
+      <div class="setting-row" style="cursor:pointer;border:none" onclick="openReportModal()"><span>🚩</span><span style="font-size:.78rem">Report</span></div>
+    </div>
+    <div id="info-bio-card" style="display:none;background:#fff;border-bottom:1px solid var(--border);padding:.85rem 1.25rem">
+      <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem">Bio</div>
+      <div style="font-size:.85rem" id="info-bio-text"></div>
+    </div>
+    <div class="userinfo-media-tabs" id="info-media-tabs">
+      <button class="userinfo-mtab active" onclick="switchInfoTab(this,'media')">Media</button>
+      <button class="userinfo-mtab" onclick="switchInfoTab(this,'files')">Files</button>
+      <button class="userinfo-mtab" onclick="switchInfoTab(this,'links')">Links</button>
+      <button class="userinfo-mtab" onclick="switchInfoTab(this,'voice')">Voice</button>
+    </div>
+    <div id="info-tab-content" style="min-height:80px;padding:1rem"></div>
+    <div id="info-members-section" style="display:none">
+      <div style="padding:.75rem 1.25rem .4rem;font-size:.72rem;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center">
+        <span id="info-members-count">Members</span>
+        <span style="color:var(--blue);font-size:.72rem;cursor:pointer;text-transform:none" onclick="toast('Add member: open New Chat to invite')">+ Add</span>
+      </div>
+      <div id="members-list"></div>
+    </div>
   </div>
 </div>
 
@@ -140,6 +167,10 @@
 <div class="modal-overlay" id="new-chat-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal-sheet">
     <div class="modal-title">✏️ New Chat</div>
+    <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--border);margin-bottom:.5rem;cursor:pointer;color:var(--blue)" onclick="document.getElementById('new-chat-modal').classList.remove('open');openNewGroupModal()">
+      <div style="width:38px;height:38px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem">👥</div>
+      <div style="font-size:.88rem;font-weight:600">New Group</div>
+    </div>
     <input class="field" id="new-chat-search" placeholder="Search by nickname..." oninput="searchNewChatUsers()">
     <div id="user-search-results" style="max-height:240px;overflow-y:auto"></div>
     <button class="modal-cancel" onclick="document.getElementById('new-chat-modal').classList.remove('open')">Cancel</button>
@@ -188,6 +219,24 @@
   <div class="ctx-item" onclick="openReportModal();closeOptMenu()">🚩 Report User</div>
   <div class="ctx-item" onclick="toast('Muted notifications for this chat');closeOptMenu()">🔇 Mute</div>
   <div class="ctx-item" onclick="closeOptMenu()">✕ Cancel</div>
+</div>
+
+<!-- ══ HAMBURGER SIDE MENU ══ -->
+<div class="hamburger-overlay" id="hamburger-overlay" onclick="if(event.target===this)closeHamburgerMenu()">
+  <div class="hamburger-panel">
+    <div class="hamburger-profile-hdr" onclick="goPage('yidplus-dashboard.html')" style="cursor:pointer">
+      <div class="hamburger-avatar" id="hb-avatar">👤</div>
+      <div style="font-weight:700;font-size:1rem" id="hb-name">User</div>
+      <div style="font-size:.75rem;opacity:.85" id="hb-handle">@user</div>
+    </div>
+    <div class="hamburger-item" onclick="goPage('yidplus-dashboard.html')"><span class="hi-icon">👤</span>My Profile</div>
+    <div class="hamburger-item" onclick="toast('Saved Messages: coming soon')"><span class="hi-icon">🔖</span>Saved Messages</div>
+    <div class="hamburger-item" onclick="openNewChatModal();closeHamburgerMenu()"><span class="hi-icon">👥</span>Contacts</div>
+    <div class="hamburger-item" onclick="openNewGroupModal();closeHamburgerMenu()"><span class="hi-icon">➕</span>New Group</div>
+    <div class="hamburger-item" onclick="goPage('yidplus-dashboard.html')"><span class="hi-icon">⚙️</span>Settings</div>
+    <div style="border-top:1px solid var(--border);margin-top:.5rem"></div>
+    <div class="hamburger-item" onclick="goPage('yidplus-admin.html')"><span class="hi-icon">👑</span>Admin Panel</div>
+  </div>
 </div>
 
 <div id="app-toast"></div>
@@ -268,13 +317,30 @@ window.handleGroupPhoto = function (e) {
   toast('📤 Uploading group photo...');
   api.put('/chat/rooms', form, true)
     .then(function (res) {
-      document.getElementById('group-photo-circle').style.backgroundImage = "url('" + res.photo_url + "')";
-      document.getElementById('group-photo-circle').textContent = '';
+      CHAT_curRoom.photo_url = res.photo_url;
+      var avBig = document.getElementById('info-avatar-big');
+      avBig.style.backgroundImage = "url('" + res.photo_url + "')";
+      avBig.textContent = '';
+      var avTop = document.getElementById('cr-avatar');
+      avTop.style.backgroundImage = "url('" + res.photo_url + "')";
+      avTop.textContent = '';
       toast('✅ Group photo updated!');
       loadChatRooms();
     })
     .catch(function (err) { toast('❌ ' + err.message); });
   e.target.value = '';
+};
+
+// ── HAMBURGER MENU ──
+window.openHamburgerMenu = function () {
+  var nick = (STATE.user && STATE.user.nickname) || 'User';
+  document.getElementById('hb-name').textContent = nick;
+  document.getElementById('hb-handle').textContent = '@' + nick;
+  document.getElementById('hb-avatar').textContent = nick.slice(0, 1).toUpperCase();
+  document.getElementById('hamburger-overlay').classList.add('open');
+};
+window.closeHamburgerMenu = function () {
+  document.getElementById('hamburger-overlay').classList.remove('open');
 };
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -287,4 +353,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-    </html>
+  </html>
