@@ -54,23 +54,32 @@ export async function onRequestGet(context) {
 
       // Member count for groups
       let members = null;
+      let memberList = null;
       if (r.type === 'group') {
         const mc = await env.DB.prepare(
           `SELECT COUNT(*) AS c FROM room_members WHERE room_id = ?`
         ).bind(r.id).first();
         members = mc ? mc.c : 0;
+
+        const { results: memRows } = await env.DB.prepare(
+          `SELECT u.id, u.nickname, u.online, u.role, u.photo_url FROM room_members rm
+           JOIN users u ON u.id = rm.user_id
+           WHERE rm.room_id = ?`
+        ).bind(r.id).all();
+        memberList = memRows;
       }
 
       // For DMs, resolve the other user's nickname + online status
       let nick = r.name;
       let online = false;
+      let photoUrl = null;
       if (r.type === 'private') {
         const other = await env.DB.prepare(
-          `SELECT u.nickname, u.online FROM room_members rm
+          `SELECT u.nickname, u.online, u.photo_url FROM room_members rm
            JOIN users u ON u.id = rm.user_id
            WHERE rm.room_id = ? AND rm.user_id != ?`
         ).bind(r.id, user.id).first();
-        if (other) { nick = other.nickname; online = !!other.online; }
+        if (other) { nick = other.nickname; online = !!other.online; photoUrl = other.photo_url; }
       }
 
       rooms.push({
@@ -78,9 +87,11 @@ export async function onRequestGet(context) {
         type: r.type,
         nick,
         emoji: r.emoji || (r.type === 'group' ? '👥' : '👤'),
+        photo_url: photoUrl || r.photo_key || null,
         joined,
         online,
         members,
+        member_list: memberList,
         preview: lastMsg ? (lastMsg.type === 'text' ? lastMsg.text : '[' + lastMsg.type + ']') : '',
         unread: unreadRow ? unreadRow.c : 0,
         last_time: lastMsg ? lastMsg.created_at : r.created_at,
@@ -154,3 +165,34 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: err.message }, 500);
   }
 }
+
+// PUT /api/chat/rooms  (multipart: room_id, photo) -> upload group photo
+export async function onRequestPut(context) {
+  const { request, env } = context;
+
+  try {
+    const user = await requireUser(request, env);
+    if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
+
+    const form = await request.formData();
+    const roomId = form.get('room_id');
+    const photo  = form.get('photo');
+    if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
+    if (!photo || typeof photo !== 'object' || !photo.arrayBuffer) {
+      return json({ ok: false, error: 'photo is required' }, 400);
+    }
+
+    const ext = (photo.name && photo.name.includes('.')) ? photo.name.split('.').pop() : 'jpg';
+    const key = `room-photos/${roomId}/${Date.now()}.${ext}`;
+    await env.MY_BUCKET.put(key, await photo.arrayBuffer(), {
+      httpMetadata: { contentType: photo.type || 'image/jpeg' },
+    });
+
+    const url = `/api/media/${encodeURIComponent(key)}`;
+    await env.DB.prepare(`UPDATE rooms SET photo_key = ? WHERE id = ?`).bind(url, roomId).run();
+
+    return json({ ok: true, photo_url: url });
+  } catch (err) {
+    return json({ ok: false, error: err.message }, 500);
+  }
+        }
