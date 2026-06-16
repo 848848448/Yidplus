@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#1565C0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>💬 YID PLUS — Chats</title>
 <link rel="stylesheet" href="css/style.css">
@@ -28,11 +28,11 @@
 
 <!-- ══ CHAT LIST SCREEN ══ -->
 <div class="screen active" id="screen-chats">
-  <div class="topbar">
-    <div class="topbar-logo">👑 Chats</div>
+  <div class="topbar" style="background:var(--blue);color:#fff">
+    <div class="topbar-logo" style="-webkit-text-fill-color:#fff;background:none">💬 Chats</div>
     <div style="display:flex;gap:.5rem">
-      <div class="icon-btn" onclick="openNewGroupModal()">👥</div>
-      <div class="icon-btn" onclick="openNewChatModal()">✏️</div>
+      <div class="icon-btn" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.25);color:#fff" onclick="openNewGroupModal()">👥</div>
+      <div class="icon-btn" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.25);color:#fff" onclick="openNewChatModal()">✏️</div>
     </div>
   </div>
   <div class="chat-search-wrap">
@@ -57,53 +57,82 @@
 <!-- ══ CHAT ROOM SCREEN ══ -->
 <div class="screen" id="screen-chatroom">
   <div class="chatroom-topbar">
-    <div class="icon-btn" onclick="navTo('chats')" style="margin-right:.4rem">‹</div>
+    <div class="icon-btn" onclick="navTo('chats')" style="margin-right:.2rem">‹</div>
     <div class="chatroom-avatar" id="cr-avatar"></div>
-    <div style="flex:1;min-width:0">
-      <div style="font-size:.9rem;font-weight:700" id="cr-name"></div>
-      <div style="font-size:.68rem;color:var(--green)" id="cr-status"></div>
+    <div style="flex:1;min-width:0" id="cr-name-wrap">
+      <div style="font-size:.92rem;font-weight:700" id="cr-name"></div>
+      <div style="font-size:.68rem;opacity:.85" id="cr-status"></div>
     </div>
-    <div style="display:flex;gap:.4rem">
+    <div style="display:flex;gap:.3rem">
       <div class="icon-btn" onclick="toast('Voice call')">📞</div>
-      <div class="icon-btn" onclick="toast('Video call')">📹</div>
+      <div class="icon-btn" onclick="openChatOptionsMenu()">⋮</div>
     </div>
   </div>
-  <div id="join-banner" style="display:none;background:rgba(201,168,76,.07);border-top:1px solid var(--border);padding:.75rem 1rem;align-items:center;justify-content:space-between;flex-shrink:0">
+
+  <div id="join-banner" style="display:none;background:#EAF4FF;border-top:1px solid var(--border);padding:.75rem 1rem;align-items:center;justify-content:space-between;flex-shrink:0">
     <span style="font-size:.8rem;color:var(--muted)">Join this group to send messages</span>
-    <button class="join-group-btn" onclick="joinGroup()">Join Group</button>
+    <button class="join-group-btn" style="background:var(--blue)" onclick="joinGroup()">Join Group</button>
   </div>
-  <div id="reply-bar" style="display:none;background:rgba(201,168,76,.07);border-left:2px solid var(--gold);padding:.4rem .75rem;align-items:center;justify-content:space-between;font-size:.75rem;color:var(--muted);flex-shrink:0">
-    <div><strong id="reply-nick" style="color:var(--gold-d)"></strong> <span id="reply-snip"></span></div>
-    <button style="background:none;border:none;color:var(--muted);cursor:pointer" onclick="cancelReply()">✕</button>
+
+  <div id="reply-bar" style="display:none" onclick="scrollToMsg((CHAT_replyTo||{}).id)">
+    <div><strong id="reply-nick"></strong><br><span id="reply-snip" style="font-size:.78rem"></span></div>
+    <button onclick="event.stopPropagation();cancelReply()">✕</button>
   </div>
+
   <div class="chat-messages" id="chat-msgs"></div>
-  <div id="typing-bar" style="display:none;align-items:center;gap:.4rem;padding:.4rem .75rem;flex-shrink:0">
+
+  <button class="new-arrow" id="new-arrow" style="display:none" onclick="scrollToBottom()">
+    <span class="new-count">0</span> new ↓
+  </button>
+
+  <div id="typing-bar" style="display:none" class="typing-indicator-row">
     <div class="typing-dots"><span></span><span></span><span></span></div>
-    <div style="font-size:.72rem;color:var(--muted)" id="typing-label"></div>
+    <div style="font-size:.72rem;color:var(--muted)" id="typing-label">typing...</div>
   </div>
+
   <div class="sticker-tray" id="sticker-tray"></div>
+
   <div class="chat-input-bar" id="chat-input-bar">
     <div style="position:relative;flex-shrink:0">
-      <button class="icon-btn" style="background:var(--bg3)" onclick="toggleAttach()">📎</button>
+      <button class="chat-attach-circle" onclick="toggleAttach()">📎</button>
       <div class="attach-sheet" id="attach-sheet">
-        <div class="attach-opt" onclick="triggerChatMedia('image/*')"><div class="attach-opt-icon">🖼️</div><div class="attach-opt-label">Photo</div></div>
-        <div class="attach-opt" onclick="triggerChatMedia('video/*')"><div class="attach-opt-icon">🎬</div><div class="attach-opt-label">Video</div></div>
-        <div class="attach-opt" onclick="startVoiceRec()"><div class="attach-opt-icon">🎤</div><div class="attach-opt-label">Voice</div></div>
-        <div class="attach-opt" onclick="triggerChatMedia('*/*')"><div class="attach-opt-icon">📁</div><div class="attach-opt-label">File</div></div>
+        <div class="attach-opt" onclick="triggerMediaPick('image/*',false)"><div class="attach-opt-icon">🖼️</div><div class="attach-opt-label">Photo</div></div>
+        <div class="attach-opt" onclick="triggerMediaPick('video/*',false)"><div class="attach-opt-icon">🎬</div><div class="attach-opt-label">Video</div></div>
+        <div class="attach-opt" onclick="triggerMediaPick('image/*,video/*',true)"><div class="attach-opt-icon">👁</div><div class="attach-opt-label">View Once</div></div>
+        <div class="attach-opt" onclick="triggerMediaPick('*/*',false)"><div class="attach-opt-icon">📁</div><div class="attach-opt-label">File</div></div>
       </div>
       <input type="file" id="chat-media-input" style="display:none" onchange="handleChatMedia(event)">
     </div>
-    <textarea class="chat-input" id="chat-input" placeholder="Message..." rows="1" oninput="onChatType()" onkeydown="onChatKey(event)"></textarea>
-    <button class="icon-btn" style="background:var(--bg3);flex-shrink:0" onclick="toggleStickers()">😊</button>
+    <div class="chat-input-pill">
+      <button class="chat-emoji-circle" onclick="toggleStickers()">😊</button>
+      <textarea class="chat-input" id="chat-input" placeholder="Message" rows="1" oninput="onChatType()" onkeydown="onChatKey(event)"></textarea>
+    </div>
     <button class="voice-rec-btn" id="voice-rec-btn" onclick="toggleVoiceRec()">🎙️</button>
     <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMsg()" style="display:none">➤</button>
   </div>
+
   <div class="ctx-menu" id="ctx-menu">
     <div class="ctx-item" onclick="ctxReply()">↩️ Reply</div>
     <div class="ctx-item" onclick="ctxCopy()">📋 Copy</div>
     <div class="ctx-item" onclick="ctxForward()">📤 Forward</div>
+    <div class="ctx-item" onclick="ctxReport()">🚩 Report</div>
     <div class="ctx-item danger" onclick="ctxDelete()">🗑️ Delete</div>
     <div class="ctx-item" onclick="document.getElementById('ctx-menu').classList.remove('open')">✕ Cancel</div>
+  </div>
+</div>
+
+<!-- ══ MEMBERS LIST MODAL ══ -->
+<div class="modal-overlay" id="members-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-title" id="members-modal-title">Group Members</div>
+    <div style="display:flex;justify-content:center;margin-bottom:1rem">
+      <div class="avatar-upload-circle" id="group-photo-circle" onclick="document.getElementById('group-photo-input').click()">
+        📷<div class="avatar-upload-hint">Change photo</div>
+      </div>
+      <input type="file" id="group-photo-input" accept="image/*" style="display:none" onchange="handleGroupPhoto(event)">
+    </div>
+    <div id="members-list" style="max-height:280px;overflow-y:auto"></div>
+    <button class="modal-cancel" onclick="document.getElementById('members-modal').classList.remove('open')">Close</button>
   </div>
 </div>
 
@@ -136,11 +165,37 @@
   </div>
 </div>
 
+<!-- ══ REPORT MODAL ══ -->
+<div class="modal-overlay" id="report-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-title">🚩 Report</div>
+    <div id="report-reasons">
+      <label class="report-reason-opt"><input type="radio" name="report-reason" value="spam" checked> Spam</label>
+      <label class="report-reason-opt"><input type="radio" name="report-reason" value="harassment"> Harassment / Bullying</label>
+      <label class="report-reason-opt"><input type="radio" name="report-reason" value="inappropriate"> Inappropriate Content</label>
+      <label class="report-reason-opt"><input type="radio" name="report-reason" value="impersonation"> Impersonation</label>
+      <label class="report-reason-opt"><input type="radio" name="report-reason" value="other"> Other</label>
+    </div>
+    <textarea class="field" id="report-details" placeholder="Additional details (optional)" rows="3" style="resize:none;height:auto;margin-top:.75rem"></textarea>
+    <button class="btn-primary" onclick="submitReport()" style="margin-bottom:.5rem;margin-top:.5rem">Submit Report</button>
+    <button class="modal-cancel" onclick="document.getElementById('report-modal').classList.remove('open')">Cancel</button>
+  </div>
+</div>
+
+<!-- ══ CHAT OPTIONS MENU ══ -->
+<div class="ctx-menu" id="chat-options-menu" style="right:1rem;top:3.2rem">
+  <div class="ctx-item" id="opt-view-members" onclick="openMembersList();closeOptMenu()">👥 View Members</div>
+  <div class="ctx-item" onclick="openReportModal();closeOptMenu()">🚩 Report User</div>
+  <div class="ctx-item" onclick="toast('Muted notifications for this chat');closeOptMenu()">🔇 Mute</div>
+  <div class="ctx-item" onclick="closeOptMenu()">✕ Cancel</div>
+</div>
+
 <div id="app-toast"></div>
 
 <style>
 .group-emoji-opt { width: 44px; height: 44px; border-radius: 12px; background: var(--bg3); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; transition: all .15s; }
-input[name="group-emoji"]:checked + .group-emoji-opt { border-color: var(--gold); background: rgba(201,168,76,.1); transform: scale(1.08); }
+input[name="group-emoji"]:checked + .group-emoji-opt { border-color: var(--blue); background: #EAF4FF; transform: scale(1.08); }
+#chat-options-menu { position: fixed; }
 </style>
 
 <script src="js/state.js"></script>
@@ -149,6 +204,79 @@ input[name="group-emoji"]:checked + .group-emoji-opt { border-color: var(--gold)
 <script src="js/chat.js"></script>
 
 <script>
+window.openChatOptionsMenu = function () {
+  var menu = document.getElementById('chat-options-menu');
+  var viewMembersOpt = document.getElementById('opt-view-members');
+  viewMembersOpt.style.display = (CHAT_curRoom && CHAT_curRoom.type === 'group') ? 'flex' : 'none';
+  menu.classList.add('open');
+};
+window.closeOptMenu = function () {
+  document.getElementById('chat-options-menu').classList.remove('open');
+};
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('#chat-options-menu') && !e.target.closest('[onclick*="openChatOptionsMenu"]')) {
+    closeOptMenu();
+  }
+});
+
+// ── REPORT ──
+window.openReportModal = function () {
+  if (!CHAT_ctxMsg && !CHAT_curRoom) return;
+  document.getElementById('report-modal').classList.add('open');
+};
+window.ctxReport = function () {
+  document.getElementById('ctx-menu').classList.remove('open');
+  openReportModal();
+};
+window.submitReport = function () {
+  var reasonEl = document.querySelector('input[name="report-reason"]:checked');
+  var reason = reasonEl ? reasonEl.value : 'other';
+  var details = document.getElementById('report-details').value || '';
+
+  var reportedId, reportedNick;
+  if (CHAT_ctxMsg) {
+    reportedId = CHAT_ctxMsg.sender_id;
+    reportedNick = CHAT_ctxMsg.sender_nick;
+  } else if (CHAT_curRoom && CHAT_curRoom.type === 'private') {
+    reportedId = CHAT_curRoom.id;
+    reportedNick = CHAT_curRoom.nick;
+  } else {
+    return toast('⚠ Could not identify user to report.');
+  }
+
+  api.post('/reports', {
+    reported_id: reportedId,
+    reported_nick: reportedNick,
+    room_id: CHAT_curRoom ? CHAT_curRoom.id : null,
+    message_id: CHAT_ctxMsg ? CHAT_ctxMsg.id : null,
+    reason: reason,
+    details: details,
+  }).then(function () {
+    document.getElementById('report-modal').classList.remove('open');
+    document.getElementById('report-details').value = '';
+    toast('✅ Report submitted. Our team will review it.');
+  }).catch(function (err) { toast('❌ ' + err.message); });
+};
+
+// ── GROUP PHOTO ──
+window.handleGroupPhoto = function (e) {
+  var file = e.target.files[0];
+  if (!file || !CHAT_curRoom) return;
+  var form = new FormData();
+  form.append('room_id', CHAT_curRoom.id);
+  form.append('photo', file);
+  toast('📤 Uploading group photo...');
+  api.put('/chat/rooms', form, true)
+    .then(function (res) {
+      document.getElementById('group-photo-circle').style.backgroundImage = "url('" + res.photo_url + "')";
+      document.getElementById('group-photo-circle').textContent = '';
+      toast('✅ Group photo updated!');
+      loadChatRooms();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+  e.target.value = '';
+};
+
 document.addEventListener('DOMContentLoaded', function () {
   AUTH.restore().then(function (user) {
     if (!user) { goPage('yidplus-dashboard.html'); return; }
@@ -159,4 +287,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-</html>
+    </html>
