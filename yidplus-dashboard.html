@@ -205,23 +205,32 @@
     <div class="sv-bars" id="sv-bars"></div>
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div style="display:flex;align-items:center;gap:.6rem">
-        <div style="width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1.5px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:1rem" id="sv-avatar"></div>
-        <div><div style="font-size:.85rem;font-weight:700;color:#fff" id="sv-nick"></div><div style="font-size:.65rem;color:rgba(255,255,255,.6)" id="sv-time"></div></div>
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff" id="sv-avatar"></div>
+        <div>
+          <div style="font-size:.85rem;font-weight:700;color:#fff" id="sv-nick"></div>
+          <div style="font-size:.65rem;color:rgba(255,255,255,.6)" id="sv-time"></div>
+        </div>
       </div>
       <div style="display:flex;gap:.4rem">
-        <button class="sv-ctrl" id="sv-mute" onclick="svMute()">🔊</button>
+        <button class="sv-ctrl" id="sv-mute" onclick="svToggleMute()">🔊</button>
         <button class="sv-ctrl" onclick="closeSV()">✕</button>
       </div>
     </div>
   </div>
-  <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative">
-    <div style="position:absolute;left:0;top:0;bottom:0;width:40%;z-index:5" onclick="svPrev()"></div>
-    <div style="position:absolute;right:0;top:0;bottom:0;width:40%;z-index:5" onclick="svNext()"></div>
-    <div class="sv-slide" id="sv-slide"></div>
+  <!-- Main slide area — hold to pause, left/right to navigate -->
+  <div style="flex:1;position:relative;overflow:hidden"
+       ontouchstart="svPause()"
+       ontouchend="svResume()"
+       onmousedown="svPause()"
+       onmouseup="svResume()">
+    <!-- tap left 30% → prev, tap right 30% → next, center = pause/resume -->
+    <div style="position:absolute;left:0;top:0;bottom:0;width:30%;z-index:10;cursor:pointer" onclick="svPrev()"></div>
+    <div style="position:absolute;right:0;top:0;bottom:0;width:30%;z-index:10;cursor:pointer" onclick="svNext()"></div>
+    <div id="sv-slide" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden"></div>
   </div>
-  <div style="position:absolute;bottom:0;left:0;right:0;padding:1rem;display:flex;align-items:center;gap:.75rem;background:linear-gradient(to top,rgba(0,0,0,.7),transparent)">
-    <input style="flex:1;padding:.55rem 1rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:20px;color:#fff;font-size:.82rem;font-family:inherit;outline:none" placeholder="Reply...">
-    <div style="font-size:1.5rem;cursor:pointer" onclick="this.textContent=this.textContent==='🤍'?'❤️':'🤍'">🤍</div>
+  <div style="position:absolute;bottom:0;left:0;right:0;padding:1rem;display:flex;align-items:center;gap:.75rem;background:linear-gradient(to top,rgba(0,0,0,.7),transparent);z-index:10">
+    <input style="flex:1;padding:.55rem 1rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:20px;color:#fff;font-size:.82rem;font-family:inherit;outline:none" placeholder="Reply..." onclick="event.stopPropagation()">
+    <div style="font-size:1.5rem;cursor:pointer" onclick="event.stopPropagation();this.textContent=this.textContent==='🤍'?'❤️':'🤍'">🤍</div>
   </div>
 </div>
 
@@ -373,4 +382,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-</html>
+                                                        </html>
