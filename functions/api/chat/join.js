@@ -30,10 +30,20 @@ export async function onRequestPost(context) {
       await env.DB.prepare(
         `INSERT INTO room_members (room_id, user_id, joined_at) VALUES (?, ?, ?)`
       ).bind(roomId, user.id, new Date().toISOString()).run();
+
+      // Post a "user joined" system message
+      await env.DB.prepare(
+        `INSERT INTO messages (id, room_id, sender_id, sender_nick, type, text, created_at, read)
+         VALUES (?, ?, ?, ?, 'system', ?, ?, 1)`
+      ).bind(
+        crypto.randomUUID(), roomId, user.id, user.nickname,
+        (user.nickname || 'Someone') + ' joined the group',
+        new Date().toISOString()
+      ).run();
     }
 
     return json({ ok: true });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-}
+                                            }
