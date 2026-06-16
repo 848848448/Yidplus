@@ -242,149 +242,184 @@ function showBroadcast(text) {
     '</div>';
 }
 
-// ── STATUS ROW ───────────────────────────────────────────
+// ── STATUS ROW — loads real statuses from /api/statuses ──────
+var HOME_svStatuses = [];
+var HOME_svUserIdx  = 0;
+var HOME_svSlideIdx = 0;
+var HOME_svTimer    = null;
+var HOME_svPaused   = false;
+var HOME_svMuted    = false;
+var HOME_svBarRaf   = null;
+var HOME_svBarStart = 0;
+var HOME_svBarDur   = 5000;
+
 function buildStatusRow() {
   var row = document.getElementById('status-row');
   if (!row) return;
+  var myNick = (STATE.user && STATE.user.nickname) ? STATE.user.nickname : 'My Status';
   row.innerHTML =
     '<div class="status-item" onclick="openStatusUpload()">' +
       '<div class="status-ring mine"><div class="status-inner">👤<div class="status-plus">+</div></div></div>' +
-      '<div class="status-name">My Status</div>' +
+      '<div class="status-name">' + escHtml(myNick) + '</div>' +
     '</div>';
-  HOME_STATUSES.forEach(function (s, i) {
-    var el = document.createElement('div');
-    el.className = 'status-item';
-    el.onclick   = function () { HOME_openSV(i); };
-    el.innerHTML =
-      '<div class="status-ring' + (s.viewed ? ' viewed' : '') + '">' +
-        '<div class="status-inner">' + s.emoji + '</div>' +
-      '</div>' +
-      '<div class="status-name">' + escHtml(s.nick) + '</div>';
-    row.appendChild(el);
-  });
+
+  api.get('/statuses').then(function (res) {
+    HOME_svStatuses = res.statuses || [];
+    var meId = STATE.user && STATE.user.id;
+    HOME_svStatuses.sort(function (a, b) {
+      if (a.user_id === meId) return -1;
+      if (b.user_id === meId) return 1;
+      return 0;
+    });
+    HOME_svStatuses.forEach(function (s, i) {
+      var isMine  = s.user_id === meId;
+      var initial = (s.nickname || '?').slice(0, 1).toUpperCase();
+      var el = document.createElement('div');
+      el.className = 'status-item';
+      el.onclick   = function () { openSV(i); };
+      el.innerHTML =
+        '<div class="status-ring' + (isMine ? ' mine' : '') + '">' +
+          '<div class="status-inner" style="font-size:.9rem;font-weight:700">' + initial + '</div>' +
+        '</div>' +
+        '<div class="status-name">' + escHtml(isMine ? 'My Status' : (s.nickname || 'User')) + '</div>';
+      row.appendChild(el);
+    });
+  }).catch(function () {});
 }
 
-// ── ADS BANNER ───────────────────────────────────────────
-function buildAds() {
-  var frame = document.getElementById('ad-frame');
-  var dots  = document.getElementById('ad-dots');
-  if (!frame || !dots) return;
-  HOME_ADS.forEach(function (ad, i) {
-    var s = document.createElement('div');
-    s.className        = 'ad-slide' + (i===0?' active':'');
-    s.style.background = ad.bg;
-    s.innerHTML =
-      '<div style="font-size:2.5rem">' + ad.icon + '</div>' +
-      '<div class="ad-badge">Sponsored</div>' +
-      '<div class="ad-title">' + ad.title + '</div>' +
-      '<div class="ad-sub">' + ad.sub + '</div>';
-    frame.appendChild(s);
-    var d = document.createElement('div');
-    d.className = 'ad-dot' + (i===0?' active':'');
-    dots.appendChild(d);
-  });
-  HOME_runAd();
-}
-function HOME_runAd() {
-  cancelAnimationFrame(HOME_adRaf);
-  HOME_adStart = performance.now();
-  var dur = HOME_ADS[HOME_adIdx].dur;
-  var bar = document.getElementById('ad-prog');
-  function tick(now) {
-    var pct = Math.min(100, (now - HOME_adStart) / dur * 100);
-    if (bar) bar.style.width = pct + '%';
-    if (pct < 100) {
-      HOME_adRaf = requestAnimationFrame(tick);
-    } else {
-      HOME_adIdx = (HOME_adIdx + 1) % HOME_ADS.length;
-      document.querySelectorAll('#ad-frame .ad-slide').forEach(function(s,i){ s.classList.toggle('active',i===HOME_adIdx); });
-      document.querySelectorAll('#ad-dots  .ad-dot' ).forEach(function(d,i){ d.classList.toggle('active',i===HOME_adIdx); });
-      HOME_runAd();
-    }
-  }
-  HOME_adRaf = requestAnimationFrame(tick);
-}
+window.openSV = function (userIdx) {
+  if (!HOME_svStatuses[userIdx]) return;
+  HOME_svUserIdx  = userIdx;
+  HOME_svSlideIdx = 0;
+  _svShowSlide();
+  document.getElementById('sv-overlay').classList.add('open');
+};
+window.openStatusViewer = window.openSV;
 
-// ── SHORTS PREVIEW ───────────────────────────────────────
-function buildShortsPrev() {
-  var row = document.getElementById('home-shorts');
-  if (!row) return; row.innerHTML = '';
-  [{e:'🎹',v:'12.4K',n:'@Moshe'},{e:'🕺',v:'8.7K',n:'@YidDancer'},{e:'🎤',v:'22K',n:'@Shlomo'},
-   {e:'🥘',v:'5.1K',n:'@Chef'}, {e:'📖',v:'3.2K',n:'@Rebbe'},    {e:'🎻',v:'9.8K',n:'@Fiddle'}]
-  .forEach(function(s) {
-    var c = document.createElement('div');
-    c.className = 'short-prev-card';
-    c.style.cssText = 'flex-shrink:0;width:110px;height:185px;border-radius:12px;background:var(--bg2);border:1px solid var(--border);overflow:hidden;position:relative;cursor:pointer';
-    c.onclick = function(){ navTo('shorts'); };
-    c.innerHTML =
-      '<div style="width:100%;height:100%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:2.5rem">' + s.e + '</div>' +
-      '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.75),transparent);display:flex;flex-direction:column;justify-content:flex-end;padding:.5rem">' +
-        '<div style="font-size:.68rem;color:var(--gold-l)">' + s.n + '</div>' +
-        '<div style="font-size:.65rem;color:rgba(255,255,255,.8)">👁 ' + s.v + '</div>' +
-      '</div>' +
-      '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:32px;height:32px;border-radius:50%;background:rgba(201,168,76,.8);display:flex;align-items:center;justify-content:center">▶</div>';
-    row.appendChild(c);
-  });
-}
+function _svShowSlide() {
+  var s      = HOME_svStatuses[HOME_svUserIdx];
+  if (!s || !s.slides || !s.slides.length) { closeSV(); return; }
+  var slide  = s.slides[HOME_svSlideIdx];
+  if (!slide) { closeSV(); return; }
 
-// ── CHANNELS PREVIEW ─────────────────────────────────────
-function buildChannelsPrev() {
-  var row = document.getElementById('home-channels');
-  if (!row) return; row.innerHTML = '';
-  [{e:'🎹',n:'MosheMusic',f:'12.4K',v:true},{e:'🎤',n:'ShlomoBeats',f:'8.1K',v:false},
-   {e:'📖',n:'RebbeVibes',f:'31K',  v:true},{e:'🥘',n:'KosherFood', f:'5.6K',v:false}]
-  .forEach(function(c) {
-    var card = document.createElement('div');
-    card.className = 'ch-preview-card';
-    card.style.cssText = 'flex-shrink:0;width:130px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:.9rem .75rem;text-align:center;cursor:pointer';
-    card.onclick = function(){ openChannel(c.n); };
-    card.innerHTML =
-      '<div style="width:50px;height:50px;border-radius:50%;background:var(--bg3);margin:0 auto .5rem;display:flex;align-items:center;justify-content:center;font-size:1.5rem;border:1.5px solid var(--border);position:relative">' +
-        c.e + (c.v ? '<div style="position:absolute;top:-6px;right:-4px;font-size:.8rem">👑</div>' : '') +
-      '</div>' +
-      '<div style="font-size:.8rem;font-weight:700">' + c.n + '</div>' +
-      '<div style="font-size:.65rem;color:var(--muted)">' + c.f + ' followers</div>' +
-      '<button class="follow-pill" onclick="event.stopPropagation();this.classList.toggle(\'following\');this.textContent=this.classList.contains(\'following\')?\'✓ Following\':\'+ Follow\'">+ Follow</button>';
-    row.appendChild(card);
-  });
-}
-
-// ── STATUS VIEWER ────────────────────────────────────────
-function HOME_openSV(i) {
-  HOME_svUser  = HOME_STATUSES[i];
-  HOME_svSlide = 0;
-  HOME_STATUSES[i].viewed = true;
-  var rings = document.querySelectorAll('#status-row .status-ring');
-  if (rings[i + 1]) rings[i + 1].classList.add('viewed');
-  var el = document.getElementById('sv-overlay');
-  if (!el) return;
-  document.getElementById('sv-avatar').textContent = HOME_svUser.emoji;
-  document.getElementById('sv-nick').textContent   = '@' + HOME_svUser.nick;
-  document.getElementById('sv-time').textContent   = HOME_svUser.time + ' ago';
-  el.classList.add('open');
-  HOME_showSVSlide(0);
-}
-window.openStatusViewer = HOME_openSV;
-
-function HOME_showSVSlide(idx) {
   clearTimeout(HOME_svTimer);
-  var sl   = HOME_svUser.slides[idx];
-  var el   = document.getElementById('sv-slide');
+  cancelAnimationFrame(HOME_svBarRaf);
+  HOME_svPaused = false;
+  HOME_svBarDur = 5000;
+
+  document.getElementById('sv-avatar').textContent = (s.nickname || '?').slice(0,1).toUpperCase();
+  document.getElementById('sv-nick').textContent   = '@' + (s.nickname || 'User');
+  document.getElementById('sv-time').textContent   = s.slides[0].created_at ? timeAgo(s.slides[0].created_at) : 'now';
+
   var bars = document.getElementById('sv-bars');
-  if (!el || !bars) return;
-  bars.innerHTML = HOME_svUser.slides.map(function(_, j) {
-    return '<div class="sv-bar"><div class="sv-bar-fill ' + (j<idx?'done':j===idx?'running':'') + '"></div></div>';
+  bars.innerHTML = s.slides.map(function (_, j) {
+    return '<div class="sv-bar"><div class="sv-bar-fill' + (j < HOME_svSlideIdx ? ' done' : '') + '" id="svbar-' + j + '"></div></div>';
   }).join('');
-  el.style.opacity    = '0';
-  el.style.background = sl.bg    || '#111';
-  el.style.color      = sl.color || '#fff';
-  setTimeout(function() { el.textContent = sl.text || ''; el.style.opacity = '1'; }, 120);
-  HOME_svTimer = setTimeout(function() { window.svNext(); }, 5000);
+
+  var el = document.getElementById('sv-slide');
+  el.innerHTML = '';
+  el.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;transition:opacity .15s';
+
+  if (slide.type === 'media' && slide.media_url) {
+    var isVideo = /\.(mp4|webm|mov|avi)$/i.test(slide.media_url);
+    if (isVideo) {
+      var vid = document.createElement('video');
+      vid.src         = slide.media_url;
+      vid.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover';
+      vid.autoplay    = true;
+      vid.loop        = false;
+      vid.muted       = HOME_svMuted;
+      vid.playsInline = true;
+      vid.onloadedmetadata = function () {
+        HOME_svBarDur = (vid.duration || 5) * 1000;
+        _svStartBar();
+      };
+      vid.onended = function () { window.svNext(); };
+      el.style.background = '#000';
+      el.appendChild(vid);
+    } else {
+      var img = document.createElement('img');
+      img.src           = slide.media_url;
+      img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain';
+      el.style.background = '#000';
+      el.appendChild(img);
+      if (slide.text) {
+        var cap = document.createElement('div');
+        cap.style.cssText = 'position:absolute;bottom:80px;left:0;right:0;padding:.75rem 1rem;background:rgba(0,0,0,.5);color:#fff;font-size:.9rem;text-align:center;border-radius:0 0 8px 8px';
+        cap.textContent = slide.text;
+        el.appendChild(cap);
+      }
+      _svStartBar();
+    }
+  } else {
+    el.style.background     = slide.bg    || '#1a0a2e';
+    el.style.color          = slide.color || '#fff';
+    el.style.fontSize       = '1.2rem';
+    el.style.textAlign      = 'center';
+    el.style.padding        = '2rem';
+    el.style.lineHeight     = '1.6';
+    el.textContent = slide.text || '';
+    _svStartBar();
+  }
 }
-window.svNext  = function() { if(HOME_svUser&&HOME_svSlide<HOME_svUser.slides.length-1) HOME_showSVSlide(++HOME_svSlide); else closeSV(); };
-window.svPrev  = function() { if(HOME_svUser&&HOME_svSlide>0) HOME_showSVSlide(--HOME_svSlide); };
-window.closeSV = function() { var el=document.getElementById('sv-overlay'); if(el)el.classList.remove('open'); clearTimeout(HOME_svTimer); };
-window.svMute  = function() { var b=document.getElementById('sv-mute'); if(b)b.textContent=b.textContent==='🔊'?'🔇':'🔊'; };
+
+function _svStartBar() {
+  cancelAnimationFrame(HOME_svBarRaf);
+  HOME_svBarStart = performance.now();
+  var barEl = document.getElementById('svbar-' + HOME_svSlideIdx);
+  function tick(now) {
+    if (HOME_svPaused) { HOME_svBarRaf = requestAnimationFrame(tick); return; }
+    var elapsed = now - HOME_svBarStart;
+    var pct = Math.min(100, elapsed / HOME_svBarDur * 100);
+    if (barEl) barEl.style.width = pct + '%';
+    if (pct < 100) { HOME_svBarRaf = requestAnimationFrame(tick); }
+    else { window.svNext(); }
+  }
+  HOME_svBarRaf = requestAnimationFrame(tick);
+}
+
+window.svNext = function () {
+  var s = HOME_svStatuses[HOME_svUserIdx];
+  if (!s) { closeSV(); return; }
+  if (HOME_svSlideIdx < s.slides.length - 1) {
+    HOME_svSlideIdx++;
+    _svShowSlide();
+  } else if (HOME_svUserIdx < HOME_svStatuses.length - 1) {
+    HOME_svUserIdx++;
+    HOME_svSlideIdx = 0;
+    _svShowSlide();
+  } else {
+    closeSV();
+  }
+};
+
+window.svPrev = function () {
+  if (HOME_svSlideIdx > 0) {
+    HOME_svSlideIdx--;
+  } else if (HOME_svUserIdx > 0) {
+    HOME_svUserIdx--;
+    HOME_svSlideIdx = Math.max(0, (HOME_svStatuses[HOME_svUserIdx].slides || []).length - 1);
+  }
+  _svShowSlide();
+};
+
+window.closeSV = function () {
+  cancelAnimationFrame(HOME_svBarRaf);
+  clearTimeout(HOME_svTimer);
+  HOME_svPaused = false;
+  var vid = document.querySelector('#sv-slide video');
+  if (vid) { vid.pause(); vid.src = ''; }
+  var el = document.getElementById('sv-overlay');
+  if (el) el.classList.remove('open');
+};
+
+window.svToggleMute = window.svMute = function () {
+  HOME_svMuted = !HOME_svMuted;
+  var btn = document.getElementById('sv-mute');
+  if (btn) btn.textContent = HOME_svMuted ? '🔇' : '🔊';
+  var vid = document.querySelector('#sv-slide video');
+  if (vid) vid.muted = HOME_svMuted;
+};
 
 console.log('YID PLUS: home.js loaded ✓ (Cloudflare D1 mode)');
 
