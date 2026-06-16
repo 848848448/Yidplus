@@ -64,7 +64,8 @@ function renderShorts() {
     var likedClass = s.liked ? ' liked' : '';
 
     slide.innerHTML =
-      '<video class="slide-video" src="' + s.media_url + '" loop muted playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000"></video>' +
+      '<video class="slide-video" src="' + s.media_url + '" playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000"></video>' +
+      '<button id="snd-btn-' + i + '" onclick="event.stopPropagation();toggleShortSound(' + i + ')" style="position:absolute;top:70px;right:12px;z-index:20;background:rgba(0,0,0,.5);border:none;color:#fff;font-size:1.2rem;width:38px;height:38px;border-radius:50%;cursor:pointer">🔇</button>' +
       '<div class="slide-grad"></div>' +
       '<div class="pause-indicator" id="pause-' + i + '">⏸</div>' +
       '<div class="slide-info">' +
@@ -97,10 +98,12 @@ function renderShorts() {
 
     // tap to play/pause
     var video = slide.querySelector('.slide-video');
+    video.muted = true; // start muted so autoplay works on mobile
+    video.loop  = true;
     slide.addEventListener('click', function (e) {
-      if (e.target.closest('.s-action') || e.target.closest('.short-channel') || e.target.closest('.action-avatar-wrap')) return;
+      if (e.target.closest('.s-action') || e.target.closest('.short-channel') || e.target.closest('.action-avatar-wrap') || e.target.tagName === 'BUTTON') return;
       if (video.paused) {
-        video.play();
+        video.play().catch(function(){});
         document.getElementById('pause-' + i).classList.remove('show');
       } else {
         video.pause();
@@ -141,7 +144,11 @@ function setupShortsObserver() {
           d.classList.toggle('active', i === idx);
         });
         video.currentTime = 0;
+        video.muted = true; // keep muted until user taps 🔇
         video.play().catch(function () {});
+        // Update sound button
+        var btn = document.getElementById('snd-btn-' + idx);
+        if (btn) btn.textContent = '🔇';
       } else {
         video.pause();
       }
@@ -285,6 +292,15 @@ window.handleVidUpload = function (e) {
     .catch(function (err) { toast('❌ ' + err.message); });
 
   e.target.value = '';
+};
+
+window.toggleShortSound = function (i) {
+  var slides = document.querySelectorAll('.short-slide');
+  var video  = slides[i] && slides[i].querySelector('video');
+  if (!video) return;
+  video.muted = !video.muted;
+  var btn = document.getElementById('snd-btn-' + i);
+  if (btn) btn.textContent = video.muted ? '🔇' : '🔊';
 };
 
 console.log('[YID PLUS] shorts.js loaded ✓');
