@@ -846,15 +846,16 @@ body.night {
 /* =============================================
    CHAT ROOM extras (missing pieces)
    ============================================= */
-.chatroom-topbar { background: var(--blue); color: #fff; border-bottom: none; padding: .6rem 1rem; display: flex; align-items: center; gap: .6rem; flex-shrink: 0; }
-.chatroom-topbar .icon-btn { background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.25); color: #fff; }
-.chatroom-avatar { width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border: none; flex-shrink: 0; color: #fff; font-weight: 700; overflow: hidden; background-size: cover; background-position: center; }
+.chatroom-topbar { background: #fff; color: var(--text); border-bottom: 1px solid var(--border); padding: .6rem 1rem; display: flex; align-items: center; gap: .6rem; flex-shrink: 0; }
+.chatroom-topbar .icon-btn { background: none; border: none; color: var(--blue); }
+.chatroom-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--blue); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border: none; flex-shrink: 0; color: #fff; font-weight: 700; overflow: hidden; background-size: cover; background-position: center; cursor: pointer; }
 .chatroom-avatar.group { border-radius: 50%; }
 .sys-msg { text-align: center; margin: .5rem 0; }
 .sys-msg span { background: rgba(0,0,0,.06); border-radius: 10px; padding: .25rem .75rem; font-size: .68rem; color: var(--muted); }
 .member-row-admin { display: flex; align-items: center; gap: .5rem; padding: .65rem 1rem; border-bottom: 1px solid var(--border); }
 .member-photo { width: 40px; height: 40px; border-radius: 50%; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: 700; border: 1px solid var(--border); flex-shrink: 0; overflow: hidden; background-size: cover; background-position: center; }
-.chat-messages { flex: 1; overflow-y: auto; padding: .75rem; background: var(--bg); scrollbar-width: none; }
+.chat-messages { flex: 1; overflow-y: auto; padding: .75rem; scrollbar-width: none; }
+.chat-messages.tg-chat-bg { /* class combo applied in HTML */ }
 .chat-messages::-webkit-scrollbar { display: none; }
 .vbar { width: 3px; background: var(--gold-d); border-radius: 2px; }
 .voice-rec-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--blue); border: none; color: #fff; font-size: 1.05rem; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: transform .15s; }
@@ -937,3 +938,49 @@ body.night {
 .report-reason-opt input { width: 18px; height: 18px; accent-color: var(--blue); }
 .avatar-upload-circle { width: 90px; height: 90px; border-radius: 50%; background: var(--bg3); border: 2px dashed var(--border2); display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem; cursor: pointer; overflow: hidden; background-size: cover; background-position: center; position: relative; }
 .avatar-upload-circle .avatar-upload-hint { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.5); color: #fff; font-size: .6rem; padding: .25rem 0; text-align: center; }
+
+/* =============================================
+   TELEGRAM WEB — exact visual match
+   ============================================= */
+.tg-search-pill { flex: 1; display: flex; align-items: center; gap: .5rem; background: var(--bg3); border-radius: 20px; padding: .45rem .9rem; cursor: text; }
+.tg-search-pill input { flex: 1; border: none; background: none; outline: none; font-size: .88rem; font-family: inherit; color: var(--text); }
+.tg-search-pill input::placeholder { color: var(--muted); }
+.tg-tabs-row { display: flex; border-bottom: 1px solid var(--border); background: #fff; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+.tg-tabs-row::-webkit-scrollbar { display: none; }
+.tg-tab { padding: .65rem 1.1rem; font-size: .82rem; color: var(--muted); border: none; background: none; cursor: pointer; font-family: inherit; border-bottom: 2px solid transparent; white-space: nowrap; }
+.tg-tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+
+/* Hamburger side menu */
+.hamburger-overlay { position: fixed; inset: 0; z-index: 250; background: rgba(0,0,0,.4); display: none; }
+.hamburger-overlay.open { display: block; }
+.hamburger-panel { position: fixed; top: 0; left: 0; bottom: 0; width: 80%; max-width: 320px; background: #fff; box-shadow: 4px 0 24px rgba(0,0,0,.15); transform: translateX(-100%); transition: transform .25s ease; overflow-y: auto; }
+.hamburger-overlay.open .hamburger-panel { transform: translateX(0); }
+.hamburger-profile-hdr { background: linear-gradient(135deg, var(--green), #1e6e26); color: #fff; padding: 1.5rem 1.25rem; }
+.hamburger-avatar { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 700; margin-bottom: .75rem; }
+.hamburger-item { display: flex; align-items: center; gap: 1rem; padding: .85rem 1.25rem; font-size: .92rem; color: var(--text); cursor: pointer; }
+.hamburger-item:hover { background: var(--bg2); }
+.hamburger-item .hi-icon { font-size: 1.2rem; width: 24px; text-align: center; }
+
+/* User Info / Group Info page (Telegram-style) */
+.userinfo-hero { background: linear-gradient(135deg, var(--green), #1e6e26); padding: 2.5rem 1.5rem 1.5rem; text-align: center; color: #fff; }
+.userinfo-avatar-big { width: 96px; height: 96px; border-radius: 50%; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; font-size: 2.4rem; font-weight: 700; margin: 0 auto .75rem; overflow: hidden; background-size: cover; background-position: center; }
+.userinfo-name { font-size: 1.15rem; font-weight: 700; }
+.userinfo-sub { font-size: .8rem; opacity: .85; margin-top: .15rem; }
+.userinfo-action-row { display: flex; background: #fff; border-bottom: 1px solid var(--border); }
+.userinfo-action-row .setting-row { flex: 1; justify-content: center; gap: .4rem; }
+.userinfo-media-tabs { display: flex; background: #fff; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.userinfo-media-tabs::-webkit-scrollbar { display: none; }
+.userinfo-mtab { flex-shrink: 0; padding: .7rem 1rem; font-size: .8rem; color: var(--muted); border: none; background: none; cursor: pointer; font-family: inherit; border-bottom: 2px solid transparent; }
+.userinfo-mtab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+
+/* Chat room — dotted/patterned background like Telegram */
+.tg-chat-bg {
+  background-color: #E6EBE3;
+  background-image:
+    radial-gradient(circle at 10% 15%, rgba(0,0,0,.025) 0, transparent 5%),
+    radial-gradient(circle at 80% 30%, rgba(0,0,0,.025) 0, transparent 6%),
+    radial-gradient(circle at 30% 70%, rgba(0,0,0,.02) 0, transparent 5%),
+    radial-gradient(circle at 65% 85%, rgba(0,0,0,.025) 0, transparent 6%),
+    radial-gradient(circle at 90% 60%, rgba(0,0,0,.02) 0, transparent 5%);
+  background-size: 100% 100%;
+}
