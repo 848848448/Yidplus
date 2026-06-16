@@ -20,7 +20,11 @@ export async function onRequestGet(context) {
     const roomId = url.searchParams.get('room_id');
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
 
-    await ensureMember(env, roomId, user.id);
+    // Admins can view ANY room (including private DMs) without joining it.
+    // Regular users get auto-joined to public rooms they touch.
+    if (!isAdminRole(user, env.OWNER_EMAIL)) {
+      await ensureMember(env, roomId, user.id);
+    }
 
     const { results } = await env.DB.prepare(
       `SELECT id, room_id, sender_id, sender_nick, type, text, media_key,
@@ -146,4 +150,4 @@ async function ensureMember(env, roomId, userId) {
       ).bind(roomId, userId, new Date().toISOString()).run();
     }
   }
-}
+           }
