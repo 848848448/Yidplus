@@ -51,13 +51,15 @@ window.api = {
     }
     return fetch(CONFIG.API_BASE + path, opts).then(handleRes);
   },
-  put: function (path, body) {
-    return fetch(CONFIG.API_BASE + path, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }).then(handleRes);
+  put: function (path, body, isForm) {
+    var opts = { method: 'PUT', credentials: 'include' };
+    if (isForm) {
+      opts.body = body; // FormData — browser sets content-type
+    } else {
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify(body);
+    }
+    return fetch(CONFIG.API_BASE + path, opts).then(handleRes);
   },
   del: function (path) {
     return fetch(CONFIG.API_BASE + path, { method: 'DELETE', credentials: 'include' })
