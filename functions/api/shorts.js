@@ -4,7 +4,7 @@
 // PUT    /api/shorts            -> { id, like: true|false } toggle like
 // DELETE /api/shorts?id=xxx     -> delete (owner or admin)
 
-import { json, corsHeaders, requireUser, isAdminRole } from './_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, canDeleteContent, logAudit } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -142,16 +142,21 @@ export async function onRequestDelete(context) {
     const row = await env.DB.prepare(`SELECT owner_id, media_key FROM shorts WHERE id = ?`).bind(id).first();
     if (!row) return json({ ok: false, error: 'Not found' }, 404);
 
-    const canDelete = row.owner_id === user.id || isAdminRole(user, env.OWNER_EMAIL);
-    if (!canDelete) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!canDeleteContent(user, row.owner_id, env.OWNER_EMAIL)) {
+      return json({ ok: false, error: 'Forbidden' }, 403);
+    }
 
     await env.MY_BUCKET.delete(row.media_key);
     await env.DB.prepare(`DELETE FROM short_likes WHERE short_id = ?`).bind(id).run();
     await env.DB.prepare(`DELETE FROM short_comments WHERE short_id = ?`).bind(id).run();
     await env.DB.prepare(`DELETE FROM shorts WHERE id = ?`).bind(id).run();
 
+    if (user.id !== row.owner_id && isAdminRole(user, env.OWNER_EMAIL)) {
+      await logAudit(env, user, 'delete_short', 'short', id, 'Deleted a short uploaded by another user');
+    }
+
     return json({ ok: true });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-}
+  }
