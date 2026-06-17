@@ -437,11 +437,13 @@ function renderMessages(scrollDown) {
       '</div>';
 
     } else if (m.type === 'voice' && m.media_url) {
+      var voiceData = _parseVoicePacked(m.text);
+      var bars = voiceData.peaks.length ? _renderWaveBars(voiceData.peaks, m.id) : _fakeBars(20);
       inner += '<div class="voice-msg">' +
         '<audio src="' + m.media_url + '" id="aud-' + m.id + '" preload="metadata"></audio>' +
         '<button class="play-voice" onclick="_playVoice(\'' + m.id + '\',this)">▶</button>' +
-        '<div class="voice-bars">' + _fakeBars(20) + '</div>' +
-        '<div class="voice-dur" id="vdur-' + m.id + '">' + (m.text || '0:00') + '</div>' +
+        '<div class="voice-bars" id="vbars-' + m.id + '" onclick="_seekVoice(event,\'' + m.id + '\')">' + bars + '</div>' +
+        '<div class="voice-dur" id="vdur-' + m.id + '">' + (voiceData.dur || '0:00') + '</div>' +
       '</div>';
 
     } else if (m.type === 'voice_text') {
@@ -487,11 +489,10 @@ function renderMessages(scrollDown) {
     return dateSep +
       '<div class="msg-wrap' + (isMe ? ' me' : '') + '" id="msg-' + m.id + '" data-id="' + m.id + '">' +
         miniAv +
-        '<div class="' + bubbleClass + '" ' +
-          'oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')" ' +
-          'ontouchstart="_ctxTouch(event,\'' + m.id + '\')" ' +
-          'ontouchend="_ctxClear()">' +
+        '<div class="' + bubbleClass + '" data-msg-id="' + m.id + '" ' +
+          'oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')">' +
           inner +
+          '<div class="swipe-reply-icon">↩️</div>' +
         '</div>' +
       '</div>';
   }).join('');
@@ -510,9 +511,68 @@ function renderMessages(scrollDown) {
   } else {
     cont.scrollTop = prevScroll + (cont.scrollHeight - prevHeight);
   }
+
+  _attachMessageGestures(cont);
 }
 
-// Track scroll position
+// Swipe-right-to-reply + long-press-to-context-menu, both on the same bubble.
+// Telegram pattern: a horizontal drag past ~50px triggers reply on release;
+// a stationary hold past ~500ms opens the context menu instead.
+function _attachMessageGestures(cont) {
+  cont.querySelectorAll('.bubble[data-msg-id]').forEach(function (bubble) {
+    var msgId = bubble.dataset.msgId;
+    var startX = 0, startY = 0, dragging = false, longPressTimer = null, moved = false;
+
+    bubble.addEventListener('touchstart', function (e) {
+      var t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
+      dragging = true;
+      moved = false;
+      longPressTimer = setTimeout(function () {
+        if (!moved) showCtx(t, msgId);
+      }, 500);
+    }, { passive: true });
+
+    bubble.addEventListener('touchmove', function (e) {
+      if (!dragging) return;
+      var t = e.touches[0];
+      var dx = t.clientX - startX;
+      var dy = t.clientY - startY;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        moved = true;
+        clearTimeout(longPressTimer);
+      }
+      // Only allow rightward swipe (reply gesture), clamp the drag distance.
+      if (dx > 0 && Math.abs(dy) < 40) {
+        var clamped = Math.min(dx, 70);
+        bubble.style.transform = 'translateX(' + clamped + 'px)';
+        var icon = bubble.querySelector('.swipe-reply-icon');
+        if (icon) icon.style.opacity = Math.min(1, clamped / 50);
+      }
+    }, { passive: true });
+
+    bubble.addEventListener('touchend', function (e) {
+      clearTimeout(longPressTimer);
+      dragging = false;
+      var transform = bubble.style.transform;
+      var dx = 0;
+      var match = transform.match(/translateX\(([\d.]+)px\)/);
+      if (match) dx = parseFloat(match[1]);
+
+      bubble.style.transition = 'transform .2s ease';
+      bubble.style.transform = 'translateX(0)';
+      setTimeout(function () { bubble.style.transition = ''; }, 220);
+      var icon = bubble.querySelector('.swipe-reply-icon');
+      if (icon) icon.style.opacity = '0';
+
+      if (dx > 45) {
+        var msg = CHAT_messages.find(function (m) { return m.id === msgId; });
+        if (msg) _setReply(msg);
+      }
+    });
+  });
+}
 function _onMsgsScroll() {
   var cont = document.getElementById('chat-msgs');
   if (!cont) return;
@@ -599,36 +659,71 @@ window.joinGroup = function () {
 };
 
 // ============================================================
-// VOICE NOTES (MediaRecorder)
+// VOICE NOTES (MediaRecorder + real waveform analysis)
 // ============================================================
+var CHAT_recPeaks   = [];   // captured amplitude samples while recording
+var CHAT_recAnalyser = null;
+var CHAT_recRaf      = null;
+
 window.toggleVoiceRec = function () {
   if (CHAT_isRecording) {
-    // Stop recording
     if (CHAT_mediaRec && CHAT_mediaRec.state !== 'inactive') CHAT_mediaRec.stop();
   } else {
-    // Start recording
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       return toast('⚠ Microphone not available in this browser.');
     }
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(function (stream) {
         CHAT_recChunks = [];
+        CHAT_recPeaks  = [];
         CHAT_recStart  = Date.now();
         CHAT_isRecording = true;
         var btn = document.getElementById('voice-rec-btn');
         if (btn) { btn.textContent = '⏹️'; btn.classList.add('rec'); }
-        toast('🎙️ Recording... tap ⏹️ to send');
+        _showRecordingBar();
+
+        // Real-time amplitude analysis (drives both the live preview
+        // and the waveform that gets saved with the message).
+        try {
+          var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          var source = audioCtx.createMediaStreamSource(stream);
+          CHAT_recAnalyser = audioCtx.createAnalyser();
+          CHAT_recAnalyser.fftSize = 256;
+          source.connect(CHAT_recAnalyser);
+          var dataArr = new Uint8Array(CHAT_recAnalyser.frequencyBinCount);
+
+          function sampleLevel() {
+            if (!CHAT_isRecording) return;
+            CHAT_recAnalyser.getByteFrequencyData(dataArr);
+            var sum = 0;
+            for (var i = 0; i < dataArr.length; i++) sum += dataArr[i];
+            var avg = sum / dataArr.length / 255; // normalized 0..1
+            CHAT_recPeaks.push(avg);
+            _updateRecordingBar(avg);
+            CHAT_recRaf = requestAnimationFrame(sampleLevel);
+          }
+          sampleLevel();
+        } catch (e) {
+          console.warn('[chat] waveform analysis unavailable:', e.message);
+        }
 
         CHAT_mediaRec = new MediaRecorder(stream);
         CHAT_mediaRec.ondataavailable = function (e) { if (e.data.size > 0) CHAT_recChunks.push(e.data); };
         CHAT_mediaRec.onstop = function () {
           CHAT_isRecording = false;
+          cancelAnimationFrame(CHAT_recRaf);
+          _hideRecordingBar();
           var btn2 = document.getElementById('voice-rec-btn');
           if (btn2) { btn2.textContent = '🎙️'; btn2.classList.remove('rec'); }
           stream.getTracks().forEach(function (t) { t.stop(); });
 
           var dur  = Math.round((Date.now() - CHAT_recStart) / 1000);
           var durStr = Math.floor(dur / 60) + ':' + String(dur % 60).padStart(2, '0');
+
+          // Downsample peaks to ~40 bars and pack alongside duration.
+          var peaks = _downsamplePeaks(CHAT_recPeaks, 40);
+          var packed = durStr + '|' + peaks.map(function (p) { return Math.round(p * 100); }).join(',');
+
           var blob = new Blob(CHAT_recChunks, { type: 'audio/webm' });
           var file = new File([blob], 'voice_' + Date.now() + '.webm', { type: 'audio/webm' });
 
@@ -636,7 +731,7 @@ window.toggleVoiceRec = function () {
           var form = new FormData();
           form.append('room_id', CHAT_curRoom.id);
           form.append('type', 'voice');
-          form.append('text', durStr);
+          form.append('text', packed);
           form.append('file', file);
           api.post('/chat', form, true)
             .then(function () { loadMessages(true); loadChatRooms(); })
@@ -648,6 +743,48 @@ window.toggleVoiceRec = function () {
   }
 };
 window.startVoiceRec = window.toggleVoiceRec;
+
+function _showRecordingBar() {
+  var bar = document.getElementById('rec-live-bar');
+  if (bar) bar.style.display = 'flex';
+}
+function _hideRecordingBar() {
+  var bar = document.getElementById('rec-live-bar');
+  if (bar) bar.style.display = 'none';
+}
+function _updateRecordingBar(level) {
+  var fill = document.getElementById('rec-live-level');
+  if (fill) fill.style.height = Math.max(4, level * 28) + 'px';
+  var timeEl = document.getElementById('rec-live-time');
+  if (timeEl) {
+    var elapsed = Math.round((Date.now() - CHAT_recStart) / 1000);
+    timeEl.textContent = Math.floor(elapsed / 60) + ':' + String(elapsed % 60).padStart(2, '0');
+  }
+}
+
+// Reduce a long peaks array down to N representative bars (for waveform display)
+function _downsamplePeaks(peaks, n) {
+  if (!peaks.length) return new Array(n).fill(0.1);
+  var out = [];
+  var step = peaks.length / n;
+  for (var i = 0; i < n; i++) {
+    var start = Math.floor(i * step);
+    var end = Math.floor((i + 1) * step) || start + 1;
+    var slice = peaks.slice(start, end);
+    var avg = slice.reduce(function (a, b) { return a + b; }, 0) / (slice.length || 1);
+    out.push(Math.max(0.08, avg)); // floor so silence still shows a thin flat line, not nothing
+  }
+  return out;
+}
+
+// Parse the packed "duration|peak,peak,peak..." format stored in messages.text
+function _parseVoicePacked(text) {
+  if (!text) return { dur: '0:00', peaks: [] };
+  var parts = text.split('|');
+  var dur = parts[0] || '0:00';
+  var peaks = parts[1] ? parts[1].split(',').map(function (p) { return parseInt(p, 10) / 100; }) : [];
+  return { dur: dur, peaks: peaks };
+}
 
 // ============================================================
 // STICKERS
@@ -920,18 +1057,74 @@ function _linkify(text) {
   });
 }
 
+function _renderWaveBars(peaks, msgId) {
+  return peaks.map(function (p, i) {
+    var h = Math.max(3, Math.round(p * 24));
+    return '<div class="vbar" data-i="' + i + '" style="height:' + h + 'px"></div>';
+  }).join('');
+}
+
+window._seekVoice = function (e, msgId) {
+  var aud = document.getElementById('aud-' + msgId);
+  var barsEl = document.getElementById('vbars-' + msgId);
+  if (!aud || !barsEl || !aud.duration) return;
+  var rect = barsEl.getBoundingClientRect();
+  var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  aud.currentTime = pct * aud.duration;
+};
+
 window._playVoice = function (msgId, btn) {
   var aud = document.getElementById('aud-' + msgId);
   if (!aud) return;
+
+  // Pause any other currently-playing voice note first (only one at a time).
+  document.querySelectorAll('.chat-messages audio').forEach(function (other) {
+    if (other !== aud && !other.paused) {
+      other.pause();
+      var otherId = other.id.replace('aud-', '');
+      var otherBtn = document.querySelector('[onclick*="_playVoice(\'' + otherId + '\'"]');
+      if (otherBtn) otherBtn.textContent = '▶';
+    }
+  });
+
   if (aud.paused) {
-    aud.play();
+    aud.play().catch(function () {});
     btn.textContent = '⏸';
-    aud.onended = function () { btn.textContent = '▶'; };
+
+    aud.ontimeupdate = function () {
+      var barsEl = document.getElementById('vbars-' + msgId);
+      if (!barsEl || !aud.duration) return;
+      var pct = aud.currentTime / aud.duration;
+      var bars = barsEl.querySelectorAll('.vbar');
+      var playedCount = Math.floor(pct * bars.length);
+      bars.forEach(function (b, i) { b.classList.toggle('played', i < playedCount); });
+    };
+
+    aud.onended = function () {
+      btn.textContent = '▶';
+      var barsEl = document.getElementById('vbars-' + msgId);
+      if (barsEl) barsEl.querySelectorAll('.vbar').forEach(function (b) { b.classList.remove('played'); });
+      _autoPlayNextVoice(msgId);
+    };
   } else {
     aud.pause();
     btn.textContent = '▶';
   }
 };
+
+// Telegram behavior: when a voice note finishes, automatically play the
+// next voice note that appears later in the same chat (if any).
+function _autoPlayNextVoice(currentMsgId) {
+  var idx = CHAT_messages.findIndex(function (m) { return m.id === currentMsgId; });
+  if (idx === -1) return;
+  for (var i = idx + 1; i < CHAT_messages.length; i++) {
+    if (CHAT_messages[i].type === 'voice') {
+      var nextBtn = document.querySelector('#msg-' + CHAT_messages[i].id + ' .play-voice');
+      if (nextBtn) { _playVoice(CHAT_messages[i].id, nextBtn); }
+      return;
+    }
+  }
+}
 
 // ============================================================
 // INIT SCROLL LISTENER after navTo('chatroom')
