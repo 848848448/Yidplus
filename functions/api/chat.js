@@ -3,7 +3,7 @@
 // POST   /api/chat              -> send a message (json or multipart)
 // DELETE /api/chat?id=xxx       -> delete a message (own message or admin)
 
-import { json, corsHeaders, requireUser, isAdminRole } from './_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, canDeleteContent, logAudit } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -73,6 +73,21 @@ export async function onRequestPost(context) {
 
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
 
+    // For private DMs: if either side has blocked the other, sending is disallowed.
+    const room = await env.DB.prepare(`SELECT type FROM rooms WHERE id = ?`).bind(roomId).first();
+    if (room && room.type === 'private') {
+      const { results: members } = await env.DB.prepare(
+        `SELECT user_id FROM room_members WHERE room_id = ? AND user_id != ?`
+      ).bind(roomId, user.id).all();
+      const otherId = members[0] && members[0].user_id;
+      if (otherId) {
+        const isBlocked = await env.DB.prepare(
+          `SELECT 1 FROM user_blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)`
+        ).bind(user.id, otherId, otherId, user.id).first();
+        if (isBlocked) return json({ ok: false, error: 'You cannot message this user.' }, 403);
+      }
+    }
+
     await ensureMember(env, roomId, user.id);
 
     let mediaKey = null;
@@ -123,11 +138,16 @@ export async function onRequestDelete(context) {
 
     if (!row) return json({ ok: false, error: 'Message not found' }, 404);
 
-    const canDelete = row.sender_id === user.id || isAdminRole(user, env.OWNER_EMAIL);
-    if (!canDelete) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!canDeleteContent(user, row.sender_id, env.OWNER_EMAIL)) {
+      return json({ ok: false, error: 'Forbidden' }, 403);
+    }
 
     if (row.media_key) await env.MY_BUCKET.delete(row.media_key);
     await env.DB.prepare(`DELETE FROM messages WHERE id = ?`).bind(id).run();
+
+    if (user.id !== row.sender_id && isAdminRole(user, env.OWNER_EMAIL)) {
+      await logAudit(env, user, 'delete_message', 'message', id, 'Deleted a message sent by another user');
+    }
 
     return json({ ok: true });
   } catch (err) {
@@ -150,4 +170,4 @@ async function ensureMember(env, roomId, userId) {
       ).bind(roomId, userId, new Date().toISOString()).run();
     }
   }
-           }
+                         }
