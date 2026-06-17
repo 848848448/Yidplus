@@ -124,7 +124,7 @@ window.checkPin = function () {
     if (badge) {
       badge.textContent = role === 'owner'        ? '👑 OWNER'
                          : role === 'admin_super'  ? '🛡 SUPER ADMIN'
-                         :                           '🔒 LIMITED ADMIN';
+                         :                           '🔒 MODERATOR';
     }
 
     buildAdminNav();
@@ -138,12 +138,14 @@ window.checkPin = function () {
 var ADMIN_PANELS = [
   { id:'analytics',    icon:'📊', label:'Analytics',  roles:['admin_limited','admin_super','owner'] },
   { id:'app-settings', icon:'⚙️', label:'App',        roles:['admin_super','owner'] },
-  { id:'users',        icon:'👥', label:'Users',       roles:['admin_super','owner'] },
+  { id:'users',        icon:'👥', label:'Users',       roles:['admin_limited','admin_super','owner'] },
   { id:'shorts-mod',   icon:'🎬', label:'Shorts',      roles:['admin_limited','admin_super','owner'] },
   { id:'chat-watch',   icon:'💬', label:'Chats',       roles:['admin_super','owner'] },
   { id:'music-mod',    icon:'🎵', label:'Music',       roles:['admin_limited','admin_super','owner'] },
   { id:'broadcast',    icon:'📢', label:'Broadcast',   roles:['admin_super','owner'] },
   { id:'feedback',     icon:'📩', label:'Feedback',    roles:['admin_limited','admin_super','owner'] },
+  { id:'ads',          icon:'📣', label:'Ads',         roles:['admin_super','owner'] },
+  { id:'audit-logs',   icon:'📜', label:'Audit Logs',  roles:['admin_super','owner'] },
   { id:'admin-settings', icon:'🛠️', label:'Admin Settings', roles:['owner'] },
 ];
 
@@ -281,6 +283,12 @@ function buildAdminPanel(id) {
           '</div>' +
         '</div>' +
       '</div>';
+
+  } else if (id === 'audit-logs') {
+    buildAuditLogsPanel(content);
+
+  } else if (id === 'ads') {
+    buildAdsPanel(content);
 
   } else {
     content.innerHTML =
@@ -564,17 +572,22 @@ function renderUsersList(users, canSeePII) {
 
   el.innerHTML = users.map(function (u) {
     var isOwnerRow = u.email === CONFIG.OWNER_EMAIL;
-    var canEdit    = userCan('manage_users') && !isOwnerRow;
+    var canBlock   = userCan('block_users') && !isOwnerRow;
+    var canManage  = userCan('manage_users') && !isOwnerRow;
     var roleClass  = (u.role === 'admin_super' || u.role === 'admin_limited') ? 'admin' : 'user';
     var roleBadge  = '<span class="role-badge role-' + roleClass + '">' + (u.role || 'member') + '</span>';
 
-    var actions = canEdit
-      ? '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + (u.verified ? '✓ Verified' : '👑 Verify') + '</button>' +
-        (userCan('promote_users')
-          ? '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? 'Demote' : 'Promote') + '</button>'
-          : '') +
-        '<button class="act-btn act-block" onclick="adminBlock(\'' + u.id + '\',\'' + !!u.blocked + '\')">' + (u.blocked ? 'Unblock' : 'Block') + '</button>'
-      : '<span style="font-size:.65rem;color:var(--muted)">Protected</span>';
+    var actions = '';
+    if (canManage) {
+      actions += '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + (u.verified ? '✓ Verified' : '👑 Verify') + '</button>';
+      if (userCan('promote_users')) {
+        actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? 'Demote' : 'Promote') + '</button>';
+      }
+    }
+    if (canBlock) {
+      actions += '<button class="act-btn act-block" onclick="adminBlock(\'' + u.id + '\',\'' + !!u.blocked + '\')">' + (u.blocked ? 'Unblock' : 'Block') + '</button>';
+    }
+    if (!actions) actions = '<span style="font-size:.65rem;color:var(--muted)">Protected</span>';
 
     return '<div class="user-row">' +
       '<div style="width:36px;height:36px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;border:.5px solid var(--border);position:relative">' +
@@ -691,3 +704,129 @@ window.updateAdminPin = function () {
 };
 
 console.log('[YID PLUS] admin.js loaded ✓ (Cloudflare D1 mode)');
+
+/* ── AUDIT LOGS (Super Admin only) ── */
+function buildAuditLogsPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">📜 Audit Logs — Moderator & Admin Actions</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Tracks deletions, blocks, verifications, and role changes performed by Moderators and Super Admins.</div>' +
+        '<div id="audit-logs-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+
+  api.get('/admin/audit-logs?limit=80')
+    .then(function (res) {
+      var logs = res.logs || [];
+      var el = document.getElementById('audit-logs-list');
+      if (!el) return;
+      if (!logs.length) {
+        el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No actions logged yet</div>';
+        return;
+      }
+      var actionIcons = {
+        delete_post: '🗑️', delete_short: '🗑️', delete_message: '🗑️',
+        block_user: '🚫', unblock_user: '✅', verify_user: '👑', unverify_user: '➖',
+        change_role: '🔄', resolve_report: '✓', resolve_feedback: '✓',
+      };
+      el.innerHTML = logs.map(function (l) {
+        var icon = actionIcons[l.action] || '📋';
+        var roleTag = l.actor_role === 'owner' ? '👑' : l.actor_role === 'admin_super' ? '🛡' : '🔒';
+        return '<div style="display:flex;align-items:flex-start;gap:.6rem;padding:.6rem 0;border-bottom:1px solid var(--border)">' +
+          '<span style="font-size:1.1rem;flex-shrink:0">' + icon + '</span>' +
+          '<div style="flex:1">' +
+            '<div style="font-size:.82rem">' + roleTag + ' <strong>@' + escHtml(l.actor_nick || 'unknown') + '</strong> ' + escHtml(l.action.replace(/_/g, ' ')) + '</div>' +
+            (l.details ? '<div style="font-size:.72rem;color:var(--muted);margin-top:.1rem">' + escHtml(l.details) + '</div>' : '') +
+            '<div style="font-size:.65rem;color:var(--muted2);margin-top:.15rem">' + timeAgo(l.created_at) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) {
+      var el = document.getElementById('audit-logs-list');
+      if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
+    });
+}
+
+/* ── ADS (Super Admin only) ── */
+function buildAdsPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">📣 Create Ad</div>' +
+        '<input class="field" id="ad-title" placeholder="Ad title">' +
+        '<input class="field" id="ad-subtitle" placeholder="Subtitle (optional)">' +
+        '<input class="field" id="ad-link" placeholder="Link URL (optional)">' +
+        '<input type="file" id="ad-media-input" accept="image/*,video/*" style="margin-bottom:.85rem">' +
+        '<button class="btn-primary" onclick="createAd()">Create Ad</button>' +
+      '</div>' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">📋 Active Ads</div>' +
+        '<div id="ads-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+  loadAdsList();
+}
+
+function loadAdsList() {
+  api.get('/admin/ads')
+    .then(function (res) {
+      var ads = res.ads || [];
+      var el = document.getElementById('ads-list');
+      if (!el) return;
+      if (!ads.length) {
+        el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No ads yet</div>';
+        return;
+      }
+      el.innerHTML = ads.map(function (a) {
+        return '<div class="video-row">' +
+          '<div class="vid-thumb">' + (a.media_url ? '<img src="' + a.media_url + '" style="width:100%;height:100%;object-fit:cover">' : '📣') + '</div>' +
+          '<div class="vid-info"><div class="vid-title">' + escHtml(a.title) + '</div><div class="vid-meta">' + (a.active ? '🟢 Active' : '⚪ Inactive') + (a.link_url ? ' · has link' : '') + '</div></div>' +
+          '<button class="ma-btn ma-trend' + (a.active ? ' on' : '') + '" onclick="toggleAdActive(\'' + a.id + '\',' + !a.active + ')">' + (a.active ? 'Disable' : 'Enable') + '</button>' +
+          '<button class="del-btn" onclick="deleteAd(\'' + a.id + '\')" style="margin-left:.3rem">🗑</button>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) {
+      var el = document.getElementById('ads-list');
+      if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
+    });
+}
+
+window.createAd = function () {
+  var title = (document.getElementById('ad-title').value || '').trim();
+  var subtitle = document.getElementById('ad-subtitle').value || '';
+  var link = document.getElementById('ad-link').value || '';
+  var file = document.getElementById('ad-media-input').files[0];
+  if (!title) return toast('⚠ Title is required.');
+
+  var form = new FormData();
+  form.append('title', title);
+  form.append('subtitle', subtitle);
+  form.append('link_url', link);
+  if (file) form.append('media', file);
+
+  api.post('/admin/ads', form, true)
+    .then(function () {
+      toast('✅ Ad created!');
+      document.getElementById('ad-title').value = '';
+      document.getElementById('ad-subtitle').value = '';
+      document.getElementById('ad-link').value = '';
+      loadAdsList();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.toggleAdActive = function (id, active) {
+  api.put('/admin/ads', { id: id, active: active })
+    .then(function () { loadAdsList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.deleteAd = function (id) {
+  if (!confirm('Delete this ad?')) return;
+  api.del('/admin/ads?id=' + encodeURIComponent(id))
+    .then(function () { toast('🗑 Deleted.'); loadAdsList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
