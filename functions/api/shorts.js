@@ -98,12 +98,19 @@ export async function onRequestPut(context) {
   const { request, env } = context;
 
   try {
+    const body = await request.json();
+    const { id, like, view } = body;
+    if (!id) return json({ ok: false, error: 'id is required' }, 400);
+
+    // View tracking — no auth required, anyone can register a view.
+    if (view) {
+      await env.DB.prepare(`UPDATE shorts SET views = views + 1 WHERE id = ?`).bind(id).run();
+      const viewRow = await env.DB.prepare(`SELECT views FROM shorts WHERE id = ?`).bind(id).first();
+      return json({ ok: true, views: viewRow ? viewRow.views : 0 });
+    }
+
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-
-    const body = await request.json();
-    const { id, like } = body;
-    if (!id) return json({ ok: false, error: 'id is required' }, 400);
 
     const existing = await env.DB.prepare(
       `SELECT 1 FROM short_likes WHERE short_id = ? AND user_id = ?`
@@ -159,4 +166,4 @@ export async function onRequestDelete(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-  }
+                                                  }
