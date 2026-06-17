@@ -7,6 +7,7 @@
 var SHORTS_data = [];
 var SHORTS_curIdx = 0;
 var SHORTS_observer = null;
+var SHORTS_soundOn = false; // once user unmutes, stays on for the rest of the session
 
 window.init_shorts = function () {
   loadShortsFeed();
@@ -98,7 +99,7 @@ function renderShorts() {
 
     // tap to play/pause
     var video = slide.querySelector('.slide-video');
-    video.muted = true; // start muted so autoplay works on mobile
+    video.muted = !SHORTS_soundOn; // honor the session-wide sound preference
     video.loop  = true;
     slide.addEventListener('click', function (e) {
       if (e.target.closest('.s-action') || e.target.closest('.short-channel') || e.target.closest('.action-avatar-wrap') || e.target.tagName === 'BUTTON') return;
@@ -143,12 +144,28 @@ function setupShortsObserver() {
         document.querySelectorAll('.pdot').forEach(function (d, i) {
           d.classList.toggle('active', i === idx);
         });
+
+        // Track a view exactly once per short per page load.
+        var s = SHORTS_data[idx];
+        if (s && !s._viewed) {
+          s._viewed = true;
+          api.put('/shorts', { id: s.id, view: true }).catch(function () {});
+        }
+
         video.currentTime = 0;
-        video.muted = true; // keep muted until user taps 🔇
-        video.play().catch(function () {});
-        // Update sound button
+        video.muted = !SHORTS_soundOn;
+        var playAttempt = video.play();
+        if (playAttempt && playAttempt.catch) {
+          playAttempt.catch(function () {
+            // Browser blocked unmuted autoplay (no user gesture yet this session) — fall back to muted.
+            video.muted = true;
+            video.play().catch(function () {});
+            var btn2 = document.getElementById('snd-btn-' + idx);
+            if (btn2) btn2.textContent = '🔇';
+          });
+        }
         var btn = document.getElementById('snd-btn-' + idx);
-        if (btn) btn.textContent = '🔇';
+        if (btn) btn.textContent = video.muted ? '🔇' : '🔊';
       } else {
         video.pause();
       }
@@ -299,6 +316,7 @@ window.toggleShortSound = function (i) {
   var video  = slides[i] && slides[i].querySelector('video');
   if (!video) return;
   video.muted = !video.muted;
+  SHORTS_soundOn = !video.muted; // remember for subsequent swipes this session
   var btn = document.getElementById('snd-btn-' + i);
   if (btn) btn.textContent = video.muted ? '🔇' : '🔊';
 };
