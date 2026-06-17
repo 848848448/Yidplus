@@ -170,4 +170,4 @@ async function ensureMember(env, roomId, userId) {
       ).bind(roomId, userId, new Date().toISOString()).run();
     }
   }
-                         }
+        }
