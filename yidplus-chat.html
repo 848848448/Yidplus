@@ -21,6 +21,9 @@
     r.setProperty('--bg2', t.bg2);
     r.setProperty('--text', t.text);
   } catch (e) {}
+  try {
+    if (localStorage.getItem('yp_dark_mode') === '1') document.documentElement.classList.add('dark-mode');
+  } catch (e) {}
 })();
 </script>
 </head>
@@ -92,6 +95,15 @@
   </div>
 
   <div class="sticker-tray" id="sticker-tray"></div>
+
+  <div id="rec-live-bar" style="display:none;align-items:center;gap:.6rem;padding:.5rem 1rem;background:#fff;border-top:1px solid var(--border)">
+    <div style="width:10px;height:10px;border-radius:50%;background:var(--red);animation:pulse .8s infinite;flex-shrink:0"></div>
+    <div style="display:flex;align-items:center;gap:1px;height:28px;flex:1" id="rec-live-meter">
+      <div id="rec-live-level" style="width:6px;background:var(--red);border-radius:2px;height:4px;transition:height .08s"></div>
+    </div>
+    <div id="rec-live-time" style="font-size:.78rem;color:var(--muted);flex-shrink:0">0:00</div>
+    <div style="font-size:.78rem;color:var(--red);flex-shrink:0">● Recording...</div>
+  </div>
 
   <div class="chat-input-bar" id="chat-input-bar">
     <div style="position:relative;flex-shrink:0">
@@ -353,4 +365,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-  </html>
+                                                                     </html>
