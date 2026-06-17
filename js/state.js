@@ -192,10 +192,12 @@ window.userCan = function (action) {
   switch (action) {
     case 'delete_content': return isAnyAdmin();
     case 'view_pii':       return isSuperAdmin();
-    case 'manage_users':   return isSuperAdmin();
+    case 'manage_users':   return isSuperAdmin();   // verify / promote / role changes
+    case 'block_users':    return isAnyAdmin();      // Moderators + Super Admins can block
     case 'broadcast':      return isSuperAdmin();
-    case 'promote_users':  return isOwner();
+    case 'promote_users':  return isOwner() || isSuperAdmin();
     case 'edit_settings':  return isSuperAdmin();
+    case 'view_audit_logs': return isSuperAdmin();
     default:                return false;
   }
 };
