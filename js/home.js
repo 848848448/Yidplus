@@ -26,6 +26,138 @@ var HOME_ADS = [
   { title:"Kosher Vacations", sub:"Exclusive glatt kosher resorts",      icon:"🏖️", bg:"#001a1a", dur:6000 },
   { title:"Torah Academy",    sub:"Learn with the best · Free trial!",   icon:"📚", bg:"#0a001a", dur:5000 },
 ];
+var HOME_adIdx = 0;
+var HOME_adRaf = null;
+
+// ── ADS — loads real ads from /api/ads, falls back to demo set ──
+function buildAds() {
+  api.get('/ads')
+    .then(function (res) {
+      var ads = (res.ads || []).map(function (a) {
+        return { title: a.title, sub: a.subtitle || '', icon: '📣', bg: '#1a1000', dur: 6000, media_url: a.media_url, link_url: a.link_url };
+      });
+      _renderAds(ads.length ? ads : HOME_ADS);
+    })
+    .catch(function () { _renderAds(HOME_ADS); });
+}
+
+function _renderAds(ads) {
+  var frame = document.getElementById('ad-frame');
+  var dots  = document.getElementById('ad-dots');
+  if (!frame || !dots) return;
+  frame.innerHTML = '<div id="ad-prog"></div>';
+  dots.innerHTML = '';
+  HOME_adIdx = 0;
+
+  ads.forEach(function (ad, i) {
+    var s = document.createElement('div');
+    s.className = 'ad-slide' + (i === 0 ? ' active' : '');
+    s.style.background = ad.bg || '#1a1000';
+    s.style.cursor = ad.link_url ? 'pointer' : 'default';
+    if (ad.link_url) s.onclick = function () { window.open(ad.link_url, '_blank'); };
+    s.innerHTML = (ad.media_url ? '<img src="' + ad.media_url + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">' : '') +
+      '<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:.3rem">' +
+        '<div style="font-size:2.5rem">' + (ad.icon || '📣') + '</div>' +
+        '<div class="ad-badge">Sponsored</div>' +
+        '<div class="ad-title">' + escHtml(ad.title) + '</div>' +
+        (ad.sub ? '<div class="ad-sub">' + escHtml(ad.sub) + '</div>' : '') +
+      '</div>';
+    frame.appendChild(s);
+    var d = document.createElement('div');
+    d.className = 'ad-dot' + (i === 0 ? ' active' : '');
+    dots.appendChild(d);
+  });
+
+  if (ads.length > 1) _runAdRotation(ads);
+}
+
+function _runAdRotation(ads) {
+  cancelAnimationFrame(HOME_adRaf);
+  var start = performance.now();
+  var dur = ads[HOME_adIdx].dur || 5000;
+  var bar = document.getElementById('ad-prog');
+
+  function tick(now) {
+    var pct = Math.min(100, (now - start) / dur * 100);
+    if (bar) bar.style.width = pct + '%';
+    if (pct < 100) {
+      HOME_adRaf = requestAnimationFrame(tick);
+    } else {
+      HOME_adIdx = (HOME_adIdx + 1) % ads.length;
+      document.querySelectorAll('#ad-frame .ad-slide').forEach(function (s, i) { s.classList.toggle('active', i === HOME_adIdx); });
+      document.querySelectorAll('#ad-dots .ad-dot').forEach(function (d, i) { d.classList.toggle('active', i === HOME_adIdx); });
+      _runAdRotation(ads);
+    }
+  }
+  HOME_adRaf = requestAnimationFrame(tick);
+}
+
+// ── SHORTS PREVIEW — loads real shorts from /api/shorts ──
+function buildShortsPrev() {
+  var row = document.getElementById('home-shorts');
+  if (!row) return;
+  row.innerHTML = '<div class="feed-state" style="padding:1rem"><div class="spinner"></div></div>';
+
+  api.get('/shorts')
+    .then(function (res) {
+      var shorts = (res.shorts || []).slice(0, 8);
+      if (!shorts.length) {
+        row.innerHTML = '<div style="padding:1rem;font-size:.8rem;color:var(--muted)">No shorts yet</div>';
+        return;
+      }
+      row.innerHTML = '';
+      shorts.forEach(function (s) {
+        var c = document.createElement('div');
+        c.className = 'short-prev-card';
+        c.style.cssText = 'flex-shrink:0;width:110px;height:185px;border-radius:12px;background:var(--bg2);border:1px solid var(--border);overflow:hidden;position:relative;cursor:pointer';
+        c.onclick = function () { goPage('yidplus-shorts.html'); };
+        c.innerHTML =
+          '<video src="' + s.media_url + '" muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" preload="metadata"></video>' +
+          '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.75),transparent 50%);display:flex;flex-direction:column;justify-content:flex-end;padding:.5rem">' +
+            '<div style="font-size:.68rem;color:#fff;font-weight:700">@' + escHtml(s.nick) + '</div>' +
+            '<div style="font-size:.65rem;color:rgba(255,255,255,.8)">❤️ ' + fmtN(s.likes) + '</div>' +
+          '</div>';
+        row.appendChild(c);
+      });
+    })
+    .catch(function () {
+      row.innerHTML = '<div style="padding:1rem;font-size:.8rem;color:var(--muted)">Could not load shorts</div>';
+    });
+}
+
+// ── CHANNELS PREVIEW — loads real channels via /api/admin/users-like list ──
+function buildChannelsPrev() {
+  var row = document.getElementById('home-channels');
+  if (!row) return;
+  row.innerHTML = '<div class="feed-state" style="padding:1rem"><div class="spinner"></div></div>';
+
+  api.get('/channels')
+    .then(function (res) {
+      var channels = (res.channels || []).slice(0, 8);
+      if (!channels.length) {
+        row.innerHTML = '<div style="padding:1rem;font-size:.8rem;color:var(--muted)">No channels yet</div>';
+        return;
+      }
+      row.innerHTML = '';
+      channels.forEach(function (c) {
+        var card = document.createElement('div');
+        card.className = 'ch-preview-card';
+        card.style.cssText = 'flex-shrink:0;width:130px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:.9rem .75rem;text-align:center;cursor:pointer';
+        card.onclick = function () { goPage('yidplus-dashboard.html?channel=' + c.owner_id); };
+        card.innerHTML =
+          '<div style="width:50px;height:50px;border-radius:50%;background:var(--bg3);margin:0 auto .5rem;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;border:1.5px solid var(--border);position:relative">' +
+            escHtml((c.nickname || '?').slice(0, 1).toUpperCase()) +
+            (c.verified ? '<div style="position:absolute;top:-6px;right:-4px;font-size:.8rem">👑</div>' : '') +
+          '</div>' +
+          '<div style="font-size:.8rem;font-weight:700">' + escHtml(c.nickname) + '</div>' +
+          '<div style="font-size:.65rem;color:var(--muted)">' + fmtN(c.followers || 0) + ' followers</div>';
+        row.appendChild(card);
+      });
+    })
+    .catch(function () {
+      row.innerHTML = '<div style="padding:1rem;font-size:.8rem;color:var(--muted)">Could not load channels</div>';
+    });
+}
 
 // ── INIT (called by router) ───────────────────────────────
 window.init_home = function () {
