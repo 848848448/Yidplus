@@ -96,7 +96,16 @@ window.renderThemePicker = function () {
   var customGold = (current && current.gold) || THEME_PRESETS[0].gold;
   var customBg   = (current && current.bg)   || THEME_PRESETS[0].bg;
 
+  var isDarkNow = document.documentElement.classList.contains('dark-mode');
+
   host.innerHTML =
+    '<div class="theme-picker-card">' +
+      '<div class="theme-picker-title">🌗 Appearance</div>' +
+      '<div class="theme-custom-row" style="cursor:pointer" onclick="toggleDarkMode()">' +
+        '<label>Dark Mode</label>' +
+        '<div class="toggle-sw' + (isDarkNow ? ' on' : '') + '" id="darkmode-toggle-sw"></div>' +
+      '</div>' +
+    '</div>' +
     '<div class="theme-picker-card">' +
       '<div class="theme-picker-title">🎨 App Color Theme</div>' +
       '<div class="theme-swatch-row">' + swatches + '</div>' +
@@ -141,6 +150,32 @@ window.THEME_custom = function () {
 
   saveTheme(theme);
 };
+
+// ── DARK / LIGHT MODE ────────────────────────────────────
+var DARKMODE_KEY = 'yp_dark_mode';
+
+window.applyDarkMode = function (on) {
+  document.documentElement.classList.toggle('dark-mode', !!on);
+  var metaTheme = document.querySelector('meta[name="theme-color"]');
+  if (metaTheme) metaTheme.setAttribute('content', on ? '#0E1621' : '#FFFFFF');
+};
+
+window.toggleDarkMode = function () {
+  var isDark = !document.documentElement.classList.contains('dark-mode');
+  applyDarkMode(isDark);
+  localStorage.setItem(DARKMODE_KEY, isDark ? '1' : '0');
+  var btn = document.getElementById('darkmode-toggle-sw');
+  if (btn) btn.classList.toggle('on', isDark);
+  toast(isDark ? '🌙 Dark mode on' : '☀️ Light mode on');
+};
+
+window.loadDarkModePref = function () {
+  var saved = localStorage.getItem(DARKMODE_KEY);
+  applyDarkMode(saved === '1');
+};
+
+// Apply dark mode preference as early as possible (before paint).
+window.loadDarkModePref();
 
 // ── ROUTER HOOK: render picker whenever Settings screen opens ──
 window.init_settings = function () {
