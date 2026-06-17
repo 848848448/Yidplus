@@ -3,7 +3,7 @@
 // PUT /api/admin/users  -> update a user (verified / blocked / role)
 // Body for PUT: { id, verified?, blocked?, role? }
 
-import { json, corsHeaders, requireUser, isAdminRole, isSuperOrOwner } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, isSuperOrOwner, logAudit } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -38,38 +38,48 @@ export async function onRequestPut(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-    if (!isSuperOrOwner(user, env.OWNER_EMAIL)) {
-      return json({ ok: false, error: 'Only super admins can manage users' }, 403);
+
+    // Moderators (admin_limited) and Super Admins can both reach this
+    // endpoint, but Moderators are restricted to block/unblock only.
+    if (!isAdminRole(user, env.OWNER_EMAIL)) {
+      return json({ ok: false, error: 'Forbidden' }, 403);
     }
 
     const body = await request.json();
     const { id } = body;
     if (!id) return json({ ok: false, error: 'id is required' }, 400);
 
-    const target = await env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(id).first();
+    const target = await env.DB.prepare('SELECT email, nickname FROM users WHERE id = ?').bind(id).first();
     if (!target) return json({ ok: false, error: 'User not found' }, 404);
     if (target.email === env.OWNER_EMAIL) {
       return json({ ok: false, error: 'Cannot modify the owner account' }, 403);
     }
 
+    const isModeratorOnly = !isSuperOrOwner(user, env.OWNER_EMAIL);
+
     if (typeof body.verified === 'boolean') {
+      if (isModeratorOnly) return json({ ok: false, error: 'Only Super Admins can verify users' }, 403);
       await env.DB.prepare('UPDATE users SET verified = ? WHERE id = ?')
         .bind(body.verified ? 1 : 0, id).run();
+      await logAudit(env, user, body.verified ? 'verify_user' : 'unverify_user', 'user', id, `@${target.nickname}`);
     }
+
     if (typeof body.blocked === 'boolean') {
+      // Moderators AND Super Admins can block/unblock.
       await env.DB.prepare('UPDATE users SET blocked = ? WHERE id = ?')
         .bind(body.blocked ? 1 : 0, id).run();
+      await logAudit(env, user, body.blocked ? 'block_user' : 'unblock_user', 'user', id, `@${target.nickname}`);
     }
+
     if (body.role) {
-      if (user.role !== 'admin_super' && user.email !== env.OWNER_EMAIL) {
-        return json({ ok: false, error: 'Only the owner can change roles' }, 403);
-      }
+      if (isModeratorOnly) return json({ ok: false, error: 'Only Super Admins can change roles' }, 403);
       await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?')
         .bind(body.role, id).run();
+      await logAudit(env, user, 'change_role', 'user', id, `@${target.nickname} -> ${body.role}`);
     }
 
     return json({ ok: true });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-}
+      }
