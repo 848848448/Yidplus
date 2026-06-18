@@ -96,7 +96,7 @@
 
   <div class="sticker-tray" id="sticker-tray"></div>
 
-  <div id="rec-live-bar" style="display:none;align-items:center;gap:.6rem;padding:.5rem 1rem;background:#fff;border-top:1px solid var(--border)">
+  <div id="rec-live-bar" style="display:none;align-items:center;gap:.6rem;padding:.5rem 1rem;background:var(--surface);border-top:1px solid var(--border)">
     <div style="width:10px;height:10px;border-radius:50%;background:var(--red);animation:pulse .8s infinite;flex-shrink:0"></div>
     <div style="display:flex;align-items:center;gap:1px;height:28px;flex:1" id="rec-live-meter">
       <div id="rec-live-level" style="width:6px;background:var(--red);border-radius:2px;height:4px;transition:height .08s"></div>
@@ -113,6 +113,7 @@
         <div class="attach-opt" onclick="triggerMediaPick('video/*',false)"><div class="attach-opt-icon">🎬</div><div class="attach-opt-label">Video</div></div>
         <div class="attach-opt" onclick="triggerMediaPick('image/*,video/*',true)"><div class="attach-opt-icon">👁</div><div class="attach-opt-label">View Once</div></div>
         <div class="attach-opt" onclick="triggerMediaPick('*/*',false)"><div class="attach-opt-icon">📁</div><div class="attach-opt-label">File</div></div>
+        <div class="attach-opt" onclick="document.getElementById('attach-sheet').classList.remove('open');openPollModal()"><div class="attach-opt-icon">📊</div><div class="attach-opt-label">Poll</div></div>
       </div>
       <input type="file" id="chat-media-input" style="display:none" onchange="handleChatMedia(event)">
     </div>
@@ -222,6 +223,64 @@
     <textarea class="field" id="report-details" placeholder="Additional details (optional)" rows="3" style="resize:none;height:auto;margin-top:.75rem"></textarea>
     <button class="btn-primary" onclick="submitReport()" style="margin-bottom:.5rem;margin-top:.5rem">Submit Report</button>
     <button class="modal-cancel" onclick="document.getElementById('report-modal').classList.remove('open')">Cancel</button>
+  </div>
+</div>
+
+<!-- ══ NEW POLL MODAL ══ -->
+<div class="modal-overlay" id="poll-modal" onclick="if(event.target===this)closePollModal()">
+  <div class="modal-sheet" style="max-height:85vh;overflow-y:auto">
+    <div class="modal-title">📊 New Poll</div>
+
+    <input class="field" id="poll-question" placeholder="Ask a question" maxlength="200">
+    <textarea class="field" id="poll-description" placeholder="Description (optional)" rows="2" style="resize:none;height:auto"></textarea>
+
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem;letter-spacing:.05em;text-transform:uppercase">Options</div>
+    <div id="poll-options-list"></div>
+    <button class="poll-add-option-btn" onclick="addPollOptionRow()">+ Add Option</button>
+
+    <div style="font-size:.72rem;color:var(--muted);margin:.5rem 0;letter-spacing:.05em;text-transform:uppercase">Settings</div>
+
+    <div class="poll-setting-row">
+      <div><div class="poll-setting-label">Show Who Voted</div><div class="poll-setting-sub">Display voter names per option</div></div>
+      <div class="toggle-sw" id="poll-toggle-show-who-voted" onclick="this.classList.toggle('on')"></div>
+    </div>
+    <div class="poll-setting-row">
+      <div><div class="poll-setting-label">Allow Multiple Answers</div><div class="poll-setting-sub">Voters can select more than one option</div></div>
+      <div class="toggle-sw" id="poll-toggle-allow-multiple" onclick="this.classList.toggle('on')"></div>
+    </div>
+    <div class="poll-setting-row">
+      <div><div class="poll-setting-label">Allow Adding Options</div><div class="poll-setting-sub">Participants can suggest new options</div></div>
+      <div class="toggle-sw" id="poll-toggle-allow-add-options" onclick="this.classList.toggle('on')"></div>
+    </div>
+    <div class="poll-setting-row">
+      <div><div class="poll-setting-label">Allow Revoting</div><div class="poll-setting-sub">Voters can change their previous vote</div></div>
+      <div class="toggle-sw on" id="poll-toggle-allow-revote" onclick="this.classList.toggle('on')"></div>
+    </div>
+    <div class="poll-setting-row">
+      <div><div class="poll-setting-label">Shuffle Options</div><div class="poll-setting-sub">Randomize option order per voter</div></div>
+      <div class="toggle-sw" id="poll-toggle-shuffle" onclick="this.classList.toggle('on')"></div>
+    </div>
+    <div class="poll-setting-row">
+      <div><div class="poll-setting-label">Set Correct Answer (Quiz Mode)</div><div class="poll-setting-sub">Mark which option(s) are correct</div></div>
+      <div class="toggle-sw" id="poll-toggle-quiz-mode" onclick="togglePollQuizMode(this)"></div>
+    </div>
+    <div class="poll-setting-row" id="poll-duration-row">
+      <div><div class="poll-setting-label">Limited Duration</div><div class="poll-setting-sub">Poll closes automatically after a set time</div></div>
+      <div class="toggle-sw" id="poll-toggle-duration" onclick="togglePollDuration(this)"></div>
+    </div>
+    <div id="poll-duration-input-row" style="display:none;padding:.5rem 0">
+      <select class="field" id="poll-duration-minutes" style="margin-bottom:0">
+        <option value="5">5 minutes</option>
+        <option value="30">30 minutes</option>
+        <option value="60">1 hour</option>
+        <option value="360">6 hours</option>
+        <option value="1440" selected>1 day</option>
+        <option value="10080">1 week</option>
+      </select>
+    </div>
+
+    <button class="btn-primary" onclick="submitNewPoll()" style="margin-top:1rem;margin-bottom:.5rem">Create Poll</button>
+    <button class="modal-cancel" onclick="closePollModal()">Cancel</button>
   </div>
 </div>
 
@@ -365,4 +424,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-                                                                     </html>
+                                                                                                                                                           </html>
