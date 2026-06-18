@@ -438,7 +438,7 @@ function renderMessages(scrollDown) {
 
     } else if (m.type === 'voice' && m.media_url) {
       var voiceData = _parseVoicePacked(m.text);
-      var bars = voiceData.peaks.length ? _renderWaveBars(voiceData.peaks, m.id) : _fakeBars(20);
+      var bars = voiceData.peaks.length ? _renderWaveBars(voiceData.peaks) : _fakeBars(20);
       inner += '<div class="voice-msg">' +
         '<audio src="' + m.media_url + '" id="aud-' + m.id + '" preload="metadata"></audio>' +
         '<button class="play-voice" onclick="_playVoice(\'' + m.id + '\',this)">▶</button>' +
@@ -573,6 +573,8 @@ function _attachMessageGestures(cont) {
     });
   });
 }
+
+// Track scroll position
 function _onMsgsScroll() {
   var cont = document.getElementById('chat-msgs');
   if (!cont) return;
@@ -661,7 +663,7 @@ window.joinGroup = function () {
 // ============================================================
 // VOICE NOTES (MediaRecorder + real waveform analysis)
 // ============================================================
-var CHAT_recPeaks   = [];   // captured amplitude samples while recording
+var CHAT_recPeaks    = [];
 var CHAT_recAnalyser = null;
 var CHAT_recRaf      = null;
 
@@ -682,8 +684,6 @@ window.toggleVoiceRec = function () {
         if (btn) { btn.textContent = '⏹️'; btn.classList.add('rec'); }
         _showRecordingBar();
 
-        // Real-time amplitude analysis (drives both the live preview
-        // and the waveform that gets saved with the message).
         try {
           var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
           var source = audioCtx.createMediaStreamSource(stream);
@@ -697,7 +697,7 @@ window.toggleVoiceRec = function () {
             CHAT_recAnalyser.getByteFrequencyData(dataArr);
             var sum = 0;
             for (var i = 0; i < dataArr.length; i++) sum += dataArr[i];
-            var avg = sum / dataArr.length / 255; // normalized 0..1
+            var avg = sum / dataArr.length / 255;
             CHAT_recPeaks.push(avg);
             _updateRecordingBar(avg);
             CHAT_recRaf = requestAnimationFrame(sampleLevel);
@@ -720,7 +720,6 @@ window.toggleVoiceRec = function () {
           var dur  = Math.round((Date.now() - CHAT_recStart) / 1000);
           var durStr = Math.floor(dur / 60) + ':' + String(dur % 60).padStart(2, '0');
 
-          // Downsample peaks to ~40 bars and pack alongside duration.
           var peaks = _downsamplePeaks(CHAT_recPeaks, 40);
           var packed = durStr + '|' + peaks.map(function (p) { return Math.round(p * 100); }).join(',');
 
@@ -762,7 +761,6 @@ function _updateRecordingBar(level) {
   }
 }
 
-// Reduce a long peaks array down to N representative bars (for waveform display)
 function _downsamplePeaks(peaks, n) {
   if (!peaks.length) return new Array(n).fill(0.1);
   var out = [];
@@ -772,12 +770,11 @@ function _downsamplePeaks(peaks, n) {
     var end = Math.floor((i + 1) * step) || start + 1;
     var slice = peaks.slice(start, end);
     var avg = slice.reduce(function (a, b) { return a + b; }, 0) / (slice.length || 1);
-    out.push(Math.max(0.08, avg)); // floor so silence still shows a thin flat line, not nothing
+    out.push(Math.max(0.08, avg));
   }
   return out;
 }
 
-// Parse the packed "duration|peak,peak,peak..." format stored in messages.text
 function _parseVoicePacked(text) {
   if (!text) return { dur: '0:00', peaks: [] };
   var parts = text.split('|');
@@ -1057,10 +1054,10 @@ function _linkify(text) {
   });
 }
 
-function _renderWaveBars(peaks, msgId) {
-  return peaks.map(function (p, i) {
+function _renderWaveBars(peaks) {
+  return peaks.map(function (p) {
     var h = Math.max(3, Math.round(p * 24));
-    return '<div class="vbar" data-i="' + i + '" style="height:' + h + 'px"></div>';
+    return '<div class="vbar" style="height:' + h + 'px"></div>';
   }).join('');
 }
 
@@ -1077,7 +1074,6 @@ window._playVoice = function (msgId, btn) {
   var aud = document.getElementById('aud-' + msgId);
   if (!aud) return;
 
-  // Pause any other currently-playing voice note first (only one at a time).
   document.querySelectorAll('.chat-messages audio').forEach(function (other) {
     if (other !== aud && !other.paused) {
       other.pause();
@@ -1112,8 +1108,6 @@ window._playVoice = function (msgId, btn) {
   }
 };
 
-// Telegram behavior: when a voice note finishes, automatically play the
-// next voice note that appears later in the same chat (if any).
 function _autoPlayNextVoice(currentMsgId) {
   var idx = CHAT_messages.findIndex(function (m) { return m.id === currentMsgId; });
   if (idx === -1) return;
