@@ -174,7 +174,6 @@ window.loadDarkModePref = function () {
   applyDarkMode(saved === '1');
 };
 
-// Apply dark mode preference as early as possible (before paint).
 window.loadDarkModePref();
 
 // ── ROUTER HOOK: render picker whenever Settings screen opens ──
