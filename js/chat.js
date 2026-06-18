@@ -1140,4 +1140,275 @@ window.navTo = function (id) {
   }
 };
 
+
+
+// ==============================
+// POLLS creation modal voting
+//==============================
+
+var POLL_correctIndices = new Set();
+
+window.openPollModal = function () {
+  if (!CHAT_curRoom) return toast('⚠ Open a chat first.');
+  if (!STATE.user) return toast('⚠ Please sign in first.');
+  POLL_correctIndices = new Set();
+
+  // Reset form
+  document.getElementById('poll-question').value = '';
+  document.getElementById('poll-description').value = '';
+  ['show-who-voted','allow-multiple','allow-add-options','shuffle'].forEach(function(id){
+    var el = document.getElementById('poll-toggle-' + id);
+    if (el) el.classList.remove('on');
+  });
+  document.getElementById('poll-toggle-allow-revote').classList.add('on');
+  document.getElementById('poll-toggle-quiz-mode').classList.remove('on');
+  document.getElementById('poll-toggle-duration').classList.remove('on');
+  document.getElementById('poll-duration-input-row').style.display = 'none';
+
+  var list = document.getElementById('poll-options-list');
+  list.innerHTML = '';
+  addPollOptionRow();
+  addPollOptionRow();
+
+  document.getElementById('poll-modal').classList.add('open');
+};
+
+window.closePollModal = function () {
+  document.getElementById('poll-modal').classList.remove('open');
+};
+
+window.addPollOptionRow = function () {
+  var list = document.getElementById('poll-options-list');
+  var idx = list.children.length;
+  var row = document.createElement('div');
+  row.className = 'poll-option-row';
+  row.dataset.idx = idx;
+  row.innerHTML =
+    '<div class="poll-correct-toggle" id="poll-correct-' + idx + '" onclick="_toggleCorrect(' + idx + ')" title="Mark as correct answer" style="display:none">✓</div>' +
+    '<input type="text" placeholder="Option ' + (idx + 1) + '" maxlength="100">' +
+    (idx >= 2 ? '<button class="poll-option-remove" onclick="removePollOptionRow(this)" title="Remove">✕</button>' : '<div style="width:28px"></div>');
+  list.appendChild(row);
+};
+
+window.removePollOptionRow = function (btn) {
+  var row = btn.closest('.poll-option-row');
+  if (row) row.remove();
+  // Re-number placeholders
+  var rows = document.querySelectorAll('#poll-options-list .poll-option-row');
+  rows.forEach(function(r, i) {
+    var inp = r.querySelector('input');
+    if (inp) inp.placeholder = 'Option ' + (i + 1);
+    r.dataset.idx = i;
+  });
+};
+
+window._toggleCorrect = function (idx) {
+  var btn = document.getElementById('poll-correct-' + idx);
+  if (!btn) return;
+  if (POLL_correctIndices.has(idx)) {
+    POLL_correctIndices.delete(idx);
+    btn.classList.remove('on');
+  } else {
+    POLL_correctIndices.add(idx);
+    btn.classList.add('on');
+  }
+};
+
+window.togglePollQuizMode = function (sw) {
+  sw.classList.toggle('on');
+  var isOn = sw.classList.contains('on');
+  document.querySelectorAll('.poll-correct-toggle').forEach(function(b){
+    b.style.display = isOn ? 'flex' : 'none';
+  });
+};
+
+window.togglePollDuration = function (sw) {
+  sw.classList.toggle('on');
+  var isOn = sw.classList.contains('on');
+  document.getElementById('poll-duration-input-row').style.display = isOn ? 'block' : 'none';
+};
+
+window.submitNewPoll = function () {
+  if (!CHAT_curRoom) return;
+  var question = (document.getElementById('poll-question').value || '').trim();
+  if (!question) return toast('⚠ Please enter a question.');
+
+  var rows = document.querySelectorAll('#poll-options-list .poll-option-row');
+  var options = [];
+  rows.forEach(function(r) { var v = (r.querySelector('input').value || '').trim(); if (v) options.push(v); });
+  if (options.length < 2) return toast('⚠ At least 2 options are required.');
+
+  var isQuiz = document.getElementById('poll-toggle-quiz-mode').classList.contains('on');
+  var hasDuration = document.getElementById('poll-toggle-duration').classList.contains('on');
+  var durationMin = hasDuration ? parseInt(document.getElementById('poll-duration-minutes').value, 10) : null;
+
+  var payload = {
+    room_id:          CHAT_curRoom.id,
+    question:         question,
+    description:      (document.getElementById('poll-description').value || '').trim() || undefined,
+    options:          options,
+    show_who_voted:   document.getElementById('poll-toggle-show-who-voted').classList.contains('on'),
+    allow_multiple:   document.getElementById('poll-toggle-allow-multiple').classList.contains('on'),
+    allow_add_options:document.getElementById('poll-toggle-allow-add-options').classList.contains('on'),
+    allow_revote:     document.getElementById('poll-toggle-allow-revote').classList.contains('on'),
+    shuffle_options:  document.getElementById('poll-toggle-shuffle').classList.contains('on'),
+    quiz_mode:        isQuiz,
+    duration_minutes: durationMin,
+    correct_indices:  isQuiz ? Array.from(POLL_correctIndices) : [],
+  };
+
+  closePollModal();
+  toast('📊 Creating poll...');
+
+  api.post('/polls', payload)
+    .then(function () { loadMessages(true); loadChatRooms(); toast('✅ Poll created!'); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+// ── render poll message bubble ─────────────────────────────
+function _renderPollBubble(m, isMe) {
+  var pollId = m.text; // poll id is stored in message.text for type=poll
+  var html =
+    '<div class="poll-bubble" id="poll-' + pollId + '">' +
+      '<div style="font-size:.7rem;font-weight:700;color:var(--blue);margin-bottom:.4rem;letter-spacing:.08em">📊 POLL</div>' +
+      '<div class="poll-question">Loading poll...</div>' +
+    '</div>';
+
+  // Async load actual poll data
+  setTimeout(function() { _loadAndRenderPoll(pollId); }, 0);
+
+  return html;
+}
+
+function _loadAndRenderPoll(pollId) {
+  api.get('/polls?id=' + encodeURIComponent(pollId))
+    .then(function(res) {
+      if (!res.poll) return;
+      var el = document.getElementById('poll-' + pollId);
+      if (!el) return;
+      el.innerHTML = _buildPollHTML(res.poll);
+    })
+    .catch(function() {});
+}
+
+function _buildPollHTML(poll) {
+  var meId = STATE.user && STATE.user.id;
+  var hasVoted = poll.options.some(function(o) { return o.my_vote; });
+  var totalStr = poll.total_voters + ' voter' + (poll.total_voters !== 1 ? 's' : '');
+
+  var closesLabel = '';
+  if (poll.closed) {
+    closesLabel = '· Closed';
+  } else if (poll.closes_at) {
+    var diff = new Date(poll.closes_at) - new Date();
+    if (diff > 0) {
+      var mins = Math.floor(diff / 60000);
+      var hrs  = Math.floor(mins / 60);
+      closesLabel = hrs > 0 ? '· Closes in ' + hrs + 'h' : '· Closes in ' + mins + 'm';
+    }
+  }
+
+  var optionsHTML = poll.options.map(function(opt) {
+    var isVoted = opt.my_vote;
+    var cls = 'poll-opt';
+    if (isVoted) cls += ' voted';
+    if (poll.quiz_mode && opt.is_correct !== undefined) {
+      if (opt.is_correct) cls += ' correct';
+      else if (isVoted && !opt.is_correct) cls += ' incorrect-selected';
+    }
+
+    var checkIcon = isVoted
+      ? (poll.quiz_mode && opt.is_correct !== undefined ? (opt.is_correct ? '✓' : '✗') : '✓')
+      : '';
+    var votersLine = (poll.show_who_voted && opt.voters && opt.voters.length)
+      ? '<div class="poll-voters-line">👁 ' + escHtml(opt.voters.slice(0,3).join(', ')) + (opt.voters.length > 3 ? '...' : '') + '</div>'
+      : '';
+
+    var clickHandler = (poll.closed || (!poll.allow_revote && hasVoted && !isVoted))
+      ? ''
+      : 'onclick="castPollVote(\'' + poll.id + '\',\'' + opt.id + '\',' + !!poll.allow_multiple + ')"';
+
+    return '<div class="' + cls + '" ' + clickHandler + '>' +
+      '<div class="poll-opt-fill" style="width:' + (hasVoted || poll.closed ? opt.pct : 0) + '%"></div>' +
+      '<div class="poll-opt-row">' +
+        '<div class="poll-opt-text">' + escHtml(opt.text) + '</div>' +
+        (hasVoted || poll.closed ? '<span class="poll-opt-pct">' + opt.pct + '%</span>' : '') +
+        '<div class="poll-opt-check">' + checkIcon + '</div>' +
+      '</div>' +
+      votersLine +
+    '</div>';
+  }).join('');
+
+  var footer = '<div class="poll-footer-row">' +
+    '<span>' + totalStr + closesLabel + '</span>' +
+    (!poll.closed && poll.creator_id === meId
+      ? '<button class="poll-close-btn" onclick="closePoll(\'' + poll.id + '\')">Close Poll</button>'
+      : '') +
+  '</div>';
+
+  var addOptionBtn = (!poll.closed && poll.allow_add_options)
+    ? '<button class="poll-add-suggest-btn" onclick="suggestPollOption(\'' + poll.id + '\')">+ Suggest an option</button>'
+    : '';
+
+  return '<div style="font-size:.7rem;font-weight:700;color:var(--blue);margin-bottom:.4rem;letter-spacing:.08em">📊 POLL' + (poll.quiz_mode ? ' · QUIZ' : '') + '</div>' +
+    '<div class="poll-question">' + escHtml(poll.question) + '</div>' +
+    (poll.description ? '<div class="poll-description">' + escHtml(poll.description) + '</div>' : '') +
+    '<div class="poll-meta-line">' + (poll.anonymous ? '🔒 Anonymous' : '👁 ' + (poll.show_who_voted ? 'Public' : 'Results visible after vote')) + '</div>' +
+    optionsHTML +
+    addOptionBtn +
+    footer;
+}
+
+window.castPollVote = function (pollId, optionId, allowMultiple) {
+  if (!STATE.user) return toast('⚠ Please sign in first.');
+
+  var el = document.getElementById('poll-' + pollId);
+  if (el) {
+    var existingVotes = [];
+    if (allowMultiple) {
+      el.querySelectorAll('.poll-opt.voted').forEach(function(o) {
+        var eid = o.dataset.optId;
+        if (eid && eid !== optionId) existingVotes.push(eid);
+      });
+      existingVotes.push(optionId);
+    } else {
+      existingVotes = [optionId];
+    }
+
+    api.put('/polls', { id: pollId, vote: existingVotes })
+      .then(function(res) {
+        if (res.poll) {
+          var el2 = document.getElementById('poll-' + pollId);
+          if (el2) el2.innerHTML = _buildPollHTML(res.poll);
+        }
+      })
+      .catch(function(err) { toast('❌ ' + err.message); });
+  }
+};
+
+window.closePoll = function (pollId) {
+  if (!confirm('Close this poll? No more votes will be accepted.')) return;
+  api.put('/polls', { id: pollId, close: true })
+    .then(function(res) {
+      if (res.poll) {
+        var el = document.getElementById('poll-' + pollId);
+        if (el) el.innerHTML = _buildPollHTML(res.poll);
+      }
+    })
+    .catch(function(err) { toast('❌ ' + err.message); });
+};
+
+window.suggestPollOption = function (pollId) {
+  var text = prompt('Suggest a new option:');
+  if (!text || !text.trim()) return;
+  api.put('/polls', { id: pollId, add_option: text.trim() })
+    .then(function(res) {
+      if (res.poll) {
+        var el = document.getElementById('poll-' + pollId);
+        if (el) el.innerHTML = _buildPollHTML(res.poll);
+      }
+    })
+    .catch(function(err) { toast('❌ ' + err.message); });
+};
+
 console.log('[YID PLUS] chat.js loaded ✓ (Telegram-style)');
