@@ -204,38 +204,106 @@
 
 <!-- ══ STATUS VIEWER OVERLAY ══ -->
 <div class="sv-overlay" id="sv-overlay">
+
+  <!-- Progress bars row -->
   <div class="sv-header">
     <div class="sv-bars" id="sv-bars"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="display:flex;align-items:center;gap:.6rem">
-        <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff" id="sv-avatar"></div>
+
+    <!-- Top row: back arrow + avatar + nick + time + controls -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.5rem">
+      <div style="display:flex;align-items:center;gap:.55rem">
+        <button class="sv-ctrl" onclick="closeSV()" style="font-size:1.2rem;padding:.2rem .4rem">‹</button>
+        <div id="sv-avatar" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;overflow:hidden;flex-shrink:0;background-size:cover;background-position:center"></div>
         <div>
-          <div style="font-size:.85rem;font-weight:700;color:#fff" id="sv-nick"></div>
-          <div style="font-size:.65rem;color:rgba(255,255,255,.6)" id="sv-time"></div>
+          <div style="font-size:.86rem;font-weight:700;color:#fff;line-height:1.2" id="sv-nick"></div>
+          <div style="font-size:.63rem;color:rgba(255,255,255,.65)" id="sv-time"></div>
         </div>
       </div>
-      <div style="display:flex;gap:.4rem">
+      <div style="display:flex;gap:.35rem;align-items:center">
+        <button class="sv-ctrl" id="sv-archive-btn" onclick="svArchiveCurrent()" title="Save to Highlights">🔖</button>
         <button class="sv-ctrl" id="sv-mute" onclick="svToggleMute()">🔊</button>
-        <button class="sv-ctrl" onclick="closeSV()">✕</button>
+        <button class="sv-ctrl" onclick="svShowMore()">⋮</button>
       </div>
     </div>
   </div>
-  <!-- Main slide area — hold to pause, left/right to navigate -->
+
+  <!-- Slide content — long-press pauses, left/right tap navigates -->
   <div style="flex:1;position:relative;overflow:hidden"
-       ontouchstart="svPause()"
-       ontouchend="svResume()"
-       onmousedown="svPause()"
-       onmouseup="svResume()">
-    <!-- tap left 30% → prev, tap right 30% → next, center = pause/resume -->
-    <div style="position:absolute;left:0;top:0;bottom:0;width:30%;z-index:10;cursor:pointer" onclick="svPrev()"></div>
-    <div style="position:absolute;right:0;top:0;bottom:0;width:30%;z-index:10;cursor:pointer" onclick="svNext()"></div>
+       id="sv-touch-area"
+       ontouchstart="svTouchStart(event)"
+       ontouchend="svTouchEnd(event)"
+       onmousedown="svMouseDown(event)"
+       onmouseup="svMouseUp(event)">
+    <div style="position:absolute;left:0;top:0;bottom:0;width:30%;z-index:10"></div>
+    <div style="position:absolute;right:0;top:0;bottom:0;width:30%;z-index:10"></div>
     <div id="sv-slide" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden"></div>
+    <!-- Pause indicator -->
+    <div id="sv-pause-icon" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;z-index:20;pointer-events:none">
+      <div style="width:56px;height:56px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:1.6rem">⏸</div>
+    </div>
   </div>
-  <div style="position:absolute;bottom:0;left:0;right:0;padding:1rem;display:flex;align-items:center;gap:.75rem;background:linear-gradient(to top,rgba(0,0,0,.7),transparent);z-index:10">
-    <input style="flex:1;padding:.55rem 1rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:20px;color:#fff;font-size:.82rem;font-family:inherit;outline:none" placeholder="Reply..." onclick="event.stopPropagation()">
-    <div style="font-size:1.5rem;cursor:pointer" onclick="event.stopPropagation();this.textContent=this.textContent==='🤍'?'❤️':'🤍'">🤍</div>
+
+  <!-- Reaction bar -->
+  <div id="sv-reaction-bar" style="position:absolute;bottom:80px;left:0;right:0;display:none;flex-direction:row;justify-content:center;gap:.5rem;padding:.5rem;z-index:30">
+    <div style="background:rgba(0,0,0,.6);border-radius:30px;display:flex;gap:.25rem;padding:.4rem .7rem">
+      <span class="sv-emoji-btn" onclick="svReact('❤️')">❤️</span>
+      <span class="sv-emoji-btn" onclick="svReact('😂')">😂</span>
+      <span class="sv-emoji-btn" onclick="svReact('😮')">😮</span>
+      <span class="sv-emoji-btn" onclick="svReact('😢')">😢</span>
+      <span class="sv-emoji-btn" onclick="svReact('👏')">👏</span>
+      <span class="sv-emoji-btn" onclick="svReact('🔥')">🔥</span>
+      <span class="sv-emoji-btn" onclick="svReact('🙏')">🙏</span>
+    </div>
+  </div>
+
+  <!-- Bottom: reply input + emoji + like -->
+  <div style="position:absolute;bottom:0;left:0;right:0;padding:.75rem 1rem max(.75rem,env(safe-area-inset-bottom));display:flex;align-items:center;gap:.6rem;background:linear-gradient(to top,rgba(0,0,0,.75),transparent);z-index:10">
+    <input id="sv-reply-input" style="flex:1;padding:.6rem 1rem;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:22px;color:#fff;font-size:.83rem;font-family:inherit;outline:none" placeholder="Reply to status..." onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter'){svSendReply();event.stopPropagation();}">
+    <button style="background:none;border:none;font-size:1.4rem;cursor:pointer;flex-shrink:0" onclick="event.stopPropagation();toggleSVReactionBar()">😊</button>
+    <button id="sv-like-btn" style="background:none;border:none;font-size:1.5rem;cursor:pointer;flex-shrink:0" onclick="event.stopPropagation();svReact('❤️')">🤍</button>
+  </div>
+
+  <!-- More options menu for THIS status -->
+  <div id="sv-more-menu" style="display:none;position:absolute;top:72px;right:.75rem;background:rgba(20,20,30,.92);border-radius:12px;padding:.4rem 0;z-index:50;min-width:160px;box-shadow:0 4px 20px rgba(0,0,0,.4)">
+    <div class="sv-menu-item" onclick="svArchiveCurrent()">🔖 Save to Highlights</div>
+    <div class="sv-menu-item" id="sv-menu-privacy" onclick="svEditPrivacy()">🔒 Privacy Settings</div>
+    <div class="sv-menu-item" id="sv-menu-delete" onclick="svDeleteCurrent()" style="color:#ff6b6b">🗑 Delete Status</div>
+    <div class="sv-menu-item" onclick="document.getElementById('sv-more-menu').style.display='none'">✕ Close</div>
   </div>
 </div>
+
+<!-- ══ STATUS PRIVACY MODAL ══ -->
+<div class="modal-overlay" id="sv-privacy-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-title">🔒 Status Privacy</div>
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:1rem">Choose who can see your status updates</div>
+    <label class="sv-privacy-opt" onclick="setSVPrivacy('public')">
+      <input type="radio" name="sv-privacy" value="public" checked style="accent-color:var(--green)">
+      <div><div style="font-size:.88rem;font-weight:700">🌍 Everyone (Public)</div><div style="font-size:.73rem;color:var(--muted)">All YID PLUS users can view</div></div>
+    </label>
+    <label class="sv-privacy-opt" onclick="setSVPrivacy('followers')">
+      <input type="radio" name="sv-privacy" value="followers" style="accent-color:var(--green)">
+      <div><div style="font-size:.88rem;font-weight:700">👥 Followers Only</div><div style="font-size:.73rem;color:var(--muted)">Only people who follow you</div></div>
+    </label>
+    <label class="sv-privacy-opt" onclick="setSVPrivacy('private')">
+      <input type="radio" name="sv-privacy" value="private" style="accent-color:var(--green)">
+      <div><div style="font-size:.88rem;font-weight:700">🔒 Private (Only Me)</div><div style="font-size:.73rem;color:var(--muted)">Only you can see. Admins can still view.</div></div>
+    </label>
+    <button class="btn-primary" onclick="saveSVPrivacy()" style="margin-top:1rem;margin-bottom:.5rem">Save</button>
+    <button class="modal-cancel" onclick="document.getElementById('sv-privacy-modal').classList.remove('open')">Cancel</button>
+  </div>
+</div>
+
+<!-- ══ HIGHLIGHTS MODAL ══ -->
+<div class="modal-overlay" id="sv-highlights-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-title">🔖 Status Highlights</div>
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:1rem">Saved statuses that stay on your profile permanently</div>
+    <div id="sv-highlights-list"></div>
+    <button class="modal-cancel" style="margin-top:1rem" onclick="document.getElementById('sv-highlights-modal').classList.remove('open')">Close</button>
+  </div>
+</div>
+
 
 <!-- ══ STATUS UPLOAD MODAL ══ -->
 <div class="modal-overlay" id="status-modal" onclick="if(event.target===this)closeStatusModal()">
@@ -255,6 +323,14 @@
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem" id="status-bg-row"></div>
     </div>
     <div id="status-media-panel" style="display:none;text-align:center;padding:1rem;font-size:.85rem;color:var(--muted)">✅ Media selected</div>
+    <div style="margin-bottom:.85rem">
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem;letter-spacing:.05em;text-transform:uppercase">Who can see this status?</div>
+      <select class="field" id="status-privacy" style="margin-bottom:0">
+        <option value="public">🌍 Everyone (Public)</option>
+        <option value="followers">👥 Followers Only</option>
+        <option value="private">🔒 Only Me</option>
+      </select>
+    </div>
     <button class="btn-primary" onclick="submitStatus()" style="margin-bottom:.5rem">Post Status</button>
     <button class="modal-cancel" onclick="closeStatusModal()">Cancel</button>
     <input type="file" id="status-file-input" accept="image/*,video/*" style="display:none" onchange="onStatusFileSelected(event)">
@@ -385,4 +461,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-            </html>
+                                                  </html>
