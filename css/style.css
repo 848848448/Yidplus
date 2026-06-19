@@ -1042,3 +1042,16 @@ body.night {
 .poll-close-btn { color: var(--red); cursor: pointer; background: none; border: none; font-size: .68rem; font-family: inherit; }
 .poll-add-suggest-btn { width: 100%; padding: .45rem; background: none; border: 1px dashed var(--border2); border-radius: 8px; color: var(--blue); font-size: .76rem; cursor: pointer; font-family: inherit; margin-top: .4rem; }
 .poll-icon-btn { width: 34px; height: 34px; border-radius: 50%; background: transparent; border: none; color: var(--muted); font-size: 1.25rem; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+
+/* =============================================
+   STATUS VIEWER — full-featured WhatsApp-style
+   ============================================= */
+.sv-emoji-btn { font-size: 1.5rem; cursor: pointer; padding: .15rem .2rem; transition: transform .12s; display: inline-flex; align-items: center; justify-content: center; }
+.sv-emoji-btn:active { transform: scale(1.35); }
+.sv-menu-item { padding: .7rem 1.1rem; font-size: .85rem; color: #fff; cursor: pointer; white-space: nowrap; }
+.sv-menu-item:hover { background: rgba(255,255,255,.08); }
+.sv-privacy-opt { display: flex; align-items: flex-start; gap: .75rem; padding: .65rem 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.sv-privacy-opt input { margin-top: .25rem; flex-shrink: 0; }
+.sv-bar { flex: 1; height: 3px; background: rgba(255,255,255,.3); border-radius: 2px; overflow: hidden; }
+.sv-bar-fill { height: 100%; background: #fff; width: 0%; }
+.sv-bar-fill.done { width: 100%; }
