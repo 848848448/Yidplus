@@ -21,6 +21,9 @@
     r.setProperty('--bg2', t.bg2);
     r.setProperty('--text', t.text);
   } catch (e) {}
+  try {
+    if (localStorage.getItem('yp_dark_mode') === '1') document.documentElement.classList.add('dark-mode');
+  } catch (e) {}
 })();
 </script>
 </head>
@@ -114,4 +117,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-</html>
+        </html>
