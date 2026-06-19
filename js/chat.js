@@ -431,7 +431,15 @@ function renderMessages(scrollDown) {
     }
 
     // Content
-    if (m.type === 'sticker') {
+    if (m.type === 'poll') {
+      return dateSep + '<div class="msg-wrap' + (isMe ? ' me' : '') + '" id="msg-' + m.id + '" data-id="' + m.id + '">' +
+        '<div class="bubble ' + (isMe ? 'me' : 'them') + ' poll-bubble-wrap">' +
+          '<div id="poll-' + m.text + '">' + _renderPollBubble(m, isMe) + '</div>' +
+          '<div class="bubble-meta"><span class="bubble-time">' + (m.created_at ? _fmt12(m.created_at) : '') + '</span></div>' +
+        '</div>' +
+      '</div>';
+
+    } else if (m.type === 'sticker') {
       return dateSep + '<div class="msg-wrap' + (isMe ? ' me' : '') + '" id="msg-' + m.id + '" data-id="' + m.id + '">' +
         '<div class="bubble sticker">' + escHtml(m.text || '😊') + '</div>' +
       '</div>';
@@ -1140,11 +1148,11 @@ window.navTo = function (id) {
   }
 };
 
+console.log('[YID PLUS] chat.js loaded ✓ (Telegram-style)');
 
-
-// ==============================
-// POLLS creation modal voting
-//==============================
+// ============================================================
+// POLLS — creation modal, rendering, voting
+// ============================================================
 
 var POLL_correctIndices = new Set();
 
@@ -1410,5 +1418,3 @@ window.suggestPollOption = function (pollId) {
     })
     .catch(function(err) { toast('❌ ' + err.message); });
 };
-
-console.log('[YID PLUS] chat.js loaded ✓ (Telegram-style)');
