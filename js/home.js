@@ -612,59 +612,118 @@ window.svPrev = function () {
 };
 
 // ── Long-press logic (hold to pause, tap to nav) ───────────
+// ── Touch/Click Gesture System ─────────────────────────────
+// Rules (exactly like WhatsApp/Telegram):
+//   • Normal TAP  (<400ms, little movement) → navigate left/right
+//   • LONG PRESS  (≥400ms, no movement)     → pause while held, resume on release
+//   • Pause icon NEVER shows on normal tap — only during a held long-press
+
+var _svTouchX    = 0;
+var _svTouchY    = 0;
+var _svTouchMoved = false;
+
 window.svTouchStart = function (e) {
+  var t = e.touches[0];
+  _svTouchX     = t.clientX;
+  _svTouchY     = t.clientY;
+  _svTouchMoved = false;
   HOME_svLongTimer = setTimeout(function () {
     HOME_svLongTimer = null;
-    svPause();
-  }, 200);
+    if (!_svTouchMoved) {
+      // Genuine long press — pause and show icon
+      HOME_svPaused = true;
+      var vid = document.querySelector('#sv-slide video');
+      if (vid) vid.pause();
+      var pi = document.getElementById('sv-pause-icon');
+      if (pi) pi.style.display = 'flex';
+    }
+  }, 400);
 };
+
 window.svTouchEnd = function (e) {
-  if (HOME_svLongTimer) {
-    // Was a tap — navigate
-    clearTimeout(HOME_svLongTimer);
-    HOME_svLongTimer = null;
-    if (!HOME_svPaused) {
-      var touch = e.changedTouches[0];
-      if (touch.clientX < window.innerWidth * 0.3) svPrev();
-      else svNext();
+  var wasLongPress = !HOME_svLongTimer; // timer already fired = long press
+  clearTimeout(HOME_svLongTimer);
+  HOME_svLongTimer = null;
+
+  if (wasLongPress) {
+    // Releasing after long press → resume, hide icon
+    HOME_svPaused = false;
+    var vid = document.querySelector('#sv-slide video');
+    if (vid) vid.play().catch(function(){});
+    var pi = document.getElementById('sv-pause-icon');
+    if (pi) pi.style.display = 'none';
+    _svResyncBar();
+  } else if (!_svTouchMoved) {
+    // Normal tap → navigate (NO pause icon)
+    var touch = e.changedTouches[0];
+    if (touch.clientX < window.innerWidth * 0.3) {
+      svPrev();
     } else {
-      svResume();
+      svNext();
     }
-  } else {
-    // Was a long-press — just resume
-    svResume();
-  }
-};
-window.svMouseDown = function (e) {
-  HOME_svLongTimer = setTimeout(function () {
-    HOME_svLongTimer = null;
-    svPause();
-  }, 200);
-};
-window.svMouseUp = function (e) {
-  if (HOME_svLongTimer) {
-    clearTimeout(HOME_svLongTimer);
-    HOME_svLongTimer = null;
-    if (!HOME_svPaused) {
-      if (e.clientX < window.innerWidth * 0.3) svPrev();
-      else svNext();
-    }
-  } else {
-    svResume();
   }
 };
 
-// ── Pause / Resume ────────────────────────────────────────
+// Detect scroll/swipe-away so we don't accidentally navigate
+document.addEventListener('touchmove', function (e) {
+  if (!document.getElementById('sv-overlay').classList.contains('open')) return;
+  var t = e.touches[0];
+  if (Math.abs(t.clientX - _svTouchX) > 10 || Math.abs(t.clientY - _svTouchY) > 10) {
+    _svTouchMoved = true;
+    if (HOME_svLongTimer) { clearTimeout(HOME_svLongTimer); HOME_svLongTimer = null; }
+  }
+}, { passive: true });
+
+// Mouse fallback for desktop
+window.svMouseDown = function (e) {
+  _svTouchX     = e.clientX;
+  _svTouchY     = e.clientY;
+  _svTouchMoved = false;
+  HOME_svLongTimer = setTimeout(function () {
+    HOME_svLongTimer = null;
+    HOME_svPaused = true;
+    var vid = document.querySelector('#sv-slide video');
+    if (vid) vid.pause();
+    var pi = document.getElementById('sv-pause-icon');
+    if (pi) pi.style.display = 'flex';
+  }, 400);
+};
+
+window.svMouseUp = function (e) {
+  var wasLongPress = !HOME_svLongTimer;
+  clearTimeout(HOME_svLongTimer);
+  HOME_svLongTimer = null;
+
+  if (wasLongPress) {
+    HOME_svPaused = false;
+    var vid = document.querySelector('#sv-slide video');
+    if (vid) vid.play().catch(function(){});
+    var pi = document.getElementById('sv-pause-icon');
+    if (pi) pi.style.display = 'none';
+    _svResyncBar();
+  } else if (!_svTouchMoved) {
+    if (e.clientX < window.innerWidth * 0.3) svPrev();
+    else svNext();
+  }
+};
+
+function _svResyncBar() {
+  // Recalculate bar start time so animation continues from where it was
+  var barEl = document.getElementById('svbar-' + HOME_svSlideIdx);
+  var pct = barEl ? parseFloat(barEl.style.width || '0') : 0;
+  HOME_svBarStart = performance.now() - (pct / 100 * HOME_svBarDur);
+}
+
+// ── Pause / Resume (called by non-gesture code: more-menu, reply, reactions) ──
 window.svPause = function () {
   HOME_svPaused = true;
   var vid = document.querySelector('#sv-slide video');
   if (vid) vid.pause();
-  var pi = document.getElementById('sv-pause-icon');
-  if (pi) pi.style.display = 'flex';
+  // Don't show pause icon here — this is for modals/menus, not a user hold-gesture
 };
 window.svResume = function () {
   HOME_svPaused = false;
-  HOME_svBarStart = performance.now() - (parseFloat((document.getElementById('svbar-' + HOME_svSlideIdx) || {}).style && (document.getElementById('svbar-' + HOME_svSlideIdx)).style.width || '0') / 100 * HOME_svBarDur);
+  _svResyncBar();
   var vid = document.querySelector('#sv-slide video');
   if (vid) vid.play().catch(function(){});
   var pi = document.getElementById('sv-pause-icon');
