@@ -374,49 +374,91 @@ function showBroadcast(text) {
     '</div>';
 }
 
-// ── STATUS ROW — loads real statuses from /api/statuses ──────
-var HOME_svStatuses = [];
-var HOME_svUserIdx  = 0;
-var HOME_svSlideIdx = 0;
-var HOME_svTimer    = null;
-var HOME_svPaused   = false;
-var HOME_svMuted    = false;
-var HOME_svBarRaf   = null;
-var HOME_svBarStart = 0;
-var HOME_svBarDur   = 5000;
+// ══════════════════════════════════════════════════════════
+//  STATUS / STORIES SYSTEM  (WhatsApp-style)
+//  Features: progress bars, long-press pause, swipe nav,
+//  emoji reactions, profile pictures, privacy, reply, archive
+// ══════════════════════════════════════════════════════════
+
+var HOME_svStatuses  = [];    // flat list: [{user_id, nickname, photo_url, slides:[...]}, ...]
+var HOME_svUserIdx   = 0;
+var HOME_svSlideIdx  = 0;
+var HOME_svMuted     = false;
+var HOME_svPaused    = false;
+var HOME_svBarRaf    = null;
+var HOME_svBarStart  = 0;
+var HOME_svBarDur    = 5000;
+var HOME_svLongTimer = null;   // distinguish tap vs long-press
+var HOME_svPrivacy   = 'public'; // current user's privacy setting
+var HOME_HIGHLIGHTS  = [];     // locally-saved highlights
 
 function buildStatusRow() {
   var row = document.getElementById('status-row');
   if (!row) return;
-  var myNick = (STATE.user && STATE.user.nickname) ? STATE.user.nickname : 'My Status';
+
+  var meNick = (STATE.user && STATE.user.nickname) ? STATE.user.nickname : 'My Status';
+  var meInitial = meNick.slice(0,1).toUpperCase();
+
+  // "My Status" — always first, shows highlights indicator if archived
   row.innerHTML =
     '<div class="status-item" onclick="openStatusUpload()">' +
-      '<div class="status-ring mine"><div class="status-inner">👤<div class="status-plus">+</div></div></div>' +
-      '<div class="status-name">' + escHtml(myNick) + '</div>' +
-    '</div>';
+      '<div class="status-ring mine">' +
+        '<div class="status-inner" id="my-status-av" style="font-size:.9rem;font-weight:700">' + meInitial + '</div>' +
+        '<div class="status-plus">+</div>' +
+      '</div>' +
+      '<div class="status-name">My Status</div>' +
+    '</div>' +
+    (HOME_HIGHLIGHTS.length
+      ? '<div class="status-item" onclick="openHighlightsModal()">' +
+          '<div class="status-ring" style="border-color:#f59e0b">' +
+            '<div class="status-inner">🔖</div>' +
+          '</div>' +
+          '<div class="status-name">Highlights</div>' +
+        '</div>'
+      : '');
 
-  api.get('/statuses').then(function (res) {
-    HOME_svStatuses = res.statuses || [];
-    var meId = STATE.user && STATE.user.id;
-    HOME_svStatuses.sort(function (a, b) {
-      if (a.user_id === meId) return -1;
-      if (b.user_id === meId) return 1;
-      return 0;
-    });
-    HOME_svStatuses.forEach(function (s, i) {
-      var isMine  = s.user_id === meId;
-      var initial = (s.nickname || '?').slice(0, 1).toUpperCase();
-      var el = document.createElement('div');
-      el.className = 'status-item';
-      el.onclick   = function () { openSV(i); };
-      el.innerHTML =
-        '<div class="status-ring' + (isMine ? ' mine' : '') + '">' +
-          '<div class="status-inner" style="font-size:.9rem;font-weight:700">' + initial + '</div>' +
-        '</div>' +
-        '<div class="status-name">' + escHtml(isMine ? 'My Status' : (s.nickname || 'User')) + '</div>';
-      row.appendChild(el);
-    });
-  }).catch(function () {});
+  api.get('/statuses')
+    .then(function (res) {
+      HOME_svStatuses = res.statuses || [];
+      var meId = STATE.user && STATE.user.id;
+      // My own statuses first
+      HOME_svStatuses.sort(function (a, b) {
+        if (a.user_id === meId) return -1;
+        if (b.user_id === meId) return 1;
+        return 0;
+      });
+
+      // Update my own avatar with photo if available
+      if (STATE.user && STATE.user.photo_url) {
+        var myAv = document.getElementById('my-status-av');
+        if (myAv) {
+          myAv.style.backgroundImage = "url('" + STATE.user.photo_url + "')";
+          myAv.style.backgroundSize = 'cover';
+          myAv.style.backgroundPosition = 'center';
+          myAv.textContent = '';
+        }
+      }
+
+      HOME_svStatuses.forEach(function (s, i) {
+        var isMine  = s.user_id === meId;
+        var initial = (s.nickname || '?').slice(0,1).toUpperCase();
+        var el = document.createElement('div');
+        el.className = 'status-item';
+        el.onclick   = function () { openSV(i); };
+
+        var avatarContent = s.photo_url
+          ? '<div style="width:100%;height:100%;border-radius:50%;background-image:url(\'' + s.photo_url + '\');background-size:cover;background-position:center"></div>'
+          : '<div style="font-size:.9rem;font-weight:700">' + initial + '</div>';
+
+        el.innerHTML =
+          '<div class="status-ring' + (isMine ? ' mine' : '') + '">' +
+            '<div class="status-inner">' + avatarContent + '</div>' +
+          '</div>' +
+          '<div class="status-name">' + escHtml(isMine ? 'My Status' : (s.nickname || 'User')) + '</div>';
+        row.appendChild(el);
+      });
+    })
+    .catch(function () {});
 }
 
 window.openSV = function (userIdx) {
@@ -425,42 +467,65 @@ window.openSV = function (userIdx) {
   HOME_svSlideIdx = 0;
   _svShowSlide();
   document.getElementById('sv-overlay').classList.add('open');
+  // Hide / show owner-only controls
+  var meId = STATE.user && STATE.user.id;
+  var isMyStatus = HOME_svStatuses[userIdx] && HOME_svStatuses[userIdx].user_id === meId;
+  var menuDelete  = document.getElementById('sv-menu-delete');
+  var menuPrivacy = document.getElementById('sv-menu-privacy');
+  if (menuDelete)  menuDelete.style.display  = isMyStatus ? 'block' : 'none';
+  if (menuPrivacy) menuPrivacy.style.display = isMyStatus ? 'block' : 'none';
 };
 window.openStatusViewer = window.openSV;
 
 function _svShowSlide() {
-  var s      = HOME_svStatuses[HOME_svUserIdx];
+  var s     = HOME_svStatuses[HOME_svUserIdx];
   if (!s || !s.slides || !s.slides.length) { closeSV(); return; }
-  var slide  = s.slides[HOME_svSlideIdx];
+  var slide = s.slides[HOME_svSlideIdx];
   if (!slide) { closeSV(); return; }
 
-  clearTimeout(HOME_svTimer);
   cancelAnimationFrame(HOME_svBarRaf);
   HOME_svPaused = false;
   HOME_svBarDur = 5000;
 
-  document.getElementById('sv-avatar').textContent = (s.nickname || '?').slice(0,1).toUpperCase();
-  document.getElementById('sv-nick').textContent   = '@' + (s.nickname || 'User');
-  document.getElementById('sv-time').textContent   = s.slides[0].created_at ? timeAgo(s.slides[0].created_at) : 'now';
+  // ── Avatar (profile picture) ──
+  var avEl = document.getElementById('sv-avatar');
+  if (avEl) {
+    if (s.photo_url) {
+      avEl.style.backgroundImage = "url('" + s.photo_url + "')";
+      avEl.textContent = '';
+    } else {
+      avEl.style.backgroundImage = '';
+      avEl.textContent = (s.nickname || '?').slice(0,1).toUpperCase();
+    }
+  }
 
-  var bars = document.getElementById('sv-bars');
-  bars.innerHTML = s.slides.map(function (_, j) {
+  document.getElementById('sv-nick').textContent = '@' + (s.nickname || 'User');
+  document.getElementById('sv-time').textContent = slide.created_at ? timeAgo(slide.created_at) : 'now';
+
+  // ── Progress bars ──
+  var barsEl = document.getElementById('sv-bars');
+  barsEl.innerHTML = s.slides.map(function (_, j) {
     return '<div class="sv-bar"><div class="sv-bar-fill' + (j < HOME_svSlideIdx ? ' done' : '') + '" id="svbar-' + j + '"></div></div>';
   }).join('');
 
+  // ── Like button state ──
+  var likeBtn = document.getElementById('sv-like-btn');
+  if (likeBtn) likeBtn.textContent = slide.i_reacted ? '❤️' : '🤍';
+
+  // ── Slide content ──
   var el = document.getElementById('sv-slide');
   el.innerHTML = '';
-  el.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;transition:opacity .15s';
+  el.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden';
 
   if (slide.type === 'media' && slide.media_url) {
     var isVideo = /\.(mp4|webm|mov|avi)$/i.test(slide.media_url);
     if (isVideo) {
       var vid = document.createElement('video');
-      vid.src         = slide.media_url;
+      vid.src = slide.media_url;
       vid.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover';
-      vid.autoplay    = true;
-      vid.loop        = false;
-      vid.muted       = HOME_svMuted;
+      vid.autoplay = true;
+      vid.loop     = false;
+      vid.muted    = HOME_svMuted;
       vid.playsInline = true;
       vid.onloadedmetadata = function () {
         HOME_svBarDur = (vid.duration || 5) * 1000;
@@ -470,46 +535,57 @@ function _svShowSlide() {
       el.style.background = '#000';
       el.appendChild(vid);
     } else {
-      var img = document.createElement('img');
-      img.src           = slide.media_url;
-      img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain';
       el.style.background = '#000';
+      var img = document.createElement('img');
+      img.src = slide.media_url;
+      img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain';
       el.appendChild(img);
       if (slide.text) {
         var cap = document.createElement('div');
-        cap.style.cssText = 'position:absolute;bottom:80px;left:0;right:0;padding:.75rem 1rem;background:rgba(0,0,0,.5);color:#fff;font-size:.9rem;text-align:center;border-radius:0 0 8px 8px';
+        cap.style.cssText = 'position:absolute;bottom:80px;left:0;right:0;padding:.75rem 1rem;background:rgba(0,0,0,.5);color:#fff;font-size:.9rem;text-align:center';
         cap.textContent = slide.text;
         el.appendChild(cap);
       }
       _svStartBar();
     }
   } else {
-    el.style.background     = slide.bg    || '#1a0a2e';
-    el.style.color          = slide.color || '#fff';
-    el.style.fontSize       = '1.2rem';
-    el.style.textAlign      = 'center';
-    el.style.padding        = '2rem';
-    el.style.lineHeight     = '1.6';
+    // Text status
+    el.style.background    = slide.bg    || '#1a0a2e';
+    el.style.color         = slide.color || '#fff';
+    el.style.fontSize      = '1.3rem';
+    el.style.fontWeight    = '700';
+    el.style.textAlign     = 'center';
+    el.style.padding       = '2rem';
+    el.style.lineHeight    = '1.5';
     el.textContent = slide.text || '';
     _svStartBar();
   }
+
+  // Hide more menu if open
+  document.getElementById('sv-more-menu').style.display = 'none';
+  document.getElementById('sv-reaction-bar').style.display = 'none';
 }
 
+// ── Progress bar animation ─────────────────────────────────
 function _svStartBar() {
   cancelAnimationFrame(HOME_svBarRaf);
   HOME_svBarStart = performance.now();
   var barEl = document.getElementById('svbar-' + HOME_svSlideIdx);
+
   function tick(now) {
     if (HOME_svPaused) { HOME_svBarRaf = requestAnimationFrame(tick); return; }
-    var elapsed = now - HOME_svBarStart;
-    var pct = Math.min(100, elapsed / HOME_svBarDur * 100);
+    var pct = Math.min(100, (now - HOME_svBarStart) / HOME_svBarDur * 100);
     if (barEl) barEl.style.width = pct + '%';
-    if (pct < 100) { HOME_svBarRaf = requestAnimationFrame(tick); }
-    else { window.svNext(); }
+    if (pct < 100) {
+      HOME_svBarRaf = requestAnimationFrame(tick);
+    } else {
+      window.svNext();
+    }
   }
   HOME_svBarRaf = requestAnimationFrame(tick);
 }
 
+// ── Navigation ────────────────────────────────────────────
 window.svNext = function () {
   var s = HOME_svStatuses[HOME_svUserIdx];
   if (!s) { closeSV(); return; }
@@ -535,16 +611,76 @@ window.svPrev = function () {
   _svShowSlide();
 };
 
+// ── Long-press logic (hold to pause, tap to nav) ───────────
+window.svTouchStart = function (e) {
+  HOME_svLongTimer = setTimeout(function () {
+    HOME_svLongTimer = null;
+    svPause();
+  }, 200);
+};
+window.svTouchEnd = function (e) {
+  if (HOME_svLongTimer) {
+    // Was a tap — navigate
+    clearTimeout(HOME_svLongTimer);
+    HOME_svLongTimer = null;
+    if (!HOME_svPaused) {
+      var touch = e.changedTouches[0];
+      if (touch.clientX < window.innerWidth * 0.3) svPrev();
+      else svNext();
+    } else {
+      svResume();
+    }
+  } else {
+    // Was a long-press — just resume
+    svResume();
+  }
+};
+window.svMouseDown = function (e) {
+  HOME_svLongTimer = setTimeout(function () {
+    HOME_svLongTimer = null;
+    svPause();
+  }, 200);
+};
+window.svMouseUp = function (e) {
+  if (HOME_svLongTimer) {
+    clearTimeout(HOME_svLongTimer);
+    HOME_svLongTimer = null;
+    if (!HOME_svPaused) {
+      if (e.clientX < window.innerWidth * 0.3) svPrev();
+      else svNext();
+    }
+  } else {
+    svResume();
+  }
+};
+
+// ── Pause / Resume ────────────────────────────────────────
+window.svPause = function () {
+  HOME_svPaused = true;
+  var vid = document.querySelector('#sv-slide video');
+  if (vid) vid.pause();
+  var pi = document.getElementById('sv-pause-icon');
+  if (pi) pi.style.display = 'flex';
+};
+window.svResume = function () {
+  HOME_svPaused = false;
+  HOME_svBarStart = performance.now() - (parseFloat((document.getElementById('svbar-' + HOME_svSlideIdx) || {}).style && (document.getElementById('svbar-' + HOME_svSlideIdx)).style.width || '0') / 100 * HOME_svBarDur);
+  var vid = document.querySelector('#sv-slide video');
+  if (vid) vid.play().catch(function(){});
+  var pi = document.getElementById('sv-pause-icon');
+  if (pi) pi.style.display = 'none';
+};
+
+// ── Close ─────────────────────────────────────────────────
 window.closeSV = function () {
   cancelAnimationFrame(HOME_svBarRaf);
-  clearTimeout(HOME_svTimer);
   HOME_svPaused = false;
   var vid = document.querySelector('#sv-slide video');
   if (vid) { vid.pause(); vid.src = ''; }
-  var el = document.getElementById('sv-overlay');
-  if (el) el.classList.remove('open');
+  document.getElementById('sv-overlay').classList.remove('open');
 };
 
+// ── Mute ─────────────────────────────────────────────────
 window.svToggleMute = window.svMute = function () {
   HOME_svMuted = !HOME_svMuted;
   var btn = document.getElementById('sv-mute');
@@ -552,6 +688,151 @@ window.svToggleMute = window.svMute = function () {
   var vid = document.querySelector('#sv-slide video');
   if (vid) vid.muted = HOME_svMuted;
 };
+
+// ── Reactions / Likes ────────────────────────────────────
+window.toggleSVReactionBar = function () {
+  svPause();
+  var bar = document.getElementById('sv-reaction-bar');
+  bar.style.display = bar.style.display === 'flex' ? 'none' : 'flex';
+};
+window.svReact = function (emoji) {
+  var s = HOME_svStatuses[HOME_svUserIdx];
+  if (!s) return;
+  var slide = s.slides[HOME_svSlideIdx];
+  if (!slide) return;
+
+  // Toggle heart button state
+  var likeBtn = document.getElementById('sv-like-btn');
+  if (likeBtn) likeBtn.textContent = emoji === '❤️' ? (likeBtn.textContent === '❤️' ? '🤍' : '❤️') : emoji;
+
+  // Close reaction bar
+  document.getElementById('sv-reaction-bar').style.display = 'none';
+
+  // Send as a reply DM with the reaction emoji
+  if (STATE.user && s.user_id !== STATE.user.id) {
+    api.post('/chat/rooms', { type: 'private', other_user_id: s.user_id })
+      .then(function (res) {
+        return api.post('/chat', { room_id: res.room_id, type: 'text', text: emoji + ' (reacted to your status)' });
+      })
+      .catch(function () {});
+  }
+
+  toast(emoji + ' Reacted!');
+  svResume();
+};
+
+// ── Reply to status ───────────────────────────────────────
+window.svSendReply = function () {
+  var s = HOME_svStatuses[HOME_svUserIdx];
+  if (!s || !STATE.user) return;
+  var inp = document.getElementById('sv-reply-input');
+  var text = (inp.value || '').trim();
+  if (!text) return;
+  inp.value = '';
+
+  svPause();
+  api.post('/chat/rooms', { type: 'private', other_user_id: s.user_id })
+    .then(function (res) {
+      return api.post('/chat', { room_id: res.room_id, type: 'text', text: '↩️ ' + text });
+    })
+    .then(function () { toast('💬 Reply sent!'); svResume(); })
+    .catch(function (err) { toast('❌ ' + err.message); svResume(); });
+};
+
+// ── Archive / Highlights ──────────────────────────────────
+window.svArchiveCurrent = function () {
+  var s = HOME_svStatuses[HOME_svUserIdx];
+  if (!s) return;
+  var slide = s.slides[HOME_svSlideIdx];
+  if (!slide) return;
+
+  var already = HOME_HIGHLIGHTS.some(function (h) { return h.id === slide.id; });
+  if (already) { toast('Already in Highlights'); return; }
+
+  HOME_HIGHLIGHTS.push({
+    id: slide.id,
+    type: slide.type,
+    text: slide.text,
+    media_url: slide.media_url,
+    bg: slide.bg,
+    color: slide.color,
+    nick: s.nickname,
+    created_at: slide.created_at,
+  });
+  try { localStorage.setItem('yp_highlights', JSON.stringify(HOME_HIGHLIGHTS)); } catch(e) {}
+  toast('🔖 Saved to Highlights!');
+  document.getElementById('sv-more-menu').style.display = 'none';
+};
+
+window.openHighlightsModal = function () {
+  try { var saved = localStorage.getItem('yp_highlights'); if (saved) HOME_HIGHLIGHTS = JSON.parse(saved); } catch(e) {}
+  var list = document.getElementById('sv-highlights-list');
+  if (!list) return;
+  if (!HOME_HIGHLIGHTS.length) {
+    list.innerHTML = '<div style="text-align:center;padding:2rem;font-size:.85rem;color:var(--muted)">No highlights saved yet.<br>Long-press a status and tap 🔖 to save.</div>';
+  } else {
+    list.innerHTML = HOME_HIGHLIGHTS.map(function (h, i) {
+      return '<div style="display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--border)">' +
+        '<div style="width:48px;height:48px;border-radius:10px;background:' + (h.bg || '#1a0a2e') + ';flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden">' +
+          (h.media_url ? '<img src="' + h.media_url + '" style="width:100%;height:100%;object-fit:cover">' : '<span style="font-size:.7rem;color:#fff">' + escHtml((h.text || '').slice(0,20)) + '</span>') +
+        '</div>' +
+        '<div style="flex:1"><div style="font-size:.82rem;font-weight:700">@' + escHtml(h.nick || '') + '</div><div style="font-size:.68rem;color:var(--muted)">' + timeAgo(h.created_at) + '</div></div>' +
+        '<button onclick="removeHighlight(' + i + ')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem">Remove</button>' +
+      '</div>';
+    }).join('');
+  }
+  document.getElementById('sv-highlights-modal').classList.add('open');
+};
+
+window.removeHighlight = function (i) {
+  HOME_HIGHLIGHTS.splice(i, 1);
+  try { localStorage.setItem('yp_highlights', JSON.stringify(HOME_HIGHLIGHTS)); } catch(e) {}
+  openHighlightsModal();
+};
+
+// ── Privacy controls ─────────────────────────────────────
+window.svShowMore = function () {
+  var menu = document.getElementById('sv-more-menu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+  svPause();
+};
+window.svEditPrivacy = function () {
+  document.getElementById('sv-more-menu').style.display = 'none';
+  var sel = document.querySelector('input[name="sv-privacy"][value="' + HOME_svPrivacy + '"]');
+  if (sel) sel.checked = true;
+  document.getElementById('sv-privacy-modal').classList.add('open');
+};
+window.setSVPrivacy = function (val) {
+  HOME_svPrivacy = val;
+};
+window.saveSVPrivacy = function () {
+  document.getElementById('sv-privacy-modal').classList.remove('open');
+  toast('🔒 Privacy saved: ' + HOME_svPrivacy);
+  svResume();
+};
+
+window.svDeleteCurrent = function () {
+  var s = HOME_svStatuses[HOME_svUserIdx];
+  if (!s) return;
+  var slide = s.slides[HOME_svSlideIdx];
+  if (!slide || !slide.id) return;
+  if (!confirm('Delete this status?')) return;
+  api.del ? api.del('/statuses?id=' + encodeURIComponent(slide.id)).catch(function(){}) : null;
+  s.slides.splice(HOME_svSlideIdx, 1);
+  if (!s.slides.length) {
+    HOME_svStatuses.splice(HOME_svUserIdx, 1);
+    if (!HOME_svStatuses.length) { closeSV(); buildStatusRow(); return; }
+    HOME_svUserIdx = Math.max(0, HOME_svUserIdx - 1);
+    HOME_svSlideIdx = 0;
+  } else {
+    HOME_svSlideIdx = Math.min(HOME_svSlideIdx, s.slides.length - 1);
+  }
+  _svShowSlide();
+  toast('🗑 Deleted.');
+};
+
+// Load saved highlights on startup
+try { var _hl = localStorage.getItem('yp_highlights'); if (_hl) HOME_HIGHLIGHTS = JSON.parse(_hl); } catch(e) {}
 
 console.log('YID PLUS: home.js loaded ✓ (Cloudflare D1 mode)');
 
