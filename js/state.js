@@ -499,7 +499,8 @@ document.addEventListener('click', function (e) {
   var ctx = document.getElementById('ctx-menu');
   var attach = document.getElementById('attach-sheet');
   if (ctx && !ctx.contains(e.target)) ctx.classList.remove('open');
-  if (attach && !attach.contains(e.target) && !e.target.closest('.attach-wrap')) {
+  var clickedInsideAttach = e.target.closest('.attach-wrap') || e.target.closest('#attach-sheet') || e.target.closest('.chat-attach-circle');
+  if (attach && !clickedInsideAttach) {
     attach.classList.remove('open');
   }
 });
