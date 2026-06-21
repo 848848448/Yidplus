@@ -1,96 +1,51 @@
-// functions/api/auth/register.js
-// POST /api/auth/register
-// Body: { email, password, nickname, phone }
-// Creates a user in D1, sets a session cookie, returns user object.
+import { json, corsHeaders } from '../_helpers.js';
 
-const corsHeaders = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Credentials': 'true',
-};
-
-export async function onRequestOptions() {
-  return new Response(null, { status: 204, headers: corsHeaders });
-}
+export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-
   try {
     const body = await request.json();
-    const email    = (body.email || '').trim().toLowerCase();
-    const password = body.password || '';
+    const email    = (body.email || '').toLowerCase().trim();
     const nickname = (body.nickname || '').trim();
+    const password = (body.password || '').trim();
     const phone    = (body.phone || '').trim();
 
-    if (!email || !password || !nickname) {
-      return json({ ok: false, error: 'email, password and nickname are required' }, 400);
-    }
-    if (password.length < 6) {
-      return json({ ok: false, error: 'Password must be at least 6 characters' }, 400);
-    }
+    if (!email || !nickname || !password) return json({ ok: false, error: 'email, nickname and password are required' }, 400);
+    if (nickname.length < 3) return json({ ok: false, error: 'Nickname must be at least 3 characters' }, 400);
+    if (password.length < 6) return json({ ok: false, error: 'Password must be at least 6 characters' }, 400);
 
-    // Check if email already exists
-    const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
-    if (existing) {
-      return json({ ok: false, error: 'This email is already registered.' }, 409);
-    }
+    const exists = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+    if (exists) return json({ ok: false, error: 'Email already registered' }, 409);
 
-    const id = crypto.randomUUID();
-    const passwordHash = await hashPassword(password);
-    const role = email === env.OWNER_EMAIL ? 'admin_super' : 'member';
+    const nickExists = await env.DB.prepare('SELECT id FROM users WHERE nickname = ?').bind(nickname).first();
+    if (nickExists) return json({ ok: false, error: 'Nickname already taken' }, 409);
+
+    const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
+    const hash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+
+    const userId = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    const isOwner = email === env.OWNER_EMAIL;
+    const role = isOwner ? 'admin_super' : 'member';
+
     await env.DB.prepare(
-      `INSERT INTO users (id, email, password_hash, nickname, phone, role, verified, blocked, online, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 0, 0, 1, ?)`
-    ).bind(id, email, passwordHash, nickname, phone, role, now).run();
+      'INSERT INTO users (id, email, nickname, phone, password_hash, role, verified, blocked, online, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, ?)'
+    ).bind(userId, email, nickname, phone || null, hash, role, now).run();
 
-    // Auto-create personal channel
+    // Auto-create channel for every new user
     await env.DB.prepare(
-      `INSERT INTO channels (id, owner_id, nickname, followers, following, total_views, verified, bio, created_at)
-       VALUES (?, ?, ?, 0, 0, 0, 0, '', ?)`
-    ).bind(crypto.randomUUID(), id, nickname, now).run();
+      'INSERT INTO channels (id, owner_id, nickname, followers, following, total_views, verified, bio, created_at) VALUES (?, ?, ?, 0, 0, 0, 0, NULL, ?)'
+    ).bind(crypto.randomUUID(), userId, nickname, now).run();
 
-    const sessionToken = await createSession(env, id);
+    const sessionId = crypto.randomUUID();
+    await env.DB.prepare('INSERT INTO sessions (id, user_id, created_at) VALUES (?, ?, ?)').bind(sessionId, userId, now).run();
+    await env.DB.prepare('UPDATE users SET online = 1 WHERE id = ?').bind(userId).run();
 
-    const user = {
-      id, email, nickname, phone, role,
-      verified: false, blocked: false, online: true,
-      isOwner: email === env.OWNER_EMAIL,
-    };
-
-    const headers = new Headers(corsHeaders);
-    headers.append('Set-Cookie', sessionCookie(sessionToken));
-
-    return new Response(JSON.stringify({ ok: true, user }), { status: 201, headers });
+    const headers = { ...corsHeaders, 'Set-Cookie': `yp_session=${sessionId}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000` };
+    return new Response(JSON.stringify({ ok: true, user: { id: userId, email, nickname, role, verified: 0 } }), { status: 201, headers: { 'Content-Type': 'application/json', ...headers } });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-}
-
-// ── HELPERS ───────────────────────────────────────────────
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), { status, headers: corsHeaders });
-}
-
-async function hashPassword(password) {
-  const enc = new TextEncoder().encode(password);
-  const buf = await crypto.subtle.digest('SHA-256', enc);
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function createSession(env, userId) {
-  const token = crypto.randomUUID() + crypto.randomUUID();
-  const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
-  await env.DB.prepare(
-    `INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)`
-  ).bind(token, userId, expires).run();
-  return token;
-}
-
-function sessionCookie(token) {
-  return `yp_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}`;
-}
+      }
