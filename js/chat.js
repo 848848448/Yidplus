@@ -21,6 +21,7 @@ var CHAT_tab         = 'all';
 var CHAT_search      = '';
 var CHAT_curRoom     = null;
 var CHAT_messages    = [];
+var CHAT_reactions   = {}; // { messageId: { counts: {emoji: n}, my_reaction: emoji|null } }
 var CHAT_replyTo     = null;
 var CHAT_ctxMsg      = null;
 var CHAT_pollTimer   = null;
@@ -146,6 +147,7 @@ window.openChatRoom = function (roomId) {
   CHAT_atBottom  = true;
   room.unread    = 0;
   renderChatList();
+  _startTypingPoll();
 
   // Header
   var isGroup = room.type === 'group';
@@ -166,8 +168,14 @@ window.openChatRoom = function (roomId) {
   document.getElementById('cr-avatar').style.cursor = 'pointer';
 
   var st = document.getElementById('cr-status');
-  if (isGroup) {
-    st.textContent = (room.members != null ? room.members + ' members' : 'Group');
+  var meId = STATE.user && STATE.user.id;
+  var isSuperAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.email === CONFIG.OWNER_EMAIL);
+  if (room.admin_spectating) {
+    st.textContent = '👁 Viewing as Admin';
+    st.style.color = 'var(--gold-d)';
+  } else if (isGroup) {
+    var readOnlyTag = room.read_only ? ' · 🔒 Read-only' : '';
+    st.textContent = (room.members != null ? room.members + ' members' : 'Group') + readOnlyTag;
     st.style.color = 'var(--muted)';
   } else if (room.online) {
     st.textContent = 'online';
@@ -180,9 +188,14 @@ window.openChatRoom = function (roomId) {
   // Join banner
   var needsJoin = (!room.joined && isGroup);
   document.getElementById('join-banner').style.display = needsJoin ? 'flex' : 'none';
+
+  // Read-only enforcement: lock input unless the viewer is a group admin or Super Admin.
+  var lockedForReadOnly = isGroup && room.read_only && !room.is_group_admin && !isSuperAdmin;
+  var inputDisabled = needsJoin || lockedForReadOnly || !!room.admin_spectating;
+
   var ib = document.getElementById('chat-input-bar');
-  ib.style.opacity = needsJoin ? '.4' : '1';
-  ib.style.pointerEvents = needsJoin ? 'none' : 'all';
+  ib.style.opacity = inputDisabled ? '.4' : '1';
+  ib.style.pointerEvents = inputDisabled ? 'none' : 'all';
 
   // Reply bar
   document.getElementById('reply-bar').style.display = 'none';
@@ -233,6 +246,22 @@ window.openChatInfo = function () {
   document.getElementById('info-members-section').style.display = isGroup ? 'block' : 'none';
   document.getElementById('info-bio-card').style.display = 'none';
 
+  // Group admin settings panel — visible to this group's sub-admins and Super Admins.
+  var meId = STATE.user && STATE.user.id;
+  var isSuperAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.email === CONFIG.OWNER_EMAIL);
+  var canManageGroup = isGroup && (CHAT_curRoom.is_group_admin || isSuperAdmin);
+  document.getElementById('info-admin-settings').style.display = canManageGroup ? 'block' : 'none';
+
+  if (canManageGroup) {
+    document.getElementById('group-readonly-toggle').classList.toggle('on', !CHAT_curRoom.read_only);
+    document.getElementById('group-visibility-toggle').classList.toggle('on', CHAT_curRoom.visibility === 'public');
+    var adLabel = document.getElementById('auto-delete-label');
+    if (adLabel) {
+      var mins = CHAT_curRoom.auto_delete_minutes;
+      adLabel.textContent = mins ? _autoDeleteLabel(mins) : 'Off';
+    }
+  }
+
   // Reset tabs to "media"
   var tabs = document.querySelectorAll('#info-media-tabs .userinfo-mtab');
   tabs.forEach(function (t, i) { t.classList.toggle('active', i === 0); });
@@ -247,6 +276,94 @@ window.openChatInfo = function () {
   navTo('chatinfo');
 };
 window.openMembersList = window.openChatInfo; // legacy alias
+
+window.toggleGroupReadOnly = function () {
+  if (!CHAT_curRoom) return;
+  var toggle = document.getElementById('group-readonly-toggle');
+  var nowEveryoneCanWrite = !toggle.classList.contains('on');
+  toggle.classList.toggle('on', nowEveryoneCanWrite);
+
+  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, read_only: !nowEveryoneCanWrite })
+    .then(function () {
+      CHAT_curRoom.read_only = !nowEveryoneCanWrite;
+      toast(nowEveryoneCanWrite ? '✍️ Everyone can write now' : '🔒 Group set to admins-only');
+    })
+    .catch(function (err) {
+      toggle.classList.toggle('on', !nowEveryoneCanWrite); // revert on failure
+      toast('❌ ' + err.message);
+    });
+};
+
+window.toggleGroupVisibility = function () {
+  if (!CHAT_curRoom) return;
+  var toggle = document.getElementById('group-visibility-toggle');
+  var nowPublic = !toggle.classList.contains('on');
+  toggle.classList.toggle('on', nowPublic);
+
+  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, visibility: nowPublic ? 'public' : 'private' })
+    .then(function () {
+      CHAT_curRoom.visibility = nowPublic ? 'public' : 'private';
+      toast(nowPublic ? '🌍 Group is now public' : '🔒 Group is now private');
+    })
+    .catch(function (err) {
+      toggle.classList.toggle('on', !nowPublic);
+      toast('❌ ' + err.message);
+    });
+};
+
+function _autoDeleteLabel(minutes) {
+  if (minutes >= 43200) return '30 days';
+  if (minutes >= 10080) return '7 days';
+  if (minutes >= 1440)  return '24 hours';
+  if (minutes >= 60)    return '1 hour';
+  return minutes + ' min';
+}
+
+window.openAutoDeleteModal = function () {
+  if (!CHAT_curRoom) return;
+  var sel = document.getElementById('auto-delete-select');
+  if (sel) sel.value = CHAT_curRoom.auto_delete_minutes || '';
+  document.getElementById('auto-delete-modal').classList.add('open');
+};
+
+window.saveAutoDelete = function () {
+  if (!CHAT_curRoom) return;
+  var sel = document.getElementById('auto-delete-select');
+  var minutes = sel.value ? parseInt(sel.value, 10) : null;
+
+  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, auto_delete_minutes: minutes })
+    .then(function () {
+      CHAT_curRoom.auto_delete_minutes = minutes;
+      var adLabel = document.getElementById('auto-delete-label');
+      if (adLabel) adLabel.textContent = minutes ? _autoDeleteLabel(minutes) : 'Off';
+      document.getElementById('auto-delete-modal').classList.remove('open');
+      toast(minutes ? '⏱️ Auto-delete set to ' + _autoDeleteLabel(minutes) : '⏱️ Auto-delete turned off');
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+// Promote/demote a member to group sub-admin, or remove them — called from the members list.
+window.toggleMemberGroupAdmin = function (memberId, makeAdmin) {
+  if (!CHAT_curRoom) return;
+  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, member_id: memberId, make_admin: makeAdmin })
+    .then(function () {
+      toast(makeAdmin ? '🛡 Promoted to group admin' : '➖ Removed group admin');
+      loadGroupMembers(CHAT_curRoom.id);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.removeMemberFromGroup = function (memberId) {
+  if (!CHAT_curRoom) return;
+  if (!confirm('Remove this member from the group?')) return;
+  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, member_id: memberId, remove: true })
+    .then(function () {
+      toast('🚪 Member removed');
+      loadGroupMembers(CHAT_curRoom.id);
+      loadMessages(true);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 function loadGroupMembers(roomId) {
   api.get('/chat/rooms').then(function (res) {
@@ -265,16 +382,30 @@ function _renderMembersList() {
     list.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">Loading members...</div>';
     return;
   }
+  var meId = STATE.user && STATE.user.id;
+  var isSuperAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.email === CONFIG.OWNER_EMAIL);
+  var canManageGroup = CHAT_curRoom && (CHAT_curRoom.is_group_admin || isSuperAdmin);
+
   list.innerHTML = CHAT_members.map(function (m) {
     var photoStyle = m.photo_url ? "background-image:url('" + m.photo_url + "');background-size:cover;background-position:center;" : '';
+    var isSelf = m.id === meId;
+    var controls = '';
+    if (canManageGroup && !isSelf) {
+      controls = '<div style="display:flex;gap:.3rem;flex-shrink:0">' +
+        '<button onclick="event.stopPropagation();toggleMemberGroupAdmin(\'' + m.id + '\',' + !m.is_group_admin + ')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .4rem;font-size:.65rem;cursor:pointer;color:var(--blue)">' + (m.is_group_admin ? 'Demote' : 'Make Admin') + '</button>' +
+        '<button onclick="event.stopPropagation();removeMemberFromGroup(\'' + m.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .4rem;font-size:.65rem;cursor:pointer;color:var(--red)">Remove</button>' +
+      '</div>';
+    }
     return '<div class="member-row-admin">' +
       '<div class="member-photo" style="' + photoStyle + '">' +
         (m.photo_url ? '' : (m.nickname || '?').slice(0, 1).toUpperCase()) +
       '</div>' +
-      '<div style="flex:1"><div style="font-size:.85rem;font-weight:700">@' + escHtml(m.nickname || 'User') + '</div>' +
+      '<div style="flex:1;direction:rtl;text-align:right"><div style="font-size:.85rem;font-weight:700">@' + escHtml(m.nickname || 'User') + '</div>' +
       (m.online ? '<div style="font-size:.68rem;color:var(--green)">● online</div>' : '<div style="font-size:.68rem;color:var(--muted)">offline</div>') +
       '</div>' +
       (m.role === 'admin_super' || m.role === 'admin_limited' ? '<span style="font-size:.65rem;background:#EAF4FF;color:var(--blue);border:1px solid #BBDEFB;border-radius:6px;padding:.1rem .4rem">Admin</span>' : '') +
+      (m.is_group_admin ? '<span style="font-size:.65rem;background:#FFF3E0;color:#E65100;border:1px solid #FFE0B2;border-radius:6px;padding:.1rem .4rem;margin-left:.3rem">Group Admin</span>' : '') +
+      controls +
     '</div>';
   }).join('');
 }
@@ -373,6 +504,14 @@ function loadMessages(scrollToBottom) {
       if (CHAT_curRoom.joined !== false) {
         api.post('/chat/read', { room_id: CHAT_curRoom.id }).catch(function () {});
       }
+
+      // Load reaction summary for this room and re-render once available.
+      api.get('/chat/reactions?room_id=' + encodeURIComponent(CHAT_curRoom.id))
+        .then(function (rres) {
+          CHAT_reactions = rres.reactions || {};
+          renderMessages(false);
+        })
+        .catch(function () {});
     })
     .catch(function () {});
 }
@@ -447,12 +586,23 @@ function renderMessages(scrollDown) {
     } else if (m.type === 'voice' && m.media_url) {
       var voiceData = _parseVoicePacked(m.text);
       var bars = voiceData.peaks.length ? _renderWaveBars(voiceData.peaks) : _fakeBars(20);
-      inner += '<div class="voice-msg">' +
-        '<audio src="' + m.media_url + '" id="aud-' + m.id + '" preload="metadata"></audio>' +
-        '<button class="play-voice" onclick="_playVoice(\'' + m.id + '\',this)">▶</button>' +
-        '<div class="voice-bars" id="vbars-' + m.id + '" onclick="_seekVoice(event,\'' + m.id + '\')">' + bars + '</div>' +
-        '<div class="voice-dur" id="vdur-' + m.id + '">' + (voiceData.dur || '0:00') + '</div>' +
-      '</div>';
+      var isViewOnceVoice = m.view_once && !isMe;
+      if (isViewOnceVoice && m.opened) {
+        inner += '<div class="voice-msg" style="opacity:.5"><div style="font-size:.8rem;color:var(--muted)">🎤 Voice message opened</div></div>';
+      } else if (isViewOnceVoice) {
+        inner += '<div class="voice-msg" onclick="_openOnceVoice(\'' + m.id + '\',\'' + m.media_url + '\')" style="cursor:pointer">' +
+          '<div class="play-voice" style="background:var(--gold-d)">1</div>' +
+          '<div style="font-size:.8rem;flex:1">🔥 Tap to play once</div>' +
+        '</div>';
+      } else {
+        inner += '<div class="voice-msg">' +
+          '<audio src="' + m.media_url + '" id="aud-' + m.id + '" preload="metadata"></audio>' +
+          '<button class="play-voice" onclick="_playVoice(\'' + m.id + '\',this)">▶</button>' +
+          '<div class="voice-bars" id="vbars-' + m.id + '" onclick="_seekVoice(event,\'' + m.id + '\')">' + bars + '</div>' +
+          '<div class="voice-dur" id="vdur-' + m.id + '">' + (voiceData.dur || '0:00') + '</div>' +
+          '<button class="voice-speed-btn" id="vspeed-' + m.id + '" onclick="_toggleVoiceSpeed(\'' + m.id + '\')">1x</button>' +
+        '</div>';
+      }
 
     } else if (m.type === 'voice_text') {
       // Voice note without actual audio (fallback)
@@ -488,19 +638,29 @@ function renderMessages(scrollDown) {
       inner += '<span>' + _linkify(escHtml(m.text || '')) + '</span>';
     }
 
-    inner += '<div class="bubble-meta"><span class="bubble-time">' + time + '</span>' + ticks + '</div>';
+    inner += '<div class="bubble-meta">' + (m.edited_at ? '<span class="edited-tag">edited</span>' : '') + '<span class="bubble-time">' + time + '</span>' + ticks + '</div>';
 
     var miniAv = (!isMe && isGroup)
       ? '<div class="msg-mini-av">' + escHtml((m.sender_nick || '?').slice(0, 1).toUpperCase()) + '</div>'
       : '';
 
+    var myReaction = CHAT_reactions[m.id] && CHAT_reactions[m.id].my_reaction;
+    var reactionCounts = (CHAT_reactions[m.id] && CHAT_reactions[m.id].counts) || {};
+    var reactionPills = Object.keys(reactionCounts).map(function (emo) {
+      return '<span class="reaction-pill' + (emo === myReaction ? ' mine' : '') + '" onclick="event.stopPropagation();toggleReaction(\'' + m.id + '\',\'' + emo + '\')">' + emo + ' ' + reactionCounts[emo] + '</span>';
+    }).join('');
+    var reactionRow = reactionPills ? '<div class="reaction-row">' + reactionPills + '</div>' : '';
+
     return dateSep +
       '<div class="msg-wrap' + (isMe ? ' me' : '') + '" id="msg-' + m.id + '" data-id="' + m.id + '">' +
         miniAv +
-        '<div class="' + bubbleClass + '" data-msg-id="' + m.id + '" ' +
-          'oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')">' +
-          inner +
-          '<div class="swipe-reply-icon">↩️</div>' +
+        '<div style="display:flex;flex-direction:column;' + (isMe ? 'align-items:flex-end' : 'align-items:flex-start') + '">' +
+          '<div class="' + bubbleClass + '" data-msg-id="' + m.id + '" ' +
+            'oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')">' +
+            inner +
+            '<div class="swipe-reply-icon">↩️</div>' +
+          '</div>' +
+          reactionRow +
         '</div>' +
       '</div>';
   }).join('');
@@ -538,7 +698,7 @@ function _attachMessageGestures(cont) {
       dragging = true;
       moved = false;
       longPressTimer = setTimeout(function () {
-        if (!moved) showCtx(t, msgId);
+        if (!moved) showQuickReact(t, msgId);
       }, 500);
     }, { passive: true });
 
@@ -619,11 +779,57 @@ window.onChatType = function () {
   document.getElementById('voice-rec-btn').style.display  = has ? 'none' : 'flex';
   document.getElementById('attach-sheet').classList.remove('open');
 
-  // Typing indicator placeholder (just UI — no backend)
+  // Broadcast "I'm typing" to the server, throttled to once per 2s so we
+  // don't spam a request on every keystroke. The server entry has a 5s TTL,
+  // so as long as the user keeps typing within that window it stays fresh.
+  if (has && CHAT_curRoom && !CHAT_typingThrottled) {
+    CHAT_typingThrottled = true;
+    api.post('/chat/typing', { room_id: CHAT_curRoom.id }).catch(function () {});
+    setTimeout(function () { CHAT_typingThrottled = false; }, 2000);
+  }
+
   clearTimeout(CHAT_typingTimer);
   CHAT_typingTimer = setTimeout(function () {}, 2000);
 };
 var CHAT_typingTimer = null;
+var CHAT_typingThrottled = false;
+var CHAT_typingPollInterval = null;
+
+// Poll every 2s for "who's typing" in the currently-open room.
+function _startTypingPoll() {
+  clearInterval(CHAT_typingPollInterval);
+  CHAT_typingPollInterval = setInterval(function () {
+    if (!CHAT_curRoom) return;
+    api.get('/chat/typing?room_id=' + encodeURIComponent(CHAT_curRoom.id))
+      .then(function (res) { _renderTypingBar(res.typing || []); })
+      .catch(function () {});
+  }, 2000);
+}
+function _stopTypingPoll() {
+  clearInterval(CHAT_typingPollInterval);
+  CHAT_typingPollInterval = null;
+  _renderTypingBar([]);
+}
+
+function _renderTypingBar(typingUsers) {
+  var bar = document.getElementById('typing-bar');
+  var label = document.getElementById('typing-label');
+  if (!bar || !label) return;
+
+  if (!typingUsers.length) {
+    bar.style.display = 'none';
+    return;
+  }
+
+  var names = typingUsers.map(function (t) { return t.user_nick || 'Someone'; });
+  var text;
+  if (names.length === 1) text = names[0] + ' is typing...';
+  else if (names.length === 2) text = names[0] + ' and ' + names[1] + ' are typing...';
+  else text = names.length + ' people are typing...';
+
+  label.textContent = text;
+  bar.style.display = 'flex';
+}
 
 window.onChatKey = function (e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMsg(); }
@@ -688,6 +894,8 @@ window.toggleVoiceRec = function () {
         CHAT_recPeaks  = [];
         CHAT_recStart  = Date.now();
         CHAT_isRecording = true;
+        CHAT_recCancelled = false;
+        CHAT_recLocked = false;
         var btn = document.getElementById('voice-rec-btn');
         if (btn) { btn.textContent = '⏹️'; btn.classList.add('rec'); }
         _showRecordingBar();
@@ -725,6 +933,11 @@ window.toggleVoiceRec = function () {
           if (btn2) { btn2.textContent = '🎙️'; btn2.classList.remove('rec'); }
           stream.getTracks().forEach(function (t) { t.stop(); });
 
+          if (CHAT_recCancelled) {
+            toast('🗑 Recording discarded');
+            return;
+          }
+
           var dur  = Math.round((Date.now() - CHAT_recStart) / 1000);
           var durStr = Math.floor(dur / 60) + ':' + String(dur % 60).padStart(2, '0');
 
@@ -751,13 +964,111 @@ window.toggleVoiceRec = function () {
 };
 window.startVoiceRec = window.toggleVoiceRec;
 
+// ── Slide-to-Lock / Slide-to-Cancel gesture (drag the mic button) ──
+var CHAT_recCancelled  = false;
+var CHAT_recLocked     = false;
+var CHAT_micStartX     = 0;
+var CHAT_micStartY     = 0;
+var CHAT_micDragActive = false;
+
+window._micTouchStart = function (e) {
+  var t = e.touches[0];
+  CHAT_micStartX = t.clientX;
+  CHAT_micStartY = t.clientY;
+  CHAT_micDragActive = true;
+  // Begin recording immediately on press (Telegram/WhatsApp behavior),
+  // unless there's already text in the input (send button takes over instead).
+  var inp = document.getElementById('chat-input');
+  if (inp && (inp.value || '').trim().length > 0) { CHAT_micDragActive = false; return; }
+  if (!CHAT_isRecording) toggleVoiceRec();
+};
+
+window._micTouchMove = function (e) {
+  if (!CHAT_micDragActive || !CHAT_isRecording || CHAT_recLocked) return;
+  var t = e.touches[0];
+  var dx = t.clientX - CHAT_micStartX;
+  var dy = t.clientY - CHAT_micStartY;
+
+  // Sliding LEFT past threshold → cancel
+  var hint = document.getElementById('rec-live-hint');
+  if (dx < -80) {
+    if (hint) hint.textContent = '🗑 Release to cancel';
+    CHAT_recPendingCancel = true;
+  } else {
+    if (hint) hint.textContent = '← slide to cancel';
+    CHAT_recPendingCancel = false;
+  }
+
+  // Sliding UP past threshold → lock (hands-free recording)
+  var lockIcon = document.getElementById('rec-lock-icon');
+  if (dy < -60) {
+    _lockVoiceRecording();
+  } else if (lockIcon) {
+    lockIcon.style.transform = 'translateY(' + Math.max(dy, -60) + 'px)';
+  }
+};
+
+window._micTouchEnd = function (e) {
+  if (!CHAT_micDragActive) return;
+  CHAT_micDragActive = false;
+
+  if (CHAT_recLocked) {
+    // Locked — recording continues hands-free, user must tap send/cancel buttons.
+    return;
+  }
+  if (!CHAT_isRecording) return;
+
+  if (CHAT_recPendingCancel) {
+    cancelVoiceRec();
+  } else {
+    toggleVoiceRec(); // stop + send
+  }
+  CHAT_recPendingCancel = false;
+};
+var CHAT_recPendingCancel = false;
+
+function _lockVoiceRecording() {
+  CHAT_recLocked = true;
+  var lockIndicator = document.getElementById('rec-lock-indicator');
+  if (lockIndicator) lockIndicator.style.display = 'none';
+  var hint = document.getElementById('rec-live-hint');
+  if (hint) hint.style.display = 'none';
+  var sendBtn = document.getElementById('rec-locked-send-btn');
+  var cancelBtn = document.getElementById('rec-locked-cancel-btn');
+  if (sendBtn) sendBtn.style.display = 'flex';
+  if (cancelBtn) cancelBtn.style.display = 'block';
+  toast('🔒 Recording locked — hands-free');
+}
+
+window.stopVoiceRecAndSend = function () {
+  CHAT_recCancelled = false;
+  if (CHAT_mediaRec && CHAT_mediaRec.state !== 'inactive') CHAT_mediaRec.stop();
+};
+
+window.cancelVoiceRec = function () {
+  CHAT_recCancelled = true;
+  if (CHAT_mediaRec && CHAT_mediaRec.state !== 'inactive') CHAT_mediaRec.stop();
+};
+
 function _showRecordingBar() {
   var bar = document.getElementById('rec-live-bar');
   if (bar) bar.style.display = 'flex';
+  var lockIndicator = document.getElementById('rec-lock-indicator');
+  if (lockIndicator) lockIndicator.style.display = 'flex';
+  var hint = document.getElementById('rec-live-hint');
+  if (hint) { hint.style.display = 'block'; hint.textContent = '← slide to cancel'; }
+  var sendBtn = document.getElementById('rec-locked-send-btn');
+  var cancelBtn = document.getElementById('rec-locked-cancel-btn');
+  if (sendBtn) sendBtn.style.display = 'none';
+  if (cancelBtn) cancelBtn.style.display = 'none';
 }
 function _hideRecordingBar() {
   var bar = document.getElementById('rec-live-bar');
   if (bar) bar.style.display = 'none';
+  var lockIndicator = document.getElementById('rec-lock-indicator');
+  if (lockIndicator) lockIndicator.style.display = 'none';
+  var lockIcon = document.getElementById('rec-lock-icon');
+  if (lockIcon) lockIcon.style.transform = 'translateY(0)';
 }
 function _updateRecordingBar(level) {
   var fill = document.getElementById('rec-live-level');
@@ -917,6 +1228,36 @@ window.showCtx = function (e, msgId) {
   menu.style.top  = Math.min(y, window.innerHeight - 200) + 'px';
 };
 
+window.toggleReaction = function (msgId, emoji) {
+  api.post('/chat/reactions', { message_id: msgId, emoji: emoji })
+    .then(function (res) {
+      CHAT_reactions[msgId] = { counts: res.reactions, my_reaction: res.my_reaction };
+      renderMessages(false);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+  var qr = document.getElementById('quick-react-bar');
+  if (qr) qr.style.display = 'none';
+};
+
+window.showQuickReact = function (e, msgId) {
+  var bar = document.getElementById('quick-react-bar');
+  if (!bar) return;
+  CHAT_ctxMsg = CHAT_messages.find(function (m) { return m.id === msgId; });
+  bar.dataset.msgId = msgId;
+  var x = (e.clientX || (e.touches && e.touches[0].clientX) || 0);
+  var y = (e.clientY || (e.touches && e.touches[0].clientY) || 0);
+  bar.style.left = Math.min(x, window.innerWidth - 240) + 'px';
+  bar.style.top  = Math.max(y - 50, 10) + 'px';
+  bar.style.display = 'flex';
+};
+
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('#quick-react-bar')) {
+    var qr = document.getElementById('quick-react-bar');
+    if (qr) qr.style.display = 'none';
+  }
+});
+
 window.ctxReply = function () {
   if (CHAT_ctxMsg) _setReply(CHAT_ctxMsg);
   document.getElementById('ctx-menu').classList.remove('open');
@@ -930,6 +1271,22 @@ window.ctxCopy = function () {
 window.ctxForward = function () {
   toast('📤 Forward: coming soon');
   document.getElementById('ctx-menu').classList.remove('open');
+};
+window.ctxEdit = function () {
+  document.getElementById('ctx-menu').classList.remove('open');
+  if (!CHAT_ctxMsg) return;
+  var meId = STATE.user && STATE.user.id;
+  if (CHAT_ctxMsg.sender_id !== meId) return toast('⚠ You can only edit your own messages.');
+  if (CHAT_ctxMsg.type !== 'text') return toast('⚠ Only text messages can be edited.');
+
+  var newText = prompt('Edit message:', CHAT_ctxMsg.text || '');
+  if (newText === null) return;
+  newText = newText.trim();
+  if (!newText) return toast('⚠ Message cannot be empty.');
+
+  api.put('/chat', { id: CHAT_ctxMsg.id, text: newText })
+    .then(function () { loadMessages(true); toast('✏️ Message edited'); })
+    .catch(function (err) { toast('❌ ' + err.message); });
 };
 window.ctxDelete = function () {
   if (!CHAT_ctxMsg) return;
@@ -1015,7 +1372,16 @@ window.createNewGroup = function () {
   var emoji = sel ? sel.value : '👥';
   if (name.length < 2) return toast('⚠ Name must be at least 2 characters.');
 
-  api.post('/chat/rooms', { type: 'group', name: name, emoji: emoji })
+  var isPublic = document.getElementById('new-group-public-toggle').classList.contains('on');
+  var everyoneCanWrite = document.getElementById('new-group-writeall-toggle').classList.contains('on');
+
+  api.post('/chat/rooms', {
+    type: 'group',
+    name: name,
+    emoji: emoji,
+    visibility: isPublic ? 'public' : 'private',
+    read_only: !everyoneCanWrite,
+  })
     .then(function (res) {
       document.getElementById('new-group-modal').classList.remove('open');
       toast('✅ Group "' + name + '" created!');
@@ -1076,6 +1442,26 @@ window._seekVoice = function (e, msgId) {
   var rect = barsEl.getBoundingClientRect();
   var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
   aud.currentTime = pct * aud.duration;
+};
+
+window._toggleVoiceSpeed = function (msgId) {
+  var aud = document.getElementById('aud-' + msgId);
+  var btn = document.getElementById('vspeed-' + msgId);
+  if (!aud || !btn) return;
+  var newRate = aud.playbackRate >= 2 ? 1 : 2;
+  aud.playbackRate = newRate;
+  btn.textContent = newRate + 'x';
+};
+
+window._openOnceVoice = function (msgId, mediaUrl) {
+  if (!confirm('This voice message will disappear after you listen to it. Continue?')) return;
+  var aud = new Audio(mediaUrl);
+  aud.play().catch(function () {});
+  // Mark as opened locally and on the server (reuses the same view-once mechanism as media).
+  var msg = CHAT_messages.find(function (m) { return m.id === msgId; });
+  if (msg) msg.opened = true;
+  api.put('/chat', { id: msgId, opened: true }).catch(function () {});
+  renderMessages(false);
 };
 
 window._playVoice = function (msgId, btn) {
