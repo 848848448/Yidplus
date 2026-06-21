@@ -81,7 +81,11 @@
 <!-- ══ HOME SCREEN ══ -->
 <div class="screen" id="screen-home">
   <div class="topbar">
-    <div class="topbar-logo">👑 <span class="app-title-display" id="home-app-title">YID PLUS</span></div>
+    <div class="topbar-logo" id="topbar-logo-wrap">
+      <img id="topbar-logo-img" src="images/logo.png" alt="YID PLUS" style="height:30px;width:auto;object-fit:contain">
+      <span id="topbar-logo-fallback" style="display:none">👑</span>
+      <span class="app-title-display" id="home-app-title" style="display:none">YID PLUS</span>
+    </div>
     <div style="display:flex;gap:.5rem">
       <div class="icon-btn" onclick="toast('Search')">🔍</div>
       <div class="icon-btn" style="position:relative" onclick="goPage('yidplus-chat.html')">🔔<div class="badge" id="notif-badge">3</div></div>
@@ -469,4 +473,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-      </html>
+        </html>
