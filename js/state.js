@@ -500,4 +500,4 @@ window.addEventListener('beforeunload', function () {
   Presence.stop();
 });
 
-console.log('[YID PLUS] state.js loaded — Cloudflare D1/R2 mode ✓');
+console.log('[YID PLUS] state.js loaded — Cloudflare D1/R2 mode ✓ — build v2026-06-21-handleRes-fix');
