@@ -529,6 +529,7 @@ body.night {
 .reply-quote strong { color: var(--blue); display: block; font-size: .7rem; }
 .bubble-meta { display: flex; align-items: center; justify-content: flex-end; gap: .3rem; margin-top: .2rem; }
 .bubble-time { font-size: .6rem; color: var(--muted2); }
+.edited-tag { font-size: .6rem; color: var(--muted2); font-style: italic; margin-right: .25rem; }
 .read-ticks  { font-size: .65rem; color: var(--blue); }
 
 .voice-msg   { display: flex; align-items: center; gap: .65rem; min-width: 210px; padding: .15rem 0; }
@@ -536,6 +537,7 @@ body.night {
 .play-voice:active { transform: scale(.92); }
 .voice-bars  { display: flex; align-items: center; gap: 2px; flex: 1; height: 28px; cursor: pointer; }
 .voice-dur   { font-size: .72rem; color: var(--muted); flex-shrink: 0; min-width: 32px; }
+.voice-speed-btn { font-size: .62rem; color: var(--blue); background: rgba(21,101,192,.08); border: none; border-radius: 8px; padding: .15rem .4rem; cursor: pointer; flex-shrink: 0; font-weight: 700; }
 
 .typing-bar  { display: flex; align-items: center; gap: .4rem; padding: .4rem .75rem; flex-shrink: 0; background: var(--bg2); }
 .typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: #999; animation: tdot 1.2s infinite; display: inline-block; margin: 0 1px; }
@@ -1055,3 +1057,13 @@ body.night {
 .sv-bar { flex: 1; height: 3px; background: rgba(255,255,255,.3); border-radius: 2px; overflow: hidden; }
 .sv-bar-fill { height: 100%; background: #fff; width: 0%; }
 .sv-bar-fill.done { width: 100%; }
+
+/* =============================================
+   MESSAGE REACTIONS
+   ============================================= */
+.quick-react-bar { position: fixed; z-index: 250; background: var(--surface); border-radius: 30px; padding: .4rem .5rem; display: flex; gap: .3rem; box-shadow: 0 4px 20px rgba(0,0,0,.25); border: 1px solid var(--border); }
+.qr-emoji { font-size: 1.3rem; cursor: pointer; padding: .1rem .2rem; transition: transform .12s; }
+.qr-emoji:active { transform: scale(1.3); }
+.reaction-row { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .25rem; }
+.reaction-pill { font-size: .72rem; background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: .15rem .5rem; cursor: pointer; display: inline-flex; align-items: center; gap: .2rem; }
+.reaction-pill.mine { background: rgba(21,101,192,.14); border-color: var(--blue); }
