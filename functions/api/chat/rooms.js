@@ -282,6 +282,23 @@ export async function onRequestPut(context) {
         .bind(body.make_admin ? 1 : 0, roomId, body.member_id).run();
     }
 
+    if (body.member_id && body.add === true) {
+      const alreadyMember = await env.DB.prepare(
+        `SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?`
+      ).bind(roomId, body.member_id).first();
+      if (alreadyMember) return json({ ok: false, error: 'This user is already a member' }, 409);
+
+      await env.DB.prepare(
+        `INSERT INTO room_members (room_id, user_id, is_group_admin, joined_at) VALUES (?, ?, 0, ?)`
+      ).bind(roomId, body.member_id, new Date().toISOString()).run();
+
+      const addedUser = await env.DB.prepare(`SELECT nickname FROM users WHERE id = ?`).bind(body.member_id).first();
+      await env.DB.prepare(
+        `INSERT INTO messages (id, room_id, sender_id, sender_nick, type, text, created_at, read)
+         VALUES (?, ?, ?, ?, 'system', ?, ?, 1)`
+      ).bind(crypto.randomUUID(), roomId, user.id, user.nickname || '', `${(addedUser && addedUser.nickname) || 'A member'} was added to the group`, new Date().toISOString()).run();
+    }
+
     if (body.member_id && body.remove === true) {
       // Group creator can't be removed via this path (avoids leaving a group admin-less by accident).
       const room = await env.DB.prepare(`SELECT created_by FROM rooms WHERE id = ?`).bind(roomId).first();
@@ -302,3 +319,43 @@ export async function onRequestPut(context) {
     return json({ ok: false, error: err.message }, 500);
   }
           }
+
+// DELETE /api/chat/rooms?room_id=xxx
+//   Group: removes the current user from the group (leave).
+//   Private DM: removes the room_members row for the current user only —
+//   the other person still sees the conversation; it just disappears from
+//   the current user's own chat list (matches Telegram/WhatsApp behavior).
+export async function onRequestDelete(context) {
+  const { request, env } = context;
+  try {
+    const user = await requireUser(request, env);
+    if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
+
+    const url = new URL(request.url);
+    const roomId = url.searchParams.get('room_id');
+    if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
+
+    const room = await env.DB.prepare(`SELECT type, created_by FROM rooms WHERE id = ?`).bind(roomId).first();
+    if (!room) return json({ ok: false, error: 'Room not found' }, 404);
+
+    await env.DB.prepare(`DELETE FROM room_members WHERE room_id = ? AND user_id = ?`).bind(roomId, user.id).run();
+
+    if (room.type === 'group') {
+      const remaining = await env.DB.prepare(`SELECT COUNT(*) AS c FROM room_members WHERE room_id = ?`).bind(roomId).first();
+      if (remaining && remaining.c === 0) {
+        // Last member left — clean up the now-empty group entirely.
+        await env.DB.prepare(`DELETE FROM messages WHERE room_id = ?`).bind(roomId).run();
+        await env.DB.prepare(`DELETE FROM rooms WHERE id = ?`).bind(roomId).run();
+      } else {
+        await env.DB.prepare(
+          `INSERT INTO messages (id, room_id, sender_id, sender_nick, type, text, created_at, read)
+           VALUES (?, ?, ?, ?, 'system', ?, ?, 1)`
+        ).bind(crypto.randomUUID(), roomId, user.id, user.nickname || '', `${user.nickname || 'Someone'} left the group`, new Date().toISOString()).run();
+      }
+    }
+
+    return json({ ok: true });
+  } catch (err) {
+    return json({ ok: false, error: err.message }, 500);
+  }
+      }
