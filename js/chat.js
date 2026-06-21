@@ -287,6 +287,13 @@ window.openChatRoom = function (roomId) {
   ib.style.opacity = inputDisabled ? '.4' : '1';
   ib.style.pointerEvents = inputDisabled ? 'none' : 'all';
 
+  // Make a silent lockout impossible to miss — explain exactly why typing/attaching is blocked.
+  if (lockedForReadOnly) {
+    toast('🔒 This group is read-only. Only admins can send messages.');
+  } else if (room.admin_spectating) {
+    toast('👁 You are viewing as Admin. Join the group to send messages.');
+  }
+
   // Reply bar
   document.getElementById('reply-bar').style.display = 'none';
   document.getElementById('sticker-tray').classList.remove('open');
