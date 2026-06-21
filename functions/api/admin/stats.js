@@ -13,4 +13,4 @@ export async function onRequestGet(context) {
     const online = await env.DB.prepare('SELECT COUNT(*) AS c FROM users WHERE online = 1').first();
     return json({ ok: true, stats: { users: users.c, posts: posts.c, shorts: shorts.c, messages: msgs.c, online: online.c } });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
-}
+      }
