@@ -248,7 +248,7 @@ function buildPostCard(p) {
 
   article.innerHTML =
     // Header
-    '<div style="display:flex;align-items:center;gap:.6rem;padding:.75rem;cursor:pointer" onclick="openChannel(\'' + escHtml(nick) + '\')">' +
+    '<div style="display:flex;align-items:center;gap:.6rem;padding:.75rem;cursor:pointer" onclick="openChannel(\'' + escHtml(p.user_id || '') + '\')">' +
       '<div style="width:38px;height:38px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1.1rem;border:1px solid var(--border);flex-shrink:0">' +
         escHtml(nick.charAt(0).toUpperCase()) +
       '</div>' +
@@ -1028,4 +1028,163 @@ window.saveProfile = function () {
     .catch(function (err) {
       toast('❌ ' + err.message);
     });
+};
+
+// ============================================================
+// CHANNEL PAGE — view a user's public channel (posts + shorts wall)
+// Loaded via openChannel(ownerId) or navTo('channel') with
+// CHANNEL_pendingOwnerId pre-set (used for cross-page URL loads).
+// ============================================================
+var CHANNEL_current = null;       // currently loaded channel data
+var CHANNEL_pendingOwnerId = null; // set by boot logic when arriving via ?channel=xxx
+
+window.init_channel = function () {
+  var ownerId = CHANNEL_pendingOwnerId;
+  CHANNEL_pendingOwnerId = null;
+  if (!ownerId && CHANNEL_current) ownerId = CHANNEL_current.owner_id;
+  if (!ownerId) { toast('⚠ No channel selected.'); navTo('home'); return; }
+
+  _loadChannel(ownerId);
+};
+
+function _loadChannel(ownerId) {
+  var nameEl = document.getElementById('ch-name');
+  if (nameEl) nameEl.textContent = 'Loading...';
+
+  api.get('/channels?owner_id=' + encodeURIComponent(ownerId))
+    .then(function (res) {
+      CHANNEL_current = res.channel;
+      CHANNEL_current.owner_id = ownerId;
+      _renderChannelHeader(res.channel);
+      _renderChannelWall(res.wall || []);
+    })
+    .catch(function (err) {
+      toast('❌ ' + err.message);
+      navTo('home');
+    });
+}
+
+function _renderChannelHeader(ch) {
+  var initial = (ch.nickname || '?').slice(0, 1).toUpperCase();
+
+  document.getElementById('ch-cover-emoji').textContent = '📡';
+  var avatarBig = document.getElementById('ch-avatar-big');
+  avatarBig.textContent = initial;
+  avatarBig.style.backgroundImage = '';
+
+  var nameEl = document.getElementById('ch-name');
+  nameEl.textContent = ch.nickname || 'Channel';
+  nameEl.style.direction = 'rtl';
+
+  document.getElementById('ch-handle').textContent = '@' + (ch.nickname || 'user');
+  document.getElementById('ch-bio').textContent = ch.bio || '';
+  document.getElementById('ch-followers').textContent = fmtN(ch.followers || 0);
+  document.getElementById('ch-following').textContent = fmtN(ch.following || 0);
+  document.getElementById('ch-views').textContent = fmtN(ch.total_views || 0);
+
+  // Follow button state — uses a simple localStorage-backed "following" set
+  // since there's no dedicated channel-follow table yet.
+  var following = _isFollowingChannel(ch.owner_id);
+  var followBtn = document.getElementById('ch-follow-btn');
+  followBtn.textContent = following ? '✓ Following' : '+ Follow';
+  followBtn.classList.toggle('following', following);
+
+  // Reset to Shorts tab
+  var tabs = document.querySelectorAll('.screen#screen-channel .chtab');
+  tabs.forEach(function (t, i) { t.classList.toggle('active', i === 0); });
+  document.getElementById('ch-shorts-tab').style.display = 'block';
+  document.getElementById('ch-music-tab').style.display = 'none';
+  document.getElementById('ch-about-tab').style.display = 'none';
+}
+
+function _renderChannelWall(wall) {
+  var shorts = wall.filter(function (w) { return w.wall_type === 'short'; });
+  var posts  = wall.filter(function (w) { return w.wall_type === 'post'; });
+
+  document.getElementById('ch-shorts-ct').textContent = fmtN(shorts.length);
+
+  var grid = document.getElementById('ch-grid');
+  if (!shorts.length && !posts.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:2rem;text-align:center;font-size:.82rem;color:var(--muted)">No content yet</div>';
+  } else {
+    grid.innerHTML = shorts.map(function (s) {
+      return '<div class="ch-grid-item" style="position:relative;aspect-ratio:9/16;background:var(--bg3);border-radius:8px;overflow:hidden;cursor:pointer" onclick="goPage(\'yidplus-shorts.html\')">' +
+        (s.media_url ? '<video src="' + s.media_url + '" muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" preload="metadata"></video>' : '') +
+        '<div style="position:absolute;bottom:.3rem;left:.3rem;font-size:.65rem;color:#fff;background:rgba(0,0,0,.5);padding:.1rem .35rem;border-radius:4px">▶ ' + fmtN(s.likes || 0) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // About tab content
+  var aboutEl = document.getElementById('ch-about-content');
+  if (aboutEl) {
+    aboutEl.innerHTML =
+      '<div style="font-size:.85rem;line-height:1.6;color:var(--text)">' +
+        (CHANNEL_current.bio ? escHtml(CHANNEL_current.bio) : '<span style="color:var(--muted)">No bio yet.</span>') +
+      '</div>' +
+      '<div style="margin-top:1rem;font-size:.75rem;color:var(--muted)">' +
+        posts.length + ' posts · ' + shorts.length + ' shorts' +
+      '</div>';
+  }
+}
+
+function _isFollowingChannel(ownerId) {
+  try {
+    var set = JSON.parse(localStorage.getItem('yp_following') || '[]');
+    return set.indexOf(ownerId) !== -1;
+  } catch (e) { return false; }
+}
+
+window.toggleChFollow = function () {
+  if (!STATE.user) return toast('⚠ Please sign in first.');
+  if (!CHANNEL_current) return;
+  var ownerId = CHANNEL_current.owner_id;
+
+  var set = [];
+  try { set = JSON.parse(localStorage.getItem('yp_following') || '[]'); } catch (e) {}
+
+  var idx = set.indexOf(ownerId);
+  var nowFollowing;
+  if (idx === -1) { set.push(ownerId); nowFollowing = true; }
+  else { set.splice(idx, 1); nowFollowing = false; }
+
+  localStorage.setItem('yp_following', JSON.stringify(set));
+
+  var followBtn = document.getElementById('ch-follow-btn');
+  followBtn.textContent = nowFollowing ? '✓ Following' : '+ Follow';
+  followBtn.classList.toggle('following', nowFollowing);
+
+  var countEl = document.getElementById('ch-followers');
+  var current = parseInt((countEl.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
+  countEl.textContent = fmtN(Math.max(0, current + (nowFollowing ? 1 : -1)));
+
+  toast(nowFollowing ? '✅ Following @' + CHANNEL_current.nickname : '➖ Unfollowed');
+};
+
+window.switchChTab = function (btn, tab) {
+  document.querySelectorAll('.screen#screen-channel .chtab').forEach(function (b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('ch-shorts-tab').style.display = (tab === 'shorts') ? 'block' : 'none';
+  document.getElementById('ch-music-tab').style.display  = (tab === 'music')  ? 'block' : 'none';
+  document.getElementById('ch-about-tab').style.display  = (tab === 'about')  ? 'block' : 'none';
+
+  if (tab === 'music' && CHANNEL_current) {
+    var listEl = document.getElementById('ch-music-list');
+    listEl.innerHTML = '<div style="padding:1.5rem;text-align:center;font-size:.8rem;color:var(--muted)">Loading...</div>';
+    api.get('/music')
+      .then(function (res) {
+        var mine = (res.tracks || []).filter(function (t) { return t.owner_id === CHANNEL_current.owner_id; });
+        if (!mine.length) {
+          listEl.innerHTML = '<div style="padding:1.5rem;text-align:center;font-size:.8rem;color:var(--muted)">No tracks yet</div>';
+          return;
+        }
+        listEl.innerHTML = mine.map(function (t) {
+          return '<div style="display:flex;align-items:center;gap:.6rem;padding:.6rem 1rem;border-bottom:1px solid var(--border)">' +
+            '<div style="width:40px;height:40px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center">🎵</div>' +
+            '<div style="flex:1"><div style="font-size:.82rem;font-weight:700">' + escHtml(t.title) + '</div><div style="font-size:.68rem;color:var(--muted)">' + escHtml(t.artist) + '</div></div>' +
+          '</div>';
+        }).join('');
+      })
+      .catch(function () { listEl.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">Could not load music</div>'; });
+  }
 };
