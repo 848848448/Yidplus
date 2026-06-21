@@ -678,24 +678,34 @@ function renderMessages(scrollDown) {
         '<div class="bubble sticker">' + escHtml(m.text || '😊') + '</div>' +
       '</div>';
 
-    } else if (m.type === 'voice' && m.media_url) {
-      var voiceData = _parseVoicePacked(m.text);
-      var bars = voiceData.peaks.length ? _renderWaveBars(voiceData.peaks) : _fakeBars(20);
-      var isViewOnceVoice = m.view_once && !isMe;
-      if (isViewOnceVoice && m.opened) {
-        inner += '<div class="voice-msg" style="opacity:.5"><div style="font-size:.8rem;color:var(--muted)">🎤 Voice message opened</div></div>';
-      } else if (isViewOnceVoice) {
-        inner += '<div class="voice-msg" onclick="_openOnceVoice(\'' + m.id + '\',\'' + m.media_url + '\')" style="cursor:pointer">' +
-          '<div class="play-voice" style="background:var(--gold-d)"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23c-4.97 0-9-3.5-9-8 0-2.3 1-4.3 2.5-6C6 8 6.5 6.5 7 5c1.5 2 2.5 4 2.5 6 0 .8-.2 1.5-.5 2 1.5-1 2.5-2.5 3-4.5 2 1.5 4 4 4 6.5 0 4.5-4.03 8-9 8z"/></svg></div>' +
-          '<div style="font-size:.8rem;flex:1">🔥 Tap to play once</div>' +
-        '</div>';
+    } else if (m.type === 'voice') {
+      if (m.media_url) {
+        var voiceData = _parseVoicePacked(m.text);
+        var bars = voiceData.peaks.length ? _renderWaveBars(voiceData.peaks) : _fakeBars(20);
+        var isViewOnceVoice = m.view_once && !isMe;
+        if (isViewOnceVoice && m.opened) {
+          inner += '<div class="voice-msg" style="opacity:.5"><div style="font-size:.8rem;color:var(--muted)">🎤 Voice message opened</div></div>';
+        } else if (isViewOnceVoice) {
+          inner += '<div class="voice-msg" onclick="_openOnceVoice(\'' + m.id + '\',\'' + m.media_url + '\')" style="cursor:pointer">' +
+            '<div class="play-voice" style="background:var(--gold-d)"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23c-4.97 0-9-3.5-9-8 0-2.3 1-4.3 2.5-6C6 8 6.5 6.5 7 5c1.5 2 2.5 4 2.5 6 0 .8-.2 1.5-.5 2 1.5-1 2.5-2.5 3-4.5 2 1.5 4 4 4 6.5 0 4.5-4.03 8-9 8z"/></svg></div>' +
+            '<div style="font-size:.8rem;flex:1">🔥 Tap to play once</div>' +
+          '</div>';
+        } else {
+          inner += '<div class="voice-msg">' +
+            '<audio src="' + m.media_url + '" id="aud-' + m.id + '" preload="metadata"></audio>' +
+            '<button class="play-voice" onclick="_playVoice(\'' + m.id + '\',this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>' +
+            '<div class="voice-bars" id="vbars-' + m.id + '" onclick="_seekVoice(event,\'' + m.id + '\')">' + bars + '</div>' +
+            '<div class="voice-dur" id="vdur-' + m.id + '">' + (voiceData.dur || '0:00') + '</div>' +
+            '<button class="voice-speed-btn" id="vspeed-' + m.id + '" onclick="_toggleVoiceSpeed(\'' + m.id + '\')">1x</button>' +
+          '</div>';
+        }
       } else {
-        inner += '<div class="voice-msg">' +
-          '<audio src="' + m.media_url + '" id="aud-' + m.id + '" preload="metadata"></audio>' +
-          '<button class="play-voice" onclick="_playVoice(\'' + m.id + '\',this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>' +
-          '<div class="voice-bars" id="vbars-' + m.id + '" onclick="_seekVoice(event,\'' + m.id + '\')">' + bars + '</div>' +
-          '<div class="voice-dur" id="vdur-' + m.id + '">' + (voiceData.dur || '0:00') + '</div>' +
-          '<button class="voice-speed-btn" id="vspeed-' + m.id + '" onclick="_toggleVoiceSpeed(\'' + m.id + '\')">1x</button>' +
+        // The audio file reference is missing (e.g. an upload that failed
+        // before today's fixes). Show a clear broken-state instead of
+        // dumping the raw waveform-data string as plain text.
+        inner += '<div class="voice-msg" style="opacity:.6">' +
+          '<div class="play-voice" style="background:var(--muted2)">⚠️</div>' +
+          '<div style="font-size:.78rem;flex:1">Voice message unavailable</div>' +
         '</div>';
       }
 
