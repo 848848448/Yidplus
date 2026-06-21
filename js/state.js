@@ -174,13 +174,28 @@ window.goPage = function (page) {
 // ============================================================
 // ROLE / PERMISSION HELPERS
 // ============================================================
+// window.ADMIN_GATE_SESSION is set by admin.js after a successful
+// email+PIN gate unlock: { email, role }. When present, these helpers
+// trust THAT verified identity over STATE.user — this matters because
+// the gate intentionally allows unlocking with any authorized admin
+// email, which may differ from whichever account the browser is
+// currently logged into as a regular user.
 window.isOwner = function () {
+  if (window.ADMIN_GATE_SESSION) return window.ADMIN_GATE_SESSION.email === CONFIG.OWNER_EMAIL;
   return !!(STATE.user && STATE.user.email === CONFIG.OWNER_EMAIL);
 };
 window.isSuperAdmin = function () {
+  if (window.ADMIN_GATE_SESSION) {
+    return isOwner() || window.ADMIN_GATE_SESSION.role === 'admin_super';
+  }
   return !!(STATE.user && (STATE.user.role === 'admin_super' || isOwner()));
 };
 window.isAnyAdmin = function () {
+  if (window.ADMIN_GATE_SESSION) {
+    return isOwner() ||
+      window.ADMIN_GATE_SESSION.role === 'admin_super' ||
+      window.ADMIN_GATE_SESSION.role === 'admin_limited';
+  }
   return !!(STATE.user && (
     STATE.user.role === 'admin_super' ||
     STATE.user.role === 'admin_limited' ||
@@ -188,7 +203,7 @@ window.isAnyAdmin = function () {
   ));
 };
 window.userCan = function (action) {
-  if (!STATE.user) return false;
+  if (!STATE.user && !window.ADMIN_GATE_SESSION) return false;
   switch (action) {
     case 'delete_content': return isAnyAdmin();
     case 'view_pii':       return isSuperAdmin();
