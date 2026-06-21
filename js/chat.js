@@ -100,22 +100,99 @@ function renderChatList() {
     var timeText = c.last_time ? _fmt12(c.last_time) : '';
     var unreadBadge = c.unread ? '<div class="unread-badge">' + c.unread + '</div>' : '';
 
-    return '<div class="chat-item' + (c.unread ? ' unread' : '') + '" onclick="openChatRoom(\'' + c.id + '\')">' +
-      '<div class="' + avClass + '" style="' + avStyle + '">' + avatarContent + onlineDot + '</div>' +
-      '<div style="flex:1;min-width:0;direction:rtl;text-align:right">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.2rem">' +
-          '<div style="font-size:.63rem;color:var(--muted);flex-shrink:0">' + timeText + '</div>' +
-          '<div style="font-size:.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px">' + escHtml(c.nick || 'Chat') + '</div>' +
+    return '<div class="chat-item-wrap" data-room-id="' + c.id + '">' +
+      '<div class="chat-item-delete" onclick="event.stopPropagation();deleteChatRoom(\'' + c.id + '\',\'' + escHtml((c.nick || 'Chat')).replace(/'/g, "\\'") + '\')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></div>' +
+      '<div class="chat-item' + (c.unread ? ' unread' : '') + '" onclick="_chatItemClick(event,\'' + c.id + '\')">' +
+        '<div class="' + avClass + '" style="' + avStyle + '">' + avatarContent + onlineDot + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.2rem;gap:.5rem">' +
+            '<div style="font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start">' + escHtml(c.nick || 'Chat') + '</div>' +
+            '<div style="font-size:.68rem;color:var(--muted);flex-shrink:0">' + timeText + '</div>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">' +
+            '<div style="font-size:.8rem;color:' + (c.unread ? 'var(--text)' : 'var(--muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1">' + escHtml(previewText) + '</div>' +
+            unreadBadge +
+          '</div>' +
+          ((!c.joined && isGroup) ? '<div style="font-size:.65rem;color:var(--gold-d);margin-top:.2rem">Tap to Join</div>' : '') +
         '</div>' +
-        '<div style="display:flex;align-items:center;justify-content:space-between">' +
-          unreadBadge +
-          '<div style="font-size:.78rem;color:' + (c.unread ? 'var(--text)' : 'var(--muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">' + escHtml(previewText) + '</div>' +
-        '</div>' +
-        ((!c.joined && isGroup) ? '<div style="font-size:.65rem;color:var(--gold-d);margin-top:.2rem">Tap to Join</div>' : '') +
       '</div>' +
     '</div>';
   }).join('');
+
+  _attachChatSwipeGestures();
 }
+
+// Swipe-left-to-reveal-delete on each chat row (mirrors the gesture used for
+// message swipe-to-reply, but horizontal-only and limited to one row at a time).
+function _attachChatSwipeGestures() {
+  document.querySelectorAll('.chat-item-wrap').forEach(function (wrap) {
+    var item = wrap.querySelector('.chat-item');
+    var startX = 0, startY = 0, dragging = false, moved = false;
+
+    item.addEventListener('touchstart', function (e) {
+      var t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
+      dragging = true;
+      moved = false;
+    }, { passive: true });
+
+    item.addEventListener('touchmove', function (e) {
+      if (!dragging) return;
+      var t = e.touches[0];
+      var dx = t.clientX - startX;
+      var dy = t.clientY - startY;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved = true;
+      // Only react to clearly-horizontal, leftward drags.
+      if (Math.abs(dx) > Math.abs(dy) && dx < -20) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    item.addEventListener('touchend', function (e) {
+      if (!dragging) return;
+      dragging = false;
+      var t = e.changedTouches[0];
+      var dx = t.clientX - startX;
+      if (moved && dx < -45) {
+        document.querySelectorAll('.chat-item.swiped').forEach(function (other) {
+          if (other !== item) other.classList.remove('swiped');
+        });
+        item.classList.add('swiped');
+      } else if (moved && dx > 20) {
+        item.classList.remove('swiped');
+      }
+    });
+  });
+
+  // Tapping anywhere else closes any open swipe-delete row.
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.chat-item-wrap')) {
+      document.querySelectorAll('.chat-item.swiped').forEach(function (i) { i.classList.remove('swiped'); });
+    }
+  });
+}
+
+// A swiped-open row should close on tap rather than navigate into the chat.
+window._chatItemClick = function (e, roomId) {
+  var item = e.currentTarget;
+  if (item.classList.contains('swiped')) {
+    item.classList.remove('swiped');
+    return;
+  }
+  openChatRoom(roomId);
+};
+
+window.deleteChatRoom = function (roomId, nick) {
+  if (!confirm('Delete chat with "' + nick + '"? This removes it from your list.')) return;
+  api.del('/chat/rooms?room_id=' + encodeURIComponent(roomId))
+    .then(function () {
+      toast('🗑 Chat removed');
+      if (CHAT_curRoom && CHAT_curRoom.id === roomId) { CHAT_curRoom = null; navTo('chats'); }
+      loadChatRooms();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 window.filterChats = function () {
   CHAT_search = document.getElementById('chat-search').value || '';
@@ -210,13 +287,6 @@ window.openChatRoom = function (roomId) {
 // ============================================================
 // MEMBERS LIST
 // ============================================================
-function loadGroupMembers(roomId) {
-  api.get('/chat/rooms').then(function (res) {
-    var room = (res.rooms || []).find(function (r) { return r.id === roomId; });
-    if (room && room.member_list) CHAT_members = room.member_list;
-  }).catch(function () {});
-}
-
 window.openChatInfo = function () {
   if (!CHAT_curRoom) return;
   var isGroup = CHAT_curRoom.type === 'group';
@@ -338,6 +408,30 @@ window.saveAutoDelete = function () {
 };
 
 // Promote/demote a member to group sub-admin, or remove them — called from the members list.
+// Tapping a member's name in the group member list opens a private DM with
+// them ONLY if they're an admin (group admin or platform admin) — regular
+// members are not DM-able from here, by design.
+window._openMemberDM = function (memberId, nickname) {
+  var meId = STATE.user && STATE.user.id;
+  if (memberId === meId) return; // can't DM yourself
+
+  var member = (CHAT_members || []).find(function (m) { return m.id === memberId; });
+  var isAdminMember = member && (
+    member.is_group_admin ||
+    member.role === 'admin_super' ||
+    member.role === 'admin_limited'
+  );
+  if (!isAdminMember) return; // regular members: name tap does nothing
+
+  toast('💬 Opening private chat with @' + nickname + '...');
+  api.post('/chat/rooms', { type: 'private', other_user_id: memberId })
+    .then(function (res) {
+      loadChatRooms();
+      setTimeout(function () { openChatRoomById(res.room_id); }, 300);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
 window.toggleMemberGroupAdmin = function (memberId, makeAdmin) {
   if (!CHAT_curRoom) return;
   api.put('/chat/rooms', { room_id: CHAT_curRoom.id, member_id: memberId, make_admin: makeAdmin })
@@ -391,11 +485,12 @@ function _renderMembersList() {
         '<button onclick="event.stopPropagation();removeMemberFromGroup(\'' + m.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .4rem;font-size:.65rem;cursor:pointer;color:var(--red)">Remove</button>' +
       '</div>';
     }
+    var isMemberAdmin = m.is_group_admin || m.role === 'admin_super' || m.role === 'admin_limited';
     return '<div class="member-row-admin">' +
       '<div class="member-photo" style="' + photoStyle + '">' +
         (m.photo_url ? '' : (m.nickname || '?').slice(0, 1).toUpperCase()) +
       '</div>' +
-      '<div style="flex:1;direction:rtl;text-align:right"><div style="font-size:.85rem;font-weight:700">@' + escHtml(m.nickname || 'User') + '</div>' +
+      '<div style="flex:1;unicode-bidi:plaintext;text-align:start;' + (isMemberAdmin ? 'cursor:pointer' : '') + '" onclick="_openMemberDM(\'' + m.id + '\',\'' + escHtml(m.nickname || 'User').replace(/'/g, "\\'") + '\')"><div style="font-size:.85rem;font-weight:700">@' + escHtml(m.nickname || 'User') + '</div>' +
       (m.online ? '<div style="font-size:.68rem;color:var(--green)">● online</div>' : '<div style="font-size:.68rem;color:var(--muted)">offline</div>') +
       '</div>' +
       (m.role === 'admin_super' || m.role === 'admin_limited' ? '<span style="font-size:.65rem;background:#EAF4FF;color:var(--blue);border:1px solid #BBDEFB;border-radius:6px;padding:.1rem .4rem">Admin</span>' : '') +
@@ -428,7 +523,7 @@ function _renderInfoTab(tab) {
             var isVideo = /\.(mp4|webm|mov)$/i.test(m.media_key || '');
             return '<div style="aspect-ratio:1;background:#000;border-radius:4px;overflow:hidden;position:relative">' +
               (isVideo
-                ? '<video src="' + m.media_url + '" style="width:100%;height:100%;object-fit:cover"></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#fff">▶</div>'
+                ? '<video src="' + m.media_url + '" style="width:100%;height:100%;object-fit:cover"></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>'
                 : '<img src="' + m.media_url + '" style="width:100%;height:100%;object-fit:cover">') +
             '</div>';
           }).join('') + '</div>';
@@ -466,9 +561,14 @@ function _emptyTabMsg(icon, text) {
 window.confirmLeaveGroup = function () {
   if (!CHAT_curRoom) return;
   if (!confirm('Leave "' + CHAT_curRoom.nick + '"?')) return;
-  toast('You left the group.');
-  navTo('chats');
-  loadChatRooms();
+
+  api.del('/chat/rooms?room_id=' + encodeURIComponent(CHAT_curRoom.id))
+    .then(function () {
+      toast('You left the group.');
+      navTo('chats');
+      loadChatRooms();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
 };
 
 // ============================================================
@@ -586,13 +686,13 @@ function renderMessages(scrollDown) {
         inner += '<div class="voice-msg" style="opacity:.5"><div style="font-size:.8rem;color:var(--muted)">🎤 Voice message opened</div></div>';
       } else if (isViewOnceVoice) {
         inner += '<div class="voice-msg" onclick="_openOnceVoice(\'' + m.id + '\',\'' + m.media_url + '\')" style="cursor:pointer">' +
-          '<div class="play-voice" style="background:var(--gold-d)">1</div>' +
+          '<div class="play-voice" style="background:var(--gold-d)"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23c-4.97 0-9-3.5-9-8 0-2.3 1-4.3 2.5-6C6 8 6.5 6.5 7 5c1.5 2 2.5 4 2.5 6 0 .8-.2 1.5-.5 2 1.5-1 2.5-2.5 3-4.5 2 1.5 4 4 4 6.5 0 4.5-4.03 8-9 8z"/></svg></div>' +
           '<div style="font-size:.8rem;flex:1">🔥 Tap to play once</div>' +
         '</div>';
       } else {
         inner += '<div class="voice-msg">' +
           '<audio src="' + m.media_url + '" id="aud-' + m.id + '" preload="metadata"></audio>' +
-          '<button class="play-voice" onclick="_playVoice(\'' + m.id + '\',this)">▶</button>' +
+          '<button class="play-voice" onclick="_playVoice(\'' + m.id + '\',this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>' +
           '<div class="voice-bars" id="vbars-' + m.id + '" onclick="_seekVoice(event,\'' + m.id + '\')">' + bars + '</div>' +
           '<div class="voice-dur" id="vdur-' + m.id + '">' + (voiceData.dur || '0:00') + '</div>' +
           '<button class="voice-speed-btn" id="vspeed-' + m.id + '" onclick="_toggleVoiceSpeed(\'' + m.id + '\')">1x</button>' +
@@ -602,7 +702,7 @@ function renderMessages(scrollDown) {
     } else if (m.type === 'voice_text') {
       // Voice note without actual audio (fallback)
       inner += '<div class="voice-msg">' +
-        '<button class="play-voice" onclick="toast(\'Audio not available\')">▶</button>' +
+        '<button class="play-voice" onclick="toast(\'Audio not available\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>' +
         '<div class="voice-bars">' + _fakeBars(20) + '</div>' +
         '<div class="voice-dur">' + (m.text || '0:00') + '</div>' +
       '</div>';
@@ -1334,6 +1434,58 @@ window.searchNewChatUsers = function () {
   }, 300);
 };
 
+// ============================================================
+// ADD MEMBER — invite an existing user into the currently-open group
+// ============================================================
+window.openAddMemberModal = function () {
+  if (!CHAT_curRoom || CHAT_curRoom.type !== 'group') return;
+  document.getElementById('add-member-modal').classList.add('open');
+  document.getElementById('add-member-search').value = '';
+  document.getElementById('add-member-results').innerHTML =
+    '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">Type to search users...</div>';
+};
+
+var _addMemberSrchTimer = null;
+window.searchAddMemberUsers = function () {
+  clearTimeout(_addMemberSrchTimer);
+  var q  = (document.getElementById('add-member-search').value || '').trim();
+  var el = document.getElementById('add-member-results');
+  if (!q) { el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">Type to search users...</div>'; return; }
+
+  _addMemberSrchTimer = setTimeout(function () {
+    api.get('/users/search?q=' + encodeURIComponent(q))
+      .then(function (res) {
+        var users = res.users || [];
+        var existingIds = (CHAT_members || []).map(function (m) { return m.id; });
+        var notYetMembers = users.filter(function (u) { return existingIds.indexOf(u.id) === -1; });
+
+        el.innerHTML = !notYetMembers.length
+          ? '<div style="padding:1rem;text-align:center;font-size:.82rem;color:var(--muted)">No users found</div>'
+          : notYetMembers.map(function (u) {
+              return '<div style="display:flex;align-items:center;gap:.6rem;padding:.65rem 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="addMemberToGroup(\'' + u.id + '\')">' +
+                '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--blue),#7C4DFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:700">' +
+                  (u.nickname || '?').slice(0,1).toUpperCase() +
+                '</div>' +
+                '<div style="font-size:.85rem;font-weight:700">@' + escHtml(u.nickname || '') + '</div>' +
+              '</div>';
+            }).join('');
+      })
+      .catch(function (err) { el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>'; });
+  }, 300);
+};
+
+window.addMemberToGroup = function (userId) {
+  if (!CHAT_curRoom) return;
+  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, member_id: userId, add: true })
+    .then(function () {
+      document.getElementById('add-member-modal').classList.remove('open');
+      toast('✅ Member added');
+      loadGroupMembers(CHAT_curRoom.id);
+      loadMessages(true);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
 window.startDM = function (userId) {
   document.getElementById('new-chat-modal').classList.remove('open');
   api.post('/chat/rooms', { type: 'private', other_user_id: userId })
@@ -1468,13 +1620,13 @@ window._playVoice = function (msgId, btn) {
       other.pause();
       var otherId = other.id.replace('aud-', '');
       var otherBtn = document.querySelector('[onclick*="_playVoice(\'' + otherId + '\'"]');
-      if (otherBtn) otherBtn.textContent = '▶';
+      if (otherBtn) otherBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
     }
   });
 
   if (aud.paused) {
     aud.play().catch(function () {});
-    btn.textContent = '⏸';
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
 
     aud.ontimeupdate = function () {
       var barsEl = document.getElementById('vbars-' + msgId);
@@ -1486,14 +1638,14 @@ window._playVoice = function (msgId, btn) {
     };
 
     aud.onended = function () {
-      btn.textContent = '▶';
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
       var barsEl = document.getElementById('vbars-' + msgId);
       if (barsEl) barsEl.querySelectorAll('.vbar').forEach(function (b) { b.classList.remove('played'); });
       _autoPlayNextVoice(msgId);
     };
   } else {
     aud.pause();
-    btn.textContent = '▶';
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
   }
 };
 
@@ -1575,7 +1727,7 @@ window.addPollOptionRow = function () {
   row.innerHTML =
     '<div class="poll-correct-toggle" id="poll-correct-' + idx + '" onclick="_toggleCorrect(' + idx + ')" title="Mark as correct answer" style="display:none">✓</div>' +
     '<input type="text" placeholder="Option ' + (idx + 1) + '" maxlength="100">' +
-    (idx >= 2 ? '<button class="poll-option-remove" onclick="removePollOptionRow(this)" title="Remove">✕</button>' : '<div style="width:28px"></div>');
+    (idx >= 2 ? '<button class="poll-option-remove" onclick="removePollOptionRow(this)" title="Remove"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' : '<div style="width:28px"></div>');
   list.appendChild(row);
 };
 
