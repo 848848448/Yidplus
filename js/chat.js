@@ -106,14 +106,14 @@ function renderChatList() {
 
     return '<div class="chat-item' + (c.unread ? ' unread' : '') + '" onclick="openChatRoom(\'' + c.id + '\')">' +
       '<div style="' + avStyle + '">' + avatarContent + onlineDot + '</div>' +
-      '<div style="flex:1;min-width:0">' +
+      '<div style="flex:1;min-width:0;direction:rtl;text-align:right">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.2rem">' +
-          '<div style="font-size:.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px">' + escHtml(c.nick || 'Chat') + '</div>' +
           '<div style="font-size:.63rem;color:var(--muted);flex-shrink:0">' + timeText + '</div>' +
+          '<div style="font-size:.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px">' + escHtml(c.nick || 'Chat') + '</div>' +
         '</div>' +
         '<div style="display:flex;align-items:center;justify-content:space-between">' +
-          '<div style="font-size:.78rem;color:' + (c.unread ? 'var(--text)' : 'var(--muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">' + escHtml(previewText) + '</div>' +
           unreadBadge +
+          '<div style="font-size:.78rem;color:' + (c.unread ? 'var(--text)' : 'var(--muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">' + escHtml(previewText) + '</div>' +
         '</div>' +
         ((!c.joined && isGroup) ? '<div style="font-size:.65rem;color:var(--gold-d);margin-top:.2rem">Tap to Join</div>' : '') +
       '</div>' +
