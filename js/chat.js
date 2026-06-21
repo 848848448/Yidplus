@@ -92,21 +92,16 @@ function renderChatList() {
     var initial  = (c.nick || '?').slice(0, 1).toUpperCase();
     var isGroup  = c.type === 'group';
     var photoBg  = c.photo_url ? "background-image:url('" + c.photo_url + "');background-size:cover;background-position:center;" : '';
-    var avStyle  = isGroup
-      ? 'width:48px;height:48px;border-radius:50%;background:' + (c.photo_url ? 'var(--bg3)' : 'var(--blue)') + ';' + photoBg + 'display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;color:#fff;position:relative'
-      : 'width:48px;height:48px;border-radius:50%;background:' + (c.photo_url ? 'var(--bg3)' : 'var(--bg3)') + ';' + photoBg + 'display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;flex-shrink:0;border:1px solid var(--border);position:relative;color:var(--text)';
+    var avClass  = 'chat-av' + (isGroup ? ' group' : '');
+    var avStyle  = photoBg; // gradient/colors come from the .chat-av CSS class now
     var avatarContent = c.photo_url ? '' : (isGroup ? '👥' : initial);
-    var onlineDot = (!isGroup && c.online)
-      ? '<div style="position:absolute;bottom:1px;right:1px;width:11px;height:11px;border-radius:50%;background:var(--green);border:2px solid #fff"></div>'
-      : '';
+    var onlineDot = (!isGroup && c.online) ? '<div class="online-dot"></div>' : '';
     var previewText = c.preview || 'No messages yet';
     var timeText = c.last_time ? _fmt12(c.last_time) : '';
-    var unreadBadge = c.unread
-      ? '<div style="min-width:18px;height:18px;border-radius:9px;background:var(--blue);color:#fff;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px;flex-shrink:0">' + c.unread + '</div>'
-      : '';
+    var unreadBadge = c.unread ? '<div class="unread-badge">' + c.unread + '</div>' : '';
 
     return '<div class="chat-item' + (c.unread ? ' unread' : '') + '" onclick="openChatRoom(\'' + c.id + '\')">' +
-      '<div style="' + avStyle + '">' + avatarContent + onlineDot + '</div>' +
+      '<div class="' + avClass + '" style="' + avStyle + '">' + avatarContent + onlineDot + '</div>' +
       '<div style="flex:1;min-width:0;direction:rtl;text-align:right">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.2rem">' +
           '<div style="font-size:.63rem;color:var(--muted);flex-shrink:0">' + timeText + '</div>' +
