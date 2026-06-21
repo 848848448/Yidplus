@@ -1,12 +1,52 @@
 // functions/api/chat.js
 // GET    /api/chat?room_id=xxx  -> list messages for a room (auto-joins user to room)
 // POST   /api/chat              -> send a message (json or multipart)
+// PUT    /api/chat              -> { id, text } edit own message (sets edited_at)
+//                                   OR { id, opened: true } mark a view-once message as opened
 // DELETE /api/chat?id=xxx       -> delete a message (own message or admin)
 
 import { json, corsHeaders, requireUser, isAdminRole, canDeleteContent, logAudit } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
+}
+
+export async function onRequestPut(context) {
+  const { request, env } = context;
+  try {
+    const user = await requireUser(request, env);
+    if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
+
+    const body = await request.json();
+    if (!body.id) return json({ ok: false, error: 'id is required' }, 400);
+
+    const msg = await env.DB.prepare(`SELECT sender_id, view_once, opened FROM messages WHERE id = ?`).bind(body.id).first();
+    if (!msg) return json({ ok: false, error: 'Message not found' }, 404);
+
+    // ── Mark a view-once message as opened (any recipient can trigger this) ──
+    if (body.opened === true) {
+      if (!msg.opened) {
+        await env.DB.prepare(`UPDATE messages SET opened = 1 WHERE id = ?`).bind(body.id).run();
+      }
+      return json({ ok: true });
+    }
+
+    // ── Edit message text (sender only) ──
+    if (typeof body.text === 'string') {
+      if (msg.sender_id !== user.id) return json({ ok: false, error: 'You can only edit your own messages' }, 403);
+      const newText = body.text.trim();
+      if (!newText) return json({ ok: false, error: 'Message text cannot be empty' }, 400);
+
+      await env.DB.prepare(`UPDATE messages SET text = ?, edited_at = ? WHERE id = ?`)
+        .bind(newText, new Date().toISOString(), body.id).run();
+
+      return json({ ok: true });
+    }
+
+    return json({ ok: false, error: 'No valid action specified' }, 400);
+  } catch (err) {
+    return json({ ok: false, error: err.message }, 500);
+  }
 }
 
 export async function onRequestGet(context) {
@@ -28,7 +68,7 @@ export async function onRequestGet(context) {
 
     const { results } = await env.DB.prepare(
       `SELECT id, room_id, sender_id, sender_nick, type, text, media_key,
-              reply_to_id, created_at, read
+              reply_to_id, view_once, opened, edited_at, created_at, read
        FROM messages
        WHERE room_id = ?
        ORDER BY created_at ASC
@@ -54,7 +94,7 @@ export async function onRequestPost(context) {
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
 
     const contentType = request.headers.get('content-type') || '';
-    let roomId, type, text, replyToId, file;
+    let roomId, type, text, replyToId, file, viewOnce;
 
     if (contentType.includes('multipart/form-data')) {
       const form = await request.formData();
@@ -63,18 +103,20 @@ export async function onRequestPost(context) {
       text      = form.get('text') || '';
       replyToId = form.get('reply_to_id') || null;
       file      = form.get('file');
+      viewOnce  = form.get('view_once') === 'true' || form.get('view_once') === '1';
     } else {
       const body = await request.json();
       roomId    = body.room_id;
       type      = body.type || 'text';
       text      = body.text || '';
       replyToId = body.reply_to_id || null;
+      viewOnce  = !!body.view_once;
     }
 
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
 
     // For private DMs: if either side has blocked the other, sending is disallowed.
-    const room = await env.DB.prepare(`SELECT type FROM rooms WHERE id = ?`).bind(roomId).first();
+    const room = await env.DB.prepare(`SELECT type, read_only FROM rooms WHERE id = ?`).bind(roomId).first();
     if (room && room.type === 'private') {
       const { results: members } = await env.DB.prepare(
         `SELECT user_id FROM room_members WHERE room_id = ? AND user_id != ?`
@@ -90,6 +132,19 @@ export async function onRequestPost(context) {
 
     await ensureMember(env, roomId, user.id);
 
+    // Read-only groups: only the group's sub-admins and Super Admins may post.
+    if (room && room.type === 'group' && room.read_only) {
+      const isSuper = isAdminRole(user, env.OWNER_EMAIL);
+      if (!isSuper) {
+        const membership = await env.DB.prepare(
+          `SELECT is_group_admin FROM room_members WHERE room_id = ? AND user_id = ?`
+        ).bind(roomId, user.id).first();
+        if (!membership || !membership.is_group_admin) {
+          return json({ ok: false, error: 'This group is read-only. Only admins can post.' }, 403);
+        }
+      }
+    }
+
     let mediaKey = null;
     if (file && typeof file === 'object' && file.arrayBuffer) {
       const ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop() : 'bin';
@@ -104,13 +159,13 @@ export async function onRequestPost(context) {
 
     await env.DB.prepare(
       `INSERT INTO messages
-         (id, room_id, sender_id, sender_nick, type, text, media_key, reply_to_id, created_at, read)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`
-    ).bind(id, roomId, user.id, user.nickname || '', type, text, mediaKey, replyToId, now).run();
+         (id, room_id, sender_id, sender_nick, type, text, media_key, reply_to_id, view_once, opened, created_at, read)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0)`
+    ).bind(id, roomId, user.id, user.nickname || '', type, text, mediaKey, replyToId, viewOnce ? 1 : 0, now).run();
 
     const result = {
       id, room_id: roomId, sender_id: user.id, sender_nick: user.nickname || '',
-      type, text, media_key: mediaKey, reply_to_id: replyToId,
+      type, text, media_key: mediaKey, reply_to_id: replyToId, view_once: viewOnce ? 1 : 0, opened: 0,
       created_at: now, read: 0,
     };
     if (mediaKey) result.media_url = `/api/media/${encodeURIComponent(mediaKey)}`;
@@ -170,4 +225,4 @@ async function ensureMember(env, roomId, userId) {
       ).bind(roomId, userId, new Date().toISOString()).run();
     }
   }
-        }
+  }
