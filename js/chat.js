@@ -183,6 +183,24 @@ window._chatItemClick = function (e, roomId) {
   openChatRoom(roomId);
 };
 
+// Same delete/leave action as the chat-list swipe, but callable from
+// inside an already-open chat room (the kebab menu at the top).
+window.confirmDeleteCurrentChat = function () {
+  if (!CHAT_curRoom) return;
+  var isGroup = CHAT_curRoom.type === 'group';
+  var label = isGroup ? 'Leave "' + CHAT_curRoom.nick + '"?' : 'Delete chat with "' + CHAT_curRoom.nick + '"?';
+  if (!confirm(label)) return;
+
+  api.del('/chat/rooms?room_id=' + encodeURIComponent(CHAT_curRoom.id))
+    .then(function () {
+      toast(isGroup ? '🚪 You left the group.' : '🗑 Chat removed');
+      CHAT_curRoom = null;
+      navTo('chats');
+      loadChatRooms();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
 window.deleteChatRoom = function (roomId, nick) {
   if (!confirm('Delete chat with "' + nick + '"? This removes it from your list.')) return;
   api.del('/chat/rooms?room_id=' + encodeURIComponent(roomId))
