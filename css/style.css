@@ -563,7 +563,7 @@ html.dark-mode .bubble.me   { background: linear-gradient(135deg, #6B9BFF 0%, #4
 .chat-input-pill:focus-within { box-shadow: 0 0 0 2px rgba(68,118,224,.25); }
 
 .attach-wrap    { position: relative; flex-shrink: 0; }
-.attach-sheet   { position: absolute; bottom: 100%; left: 0; background: var(--surface); border: none; border-radius: 18px; padding: 1.1rem; display: none; grid-template-columns: repeat(4,1fr); gap: .85rem; min-width: 250px; z-index: 10; margin-bottom: .4rem; box-shadow: 0 8px 28px rgba(0,0,0,.16); }
+.attach-sheet   { position: fixed; bottom: 70px; left: .6rem; background: var(--surface); border: none; border-radius: 18px; padding: 1.1rem; display: none; grid-template-columns: repeat(4,1fr); gap: .85rem; min-width: 250px; z-index: 500; box-shadow: 0 8px 28px rgba(0,0,0,.2); }
 .attach-sheet.open { display: grid; }
 .attach-opt     { display: flex; flex-direction: column; align-items: center; gap: .4rem; cursor: pointer; }
 .attach-icon    { width: 50px; height: 50px; border-radius: 16px; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 1.45rem; transition: transform .12s, background .15s; }
