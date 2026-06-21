@@ -1,41 +1,20 @@
-// functions/api/media/[[key]].js
-// GET /api/media/<any/path/with/slashes>
-// Serves objects directly from R2 MY_BUCKET.
-// The [[key]] catch-all param captures the full path after /api/media/.
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-};
-
-export async function onRequestOptions() {
-  return new Response(null, { status: 204, headers: corsHeaders });
-}
-
+// Serves R2 objects — catch-all route for /api/media/...
 export async function onRequestGet(context) {
-  const { env, params } = context;
-
+  const { params, env } = context;
   try {
-    // params.key is an array of path segments for [[key]] routes
-    const segments = Array.isArray(params.key) ? params.key : [params.key];
-    const key = segments.map(decodeURIComponent).join('/');
-
-    if (!key) {
-      return new Response('Not found', { status: 404, headers: corsHeaders });
-    }
-
-    const object = await env.MY_BUCKET.get(key);
-    if (!object) {
-      return new Response('Not found', { status: 404, headers: corsHeaders });
-    }
-
-    const headers = new Headers(corsHeaders);
-    object.writeHttpMetadata(headers);
-    headers.set('etag', object.httpEtag);
+    const key = decodeURIComponent((params.key || []).join('/'));
+    if (!key) return new Response('Not found', { status: 404 });
+    const obj = await env.MY_BUCKET.get(key);
+    if (!obj) return new Response('Not found', { status: 404 });
+    const headers = new Headers();
+    obj.writeHttpMetadata(headers);
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-
-    return new Response(object.body, { status: 200, headers });
+    headers.set('Access-Control-Allow-Origin', '*');
+    return new Response(obj.body, { headers });
   } catch (err) {
-    return new Response('Error: ' + err.message, { status: 500, headers: corsHeaders });
+    return new Response('Error: ' + err.message, { status: 500 });
   }
 }
+export async function onRequestOptions() {
+  return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET', 'Access-Control-Max-Age': '86400' } });
+      }
