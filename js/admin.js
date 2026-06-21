@@ -241,6 +241,14 @@ function buildAdminPanel(id) {
             '<input style="padding:.45rem .75rem;background:var(--bg3);border:.5px solid var(--border);border-radius:8px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none;max-width:150px" id="site-title" value="' + escHtml(STATE.settings.app_title || 'YID PLUS') + '">' +
             '<button class="save-pill" onclick="adminSaveTitle()">Save</button>' +
           '</div>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 0;border-bottom:.5px solid rgba(201,168,76,.06)">' +
+            '<div><div style="font-size:.82rem">Logo</div><div style="font-size:.68rem;color:var(--muted)">Shown in the top bar</div></div>' +
+            '<div style="display:flex;align-items:center;gap:.5rem">' +
+              (STATE.settings.logo_url ? '<img src="' + STATE.settings.logo_url + '" style="height:28px;width:auto;object-fit:contain;border-radius:4px">' : '') +
+              '<button class="save-pill" onclick="document.getElementById(\'logo-upload-input\').click()">' + (STATE.settings.logo_url ? 'Change' : 'Upload') + '</button>' +
+            '</div>' +
+            '<input type="file" id="logo-upload-input" accept="image/*" style="display:none" onchange="adminUploadLogo(event)">' +
+          '</div>' +
           '<div style="padding:.75rem 0">' +
             '<div style="font-size:.82rem;color:var(--red)">🔒 Hardcoded Owner: <strong>' + escHtml(CONFIG.OWNER_EMAIL) + '</strong></div>' +
             '<div style="font-size:.68rem;color:var(--muted);margin-top:.25rem">Cannot be changed by anyone.</div>' +
@@ -696,6 +704,26 @@ window.adminSaveTitle = function () {
   var v = (document.getElementById('site-title') || {}).value || '';
   if (!v.trim()) return toast('⚠ Title cannot be empty.');
   saveSetting('app_title', v.trim());
+};
+
+window.adminUploadLogo = function (e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) return toast('⚠ Please choose an image file.');
+
+  toast('📤 Uploading logo...');
+  var form = new FormData();
+  form.append('key', 'logo_url');
+  form.append('file', file);
+
+  api.put('/settings', form, true)
+    .then(function (res) {
+      STATE.settings.logo_url = res.value;
+      applyAppSettings();
+      toast('✅ Logo updated!');
+      buildAdminNav(); // re-render the app-settings panel to show the new preview
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
 };
 
 window.updateAdminPin = function () {
