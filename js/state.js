@@ -479,10 +479,11 @@ setInterval(applyNightTheme, 60000);
 // ============================================================
 // MISC
 // ============================================================
-window.openChannel = function (nick) {
+window.openChannel = function (ownerId) {
+  if (!ownerId) return toast('⚠ Channel unavailable.');
   STATE.prevScreen = STATE.screen;
-  if (typeof init_channel === 'function') init_channel(nick);
-  else navTo('channel');
+  CHANNEL_pendingOwnerId = ownerId;
+  navTo('channel');
 };
 
 document.addEventListener('click', function (e) {
