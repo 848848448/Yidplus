@@ -61,7 +61,7 @@
 <!-- ══ CHAT ROOM SCREEN ══ -->
 <div class="screen" id="screen-chatroom">
   <div class="chatroom-topbar">
-    <div class="icon-btn" onclick="navTo('chats')" style="margin-right:.2rem">‹</div>
+    <div class="icon-btn" onclick="_stopTypingPoll();navTo('chats')" style="margin-right:.2rem">‹</div>
     <div class="chatroom-avatar" id="cr-avatar"></div>
     <div style="flex:1;min-width:0;text-align:right;direction:rtl" id="cr-name-wrap">
       <div style="font-size:.94rem;font-weight:700" id="cr-name"></div>
@@ -95,13 +95,20 @@
 
   <div class="sticker-tray" id="sticker-tray"></div>
 
-  <div id="rec-live-bar" style="display:none;align-items:center;gap:.6rem;padding:.5rem 1rem;background:var(--surface);border-top:1px solid var(--border)">
+  <div id="rec-lock-indicator" style="display:none;flex-direction:column;align-items:center;gap:.3rem;padding:.4rem 0;background:var(--surface)">
+    <div id="rec-lock-icon" style="font-size:1.1rem;transition:transform .15s">🔒</div>
+    <div style="font-size:.6rem;color:var(--muted)">↑ slide to lock</div>
+  </div>
+
+  <div id="rec-live-bar" style="display:none;align-items:center;gap:.6rem;padding:.5rem 1rem;background:var(--surface);border-top:1px solid var(--border);position:relative">
     <div style="width:10px;height:10px;border-radius:50%;background:var(--red);animation:pulse .8s infinite;flex-shrink:0"></div>
     <div style="display:flex;align-items:center;gap:1px;height:28px;flex:1" id="rec-live-meter">
       <div id="rec-live-level" style="width:6px;background:var(--red);border-radius:2px;height:4px;transition:height .08s"></div>
     </div>
     <div id="rec-live-time" style="font-size:.78rem;color:var(--muted);flex-shrink:0">0:00</div>
-    <div style="font-size:.78rem;color:var(--red);flex-shrink:0">● Recording...</div>
+    <div id="rec-live-hint" style="font-size:.72rem;color:var(--muted);flex-shrink:0">← slide to cancel</div>
+    <button id="rec-locked-send-btn" style="display:none;background:var(--blue);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:.9rem;flex-shrink:0;cursor:pointer" onclick="stopVoiceRecAndSend()">➤</button>
+    <button id="rec-locked-cancel-btn" style="display:none;background:none;border:none;color:var(--red);font-size:1.1rem;flex-shrink:0;cursor:pointer" onclick="cancelVoiceRec()">🗑</button>
   </div>
 
   <div class="chat-input-bar" id="chat-input-bar">
@@ -120,13 +127,25 @@
       <button class="chat-emoji-circle" onclick="toggleStickers()">😊</button>
       <textarea class="chat-input" id="chat-input" placeholder="Message" rows="1" oninput="onChatType()" onkeydown="onChatKey(event)"></textarea>
     </div>
-    <button class="voice-rec-btn" id="voice-rec-btn" onclick="toggleVoiceRec()">🎙️</button>
+    <button class="voice-rec-btn" id="voice-rec-btn" onclick="toggleVoiceRec()"
+      ontouchstart="_micTouchStart(event)" ontouchmove="_micTouchMove(event)" ontouchend="_micTouchEnd(event)">🎙️</button>
     <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMsg()" style="display:none">➤</button>
+  </div>
+
+  <div class="quick-react-bar" id="quick-react-bar" style="display:none">
+    <span class="qr-emoji" onclick="toggleReaction(this.closest('#quick-react-bar').dataset.msgId,'❤️')">❤️</span>
+    <span class="qr-emoji" onclick="toggleReaction(this.closest('#quick-react-bar').dataset.msgId,'😂')">😂</span>
+    <span class="qr-emoji" onclick="toggleReaction(this.closest('#quick-react-bar').dataset.msgId,'😮')">😮</span>
+    <span class="qr-emoji" onclick="toggleReaction(this.closest('#quick-react-bar').dataset.msgId,'😢')">😢</span>
+    <span class="qr-emoji" onclick="toggleReaction(this.closest('#quick-react-bar').dataset.msgId,'👍')">👍</span>
+    <span class="qr-emoji" onclick="toggleReaction(this.closest('#quick-react-bar').dataset.msgId,'🔥')">🔥</span>
+    <span class="qr-emoji" onclick="document.getElementById('quick-react-bar').style.display='none';showCtx(event,document.getElementById('quick-react-bar').dataset.msgId)">⋯</span>
   </div>
 
   <div class="ctx-menu" id="ctx-menu">
     <div class="ctx-item" onclick="ctxReply()">↩️ Reply</div>
     <div class="ctx-item" onclick="ctxCopy()">📋 Copy</div>
+    <div class="ctx-item" onclick="ctxEdit()">✏️ Edit</div>
     <div class="ctx-item" onclick="ctxForward()">📤 Forward</div>
     <div class="ctx-item" onclick="ctxReport()">🚩 Report</div>
     <div class="ctx-item danger" onclick="ctxDelete()">🗑️ Delete</div>
@@ -145,7 +164,7 @@
   <div class="scroll-area" style="padding-bottom:20px">
     <div class="userinfo-hero">
       <div class="userinfo-avatar-big" id="info-avatar-big" onclick="document.getElementById('group-photo-input').click()">👤</div>
-      <div class="userinfo-name" id="info-name">Name</div>
+      <div class="userinfo-name" id="info-name" style="direction:rtl">Name</div>
       <div class="userinfo-sub" id="info-sub">last seen recently</div>
       <input type="file" id="group-photo-input" accept="image/*" style="display:none" onchange="handleGroupPhoto(event)">
     </div>
@@ -165,6 +184,21 @@
       <button class="userinfo-mtab" onclick="switchInfoTab(this,'voice')">Voice</button>
     </div>
     <div id="info-tab-content" style="min-height:80px;padding:1rem"></div>
+    <div id="info-admin-settings" style="display:none">
+      <div style="padding:.75rem 1.25rem .4rem;font-size:.72rem;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">Group Settings (Admin)</div>
+      <div class="setting-row" style="cursor:pointer" onclick="toggleGroupReadOnly()">
+        <span>✍️</span><span style="font-size:.82rem;flex:1">Everyone Can Write</span>
+        <div class="toggle-sw" id="group-readonly-toggle"></div>
+      </div>
+      <div class="setting-row" style="cursor:pointer" onclick="toggleGroupVisibility()">
+        <span>🌍</span><span style="font-size:.82rem;flex:1">Public Group</span>
+        <div class="toggle-sw" id="group-visibility-toggle"></div>
+      </div>
+      <div class="setting-row" style="cursor:pointer" onclick="openAutoDeleteModal()">
+        <span>⏱️</span><span style="font-size:.82rem;flex:1">Auto-Delete Messages</span>
+        <span style="font-size:.72rem;color:var(--muted)" id="auto-delete-label">Off</span>
+      </div>
+    </div>
     <div id="info-members-section" style="display:none">
       <div style="padding:.75rem 1.25rem .4rem;font-size:.72rem;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center">
         <span id="info-members-count">Members</span>
@@ -202,6 +236,14 @@
       <label style="cursor:pointer"><input type="radio" name="group-emoji" value="🥘" style="display:none"><div class="group-emoji-opt">🥘</div></label>
       <label style="cursor:pointer"><input type="radio" name="group-emoji" value="🎬" style="display:none"><div class="group-emoji-opt">🎬</div></label>
       <label style="cursor:pointer"><input type="radio" name="group-emoji" value="🕎" style="display:none"><div class="group-emoji-opt">🕎</div></label>
+    </div>
+    <div class="poll-setting-row">
+      <div><div class="poll-setting-label">Public Group</div><div class="poll-setting-sub">Anyone can discover and join</div></div>
+      <div class="toggle-sw" id="new-group-public-toggle" onclick="this.classList.toggle('on')"></div>
+    </div>
+    <div class="poll-setting-row" style="margin-bottom:1rem">
+      <div><div class="poll-setting-label">Everyone Can Write</div><div class="poll-setting-sub">Off = only admins can post</div></div>
+      <div class="toggle-sw on" id="new-group-writeall-toggle" onclick="this.classList.toggle('on')"></div>
     </div>
     <button class="btn-primary" onclick="createNewGroup()" style="margin-bottom:.5rem">Create Group</button>
     <button class="modal-cancel" onclick="document.getElementById('new-group-modal').classList.remove('open')">Cancel</button>
@@ -280,6 +322,23 @@
 
     <button class="btn-primary" onclick="submitNewPoll()" style="margin-top:1rem;margin-bottom:.5rem">Create Poll</button>
     <button class="modal-cancel" onclick="closePollModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- ══ AUTO-DELETE MODAL ══ -->
+<div class="modal-overlay" id="auto-delete-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-title">⏱️ Auto-Delete Messages</div>
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:1rem">Messages older than the selected time will be automatically deleted from this group.</div>
+    <select class="field" id="auto-delete-select">
+      <option value="">Off</option>
+      <option value="60">1 hour</option>
+      <option value="1440">24 hours</option>
+      <option value="10080">7 days</option>
+      <option value="43200">30 days</option>
+    </select>
+    <button class="btn-primary" onclick="saveAutoDelete()" style="margin-bottom:.5rem">Save</button>
+    <button class="modal-cancel" onclick="document.getElementById('auto-delete-modal').classList.remove('open')">Cancel</button>
   </div>
 </div>
 
@@ -423,4 +482,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-  </html>
+    </html>
