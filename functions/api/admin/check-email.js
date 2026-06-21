@@ -1,20 +1,17 @@
-// Serves R2 objects — catch-all route for /api/media/...
-export async function onRequestGet(context) {
-  const { params, env } = context;
+import { json, corsHeaders } from '../_helpers.js';
+export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
+export async function onRequestPost(context) {
+  const { request, env } = context;
   try {
-    const key = decodeURIComponent((params.key || []).join('/'));
-    if (!key) return new Response('Not found', { status: 404 });
-    const obj = await env.MY_BUCKET.get(key);
-    if (!obj) return new Response('Not found', { status: 404 });
-    const headers = new Headers();
-    obj.writeHttpMetadata(headers);
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('Access-Control-Allow-Origin', '*');
-    return new Response(obj.body, { headers });
-  } catch (err) {
-    return new Response('Error: ' + err.message, { status: 500 });
-  }
-}
-export async function onRequestOptions() {
-  return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET', 'Access-Control-Max-Age': '86400' } });
+    const body = await request.json();
+    const email = (body.email || '').toLowerCase().trim();
+    if (!email) return json({ ok: false, error: 'email required' }, 400);
+    const user = await env.DB.prepare('SELECT role, email FROM users WHERE email = ?').bind(email).first();
+    if (!user) return json({ ok: false, error: 'No admin account with this email' }, 404);
+    const isOwner = email === env.OWNER_EMAIL;
+    const isAdmin = isOwner || user.role === 'admin_super' || user.role === 'admin_limited';
+    if (!isAdmin) return json({ ok: false, error: 'This account does not have admin access' }, 403);
+    const role = isOwner ? 'owner' : user.role;
+    return json({ ok: true, role });
+  } catch (err) { return json({ ok: false, error: err.message }, 500); }
 }
