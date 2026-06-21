@@ -68,12 +68,28 @@ window.api = {
 };
 
 function handleRes(res) {
-  return res.json().then(function (data) {
-    if (!res.ok || data.ok === false) {
-      var err = new Error(data.error || ('HTTP ' + res.status));
+  return res.text().then(function (raw) {
+    var data;
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch (parseErr) {
+      // Server returned something that isn't JSON at all — most likely a
+      // Cloudflare-level error page (404 route not found, 500 worker crash,
+      // or a redirect) rather than a response from our own API code.
+      var err = new Error(
+        'Server error (HTTP ' + res.status + '): the API did not return a valid response. ' +
+        'This usually means the endpoint file is missing or misnamed on the server.'
+      );
       err.status = res.status;
-      err.data = data;
+      err.raw = raw;
       throw err;
+    }
+
+    if (!res.ok || data.ok === false) {
+      var err2 = new Error(data.error || ('HTTP ' + res.status));
+      err2.status = res.status;
+      err2.data = data;
+      throw err2;
     }
     return data;
   });
