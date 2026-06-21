@@ -9,6 +9,7 @@
 
 var ADMIN_pinLocal  = CONFIG.ADMIN_PIN;
 var ADMIN_gateEmail = '';
+var ADMIN_gateRole  = '';
 var ADMIN_allUsers  = [];
 
 function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
@@ -61,6 +62,7 @@ window.checkGateEmail = function () {
       }
 
       ADMIN_gateEmail = email;
+      ADMIN_gateRole  = role; // verified role for THIS email, from the server — not STATE.user
       document.getElementById('gate-email-step').style.display = 'none';
       document.getElementById('gate-pin-step').style.display   = 'block';
       var p0 = document.getElementById('p0');
@@ -116,9 +118,12 @@ window.checkPin = function () {
     setLoad('gate-pin', false);
     document.getElementById('admin-gate').classList.remove('open');
 
-    var role = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL)
-      ? 'owner'
-      : (STATE.user && STATE.user.role) || 'member';
+    var role = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL) ? 'owner' : (ADMIN_gateRole || 'member');
+
+    // Publish the verified gate identity so userCan()/isOwner()/isSuperAdmin()/isAnyAdmin()
+    // in state.js use THIS identity for the rest of the admin panel session, not whichever
+    // account the browser happens to be logged into.
+    window.ADMIN_GATE_SESSION = { email: ADMIN_gateEmail, role: role };
 
     var badge = document.getElementById('admin-role-badge');
     if (badge) {
@@ -154,9 +159,7 @@ function buildAdminNav() {
   if (!nav) return;
   nav.innerHTML = '';
 
-  var userRole = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL)
-    ? 'owner'
-    : (STATE.user && STATE.user.role) || 'member';
+  var userRole = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL) ? 'owner' : (ADMIN_gateRole || 'member');
 
   ADMIN_PANELS
     .filter(function (p) { return p.roles.indexOf(userRole) !== -1; })
