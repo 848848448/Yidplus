@@ -12,4 +12,4 @@ export async function onRequestGet(context) {
     ).bind('%' + q + '%', user.id).all();
     return json({ ok: true, users: results });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
-}
+      }
