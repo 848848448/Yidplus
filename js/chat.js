@@ -1261,13 +1261,14 @@ window.triggerMediaPick = function (accept, isOnce) {
   var inp = document.getElementById('chat-media-input');
   inp.setAttribute('accept', accept);
   inp.dataset.once = isOnce ? '1' : '';
-  inp.click();
   document.getElementById('attach-sheet').classList.remove('open');
+  inp.click();
 };
 
 window.handleChatMedia = function (e) {
   var file  = e.target.files[0];
-  if (!file || !CHAT_curRoom) return;
+  if (!file) return; // user cancelled the picker — not an error
+  if (!CHAT_curRoom) { toast('⚠ No chat is open.'); return; }
   var isOnce = !!e.target.dataset.once;
   var isVideo = file.type.startsWith('video/');
   var type  = isVideo ? 'media' : (file.type.startsWith('image/') ? 'media' : 'file');
