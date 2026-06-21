@@ -149,9 +149,13 @@ export async function onRequestPost(context) {
     if (file && typeof file === 'object' && file.arrayBuffer) {
       const ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop() : 'bin';
       mediaKey = `chat/${roomId}/${Date.now()}_${crypto.randomUUID()}.${ext}`;
-      await env.MY_BUCKET.put(mediaKey, await file.arrayBuffer(), {
-        httpMetadata: { contentType: file.type || 'application/octet-stream' },
-      });
+      try {
+        await env.MY_BUCKET.put(mediaKey, await file.arrayBuffer(), {
+          httpMetadata: { contentType: file.type || 'application/octet-stream' },
+        });
+      } catch (uploadErr) {
+        return json({ ok: false, error: 'Media upload failed: ' + uploadErr.message }, 500);
+      }
     }
 
     const id = crypto.randomUUID();
@@ -225,4 +229,4 @@ async function ensureMember(env, roomId, userId) {
       ).bind(roomId, userId, new Date().toISOString()).run();
     }
   }
-  }
+      }
