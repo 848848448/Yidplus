@@ -17,4 +17,4 @@ export async function onRequestGet(context) {
 }
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET', 'Access-Control-Max-Age': '86400' } });
-      }
+}
