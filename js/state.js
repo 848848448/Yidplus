@@ -444,6 +444,15 @@ window.applyAppSettings = function () {
     document.querySelectorAll('.app-title-display').forEach(function (el) { el.textContent = s.app_title; });
     document.title = s.app_title;
   }
+  if (s.logo_url) {
+    var logoImg = document.getElementById('topbar-logo-img');
+    var logoFallback = document.getElementById('topbar-logo-fallback');
+    if (logoImg) {
+      logoImg.src = s.logo_url;
+      logoImg.style.display = 'inline-block';
+    }
+    if (logoFallback) logoFallback.style.display = 'none';
+  }
   if (s.primary_color) document.documentElement.style.setProperty('--gold', s.primary_color);
   if (s.gold_light)    document.documentElement.style.setProperty('--gold-l', s.gold_light);
   ['home','shorts','music','chats','settings'].forEach(function (k) {
