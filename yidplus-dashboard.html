@@ -446,8 +446,18 @@ window.submitFeedback = function () {
 document.addEventListener('DOMContentLoaded', function () {
   AUTH.restore().then(function (user) {
     if (user) {
-      var page = localStorage.getItem('yp_page');
-      navTo((page && page !== 'auth') ? page : 'home');
+      // Cross-page channel link support: yidplus-dashboard.html?channel=OWNER_ID
+      var urlParams = new URLSearchParams(window.location.search);
+      var channelOwnerId = urlParams.get('channel');
+
+      if (channelOwnerId) {
+        CHANNEL_pendingOwnerId = channelOwnerId;
+        navTo('channel');
+        window.history.replaceState({}, '', window.location.pathname);
+      } else {
+        var page = localStorage.getItem('yp_page');
+        navTo((page && page !== 'auth') ? page : 'home');
+      }
       applyRoleUI();
       loadAppSettings();
     } else {
@@ -459,4 +469,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-                                 </html>
+      </html>
