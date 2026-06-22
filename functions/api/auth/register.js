@@ -15,6 +15,18 @@ export async function onRequestPost(context) {
     if (nickname.length < 3) return json({ ok: false, error: 'Nickname must be at least 3 characters' }, 400);
     if (password.length < 6) return json({ ok: false, error: 'Password must be at least 6 characters' }, 400);
 
+    // Check if registration is open (owner can always register)
+    const isOwnerEmail = email === env.OWNER_EMAIL;
+    if (!isOwnerEmail) {
+      const regSetting = await env.DB.prepare(
+        `SELECT value FROM app_settings WHERE key = 'registration_open'`
+      ).first().catch(() => null);
+      const regOpen = !regSetting || regSetting.value !== 'false';
+      if (!regOpen) {
+        return json({ ok: false, error: 'Registration is currently closed. Contact the admin to request access.' }, 403);
+      }
+    }
+
     const exists = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
     if (exists) return json({ ok: false, error: 'Email already registered' }, 409);
 
@@ -48,4 +60,4 @@ export async function onRequestPost(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-  }
+      }
