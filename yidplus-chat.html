@@ -77,6 +77,16 @@
     <button class="join-group-btn" style="background:var(--blue)" onclick="joinGroup()">Join Group</button>
   </div>
 
+  <!-- Pinned message bar — shown when group has a pinned message -->
+  <div id="pinned-bar" style="display:none;background:var(--surface);border-bottom:1px solid var(--border);padding:.4rem .85rem;flex-shrink:0;cursor:pointer;align-items:center;gap:.6rem" onclick="scrollToMsg(CHAT_pinnedMsgId)">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:.65rem;color:var(--blue);font-weight:700">Pinned Message</div>
+      <div id="pinned-bar-text" style="font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)"></div>
+    </div>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </div>
+
   <div id="reply-bar" style="display:none" onclick="scrollToMsg((CHAT_replyTo||{}).id)">
     <div><strong id="reply-nick"></strong><br><span id="reply-snip" style="font-size:.78rem"></span></div>
     <button onclick="event.stopPropagation();cancelReply()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -520,4 +530,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-      </html>
+  </html>
