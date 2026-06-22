@@ -1319,7 +1319,8 @@ window.toggleStickers = function () {
 // ============================================================
 // ATTACHMENTS — Photo / Video / File / Once
 // ============================================================
-window.toggleAttach = function () {
+window.toggleAttach = function (e) {
+  if (e) e.stopPropagation();
   document.getElementById('attach-sheet').classList.toggle('open');
 };
 
