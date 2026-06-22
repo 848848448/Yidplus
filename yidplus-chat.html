@@ -346,11 +346,26 @@
 
 <!-- ══ CHAT OPTIONS MENU ══ -->
 <div class="ctx-menu" id="chat-options-menu" style="right:1rem;top:3.2rem">
-  <div class="ctx-item" id="opt-view-members" onclick="openMembersList();closeOptMenu()">👥 View Members</div>
-  <div class="ctx-item" onclick="openReportModal();closeOptMenu()">🚩 Report User</div>
-  <div class="ctx-item" onclick="toast('Muted notifications for this chat');closeOptMenu()">🔇 Mute</div>
-  <div class="ctx-item" style="color:var(--red)" onclick="closeOptMenu();confirmDeleteCurrentChat()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg> Delete Chat</div>
-  <div class="ctx-item" onclick="closeOptMenu()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Cancel</div>
+  <div class="ctx-item" id="opt-view-members" onclick="openMembersList();closeOptMenu()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    View Members
+  </div>
+  <div class="ctx-item" onclick="copyInviteLink();closeOptMenu()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    Copy Invite Link
+  </div>
+  <div class="ctx-item" onclick="toast('Muted notifications for this chat');closeOptMenu()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+    Mute
+  </div>
+  <div class="ctx-item" style="color:var(--red)" onclick="closeOptMenu();confirmDeleteCurrentChat()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="23" y2="14"/><line x1="23" y1="8" x2="17" y2="14"/></svg>
+    Leave / Delete Chat
+  </div>
+  <div class="ctx-item" onclick="closeOptMenu()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    Cancel
+  </div>
 </div>
 
 <!-- ══ HAMBURGER SIDE MENU ══ -->
@@ -489,10 +504,20 @@ document.addEventListener('DOMContentLoaded', function () {
   AUTH.restore().then(function (user) {
     if (!user) { goPage('yidplus-dashboard.html'); return; }
     applyRoleUI();
+
+    // Handle invite link: yidplus-chat.html?join=CODE
+    var urlParams = new URLSearchParams(window.location.search);
+    var joinCode = urlParams.get('join');
+    if (joinCode) {
+      history.replaceState({}, '', window.location.pathname);
+      _handleInviteJoin(joinCode);
+      return;
+    }
+
     navTo('chats');
   });
 });
 </script>
 
 </body>
-  </html>
+                                                                                                                                                                                                                                                 </html>
