@@ -249,6 +249,13 @@ function buildAdminPanel(id) {
             '</div>' +
             '<input type="file" id="logo-upload-input" accept="image/*" style="display:none" onchange="adminUploadLogo(event)">' +
           '</div>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 0;border-bottom:.5px solid rgba(201,168,76,.06)">' +
+            '<div><div style="font-size:.82rem">New Registrations</div><div style="font-size:.68rem;color:var(--muted)">Allow new users to sign up</div></div>' +
+            '<label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">' +
+              '<input type="checkbox" id="reg-open-toggle" ' + (STATE.settings.registration_open !== 'false' ? 'checked' : '') + ' onchange="adminToggleRegistration(this.checked)" style="width:18px;height:18px;cursor:pointer">' +
+              '<span style="font-size:.82rem;font-weight:700" id="reg-open-label">' + (STATE.settings.registration_open !== 'false' ? 'Open' : 'Closed') + '</span>' +
+            '</label>' +
+          '</div>' +
           '<div style="padding:.75rem 0">' +
             '<div style="font-size:.82rem;color:var(--red)">🔒 Hardcoded Owner: <strong>' + escHtml(CONFIG.OWNER_EMAIL) + '</strong></div>' +
             '<div style="font-size:.68rem;color:var(--muted);margin-top:.25rem">Cannot be changed by anyone.</div>' +
@@ -700,6 +707,14 @@ function loadBroadcastHistory() {
 }
 
 /* ── SETTINGS HELPERS ── */
+window.adminToggleRegistration = function (isOpen) {
+  saveSetting('registration_open', isOpen ? 'true' : 'false').then(function () {
+    var label = document.getElementById('reg-open-label');
+    if (label) label.textContent = isOpen ? 'Open' : 'Closed';
+    toast(isOpen ? '✅ Registration is now OPEN' : '🔒 Registration is now CLOSED');
+  });
+};
+
 window.adminSaveTitle = function () {
   var v = (document.getElementById('site-title') || {}).value || '';
   if (!v.trim()) return toast('⚠ Title cannot be empty.');
