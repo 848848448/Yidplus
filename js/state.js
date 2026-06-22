@@ -174,6 +174,12 @@ window.navTo = function (id) {
   }
   nextEl.classList.add('active');
 
+  // Hide the channel topbar overlay when leaving the channel screen
+  if (id !== 'channel') {
+    var tb = document.getElementById('channel-topbar-fixed');
+    if (tb) tb.style.display = 'none';
+  }
+
   document.querySelectorAll('.nav-item').forEach(function (b) {
     b.classList.toggle('active', b.dataset.nav === id);
   });
