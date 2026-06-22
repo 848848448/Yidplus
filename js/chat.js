@@ -185,6 +185,51 @@ window._chatItemClick = function (e, roomId) {
 
 // Same delete/leave action as the chat-list swipe, but callable from
 // inside an already-open chat room (the kebab menu at the top).
+window._handleInviteJoin = function (code) {
+  api.get('/invite?code=' + encodeURIComponent(code))
+    .then(function (res) {
+      var room = res.room;
+      var isPrivate = room.visibility === 'private';
+      var msg = isPrivate
+        ? '🔒 "' + (room.name || 'Group') + '" is a private group.\n\nSend a join request?'
+        : 'Join "' + (room.name || 'Group') + '"?\n(' + (room.members || 0) + ' members)';
+
+      if (!confirm(msg)) { navTo('chats'); return; }
+
+      api.post('/invite', { code: code })
+        .then(function (joinRes) {
+          if (joinRes.status === 'joined' || joinRes.status === 'already_member') {
+            toast('✅ Joined! Opening chat...');
+            loadChatRooms();
+            setTimeout(function () { openChatRoom(joinRes.room_id); }, 600);
+          } else if (joinRes.status === 'pending') {
+            toast('📨 Join request sent! Waiting for admin approval.');
+            navTo('chats');
+          } else {
+            navTo('chats');
+          }
+        })
+        .catch(function (err) { toast('❌ ' + err.message); navTo('chats'); });
+    })
+    .catch(function (err) { toast('❌ Invalid invite link'); navTo('chats'); });
+};
+
+window.copyInviteLink = function () {
+  if (!CHAT_curRoom) return;
+  api.get('/chat/rooms?room_id=' + encodeURIComponent(CHAT_curRoom.id))
+    .then(function (res) {
+      var code = res.room && res.room.invite_code;
+      if (!code) return toast('⚠ No invite link available');
+      var url = window.location.origin + '/yidplus-chat.html?join=' + code;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(function () { toast('✅ Invite link copied!'); });
+      } else {
+        toast('🔗 ' + url);
+      }
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
 window.confirmDeleteCurrentChat = function () {
   if (!CHAT_curRoom) return;
   var isGroup = CHAT_curRoom.type === 'group';
@@ -719,7 +764,7 @@ function renderMessages(scrollDown) {
         } else {
           inner += '<div class="voice-msg">' +
             '<audio src="' + m.media_url + '" id="aud-' + m.id + '" preload="metadata"></audio>' +
-            '<button class="play-voice" onclick="_playVoice(\'' + m.id + '\',this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>' +
+            '<button class="play-voice" id="pbtn-' + m.id + '" onclick="_playVoice(\'' + m.id + '\',this)">' + ICON_PLAY_SM + '</button>' +
             '<div class="voice-bars" id="vbars-' + m.id + '" onclick="_seekVoice(event,\'' + m.id + '\')">' + bars + '</div>' +
             '<div class="voice-dur" id="vdur-' + m.id + '">' + (voiceData.dur || '0:00') + '</div>' +
             '<button class="voice-speed-btn" id="vspeed-' + m.id + '" onclick="_toggleVoiceSpeed(\'' + m.id + '\')">1x</button>' +
@@ -1786,22 +1831,27 @@ window._openOnceVoice = function (msgId, mediaUrl) {
   renderMessages(false);
 };
 
+// Small SVG icons for voice note buttons (defined here, referenced in render + playback)
+var ICON_PLAY_SM  = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+var ICON_PAUSE_SM = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+
 window._playVoice = function (msgId, btn) {
   var aud = document.getElementById('aud-' + msgId);
   if (!aud) return;
 
-  document.querySelectorAll('.chat-messages audio').forEach(function (other) {
+  // Stop any other playing voice notes first
+  document.querySelectorAll('#chat-msgs audio').forEach(function (other) {
     if (other !== aud && !other.paused) {
       other.pause();
       var otherId = other.id.replace('aud-', '');
-      var otherBtn = document.querySelector('[onclick*="_playVoice(\'' + otherId + '\'"]');
-      if (otherBtn) otherBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+      var otherBtn = document.getElementById('pbtn-' + otherId);
+      if (otherBtn) otherBtn.innerHTML = ICON_PLAY_SM;
     }
   });
 
   if (aud.paused) {
-    aud.play().catch(function () {});
-    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+    aud.play().catch(function (e) { toast('\u26a0 Audio error: ' + e.message); });
+    btn.innerHTML = ICON_PAUSE_SM;
 
     aud.ontimeupdate = function () {
       var barsEl = document.getElementById('vbars-' + msgId);
@@ -1810,35 +1860,26 @@ window._playVoice = function (msgId, btn) {
       var bars = barsEl.querySelectorAll('.vbar');
       var playedCount = Math.floor(pct * bars.length);
       bars.forEach(function (b, i) { b.classList.toggle('played', i < playedCount); });
+      var durEl = document.getElementById('vdur-' + msgId);
+      if (durEl) {
+        var rem = aud.duration - aud.currentTime;
+        var m = Math.floor(rem / 60), s = Math.floor(rem % 60);
+        durEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+      }
     };
 
     aud.onended = function () {
-      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+      btn.innerHTML = ICON_PLAY_SM;
       var barsEl = document.getElementById('vbars-' + msgId);
       if (barsEl) barsEl.querySelectorAll('.vbar').forEach(function (b) { b.classList.remove('played'); });
       _autoPlayNextVoice(msgId);
     };
   } else {
     aud.pause();
-    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+    btn.innerHTML = ICON_PLAY_SM;
   }
 };
 
-function _autoPlayNextVoice(currentMsgId) {
-  var idx = CHAT_messages.findIndex(function (m) { return m.id === currentMsgId; });
-  if (idx === -1) return;
-  for (var i = idx + 1; i < CHAT_messages.length; i++) {
-    if (CHAT_messages[i].type === 'voice') {
-      var nextBtn = document.querySelector('#msg-' + CHAT_messages[i].id + ' .play-voice');
-      if (nextBtn) { _playVoice(CHAT_messages[i].id, nextBtn); }
-      return;
-    }
-  }
-}
-
-// ============================================================
-// INIT SCROLL LISTENER after navTo('chatroom')
-// ============================================================
 var _scrollListenerAdded = false;
 var _origNavTo = window.navTo;
 window.navTo = function (id) {
