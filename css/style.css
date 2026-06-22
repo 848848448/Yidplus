@@ -470,11 +470,25 @@ body.night {
 .slide-info  { position: absolute; bottom: 90px; left: 0; right: 80px; padding: 0 1rem; z-index: 3; }
 .slide-actions { position: absolute; bottom: 90px; right: .75rem; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 1.2rem; }
 .s-action    { display: flex; flex-direction: column; align-items: center; gap: .2rem; cursor: pointer; }
-.s-icon      { width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.15); backdrop-filter: blur(6px); border: .5px solid rgba(255,255,255,.3); display: flex; align-items: center; justify-content: center; font-size: 1.35rem; }
+.s-icon      { width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.15); backdrop-filter: blur(6px); border: .5px solid rgba(255,255,255,.3); display: flex; align-items: center; justify-content: center; }
 .s-action.liked .s-icon { background: rgba(211,47,47,.3); border-color: #ef5350; }
 .s-count     { font-size: .68rem; color: rgba(255,255,255,.85); }
-.pdot        { width: 3px; height: 3px; border-radius: 2px; background: rgba(255,255,255,.3); transition: all .3s; }
-.pdot.active { height: 16px; background: #fff; }
+
+/* Auto-hiding scrub bar — sits at the very bottom of the slide, fades in
+   while the video is playing/being scrubbed, fades out after a few
+   seconds of inactivity (YouTube Shorts style). */
+.scrub-wrap   { position: absolute; left: 0; right: 0; bottom: 0; height: 28px; z-index: 8; display: flex; align-items: center; padding: 0 2px; opacity: 0; transition: opacity .25s; touch-action: none; }
+.scrub-wrap.show { opacity: 1; }
+.scrub-track  { position: relative; flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.25); }
+.scrub-fill   { position: absolute; top: 0; left: 0; height: 100%; border-radius: 2px; background: #fff; width: 0%; }
+.scrub-handle { position: absolute; top: 50%; width: 11px; height: 11px; border-radius: 50%; background: #fff; transform: translate(-50%,-50%); left: 0%; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+
+/* Brief center play/pause flash — shows for an instant then fades, never
+   stays on screen (YouTube Shorts style), replacing the old persistent ⏸. */
+.center-flash { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(.7); width: 64px; height: 64px; border-radius: 50%; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 6; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; color: #fff; }
+.center-flash.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+
+.view-count   { display: flex; align-items: center; gap: .3rem; font-size: .68rem; color: rgba(255,255,255,.75); margin-top: .15rem; }
 .heart-burst { position: absolute; font-size: 4rem; pointer-events: none; z-index: 10; animation: hburst .8s ease forwards; top: 50%; left: 50%; transform: translate(-50%,-50%); }
 .cmt-drawer  { position: fixed; bottom: 0; left: 0; right: 0; z-index: 80; height: 65vh; background: var(--surface); border-top: 1px solid var(--border); border-radius: 20px 20px 0 0; transform: translateY(100%); transition: transform .35s cubic-bezier(.32,.72,0,1); display: flex; flex-direction: column; box-shadow: 0 -4px 24px rgba(0,0,0,.1); }
 .cmt-drawer.open { transform: translateY(0); }
@@ -773,8 +787,6 @@ html.dark-mode .bubble.me   { background: linear-gradient(135deg, #6B9BFF 0%, #4
 .action-avatar-wrap { position: relative; cursor: pointer; }
 .action-avatar { width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.1); border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; overflow: hidden; }
 .action-avatar-plus { position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); width: 18px; height: 18px; border-radius: 50%; background: var(--red); border: 1.5px solid #000; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 900; color: #fff; }
-.pause-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 3rem; z-index: 5; opacity: 0; transition: opacity .15s; pointer-events: none; color: #fff; }
-.pause-indicator.show { opacity: 1; }
 .upload-modal { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.85); display: none; align-items: flex-end; justify-content: center; }
 .upload-modal.open { display: flex; }
 .upload-sheet { background: var(--surface); border-radius: 20px 20px 0 0; border: 1px solid var(--border); padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom)); width: 100%; max-width: 500px; }
