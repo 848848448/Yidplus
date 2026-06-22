@@ -19,19 +19,17 @@ html, body { background: #000 !important; }
   <div class="shorts-topbar">
     <div class="topbar-logo">👑 YID PLUS</div>
     <div class="shorts-topbar-title">Shorts</div>
-    <div class="shorts-upload-btn" onclick="document.getElementById('upload-modal').classList.add('open')">＋</div>
+    <div class="shorts-upload-btn" onclick="document.getElementById('upload-modal').classList.add('open')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
   </div>
-
-  <div class="progress-dots" id="prog-dots" style="position:fixed;right:6px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:5px;z-index:40"></div>
 
   <div class="swipe-cont" id="swipe-cont" style="height:100vh;width:100%;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none"></div>
 
   <nav class="bottom-nav" style="position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);border-top:1px solid rgba(255,255,255,.06);backdrop-filter:blur(12px);z-index:60">
-    <button class="nav-item" style="--muted:rgba(255,255,255,.4)" onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon">🏠</span><span class="nav-label" style="color:rgba(255,255,255,.4)">Home</span></button>
-    <button class="nav-item active" onclick="navTo('shorts')"><span class="nav-icon">🎬</span><span class="nav-label">Shorts</span></button>
-    <button class="nav-item" onclick="goPage('yidplus-music.html')"><span class="nav-icon">🎵</span><span class="nav-label" style="color:rgba(255,255,255,.4)">Music</span></button>
-    <button class="nav-item" onclick="goPage('yidplus-chat.html')"><span class="nav-icon">💬</span><span class="nav-label" style="color:rgba(255,255,255,.4)">Chats</span></button>
-    <button class="nav-item" onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon">⚙️</span><span class="nav-label" style="color:rgba(255,255,255,.4)">Settings</span></button>
+    <button class="nav-item" style="--muted:rgba(255,255,255,.4)" onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-label" style="color:rgba(255,255,255,.4)">Home</span></button>
+    <button class="nav-item active" onclick="navTo('shorts')"><span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button>
+    <button class="nav-item" onclick="goPage('yidplus-music.html')"><span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label" style="color:rgba(255,255,255,.4)">Music</span></button>
+    <button class="nav-item" onclick="goPage('yidplus-chat.html')"><span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span class="nav-label" style="color:rgba(255,255,255,.4)">Chats</span></button>
+    <button class="nav-item" onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="nav-label" style="color:rgba(255,255,255,.4)">Settings</span></button>
   </nav>
 </div>
 
@@ -40,12 +38,12 @@ html, body { background: #000 !important; }
   <div class="drawer-handle"></div>
   <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem .5rem">
     <div style="font-size:.9rem;color:rgba(255,255,255,.9)">💬 Comments <span id="cmt-count" style="color:rgba(255,255,255,.4);font-size:.8rem"></span></div>
-    <button style="background:none;border:none;color:rgba(255,255,255,.5);font-size:1.1rem;cursor:pointer" onclick="closeCmts()">✕</button>
+    <button style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;display:flex;align-items:center" onclick="closeCmts()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="comments-list" id="cmt-list"></div>
   <div class="comment-input-row">
     <input class="comment-input" id="cmt-input" placeholder="Add a comment..." maxlength="200" onkeydown="if(event.key==='Enter')sendCmt()">
-    <button class="cmt-send-el" onclick="sendCmt()">➤</button>
+    <button class="cmt-send-el" onclick="sendCmt()"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
   </div>
 </div>
 
@@ -55,16 +53,26 @@ html, body { background: #000 !important; }
     <div class="upload-title">Upload a Short</div>
     <div class="upload-options">
       <div class="upload-opt" onclick="document.getElementById('vid-file-input').click()">
-        <div class="upload-opt-icon">📁</div>
+        <div class="upload-opt-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
         <div class="upload-opt-label">Choose Video</div>
       </div>
       <div class="upload-opt" onclick="toast('Camera not available in browser preview')">
-        <div class="upload-opt-icon">📷</div>
+        <div class="upload-opt-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
         <div class="upload-opt-label">Record with Camera</div>
       </div>
     </div>
     <button class="upload-cancel" onclick="document.getElementById('upload-modal').classList.remove('open')">Cancel</button>
     <input type="file" id="vid-file-input" accept="video/*" style="display:none" onchange="handleVidUpload(event)">
+  </div>
+</div>
+
+<!-- ══ CAPTION MODAL (shown after picking a video, replaces the old blocking prompt()) ══ -->
+<div class="upload-modal" id="caption-modal">
+  <div class="upload-sheet">
+    <div class="upload-title">Add a caption</div>
+    <textarea id="caption-input" placeholder="Write a caption for your short... (optional)" maxlength="200" rows="3" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:.75rem;color:#fff;font-family:inherit;font-size:.88rem;resize:none;outline:none;margin-bottom:1rem"></textarea>
+    <button class="upload-cancel" style="background:var(--blue);color:#fff;border:none;margin-bottom:.5rem" onclick="confirmShortUpload()">Post Short</button>
+    <button class="upload-cancel" onclick="cancelShortUpload()">Cancel</button>
   </div>
 </div>
 
@@ -85,4 +93,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-</html>
+                                                                                                                                                                                                                                                                                                                                                  </html>
