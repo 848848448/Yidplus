@@ -646,6 +646,8 @@ html.dark-mode .bubble.me   { background: linear-gradient(135deg, #6B9BFF 0%, #4
    CHANNEL SCREEN
    ============================================= */
 .channel-cover { width: 100%; height: 200px; position: relative; overflow: hidden; flex-shrink: 0; background: var(--bg3); }
+.channel-topbar-over { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: .6rem .75rem; pointer-events: none; }
+.channel-topbar-over > * { pointer-events: all; }
 .ch-cover-over { position: absolute; top: 0; left: 0; right: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; background: linear-gradient(to bottom, rgba(0,0,0,.4), transparent); }
 .ch-cover-emoji { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 6rem; }
 .ch-av-big { width: 80px; height: 80px; border-radius: 50%; background: var(--bg3); border: 3px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin-bottom: .75rem; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
