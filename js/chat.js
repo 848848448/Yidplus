@@ -30,6 +30,7 @@ var CHAT_mediaRec    = null;
 var CHAT_recChunks   = [];
 var CHAT_recStart    = 0;
 var CHAT_unreadNew   = 0;   // new messages since last scroll
+var CHAT_pinnedMsgId = null;
 var CHAT_atBottom    = true;
 var CHAT_members     = [];  // current room members
 
@@ -216,16 +217,25 @@ window._handleInviteJoin = function (code) {
 
 window.copyInviteLink = function () {
   if (!CHAT_curRoom) return;
-  api.get('/chat/rooms?room_id=' + encodeURIComponent(CHAT_curRoom.id))
+  var code = CHAT_curRoom.invite_code;
+  if (code) {
+    var url = window.location.origin + '/yidplus-chat.html?join=' + code;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(function () { toast('✅ Invite link copied!'); });
+    } else { toast('🔗 ' + url); }
+    return;
+  }
+  // Fallback: fetch if not in local data yet
+  api.get('/chat/rooms')
     .then(function (res) {
-      var code = res.room && res.room.invite_code;
-      if (!code) return toast('⚠ No invite link available');
+      var room = (res.rooms || []).find(function (r) { return r.id === CHAT_curRoom.id; });
+      code = room && room.invite_code;
+      if (!code) return toast('⚠ Run the SQL migration first to generate invite codes.');
+      CHAT_curRoom.invite_code = code;
       var url = window.location.origin + '/yidplus-chat.html?join=' + code;
       if (navigator.clipboard) {
         navigator.clipboard.writeText(url).then(function () { toast('✅ Invite link copied!'); });
-      } else {
-        toast('🔗 ' + url);
-      }
+      } else { toast('🔗 ' + url); }
     })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
@@ -343,6 +353,22 @@ window.openChatRoom = function (roomId) {
   document.getElementById('reply-bar').style.display = 'none';
   document.getElementById('sticker-tray').classList.remove('open');
   document.getElementById('new-arrow').style.display = 'none';
+
+  // Pinned message bar
+  CHAT_pinnedMsgId = room.pinned_message_id || null;
+  var pinnedBar = document.getElementById('pinned-bar');
+  if (pinnedBar) {
+    if (CHAT_pinnedMsgId) {
+      pinnedBar.style.display = 'flex';
+      var pinnedMsg = CHAT_messages.find(function (m) { return m.id === CHAT_pinnedMsgId; });
+      var pinnedText = document.getElementById('pinned-bar-text');
+      if (pinnedText) {
+        pinnedText.textContent = pinnedMsg ? (pinnedMsg.text || '[Media]') : 'Tap to see pinned message';
+      }
+    } else {
+      pinnedBar.style.display = 'none';
+    }
+  }
 
   navTo('chatroom');
 
@@ -665,6 +691,15 @@ function loadMessages(scrollToBottom) {
       }
 
       renderMessages(scrollToBottom || CHAT_atBottom);
+
+      // Update pinned bar text now that messages are loaded
+      if (CHAT_pinnedMsgId) {
+        var pinnedMsg = CHAT_messages.find(function (m) { return m.id === CHAT_pinnedMsgId; });
+        var pinnedText = document.getElementById('pinned-bar-text');
+        if (pinnedText && pinnedMsg) {
+          pinnedText.textContent = pinnedMsg.text || '[Media]';
+        }
+      }
 
       // Mark as read
       if (CHAT_curRoom.joined !== false) {
@@ -1560,7 +1595,15 @@ window.ctxPin = function () {
   document.getElementById('ctx-menu').classList.remove('open');
   if (!CHAT_ctxMsg || !CHAT_curRoom) return;
   api.put('/chat/rooms', { room_id: CHAT_curRoom.id, pinned_message_id: CHAT_ctxMsg.id })
-    .then(function () { toast('📌 Message pinned!'); loadMessages(false); })
+    .then(function () {
+      CHAT_pinnedMsgId = CHAT_ctxMsg.id;
+      CHAT_curRoom.pinned_message_id = CHAT_ctxMsg.id;
+      var bar = document.getElementById('pinned-bar');
+      var txt = document.getElementById('pinned-bar-text');
+      if (bar) bar.style.display = 'flex';
+      if (txt) txt.textContent = CHAT_ctxMsg.text || '[Media]';
+      toast('📌 Message pinned!');
+    })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
 window.ctxEdit = function () {
@@ -2028,7 +2071,7 @@ function _renderPollBubble(m, isMe) {
   var pollId = m.text; // poll id is stored in message.text for type=poll
   var html =
     '<div class="poll-bubble" id="poll-' + pollId + '">' +
-      '<div style="font-size:.7rem;font-weight:700;color:var(--blue);margin-bottom:.4rem;letter-spacing:.08em">📊 POLL</div>' +
+      '<div style="font-size:.7rem;font-weight:700;color:var(--blue);margin-bottom:.4rem;letter-spacing:.08em";display:flex;align-items:center;gap:.3rem"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"20\" x2=\"12\" y2=\"10\"/><line x1=\"18\" y1=\"20\" x2=\"18\" y2=\"4\"/><line x1=\"6\" y1=\"20\" x2=\"6\" y2=\"16\"/></svg> POLL</div>' +
       '<div class="poll-question">Loading poll...</div>' +
     '</div>';
 
@@ -2108,7 +2151,7 @@ function _buildPollHTML(poll) {
     ? '<button class="poll-add-suggest-btn" onclick="suggestPollOption(\'' + poll.id + '\')">+ Suggest an option</button>'
     : '';
 
-  return '<div style="font-size:.7rem;font-weight:700;color:var(--blue);margin-bottom:.4rem;letter-spacing:.08em">📊 POLL' + (poll.quiz_mode ? ' · QUIZ' : '') + '</div>' +
+  return '<div style="font-size:.7rem;font-weight:700;color:var(--blue);margin-bottom:.4rem;letter-spacing:.08em";display:flex;align-items:center;gap:.3rem"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"20\" x2=\"12\" y2=\"10\"/><line x1=\"18\" y1=\"20\" x2=\"18\" y2=\"4\"/><line x1=\"6\" y1=\"20\" x2=\"6\" y2=\"16\"/></svg> POLL' + (poll.quiz_mode ? ' · QUIZ' : '') + '</div>' +
     '<div class="poll-question">' + escHtml(poll.question) + '</div>' +
     (poll.description ? '<div class="poll-description">' + escHtml(poll.description) + '</div>' : '') +
     '<div class="poll-meta-line">' + (poll.anonymous ? '🔒 Anonymous' : '👁 ' + (poll.show_who_voted ? 'Public' : 'Results visible after vote')) + '</div>' +
