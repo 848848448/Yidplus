@@ -1136,6 +1136,41 @@ function _isFollowingChannel(ownerId) {
   } catch (e) { return false; }
 }
 
+window.shareChannel = function () {
+  if (!CHANNEL_current) return;
+  var url = window.location.origin + '/yidplus-dashboard.html?channel=' + encodeURIComponent(CHANNEL_current.owner_id);
+  if (navigator.share) {
+    navigator.share({ title: '@' + CHANNEL_current.nickname + ' on YID PLUS', url: url });
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(function () { toast('🔗 Link copied!'); });
+  } else {
+    toast('🔗 ' + url);
+  }
+};
+
+window.copyChannelLink = function () {
+  if (!CHANNEL_current) return;
+  var url = window.location.origin + '/yidplus-dashboard.html?channel=' + encodeURIComponent(CHANNEL_current.owner_id);
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(function () { toast('✅ Link copied!'); });
+  } else {
+    toast('🔗 ' + url);
+  }
+};
+
+window.openChannelOptions = function () {
+  var menu = document.getElementById('ch-options-menu');
+  if (menu) menu.classList.toggle('open');
+};
+
+window.reportChannel = function () {
+  if (!CHANNEL_current) return;
+  if (!confirm('Report @' + CHANNEL_current.nickname + '?')) return;
+  api.post('/reports', { target_type: 'channel', target_id: CHANNEL_current.owner_id, reason: 'User report' })
+    .then(function () { toast('✅ Reported. We\'ll review this channel.'); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
 window.toggleChFollow = function () {
   if (!STATE.user) return toast('⚠ Please sign in first.');
   if (!CHANNEL_current) return;
