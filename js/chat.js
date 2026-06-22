@@ -1382,7 +1382,9 @@ function _buildCtxMenu(msg) {
   };
 
   function item(svg, label, fn, danger) {
-    return '<div class="ctx-item' + (danger ? ' danger' : '') + '" onclick="' + fn + ';document.getElementById(\'ctx-menu\').classList.remove(\'open\')">' + svg + ' ' + label + '</div>';
+    var cls = 'ctx-item' + (danger ? ' danger' : '');
+    var onclick = fn ? 'onclick="' + fn + '"' : '';
+    return '<div class="' + cls + '" data-fn="' + (fn || '') + '">' + svg + ' ' + label + '</div>';
   }
 
   var items = '';
@@ -1393,10 +1395,25 @@ function _buildCtxMenu(msg) {
   if (canPin)    items += item(SVG.pin,     'Pin',     'ctxPin()');
   if (!isMe)     items += item(SVG.report,  'Report',  'ctxReport()');
   if (canDelete) items += item(SVG.trash,   'Delete',  'ctxDelete()', true);
-  items +=        item(SVG.close,  'Cancel',  '');
+  items +=        item(SVG.close,  'Cancel',  'closeCtxMenu()');
 
-  document.getElementById('ctx-menu-items').innerHTML = items;
+  var el = document.getElementById('ctx-menu-items');
+  el.innerHTML = items;
+
+  // Wire clicks via event delegation to avoid inline-onclick quote hell
+  el.querySelectorAll('.ctx-item').forEach(function (div) {
+    div.addEventListener('click', function () {
+      var fn = div.dataset.fn;
+      document.getElementById('ctx-menu').classList.remove('open');
+      if (fn) { try { eval(fn); } catch(e) { toast('❌ ' + e.message); } }
+    });
+  });
 }
+
+window.closeCtxMenu = function () {
+  var m = document.getElementById('ctx-menu');
+  if (m) m.classList.remove('open');
+};
 
 window.showCtx = function (e, msgId) {
   CHAT_ctxMsg = CHAT_messages.find(function (m) { return m.id === msgId; });
