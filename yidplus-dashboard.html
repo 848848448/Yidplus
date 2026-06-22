@@ -169,10 +169,10 @@
 <div class="screen" id="screen-channel">
   <div class="channel-cover" id="ch-cover" style="background:var(--bg3)">
     <div class="channel-topbar-over">
-      <div class="icon-btn" style="background:rgba(0,0,0,.4);color:#fff" onclick="navTo(STATE.prevScreen||'home')">‹</div>
+      <div class="icon-btn" style="background:rgba(0,0,0,.4);color:#fff" onclick="navTo(STATE.prevScreen||'home')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
       <div style="display:flex;gap:.4rem">
-        <div class="icon-btn" style="background:rgba(0,0,0,.4);color:#fff" onclick="toast('Share channel')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
-        <div class="icon-btn" style="background:rgba(0,0,0,.4);color:#fff" onclick="toast('Options')">⋯</div>
+        <div class="icon-btn" style="background:rgba(0,0,0,.4);color:#fff" onclick="shareChannel()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
+        <div class="icon-btn" style="background:rgba(0,0,0,.4);color:#fff" onclick="openChannelOptions()"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
       </div>
     </div>
     <div class="ch-cover-emoji" id="ch-cover-emoji"></div>
@@ -203,6 +203,14 @@
     <div id="ch-shorts-tab"><div class="ch-grid" id="ch-grid"></div></div>
     <div id="ch-music-tab" style="display:none"><div id="ch-music-list"></div></div>
     <div id="ch-about-tab" style="display:none;padding:1rem"><div id="ch-about-content"></div></div>
+  </div>
+
+  <!-- Channel options context menu -->
+  <div class="ctx-menu" id="ch-options-menu" style="top:3.5rem;right:.75rem">
+    <div class="ctx-item" onclick="shareChannel();document.getElementById('ch-options-menu').classList.remove('open')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:.4rem"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share Channel</div>
+    <div class="ctx-item" onclick="copyChannelLink();document.getElementById('ch-options-menu').classList.remove('open')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:.4rem"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Copy Link</div>
+    <div class="ctx-item" onclick="reportChannel();document.getElementById('ch-options-menu').classList.remove('open')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:.4rem"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>Report</div>
+    <div class="ctx-item" onclick="document.getElementById('ch-options-menu').classList.remove('open')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" style="vertical-align:middle;margin-right:.4rem"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Cancel</div>
   </div>
 </div>
 
@@ -473,4 +481,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-          </html>
+                                                                                               </html>
