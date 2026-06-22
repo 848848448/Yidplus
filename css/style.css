@@ -1055,7 +1055,7 @@ html.dark-mode .chat-messages { background:
 .poll-correct-toggle.on { background: var(--green); border-color: var(--green); color: #fff; }
 
 /* poll message bubble */
-.poll-bubble { min-width: 240px; max-width: 280px; }
+.poll-bubble { min-width: 220px; max-width: 280px; }
 .poll-question { font-size: .9rem; font-weight: 700; margin-bottom: .2rem; }
 .poll-description { font-size: .76rem; color: var(--muted); margin-bottom: .5rem; }
 .poll-meta-line { font-size: .68rem; color: var(--muted); margin-bottom: .65rem; display: flex; align-items: center; gap: .4rem; }
