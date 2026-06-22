@@ -1056,13 +1056,58 @@ function _loadChannel(ownerId) {
       CHANNEL_current = res.channel;
       CHANNEL_current.owner_id = ownerId;
       _renderChannelHeader(res.channel);
-      _renderChannelWall(res.wall || []);
+      if (res.locked) {
+        _renderLockedWall(res.request_status);
+      } else {
+        _renderChannelWall(res.wall || []);
+      }
     })
     .catch(function (err) {
       toast('❌ ' + err.message);
       navTo('home');
     });
 }
+
+function _renderLockedWall(requestStatus) {
+  var grid = document.getElementById('ch-grid');
+  if (!grid) return;
+
+  var btnHTML = '';
+  if (requestStatus === 'pending') {
+    btnHTML = '<button style="margin-top:1rem;padding:.6rem 1.5rem;border-radius:20px;background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:.85rem;cursor:default">⏳ Request pending...</button>';
+  } else if (requestStatus === 'rejected') {
+    btnHTML = '<button style="margin-top:1rem;padding:.6rem 1.5rem;border-radius:20px;background:rgba(211,47,47,.1);border:1px solid var(--red);color:var(--red);font-size:.85rem;cursor:default">❌ Request was declined</button>';
+  } else {
+    btnHTML = '<button onclick="requestChannelFollow()" style="margin-top:1rem;padding:.6rem 1.5rem;border-radius:20px;background:var(--blue);border:none;color:#fff;font-size:.85rem;cursor:pointer;font-weight:700">Request to Follow</button>';
+  }
+
+  grid.innerHTML =
+    '<div style="grid-column:1/-1;padding:2.5rem 1rem;text-align:center">' +
+      '<div style="font-size:2.5rem;margin-bottom:.5rem">🔒</div>' +
+      '<div style="font-size:.95rem;font-weight:700;margin-bottom:.35rem">This channel is private</div>' +
+      '<div style="font-size:.8rem;color:var(--muted);margin-bottom:.5rem">Follow this channel to see their content</div>' +
+      btnHTML +
+    '</div>';
+}
+
+window.requestChannelFollow = function () {
+  if (!CHANNEL_current) return;
+  if (!STATE.user) return toast('⚠ Please sign in first.');
+
+  api.post('/channel-follows', { channel_owner_id: CHANNEL_current.owner_id })
+    .then(function (res) {
+      if (res.status === 'approved') {
+        toast('✅ You are now following this channel!');
+        _loadChannel(CHANNEL_current.owner_id);
+      } else if (res.status === 'pending') {
+        toast('📨 Follow request sent! Waiting for approval.');
+        _renderLockedWall('pending');
+      } else {
+        toast('✅ ' + (res.status || 'Done'));
+      }
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 function _renderChannelHeader(ch) {
   var initial = (ch.nickname || '?').slice(0, 1).toUpperCase();
@@ -1083,12 +1128,20 @@ function _renderChannelHeader(ch) {
   document.getElementById('ch-following').textContent = fmtN(ch.following || 0);
   document.getElementById('ch-views').textContent = fmtN(ch.total_views || 0);
 
-  // Follow button state — uses a simple localStorage-backed "following" set
-  // since there's no dedicated channel-follow table yet.
-  var following = _isFollowingChannel(ch.owner_id);
+  // Follow button — hide for your own channel, show privacy toggle instead
+  var isOwnChannel = STATE.user && STATE.user.id === ch.owner_id;
   var followBtn = document.getElementById('ch-follow-btn');
-  followBtn.textContent = following ? '✓ Following' : '+ Follow';
-  followBtn.classList.toggle('following', following);
+  if (isOwnChannel) {
+    var isPrivate = ch.privacy === 'followers_only';
+    followBtn.innerHTML = (isPrivate ? '🔒 Private' : '🌍 Public') + ' <span style="font-size:.7rem;opacity:.7">tap to change</span>';
+    followBtn.className = 'ch-follow-btn';
+    followBtn.onclick = function () { toggleChannelPrivacy(); };
+  } else {
+    var following = _isFollowingChannel(ch.owner_id);
+    followBtn.textContent = following ? '✓ Following' : '+ Follow';
+    followBtn.classList.toggle('following', following);
+    followBtn.onclick = function () { toggleChFollow(); };
+  }
 
   // Reset to Shorts tab
   var tabs = document.querySelectorAll('.screen#screen-channel .chtab');
@@ -1098,7 +1151,26 @@ function _renderChannelHeader(ch) {
   document.getElementById('ch-about-tab').style.display = 'none';
 }
 
-function _renderChannelWall(wall) {
+window.toggleChannelPrivacy = function () {
+  if (!CHANNEL_current || !STATE.user) return;
+  if (STATE.user.id !== CHANNEL_current.owner_id) return;
+
+  var isCurrentlyPrivate = CHANNEL_current.privacy === 'followers_only';
+  var newPrivacy = isCurrentlyPrivate ? 'public' : 'followers_only';
+  var label = isCurrentlyPrivate ? 'Make this channel PUBLIC? Everyone will be able to see your content.' : 'Make this channel PRIVATE? Only followers will see your content.';
+
+  if (!confirm(label)) return;
+
+  api.put('/channels', { owner_id: CHANNEL_current.owner_id, privacy: newPrivacy })
+    .then(function () {
+      CHANNEL_current.privacy = newPrivacy;
+      var followBtn = document.getElementById('ch-follow-btn');
+      var isPrivate = newPrivacy === 'followers_only';
+      followBtn.innerHTML = (isPrivate ? '🔒 Private' : '🌍 Public') + ' <span style="font-size:.7rem;opacity:.7">tap to change</span>';
+      toast(isPrivate ? '🔒 Channel is now private — only followers can see your content' : '🌍 Channel is now public — everyone can see your content');
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};function _renderChannelWall(wall) {
   var shorts = wall.filter(function (w) { return w.wall_type === 'short'; });
   var posts  = wall.filter(function (w) { return w.wall_type === 'post'; });
 
@@ -1119,13 +1191,49 @@ function _renderChannelWall(wall) {
   // About tab content
   var aboutEl = document.getElementById('ch-about-content');
   if (aboutEl) {
+    var isOwnChannel = STATE.user && STATE.user.id === CHANNEL_current.owner_id;
+    var pendingRequestsHTML = '';
+
+    if (isOwnChannel && CHANNEL_current.privacy === 'followers_only') {
+      pendingRequestsHTML =
+        '<div style="margin-top:1.5rem;border-top:1px solid var(--border);padding-top:1rem">' +
+          '<div style="font-size:.85rem;font-weight:700;margin-bottom:.75rem">📨 Follow Requests</div>' +
+          '<div id="ch-follow-requests-list"><div class="spinner" style="margin:auto"></div></div>' +
+        '</div>';
+
+      // Load pending requests
+      setTimeout(function () {
+        api.get('/channel-follows?channel_owner_id=' + encodeURIComponent(CHANNEL_current.owner_id))
+          .then(function (res) {
+            var el = document.getElementById('ch-follow-requests-list');
+            if (!el) return;
+            var reqs = res.requests || [];
+            if (!reqs.length) {
+              el.innerHTML = '<div style="font-size:.8rem;color:var(--muted)">No pending requests</div>';
+              return;
+            }
+            el.innerHTML = reqs.map(function (r) {
+              return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border)">' +
+                '<div style="font-size:.85rem;font-weight:600">@' + escHtml(r.requester_nick) + '</div>' +
+                '<div style="display:flex;gap:.4rem">' +
+                  '<button onclick="respondFollowRequest(\'' + r.id + '\',\'approve\')" style="padding:.3rem .75rem;border-radius:12px;background:var(--blue);border:none;color:#fff;font-size:.75rem;cursor:pointer;font-weight:700">✓ Approve</button>' +
+                  '<button onclick="respondFollowRequest(\'' + r.id + '\',\'reject\')" style="padding:.3rem .75rem;border-radius:12px;background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:.75rem;cursor:pointer">✕ Decline</button>' +
+                '</div>' +
+              '</div>';
+            }).join('');
+          })
+          .catch(function () {});
+      }, 0);
+    }
+
     aboutEl.innerHTML =
       '<div style="font-size:.85rem;line-height:1.6;color:var(--text)">' +
         (CHANNEL_current.bio ? escHtml(CHANNEL_current.bio) : '<span style="color:var(--muted)">No bio yet.</span>') +
       '</div>' +
       '<div style="margin-top:1rem;font-size:.75rem;color:var(--muted)">' +
         posts.length + ' posts · ' + shorts.length + ' shorts' +
-      '</div>';
+      '</div>' +
+      pendingRequestsHTML;
   }
 }
 
@@ -1135,6 +1243,16 @@ function _isFollowingChannel(ownerId) {
     return set.indexOf(ownerId) !== -1;
   } catch (e) { return false; }
 }
+
+window.respondFollowRequest = function (requestId, action) {
+  api.put('/channel-follows', { request_id: requestId, action: action })
+    .then(function () {
+      toast(action === 'approve' ? '✅ Approved!' : '❌ Declined');
+      // Re-render the About tab to refresh the list
+      if (CHANNEL_current) switchChTab(document.querySelector('.chtab:last-child'), 'about');
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 window.shareChannel = function () {
   if (!CHANNEL_current) return;
