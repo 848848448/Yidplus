@@ -614,7 +614,8 @@ function loadMessages(scrollToBottom) {
         var arrow = document.getElementById('new-arrow');
         if (arrow) {
           arrow.style.display = 'flex';
-          arrow.querySelector('.new-count').textContent = CHAT_unreadNew;
+          var badge = document.getElementById('new-count');
+          if (badge) { badge.textContent = CHAT_unreadNew; badge.style.display = 'flex'; }
         }
       }
 
@@ -764,8 +765,9 @@ function renderMessages(scrollDown) {
       '</a>';
 
     } else {
-      // Text — detect links
-      inner += '<span>' + _linkify(escHtml(m.text || '')) + '</span>';
+      // Text — detect links, auto-detect RTL for Hebrew/Yiddish
+      var isRTL = /[\u0590-\u05FF\uFB1D-\uFB4F]/.test(m.text || '');
+      inner += '<span style="unicode-bidi:plaintext;display:block;' + (isRTL ? 'direction:rtl;text-align:right' : '') + '">' + _linkify(escHtml(m.text || '')) + '</span>';
     }
 
     inner += '<div class="bubble-meta">' + (m.edited_at ? '<span class="edited-tag">edited</span>' : '') + '<span class="bubble-time">' + time + '</span>' + ticks + '</div>';
@@ -877,10 +879,22 @@ function _onMsgsScroll() {
   var cont = document.getElementById('chat-msgs');
   if (!cont) return;
   CHAT_atBottom = (cont.scrollTop + cont.clientHeight >= cont.scrollHeight - 50);
+  var arrow = document.getElementById('new-arrow');
+  if (!arrow) return;
   if (CHAT_atBottom) {
     CHAT_unreadNew = 0;
-    var arrow = document.getElementById('new-arrow');
-    if (arrow) arrow.style.display = 'none';
+    arrow.style.display = 'none';
+  } else {
+    arrow.style.display = 'flex';
+    var badge = document.getElementById('new-count');
+    if (badge) {
+      if (CHAT_unreadNew > 0) {
+        badge.textContent = CHAT_unreadNew;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
   }
 }
 
@@ -1348,15 +1362,64 @@ window._ctxTouch = function (e, msgId) {
 };
 window._ctxClear = function () { clearTimeout(_ctxTimer); };
 
+function _buildCtxMenu(msg) {
+  var isMe = msg.sender_id === (STATE.user && STATE.user.id);
+  var isAdmin = isAnyAdmin();
+  var isText = msg.type === 'text' || msg.type === 'sticker';
+  var canEdit = isMe && msg.type === 'text';
+  var canDelete = isMe || isAdmin;
+  var canPin = isAdmin || (CHAT_curRoom && CHAT_curRoom.is_group_admin);
+
+  var SVG = {
+    reply:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>',
+    copy:    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    edit:    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>',
+    forward: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>',
+    pin:     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>',
+    report:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
+    trash:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>',
+    close:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  };
+
+  function item(svg, label, fn, danger) {
+    return '<div class="ctx-item' + (danger ? ' danger' : '') + '" onclick="' + fn + ';document.getElementById(\'ctx-menu\').classList.remove(\'open\')">' + svg + ' ' + label + '</div>';
+  }
+
+  var items = '';
+  items += item(SVG.reply,   'Reply',   'ctxReply()');
+  if (msg.type === 'text') items += item(SVG.copy, 'Copy', 'ctxCopy()');
+  if (canEdit)   items += item(SVG.edit,    'Edit',    'ctxEdit()');
+  items +=        item(SVG.forward, 'Forward', 'ctxForward()');
+  if (canPin)    items += item(SVG.pin,     'Pin',     'ctxPin()');
+  if (!isMe)     items += item(SVG.report,  'Report',  'ctxReport()');
+  if (canDelete) items += item(SVG.trash,   'Delete',  'ctxDelete()', true);
+  items +=        item(SVG.close,  'Cancel',  '');
+
+  document.getElementById('ctx-menu-items').innerHTML = items;
+}
+
 window.showCtx = function (e, msgId) {
   CHAT_ctxMsg = CHAT_messages.find(function (m) { return m.id === msgId; });
   if (!CHAT_ctxMsg) return;
+
+  // First build the menu content (so we know what's shown)
+  _buildCtxMenu(CHAT_ctxMsg);
+
   var menu = document.getElementById('ctx-menu');
   menu.classList.add('open');
-  var x = (e.clientX || (e.touches && e.touches[0].clientX) || 0);
-  var y = (e.clientY || (e.touches && e.touches[0].clientY) || 0);
-  menu.style.left = Math.min(x, window.innerWidth  - 180) + 'px';
-  menu.style.top  = Math.min(y, window.innerHeight - 200) + 'px';
+  var x = (e.clientX || (e.touches && e.touches[0] && e.touches[0].clientX) || 0);
+  var y = (e.clientY || (e.touches && e.touches[0] && e.touches[0].clientY) || 0);
+
+  // Measure after making visible (display:block)
+  var mh = menu.offsetHeight || 220;
+  var mw = menu.offsetWidth  || 170;
+
+  // Flip upward if not enough space below
+  var topPos = (y + mh > window.innerHeight - 10) ? Math.max(y - mh, 10) : y;
+  var leftPos = Math.min(x, window.innerWidth - mw - 10);
+
+  menu.style.left = leftPos + 'px';
+  menu.style.top  = topPos  + 'px';
 };
 
 window.toggleReaction = function (msgId, emoji) {
@@ -1395,13 +1458,47 @@ window.ctxReply = function () {
 };
 window.ctxCopy = function () {
   if (CHAT_ctxMsg && CHAT_ctxMsg.text && navigator.clipboard) {
-    navigator.clipboard.writeText(CHAT_ctxMsg.text).then(function () { toast('📋 Copied!'); });
+    navigator.clipboard.writeText(CHAT_ctxMsg.text).then(function () { toast('✅ Copied!'); });
   }
   document.getElementById('ctx-menu').classList.remove('open');
 };
 window.ctxForward = function () {
-  toast('📤 Forward: coming soon');
   document.getElementById('ctx-menu').classList.remove('open');
+  if (!CHAT_ctxMsg) return;
+  // Show a modal to pick a chat to forward to
+  var rooms = CHAT_rooms || [];
+  if (!rooms.length) return toast('No chats to forward to.');
+  var opts = rooms.map(function (r) {
+    return '<div style="display:flex;align-items:center;gap:.75rem;padding:.65rem 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="doForward(\'' + r.id + '\')">' +
+      '<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--blue),#7C4DFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:700">' + escHtml((r.nick||'?').slice(0,1).toUpperCase()) + '</div>' +
+      '<div style="font-size:.88rem;font-weight:600">' + escHtml(r.nick || 'Chat') + '</div>' +
+    '</div>';
+  }).join('');
+  var modal = document.getElementById('forward-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'forward-modal';
+    modal.className = 'modal-overlay';
+    modal.onclick = function (e) { if (e.target === modal) modal.classList.remove('open'); };
+    modal.innerHTML = '<div class="modal-sheet"><div class="modal-title">Forward to...</div><div id="forward-list" style="max-height:260px;overflow-y:auto"></div><button class="modal-cancel" onclick="document.getElementById(\'forward-modal\').classList.remove(\'open\')">Cancel</button></div>';
+    document.body.appendChild(modal);
+  }
+  document.getElementById('forward-list').innerHTML = opts;
+  modal.classList.add('open');
+};
+window.doForward = function (toRoomId) {
+  document.getElementById('forward-modal').classList.remove('open');
+  if (!CHAT_ctxMsg) return;
+  api.post('/chat', { room_id: toRoomId, type: CHAT_ctxMsg.type || 'text', text: (CHAT_ctxMsg.text || '') + (CHAT_ctxMsg.type === 'text' ? '' : ''), forwarded: true })
+    .then(function () { toast('✅ Forwarded!'); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+window.ctxPin = function () {
+  document.getElementById('ctx-menu').classList.remove('open');
+  if (!CHAT_ctxMsg || !CHAT_curRoom) return;
+  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, pinned_message_id: CHAT_ctxMsg.id })
+    .then(function () { toast('📌 Message pinned!'); loadMessages(false); })
+    .catch(function (err) { toast('❌ ' + err.message); });
 };
 window.ctxEdit = function () {
   document.getElementById('ctx-menu').classList.remove('open');
@@ -1410,13 +1507,33 @@ window.ctxEdit = function () {
   if (CHAT_ctxMsg.sender_id !== meId) return toast('⚠ You can only edit your own messages.');
   if (CHAT_ctxMsg.type !== 'text') return toast('⚠ Only text messages can be edited.');
 
-  var newText = prompt('Edit message:', CHAT_ctxMsg.text || '');
-  if (newText === null) return;
-  newText = newText.trim();
-  if (!newText) return toast('⚠ Message cannot be empty.');
-
+  // Use the edit-modal instead of a blocking prompt()
+  var modal = document.getElementById('edit-msg-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'edit-msg-modal';
+    modal.className = 'modal-overlay';
+    modal.onclick = function (e) { if (e.target === modal) modal.classList.remove('open'); };
+    modal.innerHTML = '<div class="modal-sheet"><div class="modal-title">Edit message</div><textarea id="edit-msg-input" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:.75rem;color:var(--text);font-family:inherit;font-size:.9rem;resize:none;outline:none;margin-bottom:1rem" rows="4"></textarea><button class="save-pill" onclick="submitEditMsg()" style="width:100%;padding:.65rem;border-radius:12px;background:var(--blue);border:none;color:#fff;font-weight:700;cursor:pointer;margin-bottom:.5rem">Save</button><button class="modal-cancel" onclick="document.getElementById(\'edit-msg-modal\').classList.remove(\'open\')">Cancel</button></div>';
+    document.body.appendChild(modal);
+  }
+  document.getElementById('edit-msg-input').value = CHAT_ctxMsg.text || '';
+  modal.classList.add('open');
+  setTimeout(function () { document.getElementById('edit-msg-input').focus(); }, 100);
+};
+window.submitEditMsg = function () {
+  document.getElementById('edit-msg-modal').classList.remove('open');
+  var newText = (document.getElementById('edit-msg-input').value || '').trim();
+  if (!newText || !CHAT_ctxMsg) return;
   api.put('/chat', { id: CHAT_ctxMsg.id, text: newText })
-    .then(function () { loadMessages(true); toast('✏️ Message edited'); })
+    .then(function () { loadMessages(false); toast('✅ Message edited'); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+window.ctxReport = function () {
+  document.getElementById('ctx-menu').classList.remove('open');
+  if (!CHAT_ctxMsg) return;
+  api.post('/reports', { target_type: 'message', target_id: CHAT_ctxMsg.id, reason: 'User report' })
+    .then(function () { toast('✅ Reported.'); })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
 window.ctxDelete = function () {
@@ -1438,6 +1555,11 @@ document.addEventListener('click', function (e) {
 // ============================================================
 // NEW CHAT / DM
 // ============================================================
+window.toggleChatFab = function () {
+  var menu = document.getElementById('chat-fab-menu');
+  if (menu) menu.classList.toggle('open');
+};
+
 window.openNewChatModal = function () {
   document.getElementById('new-chat-modal').classList.add('open');
   document.getElementById('new-chat-search').value = '';
