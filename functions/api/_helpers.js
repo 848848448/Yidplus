@@ -26,13 +26,13 @@ export async function requireUser(request, env) {
   if (!token) return null;
 
   const session = await env.DB.prepare(
-    `SELECT user_id, expires_at FROM sessions WHERE token = ?`
+    `SELECT user_id FROM sessions WHERE id = ?`
   ).bind(token).first();
 
-  if (!session || new Date(session.expires_at) < new Date()) return null;
+  if (!session) return null;
 
   const user = await env.DB.prepare(
-    `SELECT id, email, nickname, role, blocked, verified FROM users WHERE id = ?`
+    `SELECT id, email, nickname, role, blocked, verified, photo_url, bio FROM users WHERE id = ?`
   ).bind(session.user_id).first();
 
   if (!user || user.blocked) return null;
@@ -93,4 +93,4 @@ export async function logAudit(env, actor, action, targetType, targetId, details
     // Swallow — audit logging must never block the real action.
     console.error('[audit] failed to write log:', e.message);
   }
-      }
+    }
