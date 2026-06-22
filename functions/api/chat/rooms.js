@@ -23,7 +23,7 @@ export async function onRequestGet(context) {
 
     // Rooms the user is a member of
     const { results: myRooms } = await env.DB.prepare(
-      `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at
+      `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code
        FROM rooms r
        JOIN room_members m ON m.room_id = r.id
        WHERE m.user_id = ?`
@@ -32,7 +32,7 @@ export async function onRequestGet(context) {
     // PUBLIC group rooms not yet joined ("Tap to Join" — discoverable).
     // Private groups never appear here unless you're already a member.
     const { results: publicRooms } = await env.DB.prepare(
-      `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at
+      `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code
        FROM rooms r
        WHERE r.type = 'group'
          AND r.visibility = 'public'
@@ -45,7 +45,7 @@ export async function onRequestGet(context) {
     let adminVisibleRooms = [];
     if (isAdmin) {
       const { results: allRooms } = await env.DB.prepare(
-        `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at
+        `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code
          FROM rooms r
          WHERE r.id NOT IN (SELECT room_id FROM room_members WHERE user_id = ?)`
       ).bind(user.id).all();
@@ -358,4 +358,4 @@ export async function onRequestDelete(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-      }
+}
