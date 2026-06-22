@@ -23,7 +23,7 @@ export async function onRequestGet(context) {
 
     // Rooms the user is a member of
     const { results: myRooms } = await env.DB.prepare(
-      `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code
+      `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code, r.pinned_message_id
        FROM rooms r
        JOIN room_members m ON m.room_id = r.id
        WHERE m.user_id = ?`
@@ -32,7 +32,7 @@ export async function onRequestGet(context) {
     // PUBLIC group rooms not yet joined ("Tap to Join" — discoverable).
     // Private groups never appear here unless you're already a member.
     const { results: publicRooms } = await env.DB.prepare(
-      `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code
+      `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code, r.pinned_message_id
        FROM rooms r
        WHERE r.type = 'group'
          AND r.visibility = 'public'
@@ -45,7 +45,7 @@ export async function onRequestGet(context) {
     let adminVisibleRooms = [];
     if (isAdmin) {
       const { results: allRooms } = await env.DB.prepare(
-        `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code
+        `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code, r.pinned_message_id
          FROM rooms r
          WHERE r.id NOT IN (SELECT room_id FROM room_members WHERE user_id = ?)`
       ).bind(user.id).all();
@@ -277,6 +277,15 @@ export async function onRequestPut(context) {
       await env.DB.prepare(`UPDATE rooms SET auto_delete_minutes = ? WHERE id = ?`).bind(minutes, roomId).run();
     }
 
+    if (body.pinned_message_id !== undefined) {
+      if (!(await _isGroupAdminOrSuper(env, user, roomId))) {
+        return json({ ok: false, error: 'Only group admins can pin messages' }, 403);
+      }
+      await env.DB.prepare(`UPDATE rooms SET pinned_message_id = ? WHERE id = ?`)
+        .bind(body.pinned_message_id || null, roomId).run();
+      return json({ ok: true });
+    }
+
     if (body.member_id && typeof body.make_admin === 'boolean') {
       await env.DB.prepare(`UPDATE room_members SET is_group_admin = ? WHERE room_id = ? AND user_id = ?`)
         .bind(body.make_admin ? 1 : 0, roomId, body.member_id).run();
@@ -358,4 +367,4 @@ export async function onRequestDelete(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-}
+        }
