@@ -35,6 +35,7 @@ export async function onRequestGet(context) {
 
     const out = results.map(row => ({
       id: row.id,
+      owner_id: row.owner_id,
       nick: row.nickname,
       verified: !!row.verified,
       caption: row.caption,
@@ -84,7 +85,7 @@ export async function onRequestPost(context) {
     return json({
       ok: true,
       short: {
-        id, nick: user.nickname, verified: !!user.verified,
+        id, owner_id: user.id, nick: user.nickname, verified: !!user.verified,
         caption, likes: 0, views: 0, created_at: now,
         media_url: `/api/media/${encodeURIComponent(key)}`, liked: false,
       },
