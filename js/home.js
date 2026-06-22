@@ -1039,6 +1039,8 @@ var CHANNEL_current = null;       // currently loaded channel data
 var CHANNEL_pendingOwnerId = null; // set by boot logic when arriving via ?channel=xxx
 
 window.init_channel = function () {
+  var tb = document.getElementById('channel-topbar-fixed');
+  if (tb) tb.style.display = 'flex';
   var ownerId = CHANNEL_pendingOwnerId;
   CHANNEL_pendingOwnerId = null;
   if (!ownerId && CHANNEL_current) ownerId = CHANNEL_current.owner_id;
