@@ -7,7 +7,8 @@
 var SHORTS_data = [];
 var SHORTS_curIdx = 0;
 var SHORTS_observer = null;
-var SHORTS_soundOn = false; // once user unmutes, stays on for the rest of the session
+var SHORTS_soundOn = false;       // once unmuted (by any user gesture), stays on for the rest of the session
+var SHORTS_pendingFile = null;    // video file waiting on the caption modal before upload
 
 window.init_shorts = function () {
   loadShortsFeed();
@@ -32,45 +33,52 @@ function loadShortsFeed() {
 }
 window.loadShortsFeed = loadShortsFeed;
 
+// ── Icon set (matches the modern SVG style used across the rest of the app) ──
+var ICON_HEART_OUTLINE = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+var ICON_HEART_FILLED  = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+var ICON_COMMENT       = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
+var ICON_SHARE         = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
+var ICON_TRASH         = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
+var ICON_PLAY          = '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+var ICON_PAUSE         = '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+var ICON_EYE           = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+var ICON_PLUS          = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+
 function renderShorts() {
   var cont = document.getElementById('swipe-cont');
-  var dotsEl = document.getElementById('prog-dots');
   if (!cont) return;
 
   if (!SHORTS_data.length) {
     cont.innerHTML = '<div class="feed-state" style="height:100vh;color:#fff">' +
       '<div style="font-size:2.5rem">🎬</div><div>No shorts yet</div>' +
-      '<div style="font-size:.75rem;opacity:.7">Tap ＋ to upload the first one!</div></div>';
-    if (dotsEl) dotsEl.innerHTML = '';
+      '<div style="font-size:.75rem;opacity:.7">Tap + to upload the first one!</div></div>';
     return;
   }
 
   cont.innerHTML = '';
-  if (dotsEl) dotsEl.innerHTML = '';
 
   SHORTS_data.forEach(function (s, i) {
-    if (dotsEl) {
-      var dot = document.createElement('div');
-      dot.className = 'pdot' + (i === 0 ? ' active' : '');
-      dotsEl.appendChild(dot);
-    }
-
     var slide = document.createElement('div');
     slide.className = 'short-slide';
     slide.dataset.idx = i;
 
     var tagsHTML = '#YidPlus #JewishContent';
     var verifiedBadge = s.verified ? '<span style="font-size:.75rem">👑</span>' : '';
-    var likedIcon = s.liked ? '❤️' : '🤍';
+    var likedIcon = s.liked ? ICON_HEART_FILLED : ICON_HEART_OUTLINE;
     var likedClass = s.liked ? ' liked' : '';
 
     slide.innerHTML =
       '<video class="slide-video" src="' + s.media_url + '" playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000"></video>' +
-      '<button id="snd-btn-' + i + '" onclick="event.stopPropagation();toggleShortSound(' + i + ')" style="position:absolute;top:70px;right:12px;z-index:20;background:rgba(0,0,0,.5);border:none;color:#fff;font-size:1.2rem;width:38px;height:38px;border-radius:50%;cursor:pointer">🔇</button>' +
       '<div class="slide-grad"></div>' +
-      '<div class="pause-indicator" id="pause-' + i + '">⏸</div>' +
+      '<div class="center-flash" id="flash-' + i + '"></div>' +
+      '<div class="scrub-wrap" id="scrub-' + i + '">' +
+        '<div class="scrub-track" id="scrub-track-' + i + '">' +
+          '<div class="scrub-fill" id="scrub-fill-' + i + '"></div>' +
+          '<div class="scrub-handle" id="scrub-handle-' + i + '"></div>' +
+        '</div>' +
+      '</div>' +
       '<div class="slide-info">' +
-        '<div class="short-channel" onclick="toast(\'Channel: @' + escHtml(s.nick) + '\')">' +
+        '<div class="short-channel" onclick="event.stopPropagation();openShortChannel(' + i + ')">' +
           '<div class="short-avatar">' + escHtml((s.nick || '?').slice(0, 1).toUpperCase()) + '</div>' +
           '<span class="short-nick">@' + escHtml(s.nick) + '</span>' + verifiedBadge +
         '</div>' +
@@ -78,48 +86,31 @@ function renderShorts() {
         '<div class="short-tags"><span class="short-tag">' + tagsHTML + '</span></div>' +
       '</div>' +
       '<div class="slide-actions">' +
-        '<div class="action-avatar-wrap" onclick="toast(\'Channel: @' + escHtml(s.nick) + '\')">' +
+        '<div class="action-avatar-wrap" onclick="event.stopPropagation();openShortChannel(' + i + ')">' +
           '<div class="action-avatar">' + escHtml((s.nick || '?').slice(0, 1).toUpperCase()) + '</div>' +
-          '<div class="action-avatar-plus">+</div>' +
+          '<div class="action-avatar-plus">' + ICON_PLUS + '</div>' +
         '</div>' +
         '<div class="s-action' + likedClass + '" id="like-' + i + '" onclick="toggleShortLike(' + i + ')">' +
-          '<div class="s-icon">' + likedIcon + '</div><div class="s-count" id="like-count-' + i + '">' + fmtN(s.likes) + '</div>' +
+          '<div class="s-icon" id="like-icon-' + i + '">' + likedIcon + '</div><div class="s-count" id="like-count-' + i + '">' + fmtN(s.likes) + '</div>' +
         '</div>' +
         '<div class="s-action" onclick="openComments(' + i + ')">' +
-          '<div class="s-icon">💬</div><div class="s-count">Chat</div>' +
+          '<div class="s-icon">' + ICON_COMMENT + '</div><div class="s-count">Chat</div>' +
         '</div>' +
         '<div class="s-action" onclick="shareShort(' + i + ')">' +
-          '<div class="s-icon">📤</div><div class="s-count">Share</div>' +
+          '<div class="s-icon">' + ICON_SHARE + '</div><div class="s-count">Share</div>' +
         '</div>' +
         (canDeleteShort(s) ?
         '<div class="s-action" onclick="deleteShort(\'' + s.id + '\',' + i + ')">' +
-          '<div class="s-icon">🗑️</div><div class="s-count">Del</div>' +
+          '<div class="s-icon">' + ICON_TRASH + '</div><div class="s-count">Del</div>' +
         '</div>' : '') +
+        '<div class="view-count" id="views-' + i + '">' + ICON_EYE + '<span>' + fmtN(s.views || 0) + '</span></div>' +
       '</div>';
 
-    // tap to play/pause
     var video = slide.querySelector('.slide-video');
     video.muted = !SHORTS_soundOn; // honor the session-wide sound preference
     video.loop  = true;
-    slide.addEventListener('click', function (e) {
-      if (e.target.closest('.s-action') || e.target.closest('.short-channel') || e.target.closest('.action-avatar-wrap') || e.target.tagName === 'BUTTON') return;
-      if (video.paused) {
-        video.play().catch(function(){});
-        document.getElementById('pause-' + i).classList.remove('show');
-      } else {
-        video.pause();
-        document.getElementById('pause-' + i).classList.add('show');
-      }
-    });
 
-    // double tap to like
-    var lastTap = 0;
-    slide.addEventListener('touchend', function () {
-      var now = Date.now();
-      if (now - lastTap < 300) doubleTapLike(i, slide);
-      lastTap = now;
-    });
-    slide.addEventListener('dblclick', function () { doubleTapLike(i, slide); });
+    _wireSlideInteractions(slide, video, i);
 
     cont.appendChild(slide);
   });
@@ -127,9 +118,95 @@ function renderShorts() {
   setupShortsObserver();
 }
 
+// All tap / scrub / double-tap-like interaction logic for one slide.
+function _wireSlideInteractions(slide, video, i) {
+  var scrubWrap  = slide.querySelector('#scrub-' + i);
+  var scrubTrack = slide.querySelector('#scrub-track-' + i);
+  var scrubFill  = slide.querySelector('#scrub-fill-' + i);
+  var scrubHandle = slide.querySelector('#scrub-handle-' + i);
+  var flashEl    = slide.querySelector('#flash-' + i);
+  var hideTimer  = null;
+  var isScrubbing = false;
+
+  function showScrub() {
+    scrubWrap.classList.add('show');
+    clearTimeout(hideTimer);
+    if (!isScrubbing) {
+      hideTimer = setTimeout(function () { scrubWrap.classList.remove('show'); }, 2500);
+    }
+  }
+
+  function updateScrubFromTime() {
+    if (!video.duration || isScrubbing) return;
+    var pct = (video.currentTime / video.duration) * 100;
+    scrubFill.style.width = pct + '%';
+    scrubHandle.style.left = pct + '%';
+  }
+
+  video.addEventListener('timeupdate', function () {
+    updateScrubFromTime();
+    if (!isScrubbing) showScrub();
+  });
+  video.addEventListener('play', showScrub);
+
+  function seekFromClientX(clientX) {
+    var rect = scrubTrack.getBoundingClientRect();
+    var pct = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    scrubFill.style.width = (pct * 100) + '%';
+    scrubHandle.style.left = (pct * 100) + '%';
+    if (video.duration) video.currentTime = pct * video.duration;
+  }
+
+  scrubTrack.addEventListener('touchstart', function (e) {
+    isScrubbing = true;
+    showScrub();
+    seekFromClientX(e.touches[0].clientX);
+  }, { passive: true });
+  scrubTrack.addEventListener('touchmove', function (e) {
+    if (!isScrubbing) return;
+    seekFromClientX(e.touches[0].clientX);
+  }, { passive: true });
+  scrubTrack.addEventListener('touchend', function () {
+    isScrubbing = false;
+    showScrub();
+  });
+
+  // Tap anywhere on the video (not on a button/action) toggles play/pause,
+  // with a brief icon flash that fades on its own — never stays on screen.
+  function flashIcon(svg) {
+    flashEl.innerHTML = svg;
+    flashEl.classList.add('show');
+    setTimeout(function () { flashEl.classList.remove('show'); }, 500);
+  }
+
+  slide.addEventListener('click', function (e) {
+    if (e.target.closest('.s-action') || e.target.closest('.short-channel') ||
+        e.target.closest('.action-avatar-wrap') || e.target.closest('.scrub-wrap') ||
+        e.target.tagName === 'BUTTON') return;
+
+    if (video.paused) {
+      video.play().catch(function () {});
+      flashIcon(ICON_PLAY);
+    } else {
+      video.pause();
+      flashIcon(ICON_PAUSE);
+    }
+  });
+
+  // Double tap to like
+  var lastTap = 0;
+  slide.addEventListener('touchend', function (e) {
+    if (e.target.closest('.scrub-wrap')) return;
+    var now = Date.now();
+    if (now - lastTap < 300) doubleTapLike(i, slide);
+    lastTap = now;
+  });
+  slide.addEventListener('dblclick', function () { doubleTapLike(i, slide); });
+}
+
 function canDeleteShort(s) {
   if (!STATE.user) return false;
-  return s.nick === STATE.user.nickname || isAnyAdmin();
+  return s.owner_id === STATE.user.id || isAnyAdmin();
 }
 
 function setupShortsObserver() {
@@ -139,33 +216,37 @@ function setupShortsObserver() {
     entries.forEach(function (entry) {
       var video = entry.target.querySelector('.slide-video');
       var idx = parseInt(entry.target.dataset.idx, 10);
+
       if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
         SHORTS_curIdx = idx;
-        document.querySelectorAll('.pdot').forEach(function (d, i) {
-          d.classList.toggle('active', i === idx);
-        });
 
         // Track a view exactly once per short per page load.
         var s = SHORTS_data[idx];
         if (s && !s._viewed) {
           s._viewed = true;
-          api.put('/shorts', { id: s.id, view: true }).catch(function () {});
+          api.put('/shorts', { id: s.id, view: true })
+            .then(function (res) {
+              var el = document.getElementById('views-' + idx);
+              if (el && typeof res.views === 'number') {
+                el.querySelector('span').textContent = fmtN(res.views);
+              }
+            })
+            .catch(function () {});
         }
 
+        // Auto-advance + autoplay: the moment a slide becomes the active
+        // one (via swipe), it starts playing on its own — no tap needed.
         video.currentTime = 0;
         video.muted = !SHORTS_soundOn;
         var playAttempt = video.play();
         if (playAttempt && playAttempt.catch) {
           playAttempt.catch(function () {
-            // Browser blocked unmuted autoplay (no user gesture yet this session) — fall back to muted.
+            // Browser blocked unmuted autoplay (no user gesture yet this
+            // session) — fall back to muted so playback never stalls.
             video.muted = true;
             video.play().catch(function () {});
-            var btn2 = document.getElementById('snd-btn-' + idx);
-            if (btn2) btn2.textContent = '🔇';
           });
         }
-        var btn = document.getElementById('snd-btn-' + idx);
-        if (btn) btn.textContent = video.muted ? '🔇' : '🔊';
       } else {
         video.pause();
       }
@@ -175,12 +256,26 @@ function setupShortsObserver() {
   document.querySelectorAll('.short-slide').forEach(function (s) { SHORTS_observer.observe(s); });
 }
 
+// The first tap/interaction anywhere unlocks sound for the rest of the
+// session (browsers block unmuted autoplay without a prior user gesture).
+// There is no persistent mute toggle anymore — sound simply turns on
+// permanently the moment the user interacts at all.
+function _unlockSoundOnce() {
+  if (SHORTS_soundOn) return;
+  SHORTS_soundOn = true;
+  document.querySelectorAll('.slide-video').forEach(function (v) { v.muted = false; });
+  document.removeEventListener('touchstart', _unlockSoundOnce);
+  document.removeEventListener('click', _unlockSoundOnce);
+}
+document.addEventListener('touchstart', _unlockSoundOnce, { passive: true });
+document.addEventListener('click', _unlockSoundOnce);
+
 // ── LIKE ──
 function doubleTapLike(i, slide) {
   if (!SHORTS_data[i].liked) toggleShortLike(i);
   var burst = document.createElement('div');
   burst.className = 'heart-burst';
-  burst.textContent = '❤️';
+  burst.innerHTML = '<svg width="64" height="64" viewBox="0 0 24 24" fill="#ff3b5c"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
   slide.appendChild(burst);
   setTimeout(function () { burst.remove(); }, 900);
 }
@@ -195,13 +290,20 @@ window.toggleShortLike = function (i) {
       s.liked = newLiked;
       s.likes = res.likes;
       var el = document.getElementById('like-' + i);
-      var icon = el.querySelector('.s-icon');
+      var icon = document.getElementById('like-icon-' + i);
       var count = document.getElementById('like-count-' + i);
-      icon.textContent = newLiked ? '❤️' : '🤍';
+      icon.innerHTML = newLiked ? ICON_HEART_FILLED : ICON_HEART_OUTLINE;
       el.classList.toggle('liked', newLiked);
       count.textContent = fmtN(s.likes);
     })
     .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+// ── CHANNEL ──
+window.openShortChannel = function (i) {
+  var s = SHORTS_data[i];
+  if (!s) return;
+  goPage('yidplus-dashboard.html?channel=' + encodeURIComponent(s.owner_id));
 };
 
 // ── SHARE ──
@@ -284,17 +386,34 @@ window.sendCmt = function () {
 };
 
 // ============================================================
-// UPLOAD
+// UPLOAD — picking a video opens a caption modal (no blocking prompt()),
+// then the actual upload happens on "Post Short".
 // ============================================================
 window.handleVidUpload = function (e) {
   var file = e.target.files[0];
   if (!file) return;
   if (!STATE.user) return toast('⚠ Please sign in first.');
 
+  SHORTS_pendingFile = file;
   document.getElementById('upload-modal').classList.remove('open');
-  toast('📤 Uploading short...');
+  document.getElementById('caption-input').value = '';
+  document.getElementById('caption-modal').classList.add('open');
+  e.target.value = '';
+};
 
-  var caption = prompt('Caption for your short (optional):') || '';
+window.cancelShortUpload = function () {
+  SHORTS_pendingFile = null;
+  document.getElementById('caption-modal').classList.remove('open');
+};
+
+window.confirmShortUpload = function () {
+  if (!SHORTS_pendingFile) { document.getElementById('caption-modal').classList.remove('open'); return; }
+  var caption = (document.getElementById('caption-input').value || '').trim();
+  var file = SHORTS_pendingFile;
+  SHORTS_pendingFile = null;
+
+  document.getElementById('caption-modal').classList.remove('open');
+  toast('📤 Uploading short...');
 
   var form = new FormData();
   form.append('file', file);
@@ -307,18 +426,6 @@ window.handleVidUpload = function (e) {
       renderShorts();
     })
     .catch(function (err) { toast('❌ ' + err.message); });
-
-  e.target.value = '';
-};
-
-window.toggleShortSound = function (i) {
-  var slides = document.querySelectorAll('.short-slide');
-  var video  = slides[i] && slides[i].querySelector('video');
-  if (!video) return;
-  video.muted = !video.muted;
-  SHORTS_soundOn = !video.muted; // remember for subsequent swipes this session
-  var btn = document.getElementById('snd-btn-' + i);
-  if (btn) btn.textContent = video.muted ? '🔇' : '🔊';
 };
 
 console.log('[YID PLUS] shorts.js loaded ✓');
