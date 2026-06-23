@@ -1055,35 +1055,7 @@ function loadAdsList() {
     });
 }
 
-window.createAd = function () {
-  var title = (document.getElementById('ad-title').value || '').trim();
-  var subtitle = document.getElementById('ad-subtitle').value || '';
-  var link = document.getElementById('ad-link').value || '';
-  var file = document.getElementById('ad-media-input').files[0];
-  if (!title) return toast('⚠ Title is required.');
-
-  var form = new FormData();
-  form.append('title', title);
-  form.append('subtitle', subtitle);
-  form.append('link_url', link);
-  if (file) form.append('media', file);
-
-  api.post('/admin/ads', form, true)
-    .then(function () {
-      toast('✅ Ad created!');
-      document.getElementById('ad-title').value = '';
-      document.getElementById('ad-subtitle').value = '';
-      document.getElementById('ad-link').value = '';
-      loadAdsList();
-    })
-    .catch(function (err) { toast('❌ ' + err.message); });
-};
-
-window.toggleAdActive = function (id, active) {
-  api.put('/admin/ads', { id: id, active: active })
-    .then(function () { loadAdsList(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
-};
+// (old createAd removed)
 
 window.deleteAd = function (id) {
   if (!confirm('Delete this ad?')) return;
