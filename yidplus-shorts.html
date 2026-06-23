@@ -88,9 +88,11 @@ document.addEventListener('DOMContentLoaded', function () {
   AUTH.restore().then(function (user) {
     if (!user) { goPage('yidplus-dashboard.html'); return; }
     navTo('shorts');
+    initAds('shorts');
   });
 });
 </script>
 
+<script src="js/ads.js"></script>
 </body>
-                                                                                                                                                                                                                                                                                                                                                  </html>
+                                                                                                                                                                                                                                                                                                                                                                              </html>
