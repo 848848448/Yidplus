@@ -21,77 +21,6 @@ var HOME_STATUSES = [
   { nick:'ShlomoBeats',emoji:'🎤', slides:[{bg:'#001020',text:'Live performance SUNDAY! 🎤',color:'#85B7EB'}], time:'2h',  viewed:false },
   { nick:'KosherChef', emoji:'🥘', slides:[{bg:'#1a0a0a',text:'Cholent reveal TOMORROW 👀',color:'#F09595'}], time:'3h',  viewed:true  },
 ];
-var HOME_ADS = [
-  { title:"Moshe's Judaica",  sub:"Free worldwide shipping!",           icon:"🕎",  bg:"#1a1000", dur:5000 },
-  { title:"Kosher Vacations", sub:"Exclusive glatt kosher resorts",      icon:"🏖️", bg:"#001a1a", dur:6000 },
-  { title:"Torah Academy",    sub:"Learn with the best · Free trial!",   icon:"📚", bg:"#0a001a", dur:5000 },
-];
-var HOME_adIdx = 0;
-var HOME_adRaf = null;
-
-// ── ADS — loads real ads from /api/ads, falls back to demo set ──
-function buildAds() {
-  api.get('/ads')
-    .then(function (res) {
-      var ads = (res.ads || []).map(function (a) {
-        return { title: a.title, sub: a.subtitle || '', icon: '📣', bg: '#1a1000', dur: 6000, media_url: a.media_url, link_url: a.link_url };
-      });
-      _renderAds(ads.length ? ads : HOME_ADS);
-    })
-    .catch(function () { _renderAds(HOME_ADS); });
-}
-
-function _renderAds(ads) {
-  var frame = document.getElementById('ad-frame');
-  var dots  = document.getElementById('ad-dots');
-  if (!frame || !dots) return;
-  frame.innerHTML = '<div id="ad-prog"></div>';
-  dots.innerHTML = '';
-  HOME_adIdx = 0;
-
-  ads.forEach(function (ad, i) {
-    var s = document.createElement('div');
-    s.className = 'ad-slide' + (i === 0 ? ' active' : '');
-    s.style.background = ad.bg || '#1a1000';
-    s.style.cursor = ad.link_url ? 'pointer' : 'default';
-    if (ad.link_url) s.onclick = function () { window.open(ad.link_url, '_blank'); };
-    s.innerHTML = (ad.media_url ? '<img src="' + ad.media_url + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">' : '') +
-      '<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:.3rem">' +
-        '<div style="font-size:2.5rem">' + (ad.icon || '📣') + '</div>' +
-        '<div class="ad-badge">Sponsored</div>' +
-        '<div class="ad-title">' + escHtml(ad.title) + '</div>' +
-        (ad.sub ? '<div class="ad-sub">' + escHtml(ad.sub) + '</div>' : '') +
-      '</div>';
-    frame.appendChild(s);
-    var d = document.createElement('div');
-    d.className = 'ad-dot' + (i === 0 ? ' active' : '');
-    dots.appendChild(d);
-  });
-
-  if (ads.length > 1) _runAdRotation(ads);
-}
-
-function _runAdRotation(ads) {
-  cancelAnimationFrame(HOME_adRaf);
-  var start = performance.now();
-  var dur = ads[HOME_adIdx].dur || 5000;
-  var bar = document.getElementById('ad-prog');
-
-  function tick(now) {
-    var pct = Math.min(100, (now - start) / dur * 100);
-    if (bar) bar.style.width = pct + '%';
-    if (pct < 100) {
-      HOME_adRaf = requestAnimationFrame(tick);
-    } else {
-      HOME_adIdx = (HOME_adIdx + 1) % ads.length;
-      document.querySelectorAll('#ad-frame .ad-slide').forEach(function (s, i) { s.classList.toggle('active', i === HOME_adIdx); });
-      document.querySelectorAll('#ad-dots .ad-dot').forEach(function (d, i) { d.classList.toggle('active', i === HOME_adIdx); });
-      _runAdRotation(ads);
-    }
-  }
-  HOME_adRaf = requestAnimationFrame(tick);
-}
-
 // ── SHORTS PREVIEW — loads real shorts from /api/shorts ──
 function buildShortsPrev() {
   var row = document.getElementById('home-shorts');
@@ -163,7 +92,7 @@ function buildChannelsPrev() {
 window.init_home = function () {
   console.log('[HOME] init_home() called');
   buildStatusRow();
-  buildAds();
+
   buildShortsPrev();
   buildChannelsPrev();
   loadDynamicFeed();      // ← Cloudflare D1 feed
