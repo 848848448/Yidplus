@@ -190,7 +190,16 @@ window.navTo = function (id) {
 
 // Cross-page navigation (multi-page architecture: dashboard/chat/music/shorts/admin)
 window.goPage = function (page) {
-  window.location.href = page;
+  // Create a full-screen fade overlay so the page transition looks smooth
+  var fade = document.createElement('div');
+  fade.style.cssText = 'position:fixed;inset:0;background:var(--bg,#fff);z-index:99999;opacity:0;transition:opacity .18s ease;pointer-events:all';
+  document.body.appendChild(fade);
+  requestAnimationFrame(function () {
+    fade.style.opacity = '1';
+    setTimeout(function () {
+      window.location.href = page;
+    }, 180);
+  });
 };
 
 // ============================================================
