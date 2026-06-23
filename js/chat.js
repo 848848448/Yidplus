@@ -103,7 +103,7 @@ function renderChatList() {
 
     return '<div class="chat-item-wrap" data-room-id="' + c.id + '">' +
       '<div class="chat-item-delete" onclick="event.stopPropagation();deleteChatRoom(\'' + c.id + '\',\'' + escHtml((c.nick || 'Chat')).replace(/'/g, "\\'") + '\')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></div>' +
-      '<div class="chat-item' + (c.unread ? ' unread' : '') + '" onclick="_chatItemClick(event,\'' + c.id + '\')">' +
+      '<div class="chat-item' + (c.unread ? ' unread' : '') + '" onclick="_chatItemClick(this,\'' + c.id + '\')">' +
         '<div class="' + avClass + '" style="' + avStyle + '">' + avatarContent + onlineDot + '</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.2rem;gap:.5rem">' +
@@ -175,10 +175,9 @@ function _attachChatSwipeGestures() {
 }
 
 // A swiped-open row should close on tap rather than navigate into the chat.
-window._chatItemClick = function (e, roomId) {
-  var item = e.currentTarget;
-  if (item.classList.contains('swiped')) {
-    item.classList.remove('swiped');
+window._chatItemClick = function (el, roomId) {
+  if (el.classList.contains('swiped')) {
+    el.classList.remove('swiped');
     return;
   }
   openChatRoom(roomId);
