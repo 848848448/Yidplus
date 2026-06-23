@@ -86,6 +86,9 @@ html, body { background: #000 !important; }
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   AUTH.restore().then(function (user) {
+    if (!user) return new Promise(function(r){setTimeout(r,300)}).then(function(){return AUTH.restore();});
+    return user;
+  }).then(function (user) {
     if (!user) { goPage('yidplus-dashboard.html'); return; }
     navTo('shorts');
     initAds('shorts');
@@ -95,4 +98,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <script src="js/ads.js"></script>
 </body>
-                                                                                                                                                                                                                                                                                                                                                                              </html>
+                                                                                             </html>
