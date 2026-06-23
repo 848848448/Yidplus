@@ -162,6 +162,9 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   AUTH.restore().then(function (user) {
+    if (!user) return new Promise(function(r){setTimeout(r,300)}).then(function(){return AUTH.restore();});
+    return user;
+  }).then(function (user) {
     if (!user) { goPage('yidplus-dashboard.html'); return; }
     applyRoleUI();
     navTo('music');
@@ -170,4 +173,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-  </html>
+        </html>
