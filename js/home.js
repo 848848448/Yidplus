@@ -409,12 +409,16 @@ function buildStatusRow() {
   // "My Status" — always first, shows highlights indicator if archived
   row.innerHTML =
     '<div class="status-item" onclick="openStatusUpload()">' +
-      '<div class="status-ring mine">' +
-        '<div class="status-inner" id="my-status-av" style="font-size:.9rem;font-weight:700">' + meInitial + '</div>' +
-        '<div class="status-plus">+</div>' +
+      '<div class="status-ring mine" style="border-style:dashed">' +
+        '<div class="status-inner" id="my-status-av" style="font-size:1rem;font-weight:700;color:var(--muted)">' +
+          (STATE.user ? (STATE.user.nickname||'?').slice(0,1).toUpperCase() : '?') +
+        '</div>' +
+        '<div class="status-plus">' +
+          '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+        '</div>' +
       '</div>' +
       '<div class="status-name">My Status</div>' +
-    '</div>' +
+    '</div>';
     (HOME_HIGHLIGHTS.length
       ? '<div class="status-item" onclick="openHighlightsModal()">' +
           '<div class="status-ring" style="border-color:#f59e0b">' +
@@ -653,13 +657,11 @@ window.svTouchStart = function (e) {
   HOME_svLongTimer = setTimeout(function () {
     HOME_svLongTimer = null;
     if (!_svTouchMoved) {
-      // Genuine long press — pause and show icon
+      // Genuine long press — pause silently
       HOME_svPaused = true;
       var vid = document.querySelector('#sv-slide video');
       if (vid) vid.pause();
-      var pi = document.getElementById('sv-pause-icon');
-      if (pi) pi.style.display = 'flex';
-    }
+}
   }, 400);
 };
 
@@ -673,9 +675,7 @@ window.svTouchEnd = function (e) {
     HOME_svPaused = false;
     var vid = document.querySelector('#sv-slide video');
     if (vid) vid.play().catch(function(){});
-    var pi = document.getElementById('sv-pause-icon');
-    if (pi) pi.style.display = 'none';
-    _svResyncBar();
+_svResyncBar();
   } else if (!_svTouchMoved) {
     // Normal tap → navigate (NO pause icon)
     var touch = e.changedTouches[0];
@@ -707,9 +707,7 @@ window.svMouseDown = function (e) {
     HOME_svPaused = true;
     var vid = document.querySelector('#sv-slide video');
     if (vid) vid.pause();
-    var pi = document.getElementById('sv-pause-icon');
-    if (pi) pi.style.display = 'flex';
-  }, 400);
+}, 400);
 };
 
 window.svMouseUp = function (e) {
@@ -721,9 +719,7 @@ window.svMouseUp = function (e) {
     HOME_svPaused = false;
     var vid = document.querySelector('#sv-slide video');
     if (vid) vid.play().catch(function(){});
-    var pi = document.getElementById('sv-pause-icon');
-    if (pi) pi.style.display = 'none';
-    _svResyncBar();
+_svResyncBar();
   } else if (!_svTouchMoved) {
     if (e.clientX < window.innerWidth * 0.3) svPrev();
     else svNext();
@@ -749,8 +745,6 @@ window.svResume = function () {
   _svResyncBar();
   var vid = document.querySelector('#sv-slide video');
   if (vid) vid.play().catch(function(){});
-  var pi = document.getElementById('sv-pause-icon');
-  if (pi) pi.style.display = 'none';
 };
 
 // ── Close ─────────────────────────────────────────────────
@@ -1365,10 +1359,16 @@ window.toggleChFollow = function () {
 
 window.switchChTab = function (btn, tab) {
   document.querySelectorAll('.screen#screen-channel .chtab').forEach(function (b) { b.classList.remove('active'); });
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
   document.getElementById('ch-shorts-tab').style.display = (tab === 'shorts') ? 'block' : 'none';
   document.getElementById('ch-music-tab').style.display  = (tab === 'music')  ? 'block' : 'none';
   document.getElementById('ch-about-tab').style.display  = (tab === 'about')  ? 'block' : 'none';
+  var postsTab = document.getElementById('ch-posts-tab');
+  if (postsTab) postsTab.style.display = (tab === 'posts') ? 'block' : 'none';
+
+  if (tab === 'posts' && CHANNEL_current) {
+    _loadChannelPosts();
+  }
 
   if (tab === 'music' && CHANNEL_current) {
     var listEl = document.getElementById('ch-music-list');
@@ -1382,11 +1382,58 @@ window.switchChTab = function (btn, tab) {
         }
         listEl.innerHTML = mine.map(function (t) {
           return '<div style="display:flex;align-items:center;gap:.6rem;padding:.6rem 1rem;border-bottom:1px solid var(--border)">' +
-            '<div style="width:40px;height:40px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center">🎵</div>' +
+            '<div style="width:40px;height:40px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>' +
             '<div style="flex:1"><div style="font-size:.82rem;font-weight:700">' + escHtml(t.title) + '</div><div style="font-size:.68rem;color:var(--muted)">' + escHtml(t.artist) + '</div></div>' +
           '</div>';
         }).join('');
       })
       .catch(function () { listEl.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">Could not load music</div>'; });
   }
+};
+
+function _loadChannelPosts() {
+  var el = document.getElementById('ch-posts-list');
+  if (!el || !CHANNEL_current) return;
+  el.innerHTML = '<div style="padding:2rem;text-align:center"><div class="spinner"></div></div>';
+  api.get('/posts?user_id=' + encodeURIComponent(CHANNEL_current.owner_id))
+    .then(function (res) {
+      var posts = res.posts || [];
+      var meId  = STATE.user && STATE.user.id;
+      var isOwn = CHANNEL_current.owner_id === meId;
+      var isAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.role === 'admin_limited');
+
+      var newPostBtn = '';
+      if (isOwn || isAdmin) {
+        newPostBtn = '<div style="padding:.75rem 1rem;border-bottom:1px solid var(--border)">' +
+          '<div onclick="openChannelPostComposer()" style="display:flex;align-items:center;gap:.75rem;padding:.65rem 1rem;background:var(--bg3);border-radius:12px;cursor:pointer;color:var(--muted);font-size:.85rem">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+            'New Post...' +
+          '</div>' +
+        '</div>';
+      }
+
+      if (!posts.length) {
+        el.innerHTML = newPostBtn + '<div style="padding:2rem;text-align:center;font-size:.85rem;color:var(--muted)">No posts yet</div>';
+        return;
+      }
+      el.innerHTML = newPostBtn + posts.map(function (p) {
+        return '<div style="padding:.85rem 1rem;border-bottom:1px solid var(--border)">' +
+          '<div style="font-size:.88rem;line-height:1.55;unicode-bidi:plaintext">' + escHtml(p.content || p.caption || '') + '</div>' +
+          '<div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">' + timeAgo(p.created_at) + '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function () {
+      var el2 = document.getElementById('ch-posts-list');
+      if (el2) el2.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">Could not load posts</div>';
+    });
+}
+
+window.openChannelPostComposer = function () {
+  if (!CHANNEL_current) return;
+  var text = prompt('Write a post:');
+  if (!text || !text.trim()) return;
+  api.post('/posts', { content: text.trim(), user_id: CHANNEL_current.owner_id })
+    .then(function () { toast('✅ Posted!'); _loadChannelPosts(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
 };
