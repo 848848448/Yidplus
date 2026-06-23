@@ -568,8 +568,8 @@ html.dark-mode .bubble.me   { background: linear-gradient(135deg, #6B9BFF 0%, #4
 .typing-dots span:nth-child(2) { animation-delay: .2s; }
 .typing-dots span:nth-child(3) { animation-delay: .4s; }
 
-.sticker-tray { background: var(--surface); border-top: 1px solid var(--border); padding: .75rem; display: none; flex-wrap: wrap; gap: .4rem; max-height: 140px; overflow-y: auto; flex-shrink: 0; }
-.sticker-tray.open { display: flex; }
+.emoji-cat-btn { background:none;border:none;font-size:1.2rem;padding:.4rem .55rem;cursor:pointer;opacity:.5;border-bottom:2px solid transparent;flex-shrink:0;transition:opacity .15s; }
+.emoji-cat-btn.active { opacity:1;border-bottom-color:var(--blue); }
 
 .chat-input-bar { background: var(--surface); border-top: 1px solid var(--border); padding: .55rem .6rem max(.55rem, env(safe-area-inset-bottom)); display: flex; align-items: flex-end; gap: .45rem; flex-shrink: 0; }
 .chat-input-bar.locked { opacity: .4; pointer-events: none; }
