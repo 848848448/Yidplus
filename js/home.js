@@ -970,6 +970,10 @@ var CHANNEL_pendingOwnerId = null; // set by boot logic when arriving via ?chann
 window.init_channel = function () {
   var tb = document.getElementById('channel-topbar-fixed');
   if (tb) tb.style.display = 'flex';
+  // Remember where we came from so the back button works correctly
+  if (STATE.prevScreen && STATE.prevScreen !== 'channel') {
+    window._channelBackScreen = STATE.prevScreen;
+  }
   var ownerId = CHANNEL_pendingOwnerId;
   CHANNEL_pendingOwnerId = null;
   if (!ownerId && CHANNEL_current) ownerId = CHANNEL_current.owner_id;
