@@ -92,6 +92,8 @@ function buildChannelsPrev() {
 window.init_home = function () {
   console.log('[HOME] init_home() called');
   buildStatusRow();
+  _updateNotifBadge();
+  setInterval(_updateNotifBadge, 30000); // refresh every 30s
 
   buildShortsPrev();
   buildChannelsPrev();
@@ -321,6 +323,82 @@ var HOME_svLongTimer = null;   // distinguish tap vs long-press
 var HOME_svPrivacy   = 'public'; // current user's privacy setting
 var HOME_HIGHLIGHTS  = [];     // locally-saved highlights
 
+function _updateNotifBadge() {
+  api.get('/chat/rooms')
+    .then(function (res) {
+      var total = (res.rooms || []).reduce(function (sum, r) { return sum + (r.unread || 0); }, 0);
+      var badge = document.getElementById('notif-badge');
+      if (!badge) return;
+      if (total > 0) {
+        badge.textContent = total > 99 ? '99+' : total;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    })
+    .catch(function () {});
+}
+
+window.openSearchModal = function () {
+  var modal = document.getElementById('search-modal');
+  if (!modal) return;
+  modal.classList.add('open');
+  var inp = document.getElementById('search-input');
+  if (inp) { inp.value = ''; setTimeout(function () { inp.focus(); }, 100); }
+  document.getElementById('search-results').innerHTML = '';
+};
+
+var _searchTimer = null;
+window.doSearch = function (q) {
+  clearTimeout(_searchTimer);
+  q = (q || '').trim();
+  var el = document.getElementById('search-results');
+  if (!q || q.length < 2) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div style="padding:1rem;text-align:center"><div class="spinner"></div></div>';
+  _searchTimer = setTimeout(function () {
+    api.get('/admin/users?search=' + encodeURIComponent(q))
+      .then(function (res) {
+        var users = res.users || [];
+        if (!users.length) {
+          el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.85rem;color:var(--muted)">No results</div>';
+          return;
+        }
+        el.innerHTML = users.slice(0, 15).map(function (u) {
+          var init = (u.nickname || '?').slice(0,1).toUpperCase();
+          return '<div style="display:flex;align-items:center;gap:.75rem;padding:.7rem 1rem;cursor:pointer;border-bottom:1px solid var(--border)" onclick="document.getElementById(\'search-modal\').classList.remove(\'open\');CHANNEL_pendingOwnerId=\'' + u.id + '\';navTo(\'channel\')">' +
+            '<div style="width:40px;height:40px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:700;flex-shrink:0">' + init + '</div>' +
+            '<div><div style="font-size:.88rem;font-weight:700">@' + escHtml(u.nickname) + '</div>' +
+              (u.verified ? '<div style="font-size:.72rem;color:var(--blue)">✓ Verified</div>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('');
+      })
+      .catch(function () {
+        el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.82rem;color:var(--muted)">Search error</div>';
+      });
+  }, 350);
+};
+
+// WhatsApp-style segmented status ring SVG
+function _buildStatusRing(count, color) {
+  var r = 25, cx = 27, cy = 27;
+  var gap = count > 1 ? 0.12 : 0;
+  var total = 2 * Math.PI;
+  var segAngle = (total - gap * count) / count;
+  var paths = [];
+  for (var i = 0; i < count; i++) {
+    var startAngle = -Math.PI / 2 + i * (segAngle + gap);
+    var endAngle   = startAngle + segAngle;
+    var x1 = cx + r * Math.cos(startAngle);
+    var y1 = cy + r * Math.sin(startAngle);
+    var x2 = cx + r * Math.cos(endAngle);
+    var y2 = cy + r * Math.sin(endAngle);
+    var largeArc = segAngle > Math.PI ? 1 : 0;
+    paths.push('<path d="M' + x1.toFixed(2) + ' ' + y1.toFixed(2) + ' A' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + x2.toFixed(2) + ' ' + y2.toFixed(2) + '" fill="none" stroke="' + color + '" stroke-width="2.8" stroke-linecap="round"/>');
+  }
+  return '<svg width="54" height="54" viewBox="0 0 54 54" style="position:absolute;inset:0">' + paths.join('') + '</svg>';
+}
+
 function buildStatusRow() {
   var row = document.getElementById('status-row');
   if (!row) return;
@@ -369,8 +447,9 @@ function buildStatusRow() {
       }
 
       HOME_svStatuses.forEach(function (s, i) {
-        var isMine  = s.user_id === meId;
-        var initial = (s.nickname || '?').slice(0,1).toUpperCase();
+        var isMine   = s.user_id === meId;
+        var initial  = (s.nickname || '?').slice(0,1).toUpperCase();
+        var count    = (s.slides || []).length;
         var el = document.createElement('div');
         el.className = 'status-item';
         el.onclick   = function () { openSV(i); };
@@ -379,9 +458,16 @@ function buildStatusRow() {
           ? '<div style="width:100%;height:100%;border-radius:50%;background-image:url(\'' + s.photo_url + '\');background-size:cover;background-position:center"></div>'
           : '<div style="font-size:.9rem;font-weight:700">' + initial + '</div>';
 
+        // Build WhatsApp-style segmented ring
+        var ringColor = isMine ? 'var(--blue)' : 'var(--green,#25D366)';
+        var ringHTML = _buildStatusRing(count, ringColor);
+
         el.innerHTML =
-          '<div class="status-ring' + (isMine ? ' mine' : '') + '">' +
-            '<div class="status-inner">' + avatarContent + '</div>' +
+          '<div style="position:relative;width:54px;height:54px;flex-shrink:0">' +
+            ringHTML +
+            '<div style="position:absolute;inset:4px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;overflow:hidden">' +
+              avatarContent +
+            '</div>' +
           '</div>' +
           '<div class="status-name">' + escHtml(isMine ? 'My Status' : (s.nickname || 'User')) + '</div>';
         row.appendChild(el);
@@ -430,6 +516,14 @@ function _svShowSlide() {
 
   document.getElementById('sv-nick').textContent = '@' + (s.nickname || 'User');
   document.getElementById('sv-time').textContent = slide.created_at ? timeAgo(slide.created_at) : 'now';
+
+  // Show views count for own status
+  var meId = STATE.user && STATE.user.id;
+  var isMySlide = s.user_id === meId;
+  var viewsRow = document.getElementById('sv-views-row');
+  var viewsCount = document.getElementById('sv-views-count');
+  if (viewsRow) viewsRow.style.display = isMySlide ? 'flex' : 'none';
+  if (viewsCount && slide.views !== undefined) viewsCount.textContent = fmtN(slide.views || 0);
 
   // ── Progress bars ──
   var barsEl = document.getElementById('sv-bars');
@@ -827,8 +921,17 @@ console.log('YID PLUS: home.js loaded ✓ (Cloudflare D1 mode)');
 // ============================================================
 // STATUS UPLOAD (D1 'statuses' table + R2 for media)
 // ============================================================
-var STATUS_BGS = ['#1a0a2e','#0a1a0a','#1a0a0a','#001020','#1a1000','#0a001a','#222'];
-var STATUS_selectedBg   = STATUS_BGS[0];
+var STATUS_BGS = [
+  'linear-gradient(135deg,#1a1a2e,#16213e)',
+  'linear-gradient(135deg,#0f3460,#533483)',
+  'linear-gradient(135deg,#1b4332,#40916c)',
+  'linear-gradient(135deg,#7b2d8b,#e040fb)',
+  'linear-gradient(135deg,#b5179e,#f72585)',
+  'linear-gradient(135deg,#e85d04,#faa307)',
+  'linear-gradient(135deg,#03045e,#0096c7)',
+  'linear-gradient(135deg,#2d3436,#636e72)',
+];
+var STATUS_selectedBg = STATUS_BGS[0];
 var STATUS_selectedFile = null;
 var STATUS_type         = 'text';
 
@@ -847,21 +950,28 @@ window.openStatusUpload = function () {
   var ta = document.getElementById('status-text-content');
   if (ta) ta.value = '';
 
+  STATUS_selectedBg = STATUS_BGS[0];
+
   var bgRow = document.getElementById('status-bg-row');
   if (bgRow) {
     bgRow.innerHTML = '';
     STATUS_BGS.forEach(function (c, i) {
       var sw = document.createElement('div');
-      sw.className = 'status-bg-sw' + (i === 0 ? ' active' : '');
-      sw.style.background = c;
+      sw.style.cssText = 'width:32px;height:32px;border-radius:50%;background:' + c + ';cursor:pointer;border:3px solid ' + (i === 0 ? '#fff' : 'transparent') + ';box-shadow:0 2px 6px rgba(0,0,0,.3);transition:border .15s;flex-shrink:0';
       sw.onclick = function () {
         STATUS_selectedBg = c;
-        document.querySelectorAll('.status-bg-sw').forEach(function (x) { x.classList.remove('active'); });
-        sw.classList.add('active');
+        var preview = document.getElementById('status-preview-box');
+        if (preview) preview.style.background = c;
+        bgRow.querySelectorAll('div').forEach(function (x) { x.style.borderColor = 'transparent'; });
+        sw.style.borderColor = '#fff';
       };
       bgRow.appendChild(sw);
     });
   }
+
+  // Set initial preview bg
+  var previewBox = document.getElementById('status-preview-box');
+  if (previewBox) previewBox.style.background = STATUS_BGS[0];
 
   document.getElementById('status-modal').classList.add('open');
 };
@@ -876,20 +986,31 @@ window.switchStatusType = function (type) {
   var mediaPanel = document.getElementById('status-media-panel');
   if (txtPanel)   txtPanel.style.display   = (type === 'text')  ? 'block' : 'none';
   if (mediaPanel) mediaPanel.style.display = (type === 'media') ? 'block' : 'none';
+  // Update button styles
+  var btnText  = document.getElementById('st-btn-text');
+  var btnMedia = document.getElementById('st-btn-media');
+  if (btnText)  { btnText.style.background  = type === 'text'  ? 'var(--blue)' : 'var(--bg3)';  btnText.style.color  = type === 'text'  ? '#fff' : 'var(--text)'; }
+  if (btnMedia) { btnMedia.style.background = type === 'media' ? 'var(--blue)' : 'var(--bg3)'; btnMedia.style.color = type === 'media' ? '#fff' : 'var(--text)'; }
+};
+
+window.updateStatusPreview = function () {
+  var ta  = document.getElementById('status-text-content');
+  var box = document.getElementById('status-preview-text');
+  if (box && ta) box.textContent = ta.value;
 };
 
 window.onStatusFileSelected = function (e) {
   STATUS_selectedFile = e.target.files[0];
-  if (STATUS_selectedFile) {
-    STATUS_type = 'media';
-    var txtPanel   = document.getElementById('status-text-panel');
-    var mediaPanel = document.getElementById('status-media-panel');
-    if (txtPanel)   txtPanel.style.display   = 'none';
-    if (mediaPanel) {
-      mediaPanel.style.display = 'block';
-      mediaPanel.textContent = '✅ Selected: ' + STATUS_selectedFile.name;
-    }
-  }
+  if (!STATUS_selectedFile) return;
+  STATUS_type = 'media';
+  switchStatusType('media');
+  var preview = document.getElementById('status-media-preview');
+  if (!preview) return;
+  var url = URL.createObjectURL(STATUS_selectedFile);
+  var isVid = STATUS_selectedFile.type.startsWith('video/');
+  preview.innerHTML = isVid
+    ? '<video src="' + url + '" style="width:100%;max-height:220px;object-fit:cover;border-radius:14px" controls muted playsinline></video>'
+    : '<img src="' + url + '" style="width:100%;max-height:220px;object-fit:cover;border-radius:14px">';
 };
 
 window.submitStatus = function () {
@@ -899,32 +1020,24 @@ window.submitStatus = function () {
     var ta  = document.getElementById('status-text-content');
     var txt = (ta && ta.value || '').trim();
     if (!txt) return toast('⚠ Type something first.');
-
-    api.post('/statuses', {
-      type: 'text',
-      text: txt,
-      bg: STATUS_selectedBg,
-    }).then(function () {
-      closeStatusModal();
-      toast('✅ Status posted!');
-    }).catch(function (err) {
-      toast('❌ ' + err.message);
-    });
+    var privacy = (document.getElementById('status-privacy') || {}).value || 'public';
+    api.post('/statuses', { type: 'text', text: txt, bg: STATUS_selectedBg, privacy: privacy })
+      .then(function () { closeStatusModal(); toast('✅ Status posted!'); loadStatuses(); })
+      .catch(function (err) { toast('❌ ' + err.message); });
 
   } else if (STATUS_selectedFile) {
+    var caption = (document.getElementById('status-media-caption') || {}).value || '';
+    var privacy2 = (document.getElementById('status-privacy') || {}).value || 'public';
     var form = new FormData();
     form.append('type', 'media');
     form.append('file', STATUS_selectedFile);
-
-    api.post('/statuses', form, true).then(function () {
-      closeStatusModal();
-      toast('✅ Status posted!');
-    }).catch(function (err) {
-      toast('❌ ' + err.message);
-    });
-
+    form.append('caption', caption);
+    form.append('privacy', privacy2);
+    api.post('/statuses', form, true)
+      .then(function () { closeStatusModal(); toast('✅ Status posted!'); loadStatuses(); })
+      .catch(function (err) { toast('❌ ' + err.message); });
   } else {
-    toast('⚠ Please select a type.');
+    toast('⚠ Choose Text or Photo/Video first.');
   }
 };
 
