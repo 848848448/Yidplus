@@ -517,10 +517,13 @@ window.deleteFeedback = function (id) {
 function refreshAnalytics() {
   api.get('/admin/stats')
     .then(function (res) {
-      var online = res.online || 0;
-      var total  = res.total  || 0;
-      var vals   = res.dailyVisitors || [320,410,280,520,610,490,570];
-      var max    = Math.max.apply(null, vals);
+      var stats  = res.stats || {};
+      var online = stats.online   || 0;
+      var total  = stats.users    || 0;
+      var shorts = stats.shorts   || 0;
+      var msgs   = stats.messages || 0;
+      var vals   = res.dailyVisitors || [0,0,0,0,0,0,0];
+      var max    = Math.max.apply(null, vals) || 1;
 
       var liveCt = document.getElementById('live-ct');
       if (liveCt) liveCt.textContent = '● ' + online + ' users online now';
@@ -528,14 +531,14 @@ function refreshAnalytics() {
       var grid = document.getElementById('stats-grid');
       if (grid) {
         var cards = [
-          ['Total Users', total,  '↑ Today',          'up'],
-          ['Online Now',  online, 'Live count',       'up'],
-          ['Shorts',      res.shorts   || '—', 'Cloudflare R2',     'up'],
-          ['Messages',    res.messages || '—', 'Cloudflare D1',     'up'],
+          ['Total Users', total,  '↑ Today',       'up'],
+          ['Online Now',  online, 'Live count',     'up'],
+          ['Shorts',      shorts, 'Cloudflare R2',  'up'],
+          ['Messages',    msgs,   'Cloudflare D1',  'up'],
         ];
         grid.innerHTML = cards.map(function (c) {
           return '<div class="stat-card">' +
-            '<div class="stat-num">' + c[1] + '</div>' +
+            '<div class="stat-num">' + fmtN(c[1]) + '</div>' +
             '<div class="stat-lbl">' + c[0] + '</div>' +
             '<div class="stat-' + c[3] + '">' + c[2] + '</div>' +
           '</div>';
@@ -544,9 +547,10 @@ function refreshAnalytics() {
 
       var bars = document.getElementById('chart-bars');
       if (bars) {
+        var days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
         bars.innerHTML = vals.map(function (v, i) {
-          var h = Math.max(6, v / max * 74);
-          return '<div class="chart-bar' + (i === 6 ? ' today' : '') + '" style="flex:1;height:' + h + 'px" title="' + v + '"></div>';
+          var h = Math.max(4, v / max * 74);
+          return '<div class="chart-bar' + (i === 6 ? ' today' : '') + '" style="flex:1;height:' + h + 'px" title="' + days[i] + ': ' + v + '"></div>';
         }).join('');
       }
     })
