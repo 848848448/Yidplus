@@ -87,18 +87,13 @@
       <span class="app-title-display" id="home-app-title" style="display:none">YID PLUS</span>
     </div>
     <div style="display:flex;gap:.5rem">
-      <div class="icon-btn" onclick="toast('Search')">🔍</div>
-      <div class="icon-btn" style="position:relative" onclick="goPage('yidplus-chat.html')">🔔<div class="badge" id="notif-badge">3</div></div>
+      <div class="icon-btn" onclick="openSearchModal()"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <div class="icon-btn" style="position:relative" onclick="goPage('yidplus-chat.html')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><div class="badge" id="notif-badge" style="display:none"></div></div>
       <div class="icon-btn" onclick="navTo('settings')">👤</div>
     </div>
   </div>
   <div class="scroll-area" style="padding-bottom:80px">
     <div id="broadcast-bar"></div>
-
-    <div style="background:var(--bg2); border:1px solid var(--border); padding:.85rem; margin:.75rem; border-radius:12px;">
-      <textarea id="new-post-content" placeholder="וואס גייט פאר?..." style="width:100%; height:60px; background:var(--bg3); color:var(--text); border:1px solid var(--border); padding:.6rem; border-radius:8px; font-family:inherit; resize:none"></textarea>
-      <button onclick="publishPost()" class="btn-primary" style="margin-top:.6rem">Post</button>
-    </div>
 
     <div style="padding:.75rem .75rem .25rem">
       <div style="font-size:.63rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:.6rem">Status Updates</div>
@@ -247,10 +242,13 @@
     </div>
   </div>
 
-  <!-- Bottom: reply input + emoji + like -->
-  <div style="position:absolute;bottom:0;left:0;right:0;padding:.75rem 1rem max(.75rem,env(safe-area-inset-bottom));display:flex;align-items:center;gap:.6rem;background:linear-gradient(to top,rgba(0,0,0,.75),transparent);z-index:10">
+  <!-- Bottom: reply input + views count (for owner) -->
+  <div style="position:absolute;bottom:0;left:0;right:0;padding:.75rem 1rem max(.75rem,env(safe-area-inset-bottom));display:flex;align-items:center;gap:.6rem;background:linear-gradient(to top,rgba(0,0,0,.85),transparent);z-index:10">
+    <div id="sv-views-row" style="display:none;align-items:center;gap:.35rem;color:rgba(255,255,255,.8);font-size:.8rem">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span id="sv-views-count">0</span>
+    </div>
     <input id="sv-reply-input" style="flex:1;padding:.6rem 1rem;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:22px;color:#fff;font-size:.83rem;font-family:inherit;outline:none" placeholder="Reply to status..." onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter'){svSendReply();event.stopPropagation();}">
-    <button style="background:none;border:none;font-size:1.4rem;cursor:pointer;flex-shrink:0" onclick="event.stopPropagation();toggleSVReactionBar()">😊</button>
     <button id="sv-like-btn" style="background:none;border:none;font-size:1.5rem;cursor:pointer;flex-shrink:0" onclick="event.stopPropagation();svReact('❤️')">🤍</button>
   </div>
 
@@ -298,33 +296,75 @@
 
 <!-- ══ STATUS UPLOAD MODAL ══ -->
 <div class="modal-overlay" id="status-modal" onclick="if(event.target===this)closeStatusModal()">
-  <div class="modal-sheet">
-    <div class="modal-title">📸 Add a Status</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem">
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:1.25rem .75rem;text-align:center;cursor:pointer" onclick="switchStatusType('text')">
-        <div style="font-size:2rem;margin-bottom:.4rem">✏️</div><div style="font-size:.78rem;color:var(--muted)">Text Status</div>
-      </div>
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:1.25rem .75rem;text-align:center;cursor:pointer" onclick="document.getElementById('status-file-input').click()">
-        <div style="font-size:2rem;margin-bottom:.4rem">🖼️</div><div style="font-size:.78rem;color:var(--muted)">Photo / Video</div>
+  <div class="modal-sheet" style="padding:0;overflow:hidden;border-radius:20px 20px 0 0">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.1rem .75rem">
+      <div style="font-size:1rem;font-weight:700">New Status</div>
+      <div onclick="closeStatusModal()" style="cursor:pointer;width:30px;height:30px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </div>
     </div>
-    <div id="status-text-panel" style="display:none">
-      <textarea class="field" id="status-text-content" placeholder="What's on your mind?" rows="3" style="resize:none;height:auto;margin-bottom:.5rem"></textarea>
-      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem">Background:</div>
-      <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem" id="status-bg-row"></div>
+
+    <!-- Type selector -->
+    <div style="display:flex;gap:.5rem;padding:0 1.1rem .85rem">
+      <button id="st-btn-text" onclick="switchStatusType('text')" style="flex:1;padding:.65rem;border-radius:12px;background:var(--blue);color:#fff;border:none;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg>
+        Text
+      </button>
+      <button id="st-btn-media" onclick="document.getElementById('status-file-input').click()" style="flex:1;padding:.65rem;border-radius:12px;background:var(--bg3);color:var(--text);border:1px solid var(--border);font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Photo / Video
+      </button>
     </div>
-    <div id="status-media-panel" style="display:none;text-align:center;padding:1rem;font-size:.85rem;color:var(--muted)">✅ Media selected</div>
-    <div style="margin-bottom:.85rem">
-      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem;letter-spacing:.05em;text-transform:uppercase">Who can see this status?</div>
-      <select class="field" id="status-privacy" style="margin-bottom:0">
-        <option value="public">🌍 Everyone (Public)</option>
-        <option value="followers">👥 Followers Only</option>
-        <option value="private">🔒 Only Me</option>
+
+    <!-- Text panel -->
+    <div id="status-text-panel" style="display:none;padding:0 1.1rem .85rem">
+      <!-- Preview box -->
+      <div id="status-preview-box" style="width:100%;aspect-ratio:9/16;max-height:220px;border-radius:14px;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:.75rem;position:relative;overflow:hidden;cursor:text" onclick="document.getElementById('status-text-content').focus()">
+        <div id="status-preview-text" style="color:#fff;font-size:1.1rem;font-weight:700;text-align:center;padding:1rem;word-break:break-word;max-width:90%;white-space:pre-wrap"></div>
+      </div>
+      <!-- Text input -->
+      <textarea id="status-text-content" placeholder="Type your status..." rows="2" oninput="updateStatusPreview()" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:.7rem .85rem;font-size:.92rem;color:var(--text);font-family:inherit;resize:none;outline:none;box-sizing:border-box;margin-bottom:.6rem"></textarea>
+      <!-- Background color picker -->
+      <div style="font-size:.7rem;color:var(--muted);margin-bottom:.35rem;letter-spacing:.06em;text-transform:uppercase">Background</div>
+      <div id="status-bg-row" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem"></div>
+    </div>
+
+    <!-- Media panel -->
+    <div id="status-media-panel" style="display:none;padding:0 1.1rem .85rem">
+      <div id="status-media-preview" style="width:100%;border-radius:14px;overflow:hidden;background:var(--bg3);margin-bottom:.6rem;max-height:220px;display:flex;align-items:center;justify-content:center"></div>
+      <textarea id="status-media-caption" placeholder="Add a caption... (optional)" rows="2" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:.7rem .85rem;font-size:.88rem;color:var(--text);font-family:inherit;resize:none;outline:none;box-sizing:border-box"></textarea>
+    </div>
+
+    <!-- Privacy -->
+    <div style="padding:0 1.1rem .85rem">
+      <div style="font-size:.7rem;color:var(--muted);margin-bottom:.35rem;letter-spacing:.06em;text-transform:uppercase">Who can see this</div>
+      <select id="status-privacy" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:.6rem .85rem;font-size:.85rem;color:var(--text);outline:none;cursor:pointer">
+        <option value="public">Everyone</option>
+        <option value="followers">Followers only</option>
+        <option value="private">Only me</option>
       </select>
     </div>
-    <button class="btn-primary" onclick="submitStatus()" style="margin-bottom:.5rem">Post Status</button>
-    <button class="modal-cancel" onclick="closeStatusModal()">Cancel</button>
+
+    <!-- Post button -->
+    <div style="padding:0 1.1rem 1.1rem">
+      <button onclick="submitStatus()" style="width:100%;padding:.8rem;border-radius:14px;background:var(--blue);border:none;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;letter-spacing:.02em">Post Status</button>
+    </div>
+
     <input type="file" id="status-file-input" accept="image/*,video/*" style="display:none" onchange="onStatusFileSelected(event)">
+  </div>
+</div>
+
+<!-- ══ SEARCH MODAL ══ -->
+<div class="modal-overlay" id="search-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet" style="padding:0;border-radius:20px 20px 0 0;max-height:80vh;display:flex;flex-direction:column">
+    <div style="padding:.85rem 1rem .5rem;display:flex;align-items:center;gap:.6rem">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="search-input" class="field" placeholder="Search users, channels..." oninput="doSearch(this.value)" style="flex:1;margin:0;border-radius:20px;padding:.5rem 1rem;font-size:.88rem">
+      <div onclick="document.getElementById('search-modal').classList.remove('open')" style="cursor:pointer;color:var(--muted);font-size:.85rem">Cancel</div>
+    </div>
+    <div id="search-results" style="flex:1;overflow-y:auto;padding:.5rem 0"></div>
   </div>
 </div>
 
@@ -491,4 +531,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <script src="js/ads.js"></script>
 </body>
-  </html>
+                                                                                                                                                                                                                                                                                        </html>
