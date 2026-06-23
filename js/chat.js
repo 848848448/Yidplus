@@ -1401,6 +1401,7 @@ var EMOJI_CATS = {
 
 window.toggleStickers = function () {
   var panel = document.getElementById('emoji-panel');
+  if (!panel) return; // old HTML version — emoji panel not yet deployed
   var isOpen = panel.style.display !== 'none';
   panel.style.display = isOpen ? 'none' : 'block';
   if (!isOpen) _emojiCat(document.querySelector('.emoji-cat-btn.active') || document.querySelector('.emoji-cat-btn'), 'recent');
