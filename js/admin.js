@@ -800,20 +800,156 @@ function buildAdsPanel(content) {
   content.innerHTML =
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
-        '<div class="admin-card-title">📣 Create Ad</div>' +
-        '<input class="field" id="ad-title" placeholder="Ad title">' +
-        '<input class="field" id="ad-subtitle" placeholder="Subtitle (optional)">' +
+        '<div class="admin-card-title">📣 Create New Ad</div>' +
+        '<input class="field" id="ad-title" placeholder="Ad title (optional)">' +
         '<input class="field" id="ad-link" placeholder="Link URL (optional)">' +
+        '<input class="field" id="ad-email" placeholder="Email address (optional)">' +
+        '<div style="display:flex;gap:.5rem;margin-bottom:.6rem">' +
+          '<div style="flex:1">' +
+            '<label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:.25rem">Show every (minutes)</label>' +
+            '<input class="field" id="ad-interval" type="number" min="1" value="60" style="margin:0">' +
+          '</div>' +
+          '<div style="flex:1">' +
+            '<label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:.25rem">Countdown (seconds)</label>' +
+            '<input class="field" id="ad-countdown" type="number" min="1" max="30" value="5" style="margin:0">' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-bottom:.6rem">' +
+          '<label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:.25rem">Show on pages</label>' +
+          '<select class="field" id="ad-pages" style="margin:0">' +
+            '<option value="all">All pages</option>' +
+            '<option value="home">Home only</option>' +
+            '<option value="chat">Chat only</option>' +
+            '<option value="shorts">Shorts only</option>' +
+            '<option value="music">Music only</option>' +
+            '<option value="home,shorts">Home + Shorts</option>' +
+            '<option value="chat,home">Chat + Home</option>' +
+          '</select>' +
+        '</div>' +
+        '<label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:.25rem">Image or Video</label>' +
         '<input type="file" id="ad-media-input" accept="image/*,video/*" style="margin-bottom:.85rem">' +
         '<button class="btn-primary" onclick="createAd()">Create Ad</button>' +
       '</div>' +
       '<div class="admin-card">' +
-        '<div class="admin-card-title">📋 Active Ads</div>' +
+        '<div class="admin-card-title">📋 All Ads</div>' +
         '<div id="ads-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
       '</div>' +
     '</div>';
   loadAdsList();
 }
+
+function loadAdsList() {
+  api.get('/admin/ads')
+    .then(function (res) {
+      var ads = res.ads || [];
+      var el = document.getElementById('ads-list');
+      if (!el) return;
+      if (!ads.length) {
+        el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No ads yet</div>';
+        return;
+      }
+      el.innerHTML = ads.map(function (a) {
+        var pagesLabel = a.pages === 'all' ? 'All pages' : a.pages;
+        var exemptList = [];
+        try { exemptList = JSON.parse(a.exempt_users || '[]'); } catch(e) {}
+        return '<div style="border:1px solid var(--border);border-radius:12px;padding:.85rem;margin-bottom:.75rem">' +
+          '<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem">' +
+            (a.media_url
+              ? (a.is_video
+                  ? '<video src="' + a.media_url + '" style="width:56px;height:56px;border-radius:8px;object-fit:cover" muted></video>'
+                  : '<img src="' + a.media_url + '" style="width:56px;height:56px;border-radius:8px;object-fit:cover">')
+              : '<div style="width:56px;height:56px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1.4rem">📣</div>') +
+            '<div style="flex:1;min-width:0">' +
+              '<div style="font-weight:700;font-size:.88rem">' + escHtml(a.title || '(no title)') + '</div>' +
+              '<div style="font-size:.75rem;color:var(--muted)">Every ' + (a.interval_minutes||60) + 'min · ' + (a.countdown_seconds||5) + 's countdown · ' + pagesLabel + '</div>' +
+              (a.link_url ? '<div style="font-size:.72rem;color:var(--blue)">' + escHtml(a.link_url) + '</div>' : '') +
+            '</div>' +
+            '<div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-end">' +
+              '<button class="ma-btn ma-trend' + (a.active ? ' on' : '') + '" onclick="toggleAdActive(\'' + a.id + '\',' + !a.active + ')">' + (a.active ? '🟢 On' : '⚪ Off') + '</button>' +
+              '<button class="del-btn" onclick="deleteAd(\'' + a.id + '\')">🗑</button>' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem">' +
+            '<button class="save-pill" style="font-size:.7rem;padding:.2rem .6rem" onclick="adminEditAdInterval(\'' + a.id + '\')">⏱ Interval</button>' +
+            '<button class="save-pill" style="font-size:.7rem;padding:.2rem .6rem" onclick="adminEditAdPages(\'' + a.id + '\')">📄 Pages</button>' +
+            '<button class="save-pill" style="font-size:.7rem;padding:.2rem .6rem" onclick="adminEditExemptUsers(\'' + a.id + '\',\'' + escHtml(JSON.stringify(exemptList)) + '\')">🚫 Exempt</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) {
+      var el = document.getElementById('ads-list');
+      if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
+    });
+}
+
+window.createAd = function () {
+  var title    = (document.getElementById('ad-title').value || '').trim();
+  var link     = document.getElementById('ad-link').value || '';
+  var email    = document.getElementById('ad-email').value || '';
+  var interval = document.getElementById('ad-interval').value || '60';
+  var countdown= document.getElementById('ad-countdown').value || '5';
+  var pages    = document.getElementById('ad-pages').value || 'all';
+  var file     = document.getElementById('ad-media-input').files[0];
+
+  if (!title && !file) return toast('⚠ Add a title or image/video.');
+
+  var form = new FormData();
+  form.append('title', title);
+  form.append('link_url', link);
+  form.append('email_url', email);
+  form.append('interval_minutes', interval);
+  form.append('countdown_seconds', countdown);
+  form.append('pages', pages);
+  form.append('exempt_users', '[]');
+  if (file) form.append('media', file);
+
+  api.post('/admin/ads', form, true)
+    .then(function () {
+      toast('✅ Ad created!');
+      ['ad-title','ad-link','ad-email'].forEach(function(id) { var el = document.getElementById(id); if(el) el.value=''; });
+      document.getElementById('ad-interval').value = '60';
+      document.getElementById('ad-countdown').value = '5';
+      document.getElementById('ad-media-input').value = '';
+      loadAdsList();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.adminEditAdInterval = function (id) {
+  var mins = prompt('Show every how many minutes?', '60');
+  if (!mins) return;
+  var secs = prompt('Countdown seconds before Skip?', '5');
+  if (!secs) return;
+  api.put('/admin/ads', { id: id, interval_minutes: parseInt(mins), countdown_seconds: parseInt(secs) })
+    .then(function () { toast('✅ Updated!'); loadAdsList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.adminEditAdPages = function (id) {
+  var p = prompt('Pages (all / home / chat / shorts / music or comma-separated):', 'all');
+  if (!p) return;
+  api.put('/admin/ads', { id: id, pages: p.trim() })
+    .then(function () { toast('✅ Updated!'); loadAdsList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.adminEditExemptUsers = function (id, currentJson) {
+  var list = [];
+  try { list = JSON.parse(currentJson || '[]'); } catch(e) {}
+  var input = prompt('Exempt user IDs (comma-separated):', list.join(','));
+  if (input === null) return;
+  var newList = input.split(',').map(function(s){return s.trim();}).filter(Boolean);
+  api.put('/admin/ads', { id: id, exempt_users: newList })
+    .then(function () { toast('✅ ' + newList.length + ' users exempted'); loadAdsList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.toggleAdActive = function (id, active) {
+  api.put('/admin/ads', { id: id, active: active })
+    .then(function () { loadAdsList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 function loadAdsList() {
   api.get('/admin/ads')
