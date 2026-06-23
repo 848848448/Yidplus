@@ -397,7 +397,8 @@ window.openChatRoom = function (roomId) {
 
   // Reply bar
   document.getElementById('reply-bar').style.display = 'none';
-  document.getElementById('sticker-tray').classList.remove('open');
+  var _st = document.getElementById('sticker-tray'); if (_st) _st.classList.remove('open');
+  var _ep = document.getElementById('emoji-panel'); if (_ep) _ep.style.display = 'none';
   document.getElementById('new-arrow').style.display = 'none';
 
   // Pinned message bar
@@ -1382,7 +1383,7 @@ function _parseVoicePacked(text) {
 // ============================================================
 // STICKERS
 // ============================================================
-var STICKERS = ['😂','❤️','🔥','👑','🎹','✡️','🕎','🎉','🙏','😭','💯','🎶','👏','🤣','😍','🥰','🫶','🙌','😎','🤩'];
+// Stickers replaced by full emoji panel
 
 var EMOJI_RECENT = JSON.parse(localStorage.getItem('yp_emoji_recent') || '[]');
 
