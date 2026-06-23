@@ -186,6 +186,45 @@ window._chatItemClick = function (e, roomId) {
 
 // Same delete/leave action as the chat-list swipe, but callable from
 // inside an already-open chat room (the kebab menu at the top).
+var _vidList = [];   // list of {id, url} for all video messages in current chat
+var _vidIdx  = 0;
+
+window._openVideoPlayer = function (msgId, url) {
+  // Build ordered list of all video messages in the chat
+  _vidList = CHAT_messages
+    .filter(function (m) { return m.type === 'media' && m.media_url && /\.(mp4|mov|webm|mkv)/i.test(m.media_url); })
+    .map(function (m) { return { id: m.id, url: m.media_url }; });
+  _vidIdx = _vidList.findIndex(function (v) { return v.id === msgId; });
+  if (_vidIdx < 0) { _vidList = [{ id: msgId, url: url }]; _vidIdx = 0; }
+
+  _vidLoad(_vidIdx);
+  var overlay = document.getElementById('video-player-overlay');
+  overlay.style.display = 'flex';
+};
+
+function _vidLoad(idx) {
+  var v = _vidList[idx];
+  if (!v) return;
+  var vid = document.getElementById('video-player-vid');
+  vid.src = v.url;
+  vid.play().catch(function () {});
+  document.getElementById('vid-prev-btn').style.opacity = idx > 0 ? '1' : '.3';
+  document.getElementById('vid-next-btn').style.opacity = idx < _vidList.length - 1 ? '1' : '.3';
+}
+
+window._vidNext = function () {
+  if (_vidIdx < _vidList.length - 1) { _vidIdx++; _vidLoad(_vidIdx); }
+};
+window._vidPrev = function () {
+  if (_vidIdx > 0) { _vidIdx--; _vidLoad(_vidIdx); }
+};
+window._closeVideoPlayer = function () {
+  var vid = document.getElementById('video-player-vid');
+  vid.pause();
+  vid.src = '';
+  document.getElementById('video-player-overlay').style.display = 'none';
+};
+
 window._handleInviteJoin = function (code) {
   api.get('/invite?code=' + encodeURIComponent(code))
     .then(function (res) {
@@ -832,7 +871,14 @@ function renderMessages(scrollDown) {
           '<div style="font-size:.78rem;margin-top:.25rem">View once · tap to open</div>' +
         '</div>';
       } else if (isVideo) {
-        inner += '<video src="' + m.media_url + '" controls style="max-width:220px;border-radius:10px;display:block;max-height:200px"></video>';
+        inner += '<div style="position:relative;max-width:220px;border-radius:10px;overflow:hidden;cursor:pointer;background:#000" onclick="_openVideoPlayer(\'' + m.id + '\',\'' + m.media_url + '\')">' +
+          '<video src="' + m.media_url + '" style="width:100%;max-height:200px;display:block;object-fit:cover" preload="metadata"></video>' +
+          '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25)">' +
+            '<div style="width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center">' +
+              '<svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
       } else {
         inner += '<img src="' + m.media_url + '" style="max-width:220px;border-radius:10px;display:block;cursor:pointer" onclick="window.open(\'' + m.media_url + '\')">';
       }
@@ -1331,25 +1377,53 @@ function _parseVoicePacked(text) {
 // ============================================================
 var STICKERS = ['😂','❤️','🔥','👑','🎹','✡️','🕎','🎉','🙏','😭','💯','🎶','👏','🤣','😍','🥰','🫶','🙌','😎','🤩'];
 
-window.toggleStickers = function () {
-  var tray = document.getElementById('sticker-tray');
-  tray.classList.toggle('open');
-  if (tray.classList.contains('open') && !tray.children.length) {
-    STICKERS.forEach(function (s) {
-      var el = document.createElement('div');
-      el.style.cssText = 'font-size:1.8rem;cursor:pointer;padding:.25rem;transition:transform .12s';
-      el.textContent   = s;
-      el.ontouchstart  = function () { el.style.transform = 'scale(1.3)'; };
-      el.ontouchend    = function () { el.style.transform = ''; };
-      el.onclick = function () {
-        api.post('/chat', { room_id: CHAT_curRoom.id, type: 'sticker', text: s })
-          .then(function () { loadMessages(true); tray.classList.remove('open'); })
-          .catch(function (err) { toast('❌ ' + err.message); });
-      };
-      tray.appendChild(el);
-    });
-  }
+var EMOJI_RECENT = JSON.parse(localStorage.getItem('yp_emoji_recent') || '[]');
+
+var EMOJI_CATS = {
+  recent:  function() { return EMOJI_RECENT.length ? EMOJI_RECENT : ['😊','❤️','👍','😂','🙏','🔥','✅','💯']; },
+  smileys: ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕'],
+  people:  ['👋','🤚','🖐','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💪','🦾','🦵','🦶','👂','🦻','👃','🫀','🫁','🧠','🦷','🦴','👀','👁','👅','👄','💋','🧔','👦','👧','🧒','👨','👩','🧑','👴','👵','🧓'],
+  animals: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🕷','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🦭','🐊','🐅','🐆','🦓','🦍'],
+  food:    ['🍎','🍊','🍋','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶','🫑','🧄','🧅','🥔','🌽','🥕','🫛','🧆','🥜','🫘','🍞','🥐','🥖','🫓','🥨','🥯','🧀','🍳','🥚','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕','🫔','🌮','🌯','🥙','🧆','🥚','🍜','🍝','🍠','🍢','🍣','🍤','🍙','🍚','🍛','🍲','🫕','🥘','🍱','🥗','🍿','🧂','🍿','🥫'],
+  travel:  ['🚗','🚕','🚙','🚌','🚎','🏎','🚓','🚑','🚒','🚐','🛻','🚚','🚛','🚜','🛵','🏍','🛺','🚲','🛴','🛹','🚁','✈️','🛸','🚀','🛶','⛵','🚤','🛥','🛳','⛴','🚢','🚞','🚂','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏭','🗼','🗽','🗺','🌋','⛰','🏔','🗻','🏕','🏖','🏜','🏝','🏞','🌅','🌄','🌠','🎇','🌁','🌃','🌆','🌇','🌉','🌌'],
+  objects: ['⌚','📱','💻','⌨️','🖥','🖨','🖱','🖲','💽','💾','💿','📀','📷','📸','📹','🎥','📽','🎞','📞','☎️','📟','📠','📺','📻','🧭','⏱','⏲','⏰','🕰','⌛','⏳','📡','🔋','🪫','🔌','💡','🔦','🕯','💡','🧯','🛢','💸','💵','💴','💶','💷','💰','💳','🪙','💎','⚖️','🔧','🔨','⚒','🛠','⛏','🔩','🪛','🔫','💣','🪓','🔪','🗡','⚔️','🛡'],
+  symbols: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉','✡️','🔯','🛐','🕎','☯️','☦️','✔️','❌','⭕','🔴','🟠','🟡','🟢','🔵','🟣','⚫','⚪','🟤','🔶','🔷','🔸','🔹','🔺','🔻','💠','♾','🔘','🔲','🔳','▶️','⏩','⏭','⏯','🔼','⏫','⏬','🔽','⏪','⏮','🔁','🔂','🔀'],
+  jewish:  ['✡️','🕎','📜','🙏','🕍','🕌','⛪','🔯','🍷','🥂','🎺','🎵','🕯','🌟','⭐','🌙','☀️','📖','✍️','🍞','🫓','🍇','🐑','🐟','🦁','🕊','🌿','🌾','🌺','🌸','🪷','🌻','🌹','💐','🦋','🐝','🌈','⛰','🏔','🌊','🌍','💫','⚡','🌠','🎇','🙌','👑','🎉','🎊','🎁','🎈','🎗','🏆','🥇','🪬','🧿','🪷']
 };
+
+window.toggleStickers = function () {
+  var panel = document.getElementById('emoji-panel');
+  var isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) _emojiCat(document.querySelector('.emoji-cat-btn.active') || document.querySelector('.emoji-cat-btn'), 'recent');
+};
+
+window._emojiCat = function (btn, cat) {
+  document.querySelectorAll('.emoji-cat-btn').forEach(function (b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  var grid = document.getElementById('emoji-grid');
+  var emojis = typeof EMOJI_CATS[cat] === 'function' ? EMOJI_CATS[cat]() : (EMOJI_CATS[cat] || []);
+  grid.innerHTML = emojis.map(function (e) {
+    return '<span style="font-size:1.55rem;padding:.2rem .3rem;cursor:pointer;border-radius:6px;transition:background .1s" onclick="_insertEmoji(\'' + e + '\')">' + e + '</span>';
+  }).join('');
+};
+
+window._insertEmoji = function (emoji) {
+  // Update recently used
+  EMOJI_RECENT = [emoji].concat(EMOJI_RECENT.filter(function (e) { return e !== emoji; })).slice(0, 24);
+  localStorage.setItem('yp_emoji_recent', JSON.stringify(EMOJI_RECENT));
+
+  var inp = document.getElementById('chat-input');
+  if (!inp) return;
+  var start = inp.selectionStart || inp.value.length;
+  var end   = inp.selectionEnd   || inp.value.length;
+  inp.value = inp.value.slice(0, start) + emoji + inp.value.slice(end);
+  inp.setSelectionRange(start + emoji.length, start + emoji.length);
+  inp.focus();
+  onChatType();
+};
+
+window.toggleStickersOld = window.toggleStickers; // keep alias
 
 // ============================================================
 // ATTACHMENTS — Photo / Video / File / Once
