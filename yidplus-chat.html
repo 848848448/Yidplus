@@ -104,7 +104,22 @@
     <div style="font-size:.72rem;color:var(--muted)" id="typing-label">typing...</div>
   </div>
 
-  <div class="sticker-tray" id="sticker-tray"></div>
+  <!-- Full emoji panel with categories -->
+  <div id="emoji-panel" style="display:none;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0">
+    <!-- Category tabs -->
+    <div style="display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border);padding:0 .5rem">
+      <button class="emoji-cat-btn active" data-cat="recent" onclick="_emojiCat(this,'recent')">⏰</button>
+      <button class="emoji-cat-btn" data-cat="smileys" onclick="_emojiCat(this,'smileys')">😊</button>
+      <button class="emoji-cat-btn" data-cat="people" onclick="_emojiCat(this,'people')">👋</button>
+      <button class="emoji-cat-btn" data-cat="animals" onclick="_emojiCat(this,'animals')">🐶</button>
+      <button class="emoji-cat-btn" data-cat="food" onclick="_emojiCat(this,'food')">🍎</button>
+      <button class="emoji-cat-btn" data-cat="travel" onclick="_emojiCat(this,'travel')">✈️</button>
+      <button class="emoji-cat-btn" data-cat="objects" onclick="_emojiCat(this,'objects')">💡</button>
+      <button class="emoji-cat-btn" data-cat="symbols" onclick="_emojiCat(this,'symbols')">❤️</button>
+      <button class="emoji-cat-btn" data-cat="jewish" onclick="_emojiCat(this,'jewish')">✡️</button>
+    </div>
+    <div id="emoji-grid" style="display:flex;flex-wrap:wrap;padding:.4rem .3rem;max-height:160px;overflow-y:auto;scrollbar-width:none"></div>
+  </div>
 
   <div id="rec-lock-indicator" style="display:none;flex-direction:column;align-items:center;gap:.3rem;padding:.4rem 0;background:var(--surface)">
     <div id="rec-lock-icon" style="font-size:1.1rem;transition:transform .15s">🔒</div>
@@ -406,6 +421,24 @@
 
 <input type="file" id="chat-media-input" style="position:fixed;top:-9999px;left:-9999px;opacity:0;width:1px;height:1px" onchange="handleChatMedia(event)">
 
+<!-- Fullscreen video player -->
+<div id="video-player-overlay" style="display:none;position:fixed;inset:0;background:#000;z-index:999;flex-direction:column">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;position:absolute;top:0;left:0;right:0;z-index:2;background:linear-gradient(to bottom,rgba(0,0,0,.6),transparent)">
+    <div onclick="_closeVideoPlayer()" style="cursor:pointer;color:#fff;display:flex;align-items:center;gap:.5rem">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </div>
+    <div style="display:flex;gap:.75rem">
+      <div id="vid-prev-btn" onclick="_vidPrev()" style="cursor:pointer;color:#fff;opacity:.8;display:flex;align-items:center">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/><line x1="4" y1="6" x2="4" y2="18"/></svg>
+      </div>
+      <div id="vid-next-btn" onclick="_vidNext()" style="cursor:pointer;color:#fff;opacity:.8;display:flex;align-items:center">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/><line x1="20" y1="6" x2="20" y2="18"/></svg>
+      </div>
+    </div>
+  </div>
+  <video id="video-player-vid" style="width:100%;height:100%;object-fit:contain" controls playsinline></video>
+</div>
+
 <div id="app-toast"></div>
 
 <style>
@@ -530,4 +563,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-  </html>
+        </html>
