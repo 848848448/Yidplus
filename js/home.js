@@ -546,7 +546,7 @@ function _svShowSlide() {
   el.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden';
 
   if (slide.type === 'media' && slide.media_url) {
-    var isVideo = /\.(mp4|webm|mov|avi)$/i.test(slide.media_url);
+    var isVideo = slide.is_video || (slide.media_key && /\.(mp4|webm|mov|avi)$/i.test(slide.media_key)) || /\.(mp4|webm|mov|avi)$/i.test(slide.media_url);
     if (isVideo) {
       var vid = document.createElement('video');
       vid.src = slide.media_url;
@@ -1025,7 +1025,7 @@ window.submitStatus = function () {
     var privacy2 = (document.getElementById('status-privacy') || {}).value || 'public';
     var form = new FormData();
     form.append('type', 'media');
-    form.append('file', STATUS_selectedFile);
+    form.append('media', STATUS_selectedFile);
     form.append('caption', caption);
     form.append('privacy', privacy2);
     api.post('/statuses', form, true)
