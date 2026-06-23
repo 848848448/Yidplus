@@ -934,15 +934,90 @@ window.adminEditAdPages = function (id) {
     .catch(function (err) { toast('❌ ' + err.message); });
 };
 
-window.adminEditExemptUsers = function (id, currentJson) {
-  var list = [];
-  try { list = JSON.parse(currentJson || '[]'); } catch(e) {}
-  var input = prompt('Exempt user IDs (comma-separated):', list.join(','));
-  if (input === null) return;
-  var newList = input.split(',').map(function(s){return s.trim();}).filter(Boolean);
-  api.put('/admin/ads', { id: id, exempt_users: newList })
-    .then(function () { toast('✅ ' + newList.length + ' users exempted'); loadAdsList(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+window.adminEditExemptUsers = function (adId, currentJson) {
+  var current = [];
+  try { current = JSON.parse(currentJson || '[]'); } catch(e) {}
+
+  // Build a modal with user search
+  var existing = document.getElementById('exempt-modal');
+  if (existing) existing.remove();
+
+  var modal = document.createElement('div');
+  modal.id = 'exempt-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+  modal.innerHTML =
+    '<div style="background:var(--surface);border-radius:16px 16px 0 0;padding:1.25rem;width:100%;max-width:500px;max-height:80vh;overflow-y:auto">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">' +
+        '<div style="font-size:.95rem;font-weight:700">🚫 Exempt Users</div>' +
+        '<div onclick="document.getElementById(\'exempt-modal\').remove()" style="cursor:pointer;font-size:1.2rem;color:var(--muted)">✕</div>' +
+      '</div>' +
+      '<input id="exempt-search" class="field" placeholder="Search user by nickname..." oninput="exemptSearch(\'' + adId + '\')" style="margin-bottom:.5rem">' +
+      '<div id="exempt-search-results" style="margin-bottom:.75rem"></div>' +
+      '<div style="font-size:.78rem;color:var(--muted);margin-bottom:.35rem">Currently exempt:</div>' +
+      '<div id="exempt-current-list">' +
+        (current.length
+          ? current.map(function(uid) {
+              return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border)">' +
+                '<span style="font-size:.82rem;color:var(--muted)">' + uid + '</span>' +
+                '<button onclick="exemptRemove(\'' + adId + '\',\'' + uid + '\')" style="background:var(--red);color:#fff;border:none;border-radius:8px;padding:.2rem .6rem;font-size:.72rem;cursor:pointer">Remove</button>' +
+              '</div>';
+            }).join('')
+          : '<div style="font-size:.8rem;color:var(--muted);padding:.5rem 0">No exemptions yet</div>') +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+};
+
+var _exemptAdId = null;
+window.exemptSearch = function (adId) {
+  _exemptAdId = adId;
+  var q = (document.getElementById('exempt-search').value || '').trim();
+  var el = document.getElementById('exempt-search-results');
+  if (!q || q.length < 2) { el.innerHTML = ''; return; }
+
+  api.get('/admin/users?search=' + encodeURIComponent(q))
+    .then(function (res) {
+      var users = res.users || [];
+      el.innerHTML = users.slice(0, 5).map(function (u) {
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border)">' +
+          '<span style="font-size:.85rem;font-weight:600">@' + escHtml(u.nickname) + '</span>' +
+          '<button onclick="exemptAdd(\'' + adId + '\',\'' + u.id + '\',\'' + escHtml(u.nickname) + '\')" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:.25rem .7rem;font-size:.75rem;cursor:pointer">+ Exempt</button>' +
+        '</div>';
+      }).join('') || '<div style="font-size:.8rem;color:var(--muted)">No users found</div>';
+    })
+    .catch(function () {});
+};
+
+window.exemptAdd = function (adId, userId, nick) {
+  api.get('/admin/ads').then(function (res) {
+    var ad = (res.ads || []).find(function (a) { return a.id === adId; });
+    if (!ad) return;
+    var list = [];
+    try { list = JSON.parse(ad.exempt_users || '[]'); } catch(e) {}
+    if (!list.includes(userId)) list.push(userId);
+    api.put('/admin/ads', { id: adId, exempt_users: list })
+      .then(function () {
+        toast('✅ @' + nick + ' will no longer see this ad');
+        document.getElementById('exempt-modal').remove();
+        loadAdsList();
+      });
+  });
+};
+
+window.exemptRemove = function (adId, userId) {
+  api.get('/admin/ads').then(function (res) {
+    var ad = (res.ads || []).find(function (a) { return a.id === adId; });
+    if (!ad) return;
+    var list = [];
+    try { list = JSON.parse(ad.exempt_users || '[]'); } catch(e) {}
+    list = list.filter(function (id) { return id !== userId; });
+    api.put('/admin/ads', { id: adId, exempt_users: list })
+      .then(function () {
+        toast('✅ User will now see this ad again');
+        document.getElementById('exempt-modal').remove();
+        loadAdsList();
+      });
+  });
 };
 
 window.toggleAdActive = function (id, active) {
