@@ -22,9 +22,22 @@ export async function onRequestGet(context) {
       ? 'id, email, nickname, phone, role, verified, blocked, online, created_at'
       : 'id, nickname, role, verified, blocked, online';
 
-    const { results } = await env.DB.prepare(
-      `SELECT ${fields} FROM users ORDER BY created_at DESC`
-    ).all();
+    const url    = new URL(request.url);
+    const search = url.searchParams.get('search') || '';
+
+    let results;
+    if (search) {
+      const q = '%' + search.toLowerCase() + '%';
+      const r = await env.DB.prepare(
+        `SELECT ${fields} FROM users WHERE lower(nickname) LIKE ? ${canSeePII ? 'OR lower(email) LIKE ?' : ''} ORDER BY created_at DESC LIMIT 20`
+      ).bind(...(canSeePII ? [q, q] : [q])).all();
+      results = r.results;
+    } else {
+      const r = await env.DB.prepare(
+        `SELECT ${fields} FROM users ORDER BY created_at DESC`
+      ).all();
+      results = r.results;
+    }
 
     return json({ ok: true, users: results });
   } catch (err) {
