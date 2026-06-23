@@ -380,6 +380,7 @@ window.doSearch = function (q) {
 };
 
 // WhatsApp-style segmented status ring SVG
+window.loadStatuses = buildStatusRow;
 function _buildStatusRing(count, color) {
   var r = 25, cx = 27, cy = 27;
   var gap = count > 1 ? 0.12 : 0;
