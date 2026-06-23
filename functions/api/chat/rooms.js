@@ -123,6 +123,8 @@ export async function onRequestGet(context) {
         online,
         members,
         member_list: memberList,
+        invite_code: r.invite_code || null,
+        pinned_message_id: r.pinned_message_id || null,
         preview: lastMsg ? (lastMsg.type === 'text' ? lastMsg.text : '[' + lastMsg.type + ']') : '',
         unread: unreadRow ? unreadRow.c : 0,
         last_time: lastMsg ? lastMsg.created_at : r.created_at,
