@@ -30,7 +30,9 @@ export async function onRequestGet(context) {
       grouped[s.user_id].slides.push({
         id: s.id, type: s.type, text: s.text,
         media_url: s.media_key ? `/api/media/${encodeURIComponent(s.media_key)}` : null,
-        bg: s.bg, color: s.color, created_at: s.created_at, privacy: s.privacy,
+        media_key: s.media_key || null,
+        is_video: s.media_key ? /\.(mp4|webm|mov|avi)$/i.test(s.media_key) : false,
+        bg: s.bg, color: s.color, created_at: s.created_at, privacy: s.privacy, views: s.views || 0,
       });
     }
 
