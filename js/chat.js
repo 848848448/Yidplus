@@ -44,18 +44,18 @@ window.init_chats = function () {
 // ============================================================
 // CHAT LIST
 // ============================================================
-function loadChatRooms() {
+function loadChatRooms(callback) {
   var el = document.getElementById('chat-list-area');
-  if (!el) return;
-  el.innerHTML = '<div class="feed-state"><div class="spinner"></div><div>Loading chats...</div></div>';
+  if (el) el.innerHTML = '<div class="feed-state"><div class="spinner"></div><div>Loading chats...</div></div>';
 
   api.get('/chat/rooms')
     .then(function (res) {
       CHAT_rooms = res.rooms || [];
       renderChatList();
+      if (typeof callback === 'function') callback();
     })
     .catch(function (err) {
-      el.innerHTML =
+      if (el) el.innerHTML =
         '<div class="feed-state">' +
           '<div style="font-size:2rem">⚠️</div>' +
           '<div>Could not load chats</div>' +
@@ -103,7 +103,7 @@ function renderChatList() {
 
     return '<div class="chat-item-wrap" data-room-id="' + c.id + '">' +
       '<div class="chat-item-delete" onclick="event.stopPropagation();deleteChatRoom(\'' + c.id + '\',\'' + escHtml((c.nick || 'Chat')).replace(/'/g, "\\'") + '\')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></div>' +
-      '<div class="chat-item' + (c.unread ? ' unread' : '') + '" onclick="toast(\'👆 clicked\');_chatItemClick(this,\'' + c.id + '\')">' +
+      '<div class="chat-item' + (c.unread ? ' unread' : '') + '" onclick="_chatItemClick(this,\'' + c.id + '\')">' +
         '<div class="' + avClass + '" style="' + avStyle + '">' + avatarContent + onlineDot + '</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.2rem;gap:.5rem">' +
@@ -322,7 +322,15 @@ window.switchChatTab = function (btn, tab) {
 // ============================================================
 window.openChatRoom = function (roomId) {
   var room = CHAT_rooms.find(function (r) { return r.id === roomId; });
-  if (!room) return;
+  if (!room) {
+    // Rooms not yet loaded — load them first, then open
+    loadChatRooms(function () {
+      var r2 = CHAT_rooms.find(function (r) { return r.id === roomId; });
+      if (r2) window.openChatRoom(roomId);
+      else toast('⚠ Chat not found');
+    });
+    return;
+  }
 
   CHAT_curRoom   = room;
   CHAT_replyTo   = null;
