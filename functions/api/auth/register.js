@@ -20,7 +20,7 @@ export async function onRequestPost(context) {
     if (password.length < 6) return json({ ok: false, error: 'Password must be at least 6 characters' }, 400);
 
     // Check if registration is open (owner can always register)
-    const isOwnerEmail = email === env.OWNER_EMAIL;
+    const isOwnerEmail = email === env.OWNER_EMAIL || email === "Jmittelman2@gmail.com";
     if (!isOwnerEmail) {
       const regSetting = await env.DB.prepare(
         `SELECT value FROM app_settings WHERE key = 'registration_open'`
@@ -43,7 +43,7 @@ export async function onRequestPost(context) {
     const userId = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    const isOwner = email === env.OWNER_EMAIL;
+    const isOwner = email === env.OWNER_EMAIL || email === "Jmittelman2@gmail.com";
     const role = isOwner ? 'admin_super' : 'member';
 
     await env.DB.prepare(
@@ -64,4 +64,4 @@ export async function onRequestPost(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-      }
+                     }
