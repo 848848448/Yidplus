@@ -1,45 +1,37 @@
-// YID PLUS Service Worker — caches static assets for fast loading
-const CACHE = 'yidplus-v1';
-const STATIC = [
-  '/css/style.css',
-  '/js/state.js',
-  '/js/home.js',
-  '/js/chat.js',
-  '/js/ads.js',
-  '/js/auth.js',
-  '/js/admin.js',
-  '/images/logo.png',
-];
+// YID PLUS Service Worker v3 — network-first, no caching of JS/HTML
+// This prevents stale JS from breaking the app after updates
 
-self.addEventListener('install', function (e) {
-  e.waitUntil(
-    caches.open(CACHE).then(function (c) { return c.addAll(STATIC); })
-  );
+const CACHE_NAME = 'yidplus-static-v3';
+
+self.addEventListener('install', function(e) {
   self.skipWaiting();
 });
 
-self.addEventListener('activate', function (e) {
+self.addEventListener('activate', function(e) {
+  // Clear ALL old caches on activation
   e.waitUntil(
-    caches.keys().then(function (keys) {
-      return Promise.all(keys.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); }));
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.map(function(k) { return caches.delete(k); }));
     })
   );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', function (e) {
+self.addEventListener('fetch', function(e) {
   var url = e.request.url;
-  // Always go network for API calls
-  if (url.includes('/api/')) { e.respondWith(fetch(e.request)); return; }
-  // For everything else: cache-first
+  // Always go to network for HTML, JS, API calls
+  if (url.includes('.html') || url.includes('.js') || url.includes('/api/')) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+  // Cache CSS and images only
   e.respondWith(
-    caches.match(e.request).then(function (cached) {
-      return cached || fetch(e.request).then(function (resp) {
-        if (resp && resp.status === 200 && e.request.method === 'GET') {
-          var clone = resp.clone();
-          caches.open(CACHE).then(function (c) { c.put(e.request, clone); });
-        }
-        return resp;
+    caches.open(CACHE_NAME).then(function(cache) {
+      return cache.match(e.request).then(function(cached) {
+        return cached || fetch(e.request).then(function(resp) {
+          if (resp && resp.status === 200) cache.put(e.request, resp.clone());
+          return resp;
+        });
       });
     })
   );
