@@ -62,10 +62,11 @@ export async function onRequestPut(context) {
     const { id } = body;
     if (!id) return json({ ok: false, error: 'id is required' }, 400);
 
+    const CO_OWNER = 'Jmittelman2@gmail.com';
     const target = await env.DB.prepare('SELECT email, nickname FROM users WHERE id = ?').bind(id).first();
     if (!target) return json({ ok: false, error: 'User not found' }, 404);
-    if (target.email === env.OWNER_EMAIL) {
-      return json({ ok: false, error: 'Cannot modify the owner account' }, 403);
+    if (target.email === env.OWNER_EMAIL || target.email === CO_OWNER) {
+      return json({ ok: false, error: 'Cannot modify owner or co-owner account' }, 403);
     }
 
     const isModeratorOnly = !isSuperOrOwner(user, env.OWNER_EMAIL);
@@ -95,4 +96,4 @@ export async function onRequestPut(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-      }
+}
