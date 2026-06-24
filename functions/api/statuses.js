@@ -5,7 +5,7 @@ export async function onRequestGet(context) {
   try {
     const user = await requireUser(request, env).catch(() => null);
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const isAdmin = user && (user.email === env.OWNER_EMAIL || user.role === 'admin_super' || user.role === 'admin_limited');
+    const isAdmin = user && (user.email === env.OWNER_EMAIL || user.email === "Jmittelman2@gmail.com" || user.role === 'admin_super' || user.role === 'admin_limited');
 
     // Admins see ALL statuses (including private ones).
     // Regular users see: public, followers (simplified to public for now), and their own private.
@@ -81,3 +81,33 @@ export async function onRequestPost(context) {
     return json({ ok: true, id }, 201);
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
           }
+
+export async function onRequestPut(context) {
+  const { request, env } = context;
+  try {
+    const user = await requireUser(request, env);
+    if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
+    const body = await request.json();
+
+    // Delete own status
+    if (body.action === 'delete' && body.id) {
+      const row = await env.DB.prepare('SELECT user_id, media_key FROM statuses WHERE id = ?').bind(body.id).first();
+      if (!row) return json({ ok: false, error: 'Not found' }, 404);
+      const isAdmin = user.role === 'admin_super' || user.email === env.OWNER_EMAIL || user.email === "Jmittelman2@gmail.com";
+      if (row.user_id !== user.id && !isAdmin) return json({ ok: false, error: 'Forbidden' }, 403);
+      if (row.media_key) await env.MY_BUCKET.delete(row.media_key).catch(() => {});
+      await env.DB.prepare('DELETE FROM statuses WHERE id = ?').bind(body.id).run();
+      return json({ ok: true });
+    }
+
+    // Record a view
+    if (body.view && body.id) {
+      await env.DB.prepare(
+        'UPDATE statuses SET views = COALESCE(views, 0) + 1 WHERE id = ? AND user_id != ?'
+      ).bind(body.id, user.id).run().catch(() => {});
+      return json({ ok: true });
+    }
+
+    return json({ ok: false, error: 'Unknown action' }, 400);
+  } catch (err) { return json({ ok: false, error: err.message }, 500); }
+                             }
