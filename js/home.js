@@ -555,9 +555,12 @@ function _svShowSlide() {
   document.getElementById('sv-nick').textContent = '@' + (s.nickname || 'User');
   document.getElementById('sv-time').textContent = slide.created_at ? timeAgo(slide.created_at) : 'now';
 
-  // Show views count for own status
-  var meId = STATE.user && STATE.user.id;
-  var isMySlide = s.user_id === meId;
+  // Track view — send to server (only for other people's statuses)
+  var myId = STATE.user && STATE.user.id;
+  var isMySlide = s.user_id === myId;
+  if (slide.id && !isMySlide) {
+    api.post('/statuses/view', { id: slide.id }).catch(function () {});
+  }
   var viewsRow = document.getElementById('sv-views-row');
   var viewsCount = document.getElementById('sv-views-count');
   if (viewsRow) viewsRow.style.display = isMySlide ? 'flex' : 'none';
@@ -704,20 +707,26 @@ window.svTouchEnd = function (e) {
   clearTimeout(HOME_svLongTimer);
   HOME_svLongTimer = null;
 
+  var touch = e.changedTouches[0];
+  var dy = touch.clientY - _svTouchY;
+  var dx = touch.clientX - _svTouchX;
+
   if (wasLongPress) {
-    // Releasing after long press → resume, hide icon
+    // Releasing after long press → resume silently
     HOME_svPaused = false;
     var vid = document.querySelector('#sv-slide video');
     if (vid) vid.play().catch(function(){});
-_svResyncBar();
+    _svResyncBar();
   } else if (!_svTouchMoved) {
-    // Normal tap → navigate (NO pause icon)
-    var touch = e.changedTouches[0];
+    // Normal tap → navigate
     if (touch.clientX < window.innerWidth * 0.3) {
       svPrev();
     } else {
       svNext();
     }
+  } else if (dy > 80 && Math.abs(dy) > Math.abs(dx) * 2) {
+    // Swipe down → close
+    closeSV();
   }
 };
 
