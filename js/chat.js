@@ -93,28 +93,30 @@ function renderChatList() {
     var initial  = (c.nick || '?').slice(0, 1).toUpperCase();
     var isGroup  = c.type === 'group';
     var photoBg  = c.photo_url ? "background-image:url('" + c.photo_url + "');background-size:cover;background-position:center;" : '';
-    var avClass  = 'chat-av' + (isGroup ? ' group' : '');
-    var avStyle  = photoBg; // gradient/colors come from the .chat-av CSS class now
-    var avatarContent = c.photo_url ? '' : (isGroup ? '👥' : initial);
+    // Groups get rounded-square avatar like Telegram, DMs get circle
+    var avClass  = 'chat-av' + (isGroup ? ' group chat-av-square' : ' chat-av-round');
+    var avStyle  = photoBg;
+    var avatarContent = c.photo_url ? '' : initial;
     var onlineDot = (!isGroup && c.online) ? '<div class="online-dot"></div>' : '';
-    var previewText = c.preview || 'No messages yet';
+    var previewText = c.preview || '';
     var timeText = c.last_time ? _fmt12(c.last_time) : '';
-    var unreadBadge = c.unread ? '<div class="unread-badge">' + c.unread + '</div>' : '';
+    var unreadBadge = c.unread
+      ? '<div style="min-width:20px;height:20px;border-radius:10px;background:var(--blue);color:#fff;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px;flex-shrink:0">' + (c.unread > 99 ? '99+' : c.unread) + '</div>'
+      : '';
 
     return '<div class="chat-item-wrap" data-room-id="' + c.id + '">' +
       '<div class="chat-item-delete" onclick="event.stopPropagation();deleteChatRoom(\'' + c.id + '\',\'' + escHtml((c.nick || 'Chat')).replace(/'/g, "\\'") + '\')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></div>' +
       '<div class="chat-item' + (c.unread ? ' unread' : '') + '" onclick="_chatItemClick(this,\'' + c.id + '\')">' +
         '<div class="' + avClass + '" style="' + avStyle + '">' + avatarContent + onlineDot + '</div>' +
         '<div style="flex:1;min-width:0">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.2rem;gap:.5rem">' +
-            '<div style="font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start">' + escHtml(c.nick || 'Chat') + '</div>' +
+          '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
+            '<div style="font-size:.92rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1">' + escHtml(c.nick || 'Chat') + '</div>' +
             '<div style="font-size:.68rem;color:var(--muted);flex-shrink:0">' + timeText + '</div>' +
           '</div>' +
-          '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">' +
-            '<div style="font-size:.8rem;color:' + (c.unread ? 'var(--text)' : 'var(--muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1">' + escHtml(previewText) + '</div>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">' +
+            '<div style="font-size:.82rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1;font-weight:' + (c.unread ? '500' : '400') + '">' + escHtml(previewText) + '</div>' +
             unreadBadge +
           '</div>' +
-          ((!c.joined && isGroup) ? '<div style="font-size:.65rem;color:var(--gold-d);margin-top:.2rem">Tap to Join</div>' : '') +
         '</div>' +
       '</div>' +
     '</div>';
@@ -420,13 +422,14 @@ window.openChatRoom = function (roomId) {
   // Header
   var isGroup = room.type === 'group';
   var av = document.getElementById('cr-avatar');
-  av.className   = 'chatroom-avatar' + (isGroup ? ' group' : '');
+  av.className = 'chatroom-avatar' + (isGroup ? ' group' : '');
   if (room.photo_url) {
     av.style.backgroundImage = "url('" + room.photo_url + "')";
     av.textContent = '';
   } else {
     av.style.backgroundImage = '';
-    av.textContent = isGroup ? '👥' : (room.nick || '?').slice(0, 1).toUpperCase();
+    // Use initial letter — no emoji
+    av.textContent = (room.nick || '?').slice(0, 1).toUpperCase();
   }
 
   document.getElementById('cr-name').textContent = room.nick || 'Chat';
