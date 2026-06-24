@@ -1480,3 +1480,33 @@ window.openChannelPostComposer = function () {
     .then(function () { toast('✅ Posted!'); _loadChannelPosts(); })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
+
+// ── EXPLORE SCREEN — load channels ──
+window.init_explore = function () {
+  var el = document.getElementById('explore-channels');
+  if (!el) return;
+  el.innerHTML = '<div style="padding:2rem;text-align:center"><div class="spinner"></div></div>';
+  api.get('/channels')
+    .then(function (res) {
+      var channels = res.channels || [];
+      if (!channels.length) {
+        el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:.85rem">No channels yet</div>';
+        return;
+      }
+      el.innerHTML = channels.map(function (ch) {
+        var initial = (ch.nickname || '?').slice(0,1).toUpperCase();
+        var avatarStyle = ch.photo_url ? 'background-image:url(\'' + ch.photo_url + '\');background-size:cover;background-position:center' : '';
+        return '<div style="display:flex;align-items:center;gap:.85rem;padding:.75rem;background:var(--surface);border:1px solid var(--border);border-radius:14px;cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + ch.owner_id + '\';navTo(\'channel\')">' +
+          '<div style="width:50px;height:50px;border-radius:14px;background:linear-gradient(135deg,#1565C0,#1976D2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:700;color:#fff;flex-shrink:0;overflow:hidden;' + avatarStyle + '">' + (ch.photo_url ? '' : initial) + '</div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:.92rem;font-weight:700;color:var(--text)">@' + escHtml(ch.nickname || 'Channel') + '</div>' +
+            '<div style="font-size:.75rem;color:var(--muted);margin-top:.15rem">' + fmtN(ch.followers || 0) + ' followers</div>' +
+          '</div>' +
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function () {
+      el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--red);font-size:.82rem">Could not load channels</div>';
+    });
+};
