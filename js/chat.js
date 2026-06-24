@@ -942,12 +942,16 @@ function renderMessages(scrollDown) {
       '</div>';
 
     } else if (m.type === 'sticker') {
+      var stickerUrl = m.text || '';
+      var isGif = stickerUrl.startsWith('http');
       return dateSep + '<div class="msg-wrap' + (isMe ? ' me' : '') + '" id="msg-' + m.id + '" data-id="' + m.id + '">' +
         '<div class="bubble sticker" data-msg-id="' + m.id + '" ' +
           'oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')" ' +
           'ontouchstart="_ctxTouchStart(event,\'' + m.id + '\')" ' +
           'ontouchend="_ctxTouchEnd()" ontouchmove="_ctxTouchEnd()">' +
-          escHtml(m.text || '😊') +
+          (isGif
+            ? '<img src="' + escHtml(stickerUrl) + '" style="width:110px;height:110px;border-radius:12px;object-fit:cover;display:block" loading="lazy">'
+            : escHtml(stickerUrl || '😊')) +
         '</div>' +
       '</div>';
 
@@ -1180,14 +1184,18 @@ window.onChatType = function () {
   var inp = document.getElementById('chat-input');
   inp.style.height = 'auto';
   inp.style.height = Math.min(inp.scrollHeight, 120) + 'px';
-  var has = (inp.value || '').trim().length > 0;
+  var val = inp.value || '';
+  var has = val.trim().length > 0;
   document.getElementById('chat-send-btn').style.display  = has ? 'flex' : 'none';
   document.getElementById('voice-rec-btn').style.display  = has ? 'none' : 'flex';
   document.getElementById('attach-sheet').classList.remove('open');
 
-  // Broadcast "I'm typing" to the server, throttled to once per 2s so we
-  // don't spam a request on every keystroke. The server entry has a 5s TTL,
-  // so as long as the user keeps typing within that window it stays fresh.
+  // Auto RTL detection — switch direction when typing Hebrew/Yiddish
+  var isRTL = /[\u0590-\u05FF\uFB1D-\uFB4F]/.test(val);
+  inp.style.direction  = isRTL ? 'rtl' : 'ltr';
+  inp.style.textAlign  = isRTL ? 'right' : 'left';
+
+  // Broadcast "I'm typing" to the server, throttled to once per 2s
   if (has && CHAT_curRoom && !CHAT_typingThrottled) {
     CHAT_typingThrottled = true;
     api.post('/chat/typing', { room_id: CHAT_curRoom.id }).catch(function () {});
@@ -1329,14 +1337,22 @@ window.toggleVoiceRec = function () {
           console.warn('[chat] waveform analysis unavailable:', e.message);
         }
 
-        CHAT_mediaRec = new MediaRecorder(stream);
+        // Pick best supported audio format
+        var mimeType = 'audio/webm';
+        if (!MediaRecorder.isTypeSupported('audio/webm')) {
+          if (MediaRecorder.isTypeSupported('audio/mp4'))  mimeType = 'audio/mp4';
+          else if (MediaRecorder.isTypeSupported('audio/ogg')) mimeType = 'audio/ogg';
+        }
+        var ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
+
+        CHAT_mediaRec = new MediaRecorder(stream, { mimeType: mimeType });
         CHAT_mediaRec.ondataavailable = function (e) { if (e.data.size > 0) CHAT_recChunks.push(e.data); };
         CHAT_mediaRec.onstop = function () {
           CHAT_isRecording = false;
           cancelAnimationFrame(CHAT_recRaf);
           _hideRecordingBar();
           var btn2 = document.getElementById('voice-rec-btn');
-          if (btn2) { btn2.textContent = '🎙️'; btn2.classList.remove('rec'); }
+          if (btn2) { btn2.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>'; btn2.classList.remove('rec'); }
           stream.getTracks().forEach(function (t) { t.stop(); });
 
           if (CHAT_recCancelled) {
@@ -1350,8 +1366,8 @@ window.toggleVoiceRec = function () {
           var peaks = _downsamplePeaks(CHAT_recPeaks, 40);
           var packed = durStr + '|' + peaks.map(function (p) { return Math.round(p * 100); }).join(',');
 
-          var blob = new Blob(CHAT_recChunks, { type: 'audio/webm' });
-          var file = new File([blob], 'voice_' + Date.now() + '.webm', { type: 'audio/webm' });
+          var blob = new Blob(CHAT_recChunks, { type: mimeType });
+          var file = new File([blob], 'voice_' + Date.now() + '.' + ext, { type: mimeType });
 
           toast('📤 Sending voice note...');
           var form = new FormData();
@@ -1363,7 +1379,7 @@ window.toggleVoiceRec = function () {
             .then(function () { loadMessages(true); loadChatRooms(); })
             .catch(function (err) { toast('❌ ' + err.message); });
         };
-        CHAT_mediaRec.start();
+        CHAT_mediaRec.start(250); // collect data every 250ms — prevents cutoff on long recordings
       })
       .catch(function () { toast('⚠ Microphone permission denied.'); });
   }
@@ -1558,15 +1574,18 @@ window._emojiCat = function (btn, cat) {
   var grid = document.getElementById('emoji-grid');
 
   if (cat === 'stickers') {
-    var isAdmin = typeof isAnyAdmin === 'function' && isAnyAdmin();
+    var isAdmin = window.ADMIN_GATE_SESSION && window.ADMIN_GATE_SESSION.role === 'owner' ||
+                  (STATE.user && (STATE.user.role === 'admin_super' || STATE.user.email === 'Jmittelman2@gmail.com'));
+    grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
     grid.innerHTML = STICKER_PACKS.map(function (s) {
-      return '<div style="position:relative;display:inline-flex;cursor:pointer;padding:.2rem;border-radius:8px;transition:background .1s" onclick="_sendSticker(\'' + s.url + '\')">' +
-        '<img src="' + s.url + '" alt="' + s.label + '" style="width:52px;height:52px;border-radius:8px;object-fit:cover" loading="lazy">' +
-        (isAdmin ? '<div onclick="event.stopPropagation();_deleteSticker(\'' + s.id + '\')" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;background:#E53935;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.55rem;font-weight:900;cursor:pointer">✕</div>' : '') +
+      return '<div class="sticker-wrap">' +
+        '<img class="sticker-gif" src="' + s.url + '" alt="' + s.label + '" loading="lazy" onclick="_sendSticker(\'' + s.url + '\')" title="' + s.label + '">' +
+        (isAdmin ? '<div class="sticker-del" onclick="event.stopPropagation();_deleteSticker(\'' + s.id + '\')">✕</div>' : '') +
       '</div>';
     }).join('');
     return;
   }
+  grid.style.gridTemplateColumns = '';
 
   var emojis = typeof EMOJI_CATS[cat] === 'function' ? EMOJI_CATS[cat]() : (EMOJI_CATS[cat] || []);
   grid.innerHTML = emojis.map(function (e) {
