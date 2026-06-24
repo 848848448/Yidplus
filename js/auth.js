@@ -169,3 +169,23 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 console.log('YID PLUS: auth.js loaded ✓ (Cloudflare D1 mode)');
+
+// Real-time nickname availability check
+var _nickCheckTimer = null;
+window.checkNickAvail = function () {
+  var inp  = document.getElementById('r-nick');
+  var icon = document.getElementById('nick-avail-icon');
+  if (!inp || !icon) return;
+  var nick = inp.value.trim();
+  clearTimeout(_nickCheckTimer);
+  if (nick.length < 3) { icon.textContent = ''; return; }
+  icon.textContent = '...';
+  _nickCheckTimer = setTimeout(function () {
+    api.get('/auth/check-nick?nick=' + encodeURIComponent(nick))
+      .then(function (res) {
+        icon.textContent = res.available ? '✅' : '❌';
+        icon.title = res.available ? 'Available!' : 'Already taken';
+      })
+      .catch(function () { icon.textContent = ''; });
+  }, 500);
+};
