@@ -118,7 +118,10 @@ window.checkPin = function () {
     setLoad('gate-pin', false);
     document.getElementById('admin-gate').classList.remove('open');
 
-    var role = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL) ? 'owner' : (ADMIN_gateRole || 'member');
+    const CO_OWNER = 'Jmittelman2@gmail.com';
+    var role = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL || ADMIN_gateEmail === CO_OWNER)
+                 ? 'owner'
+                 : (ADMIN_gateRole || 'member');
 
     // Publish the verified gate identity so userCan()/isOwner()/isSuperAdmin()/isAnyAdmin()
     // in state.js use THIS identity for the rest of the admin panel session, not whichever
