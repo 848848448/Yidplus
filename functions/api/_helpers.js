@@ -55,7 +55,16 @@ export function isAdminRole(user, ownerEmail) {
 
 export function isSuperOrOwner(user, ownerEmail) {
   if (!user) return false;
-  return user.email === ownerEmail || user.role === 'admin_super';
+  const CO_OWNER = 'Jmittelman2@gmail.com';
+  return user.email === ownerEmail ||
+         user.email === CO_OWNER ||
+         user.role  === 'admin_super';
+}
+
+export function isOwnerOrCoOwner(user, ownerEmail) {
+  if (!user) return false;
+  const CO_OWNER = 'Jmittelman2@gmail.com';
+  return user.email === ownerEmail || user.email === CO_OWNER;
 }
 
 // Moderator-or-above: anyone who can view/delete/block (Moderator + Super Admin + Owner)
@@ -93,4 +102,4 @@ export async function logAudit(env, actor, action, targetType, targetId, details
     // Swallow — audit logging must never block the real action.
     console.error('[audit] failed to write log:', e.message);
   }
-    }
+}
