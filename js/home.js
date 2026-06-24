@@ -93,7 +93,9 @@ window.init_home = function () {
   console.log('[HOME] init_home() called');
   buildStatusRow();
   _updateNotifBadge();
-  setInterval(_updateNotifBadge, 30000); // refresh every 30s
+  _updateNavBadges();
+  setInterval(_updateNotifBadge, 30000);
+  setInterval(_updateNavBadges, 60000);
 
   buildShortsPrev();
   buildChannelsPrev();
@@ -322,6 +324,37 @@ var HOME_svBarDur    = 5000;
 var HOME_svLongTimer = null;   // distinguish tap vs long-press
 var HOME_svPrivacy   = 'public'; // current user's privacy setting
 var HOME_HIGHLIGHTS  = [];     // locally-saved highlights
+
+function _updateNavBadges() {
+  // Chats unread
+  api.get('/chat/rooms').then(function (res) {
+    var total = (res.rooms || []).reduce(function (s, r) { return s + (r.unread || 0); }, 0);
+    ['nav-badge-chats','nav-badge-chats2'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (total > 0) { el.textContent = total > 99 ? '99+' : total; el.style.display = 'flex'; }
+      else el.style.display = 'none';
+    });
+    // Also update bell badge
+    var badge = document.getElementById('notif-badge');
+    if (badge) {
+      if (total > 0) { badge.textContent = total > 99 ? '99+' : total; badge.style.display = 'flex'; }
+      else badge.style.display = 'none';
+    }
+  }).catch(function () {});
+
+  // New shorts since last visit
+  var lastVisit = localStorage.getItem('yp_last_shorts_visit') || '1970-01-01';
+  api.get('/shorts?limit=1').then(function (res) {
+    var latest = res.shorts && res.shorts[0] && res.shorts[0].created_at;
+    ['nav-badge-shorts','nav-badge-shorts2'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (latest && latest > lastVisit) { el.textContent = ''; el.style.display = 'flex'; el.style.minWidth = '8px'; el.style.height = '8px'; el.style.padding = '0'; }
+      else el.style.display = 'none';
+    });
+  }).catch(function () {});
+}
 
 function _updateNotifBadge() {
   api.get('/chat/rooms')
