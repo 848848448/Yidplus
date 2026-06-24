@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#1565C0">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>💬 YID PLUS — Chats</title>
+<title>YID PLUS — Chats</title>
 <link rel="stylesheet" href="css/style.css">
 <script>
 (function () {
@@ -50,11 +50,11 @@
   </div>
   <div class="scroll-area" id="chat-list-area"></div>
   <nav class="bottom-nav">
-    <button class="nav-item"        onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon">🏠</span><span class="nav-label">Home</span></button>
-    <button class="nav-item"        onclick="goPage('yidplus-shorts.html')">  <span class="nav-icon">🎬</span><span class="nav-label">Shorts</span></button>
-    <button class="nav-item"        onclick="goPage('yidplus-music.html')">   <span class="nav-icon">🎵</span><span class="nav-label">Music</span></button>
-    <button class="nav-item active" onclick="navTo('chats')">              <span class="nav-icon">💬</span><span class="nav-label">Chats</span></button>
-    <button class="nav-item"        onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon">⚙️</span><span class="nav-label">Settings</span></button>
+    <button class="nav-item"        onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-label">Home</span></button>
+    <button class="nav-item"        onclick="goPage('yidplus-shorts.html')">  <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button>
+    <button class="nav-item"        onclick="goPage('yidplus-music.html')">   <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button>
+    <button class="nav-item active" onclick="navTo('chats')">              <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button>
+    <button class="nav-item"        onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="nav-label">Settings</span></button>
   </nav>
 </div>
 
@@ -134,7 +134,7 @@
     <div id="rec-live-time" style="font-size:.78rem;color:var(--muted);flex-shrink:0">0:00</div>
     <div id="rec-live-hint" style="font-size:.72rem;color:var(--muted);flex-shrink:0">← slide to cancel</div>
     <button id="rec-locked-send-btn" style="display:none;background:var(--blue);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:.9rem;flex-shrink:0;cursor:pointer" onclick="stopVoiceRecAndSend()"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
-    <button id="rec-locked-cancel-btn" style="display:none;background:none;border:none;color:var(--red);font-size:1.1rem;flex-shrink:0;cursor:pointer" onclick="cancelVoiceRec()">🗑</button>
+    <button id="rec-locked-cancel-btn" style="display:none;background:none;border:none;color:var(--red);font-size:1.1rem;flex-shrink:0;cursor:pointer" onclick="cancelVoiceRec()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
   </div>
 
   <div class="chat-input-bar" id="chat-input-bar">
@@ -142,7 +142,7 @@
       <button class="chat-attach-circle" onclick="toggleAttach(event)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
     </div>
     <div class="chat-input-pill">
-      <button class="chat-emoji-circle" onclick="toggleStickers()">😊</button>
+      <button class="chat-emoji-circle" onclick="toggleStickers()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
       <textarea class="chat-input" id="chat-input" placeholder="Message..." rows="1" oninput="onChatType()" onkeydown="onChatKey(event)" style="unicode-bidi:plaintext;font-size:1.05rem"></textarea>
     </div>
     <button class="voice-rec-btn" id="voice-rec-btn" onclick="toggleVoiceRec()"
@@ -401,11 +401,11 @@
       <div style="font-weight:700;font-size:1rem" id="hb-name">User</div>
       <div style="font-size:.75rem;opacity:.85" id="hb-handle">@user</div>
     </div>
-    <div class="hamburger-item" onclick="goPage('yidplus-dashboard.html')"><span class="hi-icon">👤</span>My Profile</div>
+    <div class="hamburger-item" onclick="goPage('yidplus-dashboard.html')"><span class="hi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>My Profile</div>
     <div class="hamburger-item" onclick="toast('Saved Messages: coming soon')"><span class="hi-icon">🔖</span>Saved Messages</div>
     <div class="hamburger-item" onclick="openNewChatModal();closeHamburgerMenu()"><span class="hi-icon">👥</span>Contacts</div>
     <div class="hamburger-item" onclick="openNewGroupModal();closeHamburgerMenu()"><span class="hi-icon">➕</span>New Group</div>
-    <div class="hamburger-item" onclick="goPage('yidplus-dashboard.html')"><span class="hi-icon">⚙️</span>Settings</div>
+    <div class="hamburger-item" onclick="goPage('yidplus-dashboard.html')"><span class="hi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span>Settings</div>
     <div style="border-top:1px solid var(--border);margin-top:.5rem"></div>
     <div class="hamburger-item" onclick="goPage('yidplus-admin.html')"><span class="hi-icon">👑</span>Admin Panel</div>
   </div>
@@ -594,4 +594,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <script src="js/ads.js"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
-                                                                                                                                                                                                                                                                               </html>
+  </html>
