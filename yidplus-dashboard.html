@@ -27,30 +27,32 @@
   } catch (e) {}
 })();
 </script>
-</head>
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#1565C0"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"></head>
 <body>
 
 <!-- ══ AUTH SCREEN ══ -->
 <div class="screen active" id="screen-auth">
-  <div style="margin:auto;width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;padding:1.5rem;animation:fadeIn .7s ease">
-    <div style="font-size:2.8rem;filter:drop-shadow(0 0 18px rgba(201,168,76,.5))">👑</div>
-    <div style="font-size:2rem;font-weight:700;letter-spacing:.14em;background:linear-gradient(135deg,var(--gold-l),var(--gold),var(--gold-d));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-top:.3rem">YID PLUS</div>
-    <div style="font-size:.7rem;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);margin-top:.25rem;margin-bottom:2rem">Jewish Entertainment Platform</div>
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:18px;padding:2rem 1.75rem;width:100%">
-      <div style="display:flex;background:var(--bg3);border-radius:10px;padding:3px;margin-bottom:1.75rem">
+  <div style="margin:auto;width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;padding:2rem 1.5rem;animation:fadeIn .5s ease">
+    <!-- Logo -->
+    <img src="images/logo.png" id="auth-logo-img" alt="YID PLUS" style="height:64px;width:auto;object-fit:contain;border-radius:16px;margin-bottom:.75rem" onerror="this.style.display='none';document.getElementById('auth-logo-text').style.display='block'">
+    <div id="auth-logo-text" style="display:none;font-size:2.2rem;font-weight:800;letter-spacing:-.02em;color:var(--text);margin-bottom:.75rem">YID<span style="color:var(--blue)">+</span></div>
+    <div style="font-size:.72rem;letter-spacing:.25em;text-transform:uppercase;color:var(--muted);margin-bottom:2rem">Jewish Social Platform</div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:1.75rem;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.06)">
+      <div style="display:flex;background:var(--bg3);border-radius:12px;padding:3px;margin-bottom:1.5rem">
         <button class="auth-tab active" onclick="authTab('login')">Sign In</button>
         <button class="auth-tab" onclick="authTab('register')">Register</button>
       </div>
       <div class="auth-msg" id="auth-msg"></div>
       <div id="auth-login">
-        <input class="field" type="email" id="l-email" placeholder="Email address">
-        <input class="field" type="password" id="l-pass" placeholder="Password">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin:.25rem 0 1.1rem">
+        <input class="field" type="email" id="l-email" placeholder="Email address" autocomplete="email">
+        <input class="field" type="password" id="l-pass" placeholder="Password" autocomplete="current-password">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:.25rem 0 1.25rem">
           <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--muted);cursor:pointer;user-select:none" onclick="toggleRemember()">
             <div class="toggle-sw" id="rem-tog"></div>
             Remember Me
           </label>
-          <span style="font-size:.78rem;color:var(--gold-d);cursor:pointer">Forgot password?</span>
+          <span style="font-size:.78rem;color:var(--blue);cursor:pointer">Forgot password?</span>
         </div>
         <button class="btn-primary" id="l-btn" onclick="doLogin()">
           <span id="l-txt">Sign In</span>
@@ -58,21 +60,18 @@
         </button>
       </div>
       <div id="auth-register" style="display:none">
-        <input class="field" type="email" id="r-email" placeholder="Email address">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-          <input class="field" type="text" id="r-nick" placeholder="Nickname" style="margin-bottom:0">
-          <input class="field" type="tel" id="r-phone" placeholder="Phone (private)" style="margin-bottom:0">
+        <input class="field" type="email" id="r-email" placeholder="Email address" autocomplete="email">
+        <div style="position:relative;margin-bottom:.85rem">
+          <input class="field" type="text" id="r-nick" placeholder="Nickname (cannot be changed later)" style="margin-bottom:0;padding-right:2.5rem" oninput="checkNickAvail()" autocomplete="username">
+          <span id="nick-avail-icon" style="position:absolute;right:.75rem;top:50%;transform:translateY(-50%);font-size:.85rem"></span>
         </div>
-        <div style="margin-bottom:.85rem"></div>
-        <input class="field" type="password" id="r-pass" placeholder="Password (min 6 chars)">
-        <input class="field" type="password" id="r-pass2" placeholder="Confirm password">
+        <input class="field" type="tel" id="r-phone" placeholder="Phone (optional, private)">
+        <input class="field" type="password" id="r-pass" placeholder="Password (min 6 chars)" autocomplete="new-password">
+        <input class="field" type="password" id="r-pass2" placeholder="Confirm password" autocomplete="new-password">
         <button class="btn-primary" id="r-btn" onclick="doRegister()">
           <span id="r-txt">Create Account</span>
           <div class="loading-dots" id="r-dots"><span></span><span></span><span></span></div>
         </button>
-      </div>
-      <div style="background:rgba(201,168,76,.05);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;margin-top:1.25rem;font-size:.72rem;color:var(--muted);line-height:1.6">
-        🔗 Powered by <strong style="color:var(--gold-d)">Cloudflare D1 + R2</strong>
       </div>
     </div>
   </div>
@@ -109,7 +108,7 @@
   </div>
   <nav class="bottom-nav">
     <button class="nav-item active" onclick="navTo('home')">             <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-label">Home</span></button>
-    <button class="nav-item"        onclick="goPage('yidplus-shorts.html')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button>
+    <button class="nav-item"        onclick="goPage('yidplus-shorts.html')" style="position:relative"><span class="nav-icon"><span class="nav-badge" id="nav-badge-shorts" style="display:none"></span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button>
     <button class="nav-item"        onclick="goPage('yidplus-music.html')"> <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button>
     <button class="nav-item"        onclick="goPage('yidplus-chat.html')">  <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button>
     <button class="nav-item"        onclick="navTo('settings')">         <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="nav-label">Settings</span></button>
@@ -149,7 +148,7 @@
   </div>
   <nav class="bottom-nav">
     <button class="nav-item"        onclick="navTo('home')">             <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-label">Home</span></button>
-    <button class="nav-item"        onclick="goPage('yidplus-shorts.html')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button>
+    <button class="nav-item"        onclick="goPage('yidplus-shorts.html')" style="position:relative"><span class="nav-icon"><span class="nav-badge" id="nav-badge-shorts" style="display:none"></span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button>
     <button class="nav-item"        onclick="goPage('yidplus-music.html')"> <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button>
     <button class="nav-item"        onclick="goPage('yidplus-chat.html')">  <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button>
     <button class="nav-item active" onclick="navTo('settings')">         <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="nav-label">Settings</span></button>
@@ -532,5 +531,5 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <script src="js/ads.js"></script>
-</body>
-                                                                                                                                                                                                                                                                                                                                                                                                   </html>
+<script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
+              </html>
