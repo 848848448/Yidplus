@@ -12,7 +12,11 @@ export async function onRequestPost(context) {
     const phone    = (body.phone || '').trim();
 
     if (!email || !nickname || !password) return json({ ok: false, error: 'email, nickname and password are required' }, 400);
-    if (nickname.length < 3) return json({ ok: false, error: 'Nickname must be at least 3 characters' }, 400);
+    if (nickname.length < 3)  return json({ ok: false, error: 'Nickname must be at least 3 characters' }, 400);
+    if (nickname.length > 20) return json({ ok: false, error: 'Nickname must be 20 characters or less' }, 400);
+    if (!/^[a-zA-Z0-9_\u0590-\u05FF]+$/.test(nickname)) {
+      return json({ ok: false, error: 'Nickname can only contain letters, numbers and underscores (no spaces or symbols)' }, 400);
+    }
     if (password.length < 6) return json({ ok: false, error: 'Password must be at least 6 characters' }, 400);
 
     // Check if registration is open (owner can always register)
