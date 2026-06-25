@@ -97,7 +97,7 @@ function renderChatList() {
     var avClass  = 'chat-av' + (isGroup ? ' group chat-av-square' : ' chat-av-round');
     var avStyle  = photoBg;
     var avatarContent = c.photo_url ? '' : initial;
-    var onlineDot = (!isGroup && c.online) ? '<div class="online-dot"></div>' : '';
+    var onlineDot = (!isGroup && c.online && isAnyAdmin()) ? '<div class="online-dot"></div>' : '';
     var previewText = c.preview || '';
     var timeText = c.last_time ? _fmt12(c.last_time) : '';
     var unreadBadge = c.unread
@@ -448,7 +448,7 @@ window.openChatRoom = function (roomId) {
     var readOnlyTag = room.read_only ? ' · 🔒 Read-only' : '';
     st.textContent = (room.members != null ? room.members + ' members' : 'Group') + readOnlyTag;
     st.style.color = 'var(--muted)';
-  } else if (room.online) {
+  } else if (room.online && isAnyAdmin()) {
     st.textContent = 'online';
     st.style.color = 'var(--green)';
   } else {
@@ -528,7 +528,7 @@ window.openChatInfo = function () {
   document.getElementById('info-name').textContent = CHAT_curRoom.nick || 'Chat';
   document.getElementById('info-sub').textContent = isGroup
     ? (CHAT_curRoom.members || 0) + ' members'
-    : (CHAT_curRoom.online ? 'online' : 'last seen recently');
+    : (CHAT_curRoom.online && isAnyAdmin() ? 'online' : 'last seen recently');
 
   document.getElementById('info-leave-btn').style.display = isGroup ? 'flex' : 'none';
   document.getElementById('info-members-section').style.display = isGroup ? 'block' : 'none';
@@ -714,7 +714,7 @@ function _renderMembersList() {
         (m.photo_url ? '' : (m.nickname || '?').slice(0, 1).toUpperCase()) +
       '</div>' +
       '<div style="flex:1;unicode-bidi:plaintext;text-align:start;' + (isMemberAdmin ? 'cursor:pointer' : '') + '" onclick="_openMemberDM(\'' + m.id + '\',\'' + escHtml(m.nickname || 'User').replace(/'/g, "\\'") + '\')"><div style="font-size:.85rem;font-weight:700">@' + escHtml(m.nickname || 'User') + '</div>' +
-      (m.online ? '<div style="font-size:.68rem;color:var(--green)">● online</div>' : '<div style="font-size:.68rem;color:var(--muted)">offline</div>') +
+      (m.online && isAnyAdmin() ? '<div style="font-size:.68rem;color:var(--green)">● online</div>' : '<div style="font-size:.68rem;color:var(--muted)">offline</div>') +
       '</div>' +
       (m.role === 'admin_super' || m.role === 'admin_limited' ? '<span style="font-size:.65rem;background:#EAF4FF;color:var(--blue);border:1px solid #BBDEFB;border-radius:6px;padding:.1rem .4rem">Admin</span>' : '') +
       (m.is_group_admin ? '<span style="font-size:.65rem;background:#FFF3E0;color:#E65100;border:1px solid #FFE0B2;border-radius:6px;padding:.1rem .4rem;margin-left:.3rem">Group Admin</span>' : '') +
