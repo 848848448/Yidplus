@@ -687,19 +687,27 @@ function renderUsersList(users) {
     var roleClass  = (u.role === 'admin_super' || u.role === 'admin_limited') ? 'admin' : 'user';
     var roleBadge  = '<span class="role-badge role-' + roleClass + '">' + (u.role || 'member') + '</span>';
 
+    var SVG_EDIT   = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>';
+    var SVG_DEL    = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+    var SVG_BAN    = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>';
+    var SVG_VERIFY = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    var SVG_PROMO  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>';
+    var SVG_DEMOTE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+    var SVG_ADS    = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+
     var actions = '';
     if (isOwner && !isOwnerRow) {
-      // Owner sees full edit button
-      actions += '<button class="act-btn" style="background:var(--gold);color:#000" onclick="adminEditUser(\'' + u.id + '\')">✏️ Edit</button>';
-      actions += '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + (u.verified ? '✓ Verified' : '👑 Verify') + '</button>';
-      actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? 'Demote' : 'Promote') + '</button>';
-      actions += '<button class="act-btn act-block" onclick="adminBlock(\'' + u.id + '\',\'' + !!u.blocked + '\')">' + (u.blocked ? 'Unblock' : '🚫 Block') + '</button>';
-      actions += '<button class="act-btn" style="background:' + (u.no_ads ? 'var(--green)' : 'var(--muted)') + '" onclick="adminToggleNoAds(\'' + u.id + '\',' + !!u.no_ads + ')" title="Ad-free toggle">' + (u.no_ads ? '🚫 Ad-Free ON' : '📣 Ad-Free OFF') + '</button>';
+      actions += '<button class="act-btn" style="background:#1565C0;color:#fff;border-color:#1565C0" onclick="adminEditUser(\'' + u.id + '\')">' + SVG_EDIT + ' Edit</button>';
+      actions += '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + SVG_VERIFY + ' ' + (u.verified ? 'Unverify' : 'Verify') + '</button>';
+      actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? SVG_DEMOTE + ' Demote' : SVG_PROMO + ' Promote') + '</button>';
+      actions += '<button class="act-btn act-block" onclick="adminBlock(\'' + u.id + '\',\'' + !!u.blocked + '\')">' + SVG_BAN + ' ' + (u.blocked ? 'Unblock' : 'Block') + '</button>';
+      actions += '<button class="act-btn" style="background:' + (u.no_ads ? '#16A34A' : '#637087') + ';color:#fff;border-color:transparent" onclick="adminToggleNoAds(\'' + u.id + '\',' + !!u.no_ads + ')" title="Ad-free toggle">' + SVG_ADS + ' ' + (u.no_ads ? 'Ad-Free ON' : 'Ads ON') + '</button>';
+      actions += '<button class="act-btn" style="background:#E11D48;color:#fff;border-color:#E11D48" onclick="adminDeleteUser(\'' + u.id + '\',\'' + escHtml(u.nickname||'') + '\')">' + SVG_DEL + ' Delete</button>';
     } else {
       if (canManage) {
-        actions += '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + (u.verified ? '✓ Verified' : '👑 Verify') + '</button>';
+        actions += '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + SVG_VERIFY + ' ' + (u.verified ? 'Unverify' : 'Verify') + '</button>';
         if (userCan('promote_users')) {
-          actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? 'Demote' : 'Promote') + '</button>';
+          actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? SVG_DEMOTE + ' Demote' : SVG_PROMO + ' Promote') + '</button>';
         }
       }
       if (canBlock) {
@@ -824,6 +832,17 @@ function _editField(id, label, val, type) {
     '<input id="' + id + '" type="' + type + '" value="' + escHtml(val) + '" style="width:100%;box-sizing:border-box;padding:.5rem .75rem;background:var(--bg3);border:.5px solid var(--border);border-radius:8px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none">' +
   '</div>';
 }
+
+window.adminDeleteUser = function (id, nick) {
+  if (!confirm('⚠️ DELETE @' + nick + '?\n\nThis will permanently remove the user and all their data from the platform. This CANNOT be undone!')) return;
+  api.del('/admin/users?id=' + encodeURIComponent(id))
+    .then(function () {
+      toast('🗑 @' + nick + ' deleted permanently.');
+      buildUsersPanel(document.getElementById('admin-content'));
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
 
 window.adminSaveUserEdit = function (id) {
   var nick  = (document.getElementById('edit-u-nick')  || {}).value || '';
