@@ -1,7 +1,8 @@
 // functions/api/presence/lookup.js
 // POST /api/presence/lookup  -> { ids: [user_id,...] } -> { online: { [id]: bool } }
+// Online status is ONLY returned to admins. Regular users always get false.
 
-import { json, corsHeaders, requireUser } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -9,7 +10,6 @@ export async function onRequestOptions() {
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
@@ -17,6 +17,13 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const ids = Array.isArray(body.ids) ? body.ids.slice(0, 100) : [];
     if (!ids.length) return json({ ok: true, online: {} });
+
+    // Non-admins always get empty online status
+    if (!isAdminRole(user, env.OWNER_EMAIL)) {
+      const empty = {};
+      for (const id of ids) empty[id] = false;
+      return json({ ok: true, online: empty });
+    }
 
     const placeholders = ids.map(() => '?').join(',');
     const { results } = await env.DB.prepare(
@@ -30,4 +37,4 @@ export async function onRequestPost(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-}
+                     }
