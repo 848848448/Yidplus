@@ -144,17 +144,24 @@ window.checkPin = function () {
    ADMIN NAV
 ══════════════════════════════════ */
 var ADMIN_PANELS = [
-  { id:'analytics',    icon:'📊', label:'Analytics',  roles:['admin_limited','admin_super','owner'] },
-  { id:'app-settings', icon:'⚙️', label:'App',        roles:['admin_super','owner'] },
-  { id:'users',        icon:'👥', label:'Users',       roles:['admin_limited','admin_super','owner'] },
-  { id:'shorts-mod',   icon:'🎬', label:'Shorts',      roles:['admin_limited','admin_super','owner'] },
-  { id:'chat-watch',   icon:'💬', label:'Chats',       roles:['admin_super','owner'] },
-  { id:'music-mod',    icon:'🎵', label:'Music',       roles:['admin_limited','admin_super','owner'] },
-  { id:'broadcast',    icon:'📢', label:'Broadcast',   roles:['admin_super','owner'] },
-  { id:'feedback',     icon:'📩', label:'Feedback',    roles:['admin_limited','admin_super','owner'] },
-  { id:'ads',          icon:'📣', label:'Ads',         roles:['admin_super','owner'] },
-  { id:'audit-logs',   icon:'📜', label:'Audit Logs',  roles:['admin_super','owner'] },
-  { id:'admin-settings', icon:'🛠️', label:'Admin Settings', roles:['owner'] },
+  { id:'analytics',     icon:'📊', label:'Analytics',     roles:['admin_limited','admin_super','owner'] },
+  { id:'app-settings',  icon:'⚙️', label:'App',           roles:['admin_super','owner'] },
+  { id:'users',         icon:'👥', label:'Users',          roles:['admin_limited','admin_super','owner'] },
+  { id:'reports',       icon:'🚨', label:'Reports',        roles:['admin_limited','admin_super','owner'] },
+  { id:'banned-devices',icon:'🚫', label:'Banned Devices', roles:['admin_super','owner'] },
+  { id:'ip-logs',       icon:'🌐', label:'IP Logs',        roles:['admin_super','owner'] },
+  { id:'channels-mgr',  icon:'📡', label:'Channels',       roles:['admin_super','owner'] },
+  { id:'shorts-mod',    icon:'🎬', label:'Shorts',         roles:['admin_limited','admin_super','owner'] },
+  { id:'chat-watch',    icon:'💬', label:'Chats',          roles:['admin_super','owner'] },
+  { id:'music-mod',     icon:'🎵', label:'Music',          roles:['admin_limited','admin_super','owner'] },
+  { id:'broadcast',     icon:'📢', label:'Broadcast',      roles:['admin_super','owner'] },
+  { id:'feedback',      icon:'📩', label:'Feedback',       roles:['admin_limited','admin_super','owner'] },
+  { id:'ads',           icon:'📣', label:'Ads',            roles:['admin_super','owner'] },
+  { id:'ad-exempt',     icon:'🚫📣', label:'Ad-Free Users', roles:['owner'] },
+  { id:'nuclear',       icon:'☢️', label:'Nuclear',        roles:['owner'] },
+  { id:'maintenance',   icon:'🔧', label:'Maintenance',    roles:['admin_super','owner'] },
+  { id:'audit-logs',    icon:'📜', label:'Audit Logs',     roles:['admin_super','owner'] },
+  { id:'admin-settings',icon:'🛠️', label:'Admin Settings', roles:['owner'] },
 ];
 
 function buildAdminNav() {
@@ -310,6 +317,27 @@ function buildAdminPanel(id) {
 
   } else if (id === 'ads') {
     buildAdsPanel(content);
+
+  } else if (id === 'ad-exempt') {
+    buildAdExemptPanel(content);
+
+  } else if (id === 'nuclear') {
+    buildNuclearPanel(content);
+
+  } else if (id === 'reports') {
+    buildReportsPanel(content);
+
+  } else if (id === 'banned-devices') {
+    buildBannedDevicesPanel(content);
+
+  } else if (id === 'ip-logs') {
+    buildIpLogsPanel(content);
+
+  } else if (id === 'channels-mgr') {
+    buildChannelsMgrPanel(content);
+
+  } else if (id === 'maintenance') {
+    buildMaintenancePanel(content);
 
   } else {
     content.innerHTML =
@@ -564,11 +592,12 @@ function refreshAnalytics() {
 
 /* ── USERS PANEL ── */
 function buildUsersPanel(content) {
+  var isOwner = userCan('view_pii');
   content.innerHTML =
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">👥 Registered Users <span style="color:var(--muted);font-size:.7rem" id="usr-count"></span></div>' +
-        '<input class="admin-search" placeholder="Search by nickname...' + (userCan('view_pii') ? ' or email' : '') + '" id="usr-search" oninput="filterAdminUsers()">' +
+        '<input class="admin-search" placeholder="Search by nickname' + (isOwner ? ', email...' : '...') + '" id="usr-search" oninput="filterAdminUsers()">' +
         '<div id="usr-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
       '</div>' +
     '</div>';
@@ -578,7 +607,7 @@ function buildUsersPanel(content) {
       ADMIN_allUsers = res.users || [];
       var ct = document.getElementById('usr-count');
       if (ct) ct.textContent = '(' + ADMIN_allUsers.length + ' total)';
-      renderUsersList(ADMIN_allUsers, userCan('view_pii'));
+      renderUsersList(ADMIN_allUsers);
     })
     .catch(function (err) {
       var el = document.getElementById('usr-list');
@@ -586,9 +615,10 @@ function buildUsersPanel(content) {
     });
 }
 
-function renderUsersList(users, canSeePII) {
+function renderUsersList(users) {
   var el = document.getElementById('usr-list');
   if (!el) return;
+  var isOwner = userCan('view_pii');
 
   if (!users.length) {
     el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No users found</div>';
@@ -603,29 +633,51 @@ function renderUsersList(users, canSeePII) {
     var roleBadge  = '<span class="role-badge role-' + roleClass + '">' + (u.role || 'member') + '</span>';
 
     var actions = '';
-    if (canManage) {
+    if (isOwner && !isOwnerRow) {
+      // Owner sees full edit button
+      actions += '<button class="act-btn" style="background:var(--gold);color:#000" onclick="adminEditUser(\'' + u.id + '\')">✏️ Edit</button>';
       actions += '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + (u.verified ? '✓ Verified' : '👑 Verify') + '</button>';
-      if (userCan('promote_users')) {
-        actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? 'Demote' : 'Promote') + '</button>';
+      actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? 'Demote' : 'Promote') + '</button>';
+      actions += '<button class="act-btn act-block" onclick="adminBlock(\'' + u.id + '\',\'' + !!u.blocked + '\')">' + (u.blocked ? 'Unblock' : '🚫 Block') + '</button>';
+      actions += '<button class="act-btn" style="background:' + (u.no_ads ? 'var(--green)' : 'var(--muted)') + '" onclick="adminToggleNoAds(\'' + u.id + '\',' + !!u.no_ads + ')" title="Ad-free toggle">' + (u.no_ads ? '🚫 Ad-Free ON' : '📣 Ad-Free OFF') + '</button>';
+    } else {
+      if (canManage) {
+        actions += '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + (u.verified ? '✓ Verified' : '👑 Verify') + '</button>';
+        if (userCan('promote_users')) {
+          actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? 'Demote' : 'Promote') + '</button>';
+        }
       }
-    }
-    if (canBlock) {
-      actions += '<button class="act-btn act-block" onclick="adminBlock(\'' + u.id + '\',\'' + !!u.blocked + '\')">' + (u.blocked ? 'Unblock' : 'Block') + '</button>';
+      if (canBlock) {
+        actions += '<button class="act-btn act-block" onclick="adminBlock(\'' + u.id + '\',\'' + !!u.blocked + '\')">' + (u.blocked ? 'Unblock' : '🚫 Block') + '</button>';
+      }
     }
     if (!actions) actions = '<span style="font-size:.65rem;color:var(--muted)">Protected</span>';
 
-    return '<div class="user-row">' +
-      '<div style="width:36px;height:36px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;border:.5px solid var(--border);position:relative">' +
-        (u.online ? '<div class="online-dot"></div>' : '') +
-        escHtml((u.nickname || '?').slice(0, 2).toUpperCase()) +
-      '</div>' +
-      '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap">' +
-          '@' + escHtml(u.nickname || 'user') + ' ' + roleBadge + ' ' + (u.verified ? '👑' : '') + ' ' + (u.blocked ? '🚫' : '') +
+    // PII rows (owner only)
+    var piiRows = '';
+    if (isOwner) {
+      if (u.email) piiRows += '<div style="font-size:.67rem;color:var(--muted)">📧 <a href="mailto:' + escHtml(u.email) + '" style="color:var(--gold);text-decoration:none">' + escHtml(u.email) + '</a></div>';
+      if (u.phone) piiRows += '<div style="font-size:.67rem;color:var(--muted)">📞 <a href="tel:' + escHtml(u.phone) + '" style="color:var(--gold);text-decoration:none">' + escHtml(u.phone) + '</a></div>';
+      if (u.password_hash) {
+        var pw = u.password_hash.slice(0,8) + '••••••••';
+        piiRows += '<div style="font-size:.67rem;color:var(--muted);font-family:monospace">🔑 ' + pw + '</div>';
+      }
+    }
+
+    return '<div class="user-row" style="flex-direction:column;align-items:flex-start;gap:.4rem;padding:.75rem 0">' +
+      '<div style="display:flex;align-items:center;gap:.5rem;width:100%">' +
+        '<div style="width:36px;height:36px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;border:.5px solid var(--border);position:relative">' +
+          (u.online ? '<div class="online-dot"></div>' : '') +
+          escHtml((u.nickname || '?').slice(0, 2).toUpperCase()) +
         '</div>' +
-        (canSeePII && u.email ? '<div style="font-size:.67rem;color:var(--muted)">' + escHtml(u.email) + '</div>' : '') +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap">' +
+            '@' + escHtml(u.nickname || 'user') + ' ' + roleBadge + ' ' + (u.verified ? '✅' : '') + ' ' + (u.blocked ? '🚫' : '') + (u.no_ads ? ' <span style="font-size:.65rem;color:var(--green)">AD-FREE</span>' : '') +
+          '</div>' +
+          piiRows +
+        '</div>' +
       '</div>' +
-      '<div style="display:flex;gap:.3rem;flex-shrink:0;flex-wrap:wrap">' + actions + '</div>' +
+      '<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-left:44px">' + actions + '</div>' +
     '</div>';
   }).join('');
 }
@@ -637,14 +689,14 @@ window.filterAdminUsers = function () {
     return (u.nickname || '').toLowerCase().indexOf(q) !== -1 ||
            (u.email    || '').toLowerCase().indexOf(q) !== -1;
   });
-  renderUsersList(filtered, userCan('view_pii'));
+  renderUsersList(filtered);
 };
 
 window.adminVerify = function (id, currentStr) {
   var verified = currentStr !== 'true';
   api.put('/admin/users', { id: id, verified: verified })
     .then(function () {
-      toast(verified ? '👑 Verified badge granted!' : 'Badge removed.');
+      toast(verified ? '✅ Verified badge granted!' : 'Badge removed.');
       buildUsersPanel(document.getElementById('admin-content'));
     })
     .catch(function (err) { toast('❌ ' + err.message); });
@@ -666,6 +718,74 @@ window.adminPromote = function (id, currentRole) {
   api.put('/admin/users', { id: id, role: newRole })
     .then(function () {
       toast(newRole === 'admin_super' ? '🛡 Promoted to Super Admin!' : 'Demoted to member.');
+      buildUsersPanel(document.getElementById('admin-content'));
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.adminToggleNoAds = function (id, current) {
+  var noAds = !current;
+  api.put('/admin/users', { id: id, no_ads: noAds })
+    .then(function () {
+      toast(noAds ? '🚫 Ad-free granted!' : '📣 Ads restored.');
+      buildUsersPanel(document.getElementById('admin-content'));
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.adminEditUser = function (id) {
+  var u = ADMIN_allUsers.find(function (x) { return x.id === id; });
+  if (!u) return;
+
+  var existing = document.getElementById('edit-user-modal');
+  if (existing) existing.remove();
+
+  var modal = document.createElement('div');
+  modal.id = 'edit-user-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  modal.innerHTML =
+    '<div style="background:var(--bg2);border:.5px solid var(--border);border-radius:16px;width:100%;max-width:400px;padding:1.25rem;max-height:90vh;overflow-y:auto">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">' +
+        '<div style="font-size:.95rem;font-weight:700">✏️ Edit @' + escHtml(u.nickname) + '</div>' +
+        '<div onclick="document.getElementById(\'edit-user-modal\').remove()" style="cursor:pointer;font-size:1.2rem;color:var(--muted)">✕</div>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:.6rem">' +
+        _editField('edit-u-nick',  'Nickname',       u.nickname  || '',  'text') +
+        _editField('edit-u-email', 'Email',          u.email     || '',  'email') +
+        _editField('edit-u-phone', 'Phone',          u.phone     || '',  'tel') +
+        _editField('edit-u-pass',  'New Password (leave blank = no change)', '', 'password') +
+      '</div>' +
+      '<div style="display:flex;gap:.5rem;margin-top:1rem">' +
+        '<button class="save-pill" style="flex:1" onclick="adminSaveUserEdit(\'' + id + '\')">💾 Save</button>' +
+        '<button class="save-pill" style="flex:1;background:var(--muted)" onclick="document.getElementById(\'edit-user-modal\').remove()">Cancel</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+};
+
+function _editField(id, label, val, type) {
+  return '<div>' +
+    '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.2rem">' + escHtml(label) + '</div>' +
+    '<input id="' + id + '" type="' + type + '" value="' + escHtml(val) + '" style="width:100%;box-sizing:border-box;padding:.5rem .75rem;background:var(--bg3);border:.5px solid var(--border);border-radius:8px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none">' +
+  '</div>';
+}
+
+window.adminSaveUserEdit = function (id) {
+  var nick  = (document.getElementById('edit-u-nick')  || {}).value || '';
+  var email = (document.getElementById('edit-u-email') || {}).value || '';
+  var phone = (document.getElementById('edit-u-phone') || {}).value || '';
+  var pass  = (document.getElementById('edit-u-pass')  || {}).value || '';
+
+  var payload = { id: id };
+  if (nick)  payload.nickname = nick.trim();
+  if (email) payload.email    = email.trim();
+  payload.phone = phone.trim();
+  if (pass)  payload.password = pass;
+
+  api.put('/admin/users', payload)
+    .then(function () {
+      toast('💾 Saved!');
+      document.getElementById('edit-user-modal').remove();
       buildUsersPanel(document.getElementById('admin-content'));
     })
     .catch(function (err) { toast('❌ ' + err.message); });
@@ -1064,5 +1184,452 @@ window.deleteAd = function (id) {
   if (!confirm('Delete this ad?')) return;
   api.del('/admin/ads?id=' + encodeURIComponent(id))
     .then(function () { toast('🗑 Deleted.'); loadAdsList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   REPORTS PANEL
+══════════════════════════════════ */
+function buildReportsPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🚨 User Reports</div>' +
+        '<div id="reports-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+
+  api.get('/reports')
+    .then(function (res) {
+      var list = res.reports || [];
+      var el = document.getElementById('reports-list');
+      if (!el) return;
+      if (!list.length) {
+        el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No reports yet 🎉</div>';
+        return;
+      }
+      el.innerHTML = list.map(function (r) {
+        return '<div style="padding:.75rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
+            '<div>' +
+              '<div style="font-size:.82rem;font-weight:700">@' + escHtml(r.reported_nick || r.reported_id) + '</div>' +
+              '<div style="font-size:.72rem;color:var(--muted);margin:.2rem 0">Reported by @' + escHtml(r.reporter_nick || r.reporter_id) + ' · ' + timeAgo(r.created_at) + '</div>' +
+              '<div style="font-size:.78rem;color:var(--text)">' + escHtml(r.reason || '(no reason given)') + '</div>' +
+            '</div>' +
+            '<div style="display:flex;flex-direction:column;gap:.35rem">' +
+              '<button class="save-pill" style="background:var(--red)" onclick="adminBanFromReport(\'' + r.reported_id + '\',\'' + escHtml(r.reported_nick||'') + '\')">🚫 Ban</button>' +
+              '<button class="save-pill" onclick="adminDismissReport(\'' + r.id + '\')">✓ Dismiss</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) {
+      var el = document.getElementById('reports-list');
+      if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
+    });
+}
+
+window.adminBanFromReport = function (userId, nick) {
+  if (!confirm('Ban @' + nick + '? This will also block their device.')) return;
+  api.put('/admin/users', { id: userId, blocked: true })
+    .then(function () { toast('🚫 @' + nick + ' banned!'); buildReportsPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.adminDismissReport = function (id) {
+  api.del('/reports?id=' + encodeURIComponent(id))
+    .then(function () { toast('✓ Dismissed'); buildReportsPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   BANNED DEVICES PANEL
+══════════════════════════════════ */
+function buildBannedDevicesPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🚫 Banned Devices / IPs</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Banned users cannot log in or register — even from a new account.</div>' +
+        '<div style="display:flex;gap:.5rem;margin-bottom:.75rem">' +
+          '<input id="ban-ip-input" placeholder="IP address (e.g. 1.2.3.4)" style="flex:1;padding:.5rem .75rem;background:var(--bg3);border:.5px solid var(--border);border-radius:8px;color:var(--text);font-size:.78rem;outline:none">' +
+          '<button class="save-pill" onclick="adminAddDeviceBan()">+ Ban IP</button>' +
+        '</div>' +
+        '<div id="bans-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+
+  loadBansList();
+}
+
+function loadBansList() {
+  api.get('/admin/device-bans')
+    .then(function (res) {
+      var bans = res.bans || [];
+      var el = document.getElementById('bans-list');
+      if (!el) return;
+      if (!bans.length) {
+        el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No device bans yet</div>';
+        return;
+      }
+      el.innerHTML = bans.map(function (b) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div>' +
+            '<div style="font-size:.82rem;font-family:monospace">' + escHtml(b.ip || b.fingerprint || '—') + '</div>' +
+            '<div style="font-size:.68rem;color:var(--muted)">Banned by @' + escHtml(b.banned_by) + ' · ' + timeAgo(b.created_at) + (b.reason ? ' · ' + escHtml(b.reason) : '') + '</div>' +
+          '</div>' +
+          '<button class="save-pill" style="background:var(--red)" onclick="adminUnban(\'' + b.id + '\')">Unban</button>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function () {});
+}
+
+window.adminAddDeviceBan = function () {
+  var ip = (document.getElementById('ban-ip-input') || {}).value || '';
+  ip = ip.trim();
+  if (!ip) { toast('Enter an IP address'); return; }
+  api.post('/admin/device-bans', { ip: ip, reason: 'Admin manual ban' })
+    .then(function () { toast('🚫 IP banned!'); document.getElementById('ban-ip-input').value = ''; loadBansList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.adminUnban = function (id) {
+  if (!confirm('Remove this ban?')) return;
+  api.del('/admin/device-bans?id=' + encodeURIComponent(id))
+    .then(function () { toast('✓ Ban removed'); loadBansList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   IP LOGS PANEL
+══════════════════════════════════ */
+function buildIpLogsPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🌐 Login / Register Logs</div>' +
+        '<div id="ip-logs-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+
+  api.get('/admin/device-bans?logs=1')
+    .then(function (res) {
+      var logs = res.logs || [];
+      var el = document.getElementById('ip-logs-list');
+      if (!el) return;
+      if (!logs.length) {
+        el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No logs yet</div>';
+        return;
+      }
+      el.innerHTML = logs.map(function (l) {
+        var badgeColor = l.action === 'register' ? 'var(--green)' : 'var(--gold)';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div>' +
+            '<div style="font-size:.82rem"><strong>@' + escHtml(l.nickname || l.user_id) + '</strong> <span style="font-size:.68rem;color:' + badgeColor + ';background:rgba(0,0,0,.15);padding:.1rem .35rem;border-radius:4px">' + l.action + '</span></div>' +
+            '<div style="font-size:.68rem;color:var(--muted);font-family:monospace">' + escHtml(l.ip || '—') + ' · ' + timeAgo(l.created_at) + '</div>' +
+          '</div>' +
+          '<button class="save-pill" style="font-size:.65rem" onclick="adminQuickBanIp(\'' + escHtml(l.ip||'') + '\')">🚫 Ban IP</button>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) {
+      var el = document.getElementById('ip-logs-list');
+      if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
+    });
+}
+
+window.adminQuickBanIp = function (ip) {
+  if (!ip || ip === '0.0.0.0') { toast('No valid IP'); return; }
+  if (!confirm('Ban IP: ' + ip + '?')) return;
+  api.post('/admin/device-bans', { ip: ip, reason: 'Banned from IP Logs' })
+    .then(function () { toast('🚫 IP banned!'); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   CHANNELS MANAGER PANEL
+══════════════════════════════════ */
+function buildChannelsMgrPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">📡 All Channels</div>' +
+        '<div id="channels-mgr-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+
+  api.get('/channels')
+    .then(function (res) {
+      var channels = res.channels || [];
+      var el = document.getElementById('channels-mgr-list');
+      if (!el) return;
+      if (!channels.length) {
+        el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No channels yet</div>';
+        return;
+      }
+      el.innerHTML = channels.map(function (c) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.65rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div>' +
+            '<div style="font-size:.82rem;font-weight:700">@' + escHtml(c.nickname) + (c.verified ? ' ✅' : '') + '</div>' +
+            '<div style="font-size:.68rem;color:var(--muted)">' + fmtN(c.followers || 0) + ' followers · ' + fmtN(c.total_views || 0) + ' views</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:.35rem">' +
+            (!c.verified ? '<button class="save-pill" onclick="adminVerifyChannel(\'' + c.owner_id + '\',true)">✅ Verify</button>' : '<button class="save-pill" style="background:var(--muted)" onclick="adminVerifyChannel(\'' + c.owner_id + '\',false)">Unverify</button>') +
+            '<button class="save-pill" style="background:var(--red)" onclick="adminDeleteChannel(\'' + c.id + '\',\'' + escHtml(c.nickname) + '\')">🗑</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) {
+      var el = document.getElementById('channels-mgr-list');
+      if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
+    });
+}
+
+window.adminVerifyChannel = function (ownerId, verify) {
+  api.put('/admin/users', { id: ownerId, verified: verify })
+    .then(function () { toast(verify ? '✅ Verified!' : 'Unverified'); buildChannelsMgrPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.adminDeleteChannel = function (id, nick) {
+  if (!confirm('Delete channel @' + nick + '? This cannot be undone.')) return;
+  api.del('/channels?id=' + encodeURIComponent(id))
+    .then(function () { toast('🗑 Deleted'); buildChannelsMgrPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   MAINTENANCE MODE PANEL
+══════════════════════════════════ */
+function buildMaintenancePanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🔧 Maintenance Mode</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">When ON — nobody can log in or register. You (Owner/Super Admin) are always exempt.</div>' +
+        '<div id="maint-status" style="font-size:.88rem;font-weight:700;margin-bottom:1rem;padding:.6rem;border-radius:8px;text-align:center">Loading...</div>' +
+        '<textarea id="maint-msg" rows="3" placeholder="Message shown to users..." style="width:100%;box-sizing:border-box;padding:.6rem;background:var(--bg3);border:.5px solid var(--border);border-radius:8px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none;resize:none;margin-bottom:.75rem"></textarea>' +
+        '<div style="display:flex;gap:.5rem">' +
+          '<button class="save-pill" style="flex:1;background:var(--red)" onclick="setMaintenance(true)">🔴 Turn ON</button>' +
+          '<button class="save-pill" style="flex:1;background:var(--green)" onclick="setMaintenance(false)">🟢 Turn OFF</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  api.get('/admin/maintenance')
+    .then(function (res) {
+      var el = document.getElementById('maint-status');
+      var msgEl = document.getElementById('maint-msg');
+      if (!el) return;
+      el.style.background = res.maintenance_mode ? 'rgba(226,75,74,.15)' : 'rgba(63,185,80,.1)';
+      el.style.color = res.maintenance_mode ? 'var(--red)' : 'var(--green)';
+      el.textContent = res.maintenance_mode ? '🔴 MAINTENANCE MODE IS ON' : '🟢 Site is running normally';
+      if (msgEl) msgEl.value = res.message || '';
+    })
+    .catch(function () {});
+}
+
+window.setMaintenance = function (enabled) {
+  var msg = (document.getElementById('maint-msg') || {}).value || '';
+  api.post('/admin/maintenance', { enabled: enabled, message: msg })
+    .then(function () {
+      toast(enabled ? '🔴 Maintenance ON' : '🟢 Maintenance OFF');
+      buildMaintenancePanel(document.getElementById('admin-content'));
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   AD-FREE USERS PANEL
+══════════════════════════════════ */
+function buildAdExemptPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🚫📣 Ad-Free Users</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">These users will NEVER see any ads. Only Owner/Co-Owner can manage this.</div>' +
+        '<div style="display:flex;gap:.5rem;margin-bottom:.75rem">' +
+          '<input id="exempt-global-search" class="admin-search" placeholder="Search user to grant ad-free..." oninput="exemptGlobalSearch()" style="margin-bottom:0">' +
+        '</div>' +
+        '<div id="exempt-global-results" style="margin-bottom:.75rem"></div>' +
+        '<div style="font-size:.78rem;font-weight:700;margin-bottom:.4rem;color:var(--text)">Currently ad-free:</div>' +
+        '<div id="exempt-global-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+  loadGlobalExemptList();
+}
+
+function loadGlobalExemptList() {
+  api.get('/admin/ad-exempt')
+    .then(function (res) {
+      var el = document.getElementById('exempt-global-list');
+      if (!el) return;
+      var users = res.users || [];
+      if (!users.length) {
+        el.innerHTML = '<div style="font-size:.8rem;color:var(--muted);padding:.5rem 0">No ad-free users yet</div>';
+        return;
+      }
+      el.innerHTML = users.map(function (u) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div>' +
+            '<div style="font-size:.82rem;font-weight:700">@' + escHtml(u.nickname) + '</div>' +
+            '<div style="font-size:.67rem;color:var(--muted)">' + escHtml(u.email || '') + '</div>' +
+          '</div>' +
+          '<button class="save-pill" style="background:var(--red)" onclick="adminRevokeAdFree(\'' + u.id + '\')">Remove</button>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function () {});
+}
+
+window.exemptGlobalSearch = function () {
+  var q = (document.getElementById('exempt-global-search') || {}).value || '';
+  var el = document.getElementById('exempt-global-results');
+  if (!el) return;
+  if (q.length < 2) { el.innerHTML = ''; return; }
+  api.get('/admin/users?search=' + encodeURIComponent(q))
+    .then(function (res) {
+      var users = (res.users || []).filter(function (u) { return !u.no_ads; });
+      el.innerHTML = users.slice(0,5).map(function (u) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem .5rem;background:var(--bg3);border-radius:8px;margin-bottom:.35rem">' +
+          '<span style="font-size:.82rem">@' + escHtml(u.nickname) + '</span>' +
+          '<button class="save-pill" style="background:var(--green)" onclick="adminGrantAdFree(\'' + u.id + '\')">+ Grant Ad-Free</button>' +
+        '</div>';
+      }).join('') || '<div style="font-size:.78rem;color:var(--muted);padding:.35rem 0">No users found</div>';
+    })
+    .catch(function () {});
+};
+
+window.adminGrantAdFree = function (id) {
+  api.put('/admin/users', { id: id, no_ads: true })
+    .then(function () {
+      toast('🚫 Ad-free granted!');
+      var el = document.getElementById('exempt-global-search');
+      if (el) el.value = '';
+      var r = document.getElementById('exempt-global-results');
+      if (r) r.innerHTML = '';
+      loadGlobalExemptList();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.adminRevokeAdFree = function (id) {
+  api.put('/admin/users', { id: id, no_ads: false })
+    .then(function () { toast('✅ Ads restored'); loadGlobalExemptList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   NUCLEAR PANEL ☢️
+══════════════════════════════════ */
+var NUCLEAR_CATS = [
+  { id:'shorts',   label:'📹 Videos (Shorts)',       desc:'אלע ווידעא אפלאודס' },
+  { id:'music',    label:'🎵 Music',                 desc:'אלע מוזיק טרעקס' },
+  { id:'channels', label:'📡 Channel Posts',         desc:'אלע קאנאל פּאסטן' },
+  { id:'statuses', label:'🌀 Statuses / Stories',    desc:'אלע סטאטוסן' },
+  { id:'messages', label:'💬 Chat Messages',         desc:'אלע גרופּע מעסידזשעס' },
+  { id:'posts',    label:'📝 Posts',                 desc:'אלע פּאסטן' },
+];
+
+function buildNuclearPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card" style="border-color:rgba(226,75,74,.4)">' +
+        '<div class="admin-card-title" style="color:var(--red)">☢️ Nuclear — Hide / Restore Content</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:1rem;padding:.6rem;background:rgba(226,75,74,.06);border:1px solid rgba(226,75,74,.2);border-radius:8px">⚠️ Hide מאכט אז קיינער קען עס נישט זעהן. Restore ברענגט עס צוריק. קיינע דאטן ווערן אויסגעמעקט.</div>' +
+        NUCLEAR_CATS.map(function (c) {
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.65rem 0;border-bottom:.5px solid var(--border)">' +
+            '<div>' +
+              '<div style="font-size:.82rem;font-weight:700">' + c.label + '</div>' +
+              '<div style="font-size:.68rem;color:var(--muted)">' + c.desc + '</div>' +
+            '</div>' +
+            '<div style="display:flex;gap:.35rem">' +
+              '<button class="save-pill" style="background:var(--red)" onclick="nuclearAction(\'' + c.id + '\',\'hide\')">🔴 Hide All</button>' +
+              '<button class="save-pill" style="background:var(--green)" onclick="nuclearAction(\'' + c.id + '\',\'restore\')">🟢 Restore</button>' +
+            '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">👥 Nuclear Permissions</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">מאך אז א ספּעציפישן אדמין זאל אויך קענען נוצן Nuclear.</div>' +
+        '<div style="display:flex;gap:.5rem;margin-bottom:.75rem">' +
+          '<input id="nuclear-perm-search" class="admin-search" placeholder="זוך יוזער..." oninput="nuclearPermSearch()" style="margin-bottom:0">' +
+        '</div>' +
+        '<div id="nuclear-perm-results" style="margin-bottom:.75rem"></div>' +
+        '<div style="font-size:.78rem;font-weight:700;margin-bottom:.4rem">מיט Nuclear רעכטן:</div>' +
+        '<div id="nuclear-perm-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+  loadNuclearPermList();
+}
+
+window.nuclearAction = function (category, action) {
+  var label = action === 'hide' ? 'HIDE ALL' : 'RESTORE ALL';
+  if (!confirm('⚠️ ' + label + ' ' + category + '?\n\nAre you sure?')) return;
+  api.post('/admin/nuclear', { category: category, action: action })
+    .then(function () { toast(action === 'hide' ? '🔴 Hidden!' : '🟢 Restored!'); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+function loadNuclearPermList() {
+  api.get('/admin/nuclear?permissions=1')
+    .then(function (res) {
+      var el = document.getElementById('nuclear-perm-list');
+      if (!el) return;
+      var perms = res.permissions || [];
+      if (!perms.length) {
+        el.innerHTML = '<div style="font-size:.8rem;color:var(--muted);padding:.5rem 0">Nobody else has Nuclear access yet</div>';
+        return;
+      }
+      el.innerHTML = perms.map(function (p) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div>' +
+            '<div style="font-size:.82rem;font-weight:700">@' + escHtml(p.nickname) + '</div>' +
+            '<div style="font-size:.67rem;color:var(--muted)">Granted by @' + escHtml(p.granted_by) + ' · ' + timeAgo(p.created_at) + '</div>' +
+          '</div>' +
+          '<button class="save-pill" style="background:var(--red)" onclick="adminRevokeNuclear(\'' + p.user_id + '\')">Revoke</button>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function () {});
+}
+
+window.nuclearPermSearch = function () {
+  var q = (document.getElementById('nuclear-perm-search') || {}).value || '';
+  var el = document.getElementById('nuclear-perm-results');
+  if (!el) return;
+  if (q.length < 2) { el.innerHTML = ''; return; }
+  api.get('/admin/users?search=' + encodeURIComponent(q))
+    .then(function (res) {
+      var users = res.users || [];
+      el.innerHTML = users.slice(0,5).map(function (u) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem .5rem;background:var(--bg3);border-radius:8px;margin-bottom:.35rem">' +
+          '<span style="font-size:.82rem">@' + escHtml(u.nickname) + '</span>' +
+          '<button class="save-pill" style="background:var(--gold);color:#000" onclick="adminGrantNuclear(\'' + u.id + '\')">+ Grant</button>' +
+        '</div>';
+      }).join('') || '<div style="font-size:.78rem;color:var(--muted)">No users found</div>';
+    })
+    .catch(function () {});
+};
+
+window.adminGrantNuclear = function (id) {
+  api.post('/admin/nuclear?permissions=1', { user_id: id })
+    .then(function () {
+      toast('☢️ Nuclear access granted!');
+      var el = document.getElementById('nuclear-perm-search'); if (el) el.value = '';
+      var r = document.getElementById('nuclear-perm-results'); if (r) r.innerHTML = '';
+      loadNuclearPermList();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.adminRevokeNuclear = function (id) {
+  if (!confirm('Remove Nuclear access?')) return;
+  api.del('/admin/nuclear?permissions=1&id=' + encodeURIComponent(id))
+    .then(function () { toast('✓ Access revoked'); loadNuclearPermList(); })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
