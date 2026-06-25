@@ -142,3 +142,37 @@ export async function onRequestPut(context) {
     return json({ ok: false, error: err.message }, 500);
   }
 }
+
+export async function onRequestDelete(context) {
+  const { request, env } = context;
+  try {
+    const user = await requireUser(request, env);
+    if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
+    if (!isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+    if (!id) return json({ ok: false, error: 'id required' }, 400);
+
+    const CO_OWNER = 'Jmittelman2@gmail.com';
+    const target = await env.DB.prepare('SELECT email, nickname FROM users WHERE id = ?').bind(id).first();
+    if (!target) return json({ ok: false, error: 'User not found' }, 404);
+    if (target.email === env.OWNER_EMAIL || target.email === CO_OWNER)
+      return json({ ok: false, error: 'Cannot delete owner or co-owner' }, 403);
+
+    // Delete user and all related data
+    await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id).run();
+    await env.DB.prepare('DELETE FROM login_logs WHERE user_id = ?').bind(id).run().catch(() => {});
+    await env.DB.prepare('DELETE FROM device_bans WHERE banned_by = ?').bind(target.nickname).run().catch(() => {});
+    await env.DB.prepare('DELETE FROM user_badges WHERE user_id = ?').bind(id).run().catch(() => {});
+    await env.DB.prepare('DELETE FROM admin_notes WHERE target_user_id = ?').bind(id).run().catch(() => {});
+    await env.DB.prepare('DELETE FROM user_warnings WHERE user_id = ?').bind(id).run().catch(() => {});
+    await env.DB.prepare('DELETE FROM nuclear_permissions WHERE user_id = ?').bind(id).run().catch(() => {});
+    await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
+
+    await logAudit(env, user, 'delete_user', 'user', id, `@${target.nickname} (${target.email})`);
+    return json({ ok: true });
+  } catch (err) {
+    return json({ ok: false, error: err.message }, 500);
+  }
+}
