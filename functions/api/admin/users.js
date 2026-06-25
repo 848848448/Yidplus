@@ -1,7 +1,7 @@
 // functions/api/admin/users.js
 // GET /api/admin/users  -> list users (fields depend on viewer's role)
-// PUT /api/admin/users  -> update a user (verified / blocked / role)
-// Body for PUT: { id, verified?, blocked?, role? }
+// PUT /api/admin/users  -> update a user (verified / blocked / role / no_ads / profile fields)
+// Body for PUT: { id, verified?, blocked?, role?, no_ads?, nickname?, email?, phone?, password? }
 
 import { json, corsHeaders, requireUser, isAdminRole, isSuperOrOwner, logAudit } from '../_helpers.js';
 
@@ -17,10 +17,17 @@ export async function onRequestGet(context) {
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
     if (!isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
-    const canSeePII = isSuperOrOwner(user, env.OWNER_EMAIL);
-    const fields = canSeePII
-      ? 'id, email, nickname, phone, role, verified, blocked, online, created_at'
-      : 'id, nickname, role, verified, blocked, online';
+    const isOwner = isSuperOrOwner(user, env.OWNER_EMAIL);
+
+    // Owner/Co-Owner see EVERYTHING including password_hash
+    // Super Admins see PII but not password
+    // Moderators see only public fields
+    let fields;
+    if (isOwner) {
+      fields = 'id, email, nickname, phone, role, verified, blocked, online, no_ads, password_hash, created_at';
+    } else {
+      fields = 'id, nickname, role, verified, blocked, online';
+    }
 
     const url    = new URL(request.url);
     const search = url.searchParams.get('search') || '';
@@ -28,9 +35,10 @@ export async function onRequestGet(context) {
     let results;
     if (search) {
       const q = '%' + search.toLowerCase() + '%';
+      const clause = isOwner ? 'OR lower(email) LIKE ? OR lower(nickname) LIKE ?' : '';
       const r = await env.DB.prepare(
-        `SELECT ${fields} FROM users WHERE lower(nickname) LIKE ? ${canSeePII ? 'OR lower(email) LIKE ?' : ''} ORDER BY created_at DESC LIMIT 20`
-      ).bind(...(canSeePII ? [q, q] : [q])).all();
+        `SELECT ${fields} FROM users WHERE lower(nickname) LIKE ? ${clause} ORDER BY created_at DESC LIMIT 20`
+      ).bind(...(isOwner ? [q, q, q] : [q])).all();
       results = r.results;
     } else {
       const r = await env.DB.prepare(
@@ -51,12 +59,7 @@ export async function onRequestPut(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-
-    // Moderators (admin_limited) and Super Admins can both reach this
-    // endpoint, but Moderators are restricted to block/unblock only.
-    if (!isAdminRole(user, env.OWNER_EMAIL)) {
-      return json({ ok: false, error: 'Forbidden' }, 403);
-    }
+    if (!isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const body = await request.json();
     const { id } = body;
@@ -69,7 +72,8 @@ export async function onRequestPut(context) {
       return json({ ok: false, error: 'Cannot modify owner or co-owner account' }, 403);
     }
 
-    const isModeratorOnly = !isSuperOrOwner(user, env.OWNER_EMAIL);
+    const isOwner = isSuperOrOwner(user, env.OWNER_EMAIL);
+    const isModeratorOnly = !isOwner;
 
     if (typeof body.verified === 'boolean') {
       if (isModeratorOnly) return json({ ok: false, error: 'Only Super Admins can verify users' }, 403);
@@ -79,7 +83,6 @@ export async function onRequestPut(context) {
     }
 
     if (typeof body.blocked === 'boolean') {
-      // Moderators AND Super Admins can block/unblock.
       await env.DB.prepare('UPDATE users SET blocked = ? WHERE id = ?')
         .bind(body.blocked ? 1 : 0, id).run();
       await logAudit(env, user, body.blocked ? 'block_user' : 'unblock_user', 'user', id, `@${target.nickname}`);
@@ -90,6 +93,48 @@ export async function onRequestPut(context) {
       await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?')
         .bind(body.role, id).run();
       await logAudit(env, user, 'change_role', 'user', id, `@${target.nickname} -> ${body.role}`);
+    }
+
+    // No-ads toggle (Owner/Co-Owner only)
+    if (typeof body.no_ads === 'boolean') {
+      if (!isOwner) return json({ ok: false, error: 'Only Owner can manage ad exemptions' }, 403);
+      await env.DB.prepare('UPDATE users SET no_ads = ? WHERE id = ?')
+        .bind(body.no_ads ? 1 : 0, id).run();
+      await logAudit(env, user, body.no_ads ? 'grant_no_ads' : 'revoke_no_ads', 'user', id, `@${target.nickname}`);
+    }
+
+    // Profile field edits (Owner/Co-Owner only)
+    if (isOwner) {
+      const profileUpdates = [];
+      const profileParams  = [];
+
+      if (body.nickname) {
+        // Check uniqueness
+        const taken = await env.DB.prepare('SELECT id FROM users WHERE nickname = ? AND id != ?').bind(body.nickname, id).first();
+        if (taken) return json({ ok: false, error: 'Nickname already taken' }, 409);
+        profileUpdates.push('nickname = ?'); profileParams.push(body.nickname);
+      }
+      if (body.email) {
+        const taken = await env.DB.prepare('SELECT id FROM users WHERE email = ? AND id != ?').bind(body.email.toLowerCase(), id).first();
+        if (taken) return json({ ok: false, error: 'Email already in use' }, 409);
+        profileUpdates.push('email = ?'); profileParams.push(body.email.toLowerCase());
+      }
+      if (body.phone !== undefined) {
+        profileUpdates.push('phone = ?'); profileParams.push(body.phone || null);
+      }
+      if (body.password) {
+        if (body.password.length < 6) return json({ ok: false, error: 'Password must be at least 6 characters' }, 400);
+        const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body.password));
+        const hash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+        profileUpdates.push('password_hash = ?'); profileParams.push(hash);
+      }
+
+      if (profileUpdates.length) {
+        profileParams.push(id);
+        await env.DB.prepare(`UPDATE users SET ${profileUpdates.join(', ')} WHERE id = ?`)
+          .bind(...profileParams).run();
+        await logAudit(env, user, 'edit_profile', 'user', id, `@${target.nickname}: ${profileUpdates.map(u=>u.split(' = ')[0]).join(', ')}`);
+      }
     }
 
     return json({ ok: true });
