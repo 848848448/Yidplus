@@ -32,7 +32,7 @@ export async function requireUser(request, env) {
   if (!session) return null;
 
   const user = await env.DB.prepare(
-    `SELECT id, email, nickname, role, blocked, verified, photo_url, bio FROM users WHERE id = ?`
+    `SELECT id, email, nickname, role, blocked, verified, photo_url, bio, no_ads FROM users WHERE id = ?`
   ).bind(session.user_id).first();
 
   if (!user || user.blocked) return null;
@@ -102,4 +102,4 @@ export async function logAudit(env, actor, action, targetType, targetId, details
     // Swallow — audit logging must never block the real action.
     console.error('[audit] failed to write log:', e.message);
   }
-}
+    }
