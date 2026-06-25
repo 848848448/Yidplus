@@ -1,5 +1,5 @@
 // GET /api/ads — returns active ads for the current user
-// Respects: pages filter, exempt_users list, active flag
+// Respects: pages filter, per-ad exempt_users list, global no_ads flag
 import { json, corsHeaders, requireUser } from './_helpers.js';
 
 export async function onRequestOptions() {
@@ -11,6 +11,9 @@ export async function onRequestGet(context) {
   try {
     const user = await requireUser(request, env).catch(() => null);
     const userId = user ? user.id : null;
+
+    // If user has global no_ads flag, return empty
+    if (user && user.no_ads) return json({ ok: true, ads: [] });
 
     const { results } = await env.DB.prepare(
       `SELECT id, title, subtitle, media_key, link_url, email_url,
