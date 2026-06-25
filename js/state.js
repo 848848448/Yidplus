@@ -212,8 +212,12 @@ window.goPage = function (page) {
 // email, which may differ from whichever account the browser is
 // currently logged into as a regular user.
 window.isOwner = function () {
-  if (window.ADMIN_GATE_SESSION) return window.ADMIN_GATE_SESSION.email === CONFIG.OWNER_EMAIL;
-  return !!(STATE.user && STATE.user.email === CONFIG.OWNER_EMAIL);
+  var CO_OWNER = 'Jmittelman2@gmail.com';
+  if (window.ADMIN_GATE_SESSION) {
+    return window.ADMIN_GATE_SESSION.email === CONFIG.OWNER_EMAIL ||
+           window.ADMIN_GATE_SESSION.email === CO_OWNER;
+  }
+  return !!(STATE.user && (STATE.user.email === CONFIG.OWNER_EMAIL || STATE.user.email === CO_OWNER));
 };
 window.isSuperAdmin = function () {
   if (window.ADMIN_GATE_SESSION) {
@@ -237,13 +241,16 @@ window.userCan = function (action) {
   if (!STATE.user && !window.ADMIN_GATE_SESSION) return false;
   switch (action) {
     case 'delete_content': return isAnyAdmin();
-    case 'view_pii':       return isSuperAdmin();
-    case 'manage_users':   return isSuperAdmin();   // verify / promote / role changes
-    case 'block_users':    return isAnyAdmin();      // Moderators + Super Admins can block
+    case 'view_pii':       return isOwner();           // ONLY Owner/Co-Owner see email/phone/password
+    case 'manage_users':   return isSuperAdmin();       // verify / role changes
+    case 'block_users':    return isAnyAdmin();         // Moderators + Super Admins can block
     case 'broadcast':      return isSuperAdmin();
-    case 'promote_users':  return isOwner() || isSuperAdmin();
+    case 'promote_users':  return isOwner();            // ONLY Owner/Co-Owner can make admins
     case 'edit_settings':  return isSuperAdmin();
     case 'view_audit_logs': return isSuperAdmin();
+    case 'view_private_dms': return isOwner();          // ONLY Owner/Co-Owner see private DMs
+    case 'nuclear':        return isOwner();
+    case 'export_data':    return isOwner();
     default:                return false;
   }
 };
