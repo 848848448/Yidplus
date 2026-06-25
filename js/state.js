@@ -279,8 +279,32 @@ window.AUTH = {
     });
   },
 
+  // Generate a simple browser fingerprint
+  _fingerprint: function () {
+    try {
+      var nav = window.navigator;
+      var parts = [
+        nav.userAgent,
+        nav.language,
+        screen.width + 'x' + screen.height,
+        screen.colorDepth,
+        new Date().getTimezoneOffset(),
+        nav.hardwareConcurrency || '',
+        nav.platform || '',
+      ];
+      var str = parts.join('|');
+      // Simple hash
+      var hash = 0;
+      for (var i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return 'fp_' + Math.abs(hash).toString(16);
+    } catch (e) { return ''; }
+  },
+
   login: function (email, password) {
-    return api.post('/auth/login', { email: email, password: password })
+    return api.post('/auth/login', { email: email, password: password, fingerprint: AUTH._fingerprint() })
       .then(function (res) {
         STATE.user = res.user;
         Presence.start();
@@ -289,6 +313,7 @@ window.AUTH = {
   },
 
   register: function (data) {
+    data.fingerprint = AUTH._fingerprint();
     return api.post('/auth/register', data).then(function (res) {
       STATE.user = res.user;
       Presence.start();
