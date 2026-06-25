@@ -143,25 +143,59 @@ window.checkPin = function () {
 /* ══════════════════════════════════
    ADMIN NAV
 ══════════════════════════════════ */
+// SVG icons for admin nav (clean, modern)
+var ADMIN_ICONS = {
+  analytics:      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+  'app-settings': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  users:          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  reports:        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+  'banned-devices': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+  'ip-logs':      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  'channels-mgr': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
+  'shorts-mod':   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+  'chat-watch':   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  'music-mod':    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+  broadcast:      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.56 2 2 0 0 1 3.6 1.36h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+  feedback:       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+  ads:            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+  'ad-exempt':    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  nuclear:        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  maintenance:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+  'audit-logs':   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+  'admin-settings': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  sessions:       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>',
+  export:         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+  leaderboard:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 20 18 10"/><polyline points="12 20 12 4"/><polyline points="6 20 6 14"/></svg>',
+  announcements:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3z"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+  badges:         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>',
+  warnings:       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+};
+
 var ADMIN_PANELS = [
-  { id:'analytics',     icon:'📊', label:'Analytics',     roles:['admin_limited','admin_super','owner'] },
-  { id:'app-settings',  icon:'⚙️', label:'App',           roles:['admin_super','owner'] },
-  { id:'users',         icon:'👥', label:'Users',          roles:['admin_limited','admin_super','owner'] },
-  { id:'reports',       icon:'🚨', label:'Reports',        roles:['admin_limited','admin_super','owner'] },
-  { id:'banned-devices',icon:'🚫', label:'Banned Devices', roles:['admin_super','owner'] },
-  { id:'ip-logs',       icon:'🌐', label:'IP Logs',        roles:['admin_super','owner'] },
-  { id:'channels-mgr',  icon:'📡', label:'Channels',       roles:['admin_super','owner'] },
-  { id:'shorts-mod',    icon:'🎬', label:'Shorts',         roles:['admin_limited','admin_super','owner'] },
-  { id:'chat-watch',    icon:'💬', label:'Chats',          roles:['admin_super','owner'] },
-  { id:'music-mod',     icon:'🎵', label:'Music',          roles:['admin_limited','admin_super','owner'] },
-  { id:'broadcast',     icon:'📢', label:'Broadcast',      roles:['admin_super','owner'] },
-  { id:'feedback',      icon:'📩', label:'Feedback',       roles:['admin_limited','admin_super','owner'] },
-  { id:'ads',           icon:'📣', label:'Ads',            roles:['admin_super','owner'] },
-  { id:'ad-exempt',     icon:'🚫📣', label:'Ad-Free Users', roles:['owner'] },
-  { id:'nuclear',       icon:'☢️', label:'Nuclear',        roles:['owner'] },
-  { id:'maintenance',   icon:'🔧', label:'Maintenance',    roles:['admin_super','owner'] },
-  { id:'audit-logs',    icon:'📜', label:'Audit Logs',     roles:['admin_super','owner'] },
-  { id:'admin-settings',icon:'🛠️', label:'Admin Settings', roles:['owner'] },
+  { id:'analytics',      label:'Analytics',      roles:['admin_limited','admin_super','owner'] },
+  { id:'users',          label:'Users',           roles:['admin_limited','admin_super','owner'] },
+  { id:'reports',        label:'Reports',         roles:['admin_limited','admin_super','owner'] },
+  { id:'warnings',       label:'Warnings',        roles:['admin_limited','admin_super','owner'] },
+  { id:'leaderboard',    label:'Leaderboard',     roles:['admin_limited','admin_super','owner'] },
+  { id:'announcements',  label:'Announcements',   roles:['admin_limited','admin_super','owner'] },
+  { id:'shorts-mod',     label:'Shorts',          roles:['admin_limited','admin_super','owner'] },
+  { id:'music-mod',      label:'Music',           roles:['admin_limited','admin_super','owner'] },
+  { id:'feedback',       label:'Feedback',        roles:['admin_limited','admin_super','owner'] },
+  { id:'channels-mgr',   label:'Channels',        roles:['admin_super','owner'] },
+  { id:'chat-watch',     label:'Chats',           roles:['admin_super','owner'] },
+  { id:'broadcast',      label:'Broadcast',       roles:['admin_super','owner'] },
+  { id:'banned-devices', label:'Banned',          roles:['admin_super','owner'] },
+  { id:'ip-logs',        label:'IP Logs',         roles:['admin_super','owner'] },
+  { id:'sessions',       label:'Sessions',        roles:['admin_super','owner'] },
+  { id:'audit-logs',     label:'Audit Logs',      roles:['admin_super','owner'] },
+  { id:'ads',            label:'Ads',             roles:['admin_super','owner'] },
+  { id:'maintenance',    label:'Maintenance',     roles:['admin_super','owner'] },
+  { id:'app-settings',   label:'App',             roles:['admin_super','owner'] },
+  { id:'badges',         label:'Badges',          roles:['owner'] },
+  { id:'ad-exempt',      label:'Ad-Free',         roles:['owner'] },
+  { id:'nuclear',        label:'Nuclear',         roles:['owner'] },
+  { id:'export',         label:'Export',          roles:['owner'] },
+  { id:'admin-settings', label:'Admin Settings',  roles:['owner'] },
 ];
 
 function buildAdminNav() {
@@ -169,14 +203,17 @@ function buildAdminNav() {
   if (!nav) return;
   nav.innerHTML = '';
 
-  var userRole = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL) ? 'owner' : (ADMIN_gateRole || 'member');
+  var CO_OWNER = 'Jmittelman2@gmail.com';
+  var userRole = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL || ADMIN_gateEmail === CO_OWNER)
+    ? 'owner' : (ADMIN_gateRole || 'member');
 
   ADMIN_PANELS
     .filter(function (p) { return p.roles.indexOf(userRole) !== -1; })
     .forEach(function (p, i) {
       var btn = document.createElement('button');
-      btn.className   = 'anav' + (i === 0 ? ' active' : '');
-      btn.textContent = p.icon + ' ' + p.label;
+      btn.className = 'anav' + (i === 0 ? ' active' : '');
+      var icon = ADMIN_ICONS[p.id] || '';
+      btn.innerHTML = icon + ' ' + p.label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       btn.onclick = function () {
         document.querySelectorAll('.anav').forEach(function (b) { b.classList.remove('active'); });
         btn.classList.add('active');
@@ -338,6 +375,24 @@ function buildAdminPanel(id) {
 
   } else if (id === 'maintenance') {
     buildMaintenancePanel(content);
+
+  } else if (id === 'sessions') {
+    buildSessionsPanel(content);
+
+  } else if (id === 'export') {
+    buildExportPanel(content);
+
+  } else if (id === 'leaderboard') {
+    buildLeaderboardPanel(content);
+
+  } else if (id === 'announcements') {
+    buildAnnouncementsPanel(content);
+
+  } else if (id === 'badges') {
+    buildBadgesPanel(content);
+
+  } else if (id === 'warnings') {
+    buildWarningsPanel(content);
 
   } else {
     content.innerHTML =
@@ -1631,5 +1686,252 @@ window.adminRevokeNuclear = function (id) {
   if (!confirm('Remove Nuclear access?')) return;
   api.del('/admin/nuclear?permissions=1&id=' + encodeURIComponent(id))
     .then(function () { toast('✓ Access revoked'); loadNuclearPermList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   SESSIONS MANAGER
+══════════════════════════════════ */
+function buildSessionsPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">' + (ADMIN_ICONS.sessions||'') + ' Active Sessions</div>' +
+        '<div style="display:flex;gap:.5rem;margin-bottom:.75rem">' +
+          '<button class="save-pill" style="background:#E11D48;flex:1" onclick="adminForceLogoutAll()">Force Logout Everyone</button>' +
+        '</div>' +
+        '<div id="sessions-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+  api.get('/admin/sessions-mgr')
+    .then(function (res) {
+      var el = document.getElementById('sessions-list');
+      if (!el) return;
+      var sessions = res.sessions || [];
+      if (!sessions.length) { el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No active sessions</div>'; return; }
+      el.innerHTML = sessions.map(function (s) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.55rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div>' +
+            '<div style="font-size:.82rem;font-weight:700">@' + escHtml(s.nickname || s.user_id) + (s.online ? ' <span style="color:#22C55E;font-size:.65rem">● online</span>' : '') + '</div>' +
+            '<div style="font-size:.67rem;color:var(--muted)">' + escHtml(s.email||'') + ' · ' + timeAgo(s.created_at) + '</div>' +
+          '</div>' +
+          '<button class="act-btn act-block" onclick="adminKickSession(\'' + s.user_id + '\')">Logout</button>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) { var el = document.getElementById('sessions-list'); if (el) el.innerHTML = '<div style="padding:1rem;color:#E11D48;font-size:.8rem">' + escHtml(err.message) + '</div>'; });
+}
+window.adminForceLogoutAll = function () {
+  if (!confirm('Force logout ALL users? (You will also be logged out)')) return;
+  api.del('/admin/sessions-mgr?all=1')
+    .then(function () { toast('Done — all sessions cleared'); buildSessionsPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+window.adminKickSession = function (userId) {
+  api.del('/admin/sessions-mgr?user_id=' + encodeURIComponent(userId))
+    .then(function () { toast('Logged out'); buildSessionsPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   EXPORT CSV
+══════════════════════════════════ */
+function buildExportPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">' + (ADMIN_ICONS.export||'') + ' Export Data</div>' +
+        '<div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">אראפלאדן אלע יוזערס אלס CSV פייל — נאמען, עמעיל, טעלעפאן, ראלע.</div>' +
+        '<button class="bc-send-btn" onclick="adminDownloadCSV()">Download Users CSV</button>' +
+      '</div>' +
+    '</div>';
+}
+window.adminDownloadCSV = function () {
+  var a = document.createElement('a');
+  a.href = CONFIG.API_BASE + '/admin/export';
+  a.download = 'yidplus-users.csv';
+  a.click();
+  toast('Downloading...');
+};
+
+/* ══════════════════════════════════
+   LEADERBOARD
+══════════════════════════════════ */
+function buildLeaderboardPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">' + (ADMIN_ICONS.leaderboard||'') + ' Top Users by Activity</div>' +
+        '<div id="leaderboard-content"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+  api.get('/admin/leaderboard')
+    .then(function (res) {
+      var el = document.getElementById('leaderboard-content');
+      if (!el) return;
+      function section(title, items, label) {
+        if (!items || !items.length) return '';
+        return '<div style="margin-bottom:1.25rem"><div style="font-size:.72rem;font-weight:800;color:#1565C0;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">' + title + '</div>' +
+          items.map(function (u, i) {
+            return '<div style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;border-bottom:.5px solid var(--border)">' +
+              '<div style="width:22px;font-size:.8rem;font-weight:800;color:' + (['#F59E0B','#94A3B8','#CD7C32'][i]||'var(--muted)') + '">#' + (i+1) + '</div>' +
+              '<div style="flex:1;font-size:.82rem">' + escHtml(u.uid||'unknown') + '</div>' +
+              '<div style="font-size:.78rem;font-weight:700;color:#1565C0">' + fmtN(u.cnt) + ' ' + label + '</div>' +
+            '</div>';
+          }).join('') + '</div>';
+      }
+      el.innerHTML =
+        section('Videos (Shorts)', res.shorts, 'vids') +
+        section('Music Uploads', res.music, 'tracks') +
+        section('Messages Sent', res.messages, 'msgs') ||
+        '<div style="text-align:center;font-size:.8rem;color:var(--muted);padding:1rem">No data yet</div>';
+    })
+    .catch(function (err) { var el = document.getElementById('leaderboard-content'); if (el) el.innerHTML = '<div style="color:#E11D48;font-size:.8rem;padding:1rem">' + escHtml(err.message) + '</div>'; });
+}
+
+/* ══════════════════════════════════
+   ANNOUNCEMENTS
+══════════════════════════════════ */
+function buildAnnouncementsPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">' + (ADMIN_ICONS.announcements||'') + ' Pinned Announcements</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">ארויסגעשטעלטע נאכריכטן וואס אלע יוזערס זעען אויפן הויפטשירם.</div>' +
+        '<textarea id="ann-text" rows="3" placeholder="Type announcement..." style="width:100%;box-sizing:border-box;padding:.6rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none;resize:none;margin-bottom:.6rem"></textarea>' +
+        '<button class="bc-send-btn" onclick="adminPostAnnouncement()" style="margin-bottom:1rem">Post Announcement</button>' +
+        '<div style="font-size:.72rem;font-weight:800;color:#1565C0;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">Active:</div>' +
+        '<div id="ann-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+  loadAnnouncementsList();
+}
+function loadAnnouncementsList() {
+  api.get('/admin/announcements')
+    .then(function (res) {
+      var el = document.getElementById('ann-list'); if (!el) return;
+      var list = res.announcements || [];
+      if (!list.length) { el.innerHTML = '<div style="font-size:.8rem;color:var(--muted);padding:.5rem 0">No announcements yet</div>'; return; }
+      el.innerHTML = list.map(function (a) {
+        return '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:.6rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div style="flex:1"><div style="font-size:.82rem">' + escHtml(a.text) + '</div><div style="font-size:.67rem;color:var(--muted)">by @' + escHtml(a.created_by) + ' · ' + timeAgo(a.created_at) + '</div></div>' +
+          '<button class="act-btn act-block" onclick="adminDeleteAnnouncement(\'' + a.id + '\')">Remove</button>' +
+        '</div>';
+      }).join('');
+    }).catch(function () {});
+}
+window.adminPostAnnouncement = function () {
+  var text = (document.getElementById('ann-text')||{}).value || '';
+  if (!text.trim()) { toast('Type something first'); return; }
+  api.post('/admin/announcements', { text: text.trim() })
+    .then(function () { toast('Posted!'); document.getElementById('ann-text').value = ''; loadAnnouncementsList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+window.adminDeleteAnnouncement = function (id) {
+  api.del('/admin/announcements?id=' + encodeURIComponent(id))
+    .then(function () { toast('Removed'); loadAnnouncementsList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   CUSTOM BADGES
+══════════════════════════════════ */
+function buildBadgesPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">' + (ADMIN_ICONS.badges||'') + ' Custom Badges</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">צולייגן א ספּעציאל באדזש צו א יוזער (z.b. ⭐ VIP, 🎵 Artist).</div>' +
+        '<input id="badge-user-search" class="admin-search" placeholder="Search user..." oninput="badgeUserSearch()">' +
+        '<div id="badge-user-results" style="margin-bottom:.75rem"></div>' +
+        '<div style="font-size:.72rem;font-weight:800;color:#1565C0;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">All Badges:</div>' +
+        '<div id="badges-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+  loadBadgesList();
+}
+function loadBadgesList() {
+  api.get('/admin/badges')
+    .then(function (res) {
+      var el = document.getElementById('badges-list'); if (!el) return;
+      var badges = res.badges || [];
+      if (!badges.length) { el.innerHTML = '<div style="font-size:.8rem;color:var(--muted);padding:.5rem 0">No badges yet</div>'; return; }
+      el.innerHTML = badges.map(function (b) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div>' +
+            '<span style="background:' + escHtml(b.badge_color) + ';color:#fff;border-radius:6px;padding:.1rem .45rem;font-size:.72rem;font-weight:700">' + escHtml(b.badge_text) + '</span>' +
+            '<span style="font-size:.75rem;color:var(--muted);margin-left:.5rem">→ @' + escHtml(b.nickname||b.user_id) + '</span>' +
+          '</div>' +
+          '<button class="act-btn act-block" onclick="adminDeleteBadge(\'' + b.id + '\')">Remove</button>' +
+        '</div>';
+      }).join('');
+    }).catch(function () {});
+}
+window.badgeUserSearch = function () {
+  var q = (document.getElementById('badge-user-search')||{}).value || '';
+  var el = document.getElementById('badge-user-results'); if (!el) return;
+  if (q.length < 2) { el.innerHTML = ''; return; }
+  api.get('/admin/users?search=' + encodeURIComponent(q))
+    .then(function (res) {
+      var users = res.users || [];
+      el.innerHTML = users.slice(0,5).map(function (u) {
+        return '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;background:var(--bg3);border-radius:8px;margin-bottom:.35rem">' +
+          '<span style="font-size:.82rem;flex:1">@' + escHtml(u.nickname) + '</span>' +
+          '<input id="badge-text-' + u.id + '" placeholder="Badge text..." style="flex:1;padding:.35rem .5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.75rem;outline:none">' +
+          '<input type="color" id="badge-color-' + u.id + '" value="#1565C0" style="width:30px;height:28px;border:none;border-radius:6px;cursor:pointer;padding:0">' +
+          '<button class="save-pill" style="background:#1565C0;margin-left:0" onclick="adminGrantBadge(\'' + u.id + '\')">Add</button>' +
+        '</div>';
+      }).join('') || '<div style="font-size:.78rem;color:var(--muted)">No users found</div>';
+    }).catch(function () {});
+};
+window.adminGrantBadge = function (userId) {
+  var text  = (document.getElementById('badge-text-' + userId)||{}).value || '';
+  var color = (document.getElementById('badge-color-' + userId)||{}).value || '#1565C0';
+  if (!text.trim()) { toast('Enter badge text'); return; }
+  api.post('/admin/badges', { user_id: userId, badge_text: text.trim(), badge_color: color })
+    .then(function () { toast('Badge granted!'); loadBadgesList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+window.adminDeleteBadge = function (id) {
+  api.del('/admin/badges?id=' + encodeURIComponent(id))
+    .then(function () { toast('Removed'); loadBadgesList(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   WARNINGS PANEL
+══════════════════════════════════ */
+function buildWarningsPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">' + (ADMIN_ICONS.warnings||'') + ' Send Warning to User</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">שיק א וואָרענונג צו א יוזער — ער קריגט עס ווי א נאכריכט. קיין בלאק, נאר א וואָרענונג.</div>' +
+        '<input id="warn-user-search" class="admin-search" placeholder="Search user to warn..." oninput="warnUserSearch()">' +
+        '<div id="warn-user-results"></div>' +
+      '</div>' +
+    '</div>';
+}
+window.warnUserSearch = function () {
+  var q = (document.getElementById('warn-user-search')||{}).value || '';
+  var el = document.getElementById('warn-user-results'); if (!el) return;
+  if (q.length < 2) { el.innerHTML = ''; return; }
+  api.get('/admin/users?search=' + encodeURIComponent(q))
+    .then(function (res) {
+      var users = res.users || [];
+      el.innerHTML = users.slice(0,5).map(function (u) {
+        return '<div style="background:var(--bg3);border-radius:10px;padding:.75rem;margin-bottom:.5rem">' +
+          '<div style="font-size:.82rem;font-weight:700;margin-bottom:.4rem">@' + escHtml(u.nickname) + '</div>' +
+          '<textarea id="warn-msg-' + u.id + '" rows="2" placeholder="Warning message..." style="width:100%;box-sizing:border-box;padding:.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.78rem;font-family:inherit;outline:none;resize:none;margin-bottom:.4rem"></textarea>' +
+          '<button class="save-pill" style="background:#F59E0B;color:#000" onclick="adminSendWarning(\'' + u.id + '\')">⚠️ Send Warning</button>' +
+        '</div>';
+      }).join('') || '<div style="font-size:.78rem;color:var(--muted);padding:.5rem 0">No users found</div>';
+    }).catch(function () {});
+};
+window.adminSendWarning = function (userId) {
+  var msg = (document.getElementById('warn-msg-' + userId)||{}).value || '';
+  if (!msg.trim()) { toast('Write a message first'); return; }
+  api.post('/admin/warnings', { user_id: userId, message: msg.trim() })
+    .then(function () { toast('⚠️ Warning sent!'); buildWarningsPanel(document.getElementById('admin-content')); })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
