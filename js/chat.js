@@ -719,7 +719,7 @@ function _renderMembersList() {
         (m.photo_url ? '' : (m.nickname || '?').slice(0, 1).toUpperCase()) +
       '</div>' +
       '<div style="flex:1;unicode-bidi:plaintext;text-align:start;' + (isMemberAdmin ? 'cursor:pointer' : '') + '" onclick="_openMemberDM(\'' + m.id + '\',\'' + escHtml(m.nickname || 'User').replace(/'/g, "\\'") + '\')"><div style="font-size:.85rem;font-weight:700">@' + escHtml(m.nickname || 'User') + '</div>' +
-      (m.online && isAnyAdmin() ? '<div style="font-size:.68rem;color:var(--green)">● online</div>' : '<div style="font-size:.68rem;color:var(--muted)">offline</div>') +
+      (m.online && isAnyAdmin() ? '<div style="font-size:.68rem;color:var(--green)">● online</div>' : '') +
       '</div>' +
       (m.role === 'admin_super' || m.role === 'admin_limited' ? '<span style="font-size:.65rem;background:#EAF4FF;color:var(--blue);border:1px solid #BBDEFB;border-radius:6px;padding:.1rem .4rem">Admin</span>' : '') +
       (m.is_group_admin ? '<span style="font-size:.65rem;background:#FFF3E0;color:#E65100;border:1px solid #FFE0B2;border-radius:6px;padding:.1rem .4rem;margin-left:.3rem">Group Admin</span>' : '') +
@@ -1680,6 +1680,7 @@ window.triggerMediaPick = function (accept, isOnce) {
   inp.click();
 };
 
+// ── Media preview: single = full-screen modal, multiple = inline bar
 window.handleChatMedia = function (e) {
   var files = Array.from(e.target.files || []);
   if (!files.length) return;
@@ -1687,76 +1688,137 @@ window.handleChatMedia = function (e) {
   var isOnce = !!e.target.dataset.once;
   e.target.value = '';
 
-  // Show preview modal
-  _showMediaPreview(files, isOnce);
+  if (files.length === 1) {
+    _showSingleMediaPreview(files[0], isOnce);
+  } else {
+    _showMultiMediaPreview(files);
+  }
 };
 
-function _showMediaPreview(files, isOnce) {
+// Single file — full-screen Telegram-style preview
+function _showSingleMediaPreview(file, isOnce) {
   var existing = document.getElementById('media-preview-modal');
-  if (existing) existing.remove();
+  if (existing) { existing._pendingFiles = null; existing.remove(); }
 
-  var file = files[0];
   var isVideo = file.type.startsWith('video/');
   var objectUrl = URL.createObjectURL(file);
 
   var modal = document.createElement('div');
   modal.id = 'media-preview-modal';
-  modal.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.92);display:flex;flex-direction:column;';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.93);display:flex;flex-direction:column;';
+  modal._fileObj = file;
+  modal._isOnce = isOnce;
   modal.innerHTML =
-    '<div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;flex-shrink:0">' +
-      '<button onclick="document.getElementById(\'media-preview-modal\').remove();URL.revokeObjectURL(\'' + objectUrl + '\')" style="background:none;border:none;color:#fff;cursor:pointer;padding:.35rem">' +
+    '<div style="display:flex;align-items:center;padding:.65rem .85rem;flex-shrink:0;gap:.5rem">' +
+      '<button onclick="_closeMediaPreview()" style="background:none;border:none;color:#fff;cursor:pointer;padding:.35rem;display:flex;align-items:center">' +
         '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
       '</button>' +
-      '<div style="font-size:.85rem;color:#fff;font-weight:600">' + escHtml(file.name.length > 25 ? file.name.slice(0,22)+'...' : file.name) + '</div>' +
-      '<div style="width:32px"></div>' +
+      '<div style="flex:1;text-align:center;font-size:.82rem;color:rgba(255,255,255,.85)">1 ' + (isVideo ? 'video' : 'photo') + '</div>' +
     '</div>' +
-    '<div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0 1rem">' +
+    '<div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:.5rem">' +
       (isVideo
-        ? '<video src="' + objectUrl + '" controls style="max-width:100%;max-height:100%;border-radius:12px"></video>'
-        : '<img src="' + objectUrl + '" style="max-width:100%;max-height:100%;border-radius:12px;object-fit:contain">') +
+        ? '<video src="' + objectUrl + '" controls playsinline style="max-width:100%;max-height:100%;border-radius:10px"></video>'
+        : '<img src="' + objectUrl + '" style="max-width:100%;max-height:100%;border-radius:10px;object-fit:contain">') +
     '</div>' +
-    '<div style="padding:.75rem 1rem;flex-shrink:0">' +
-      '<div style="display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.12);border-radius:24px;padding:.4rem .75rem;margin-bottom:.6rem">' +
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>' +
-        '<input id="media-caption-input" placeholder="Add a caption..." style="flex:1;background:none;border:none;color:#fff;outline:none;font-size:.9rem;font-family:inherit" unicode-bidi="plaintext">' +
+    '<div style="padding:.5rem .85rem max(.75rem,env(safe-area-inset-bottom));flex-shrink:0">' +
+      '<div style="display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.13);border-radius:22px;padding:.4rem .85rem;margin-bottom:.55rem">' +
+        '<input id="media-caption-input" placeholder="Add a caption..." style="flex:1;background:none;border:none;color:#fff;outline:none;font-size:.88rem;font-family:inherit" autocomplete="off">' +
       '</div>' +
-      '<button onclick="_sendMediaFromPreview(\'' + objectUrl + '\',' + isOnce + ')" style="width:100%;padding:.75rem;background:linear-gradient(135deg,#1565C0,#1976D2);border:none;border-radius:14px;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:.5rem">' +
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>' +
-        'Send' +
+      '<button onclick="_sendSingleMedia()" style="width:100%;padding:.7rem;background:linear-gradient(135deg,#1565C0,#1976D2);border:none;border-radius:22px;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:.5rem;box-shadow:0 2px 10px rgba(21,101,192,.4)">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg> Send' +
       '</button>' +
     '</div>';
-
-  modal.dataset.fileRef = objectUrl;
-  modal.dataset.fileName = file.name;
-  modal.dataset.fileType = file.type;
-  modal._fileObj = file;
-
+  modal._objectUrl = objectUrl;
   document.body.appendChild(modal);
 }
 
-window._sendMediaFromPreview = function (objectUrl, isOnce) {
+window._closeMediaPreview = function () {
+  var modal = document.getElementById('media-preview-modal');
+  if (modal) {
+    if (modal._objectUrl) URL.revokeObjectURL(modal._objectUrl);
+    modal.remove();
+  }
+  var bar = document.getElementById('multi-media-bar');
+  if (bar) bar.remove();
+};
+
+window._sendSingleMedia = function () {
   var modal = document.getElementById('media-preview-modal');
   if (!modal) return;
   var file = modal._fileObj;
+  var isOnce = modal._isOnce;
   var caption = (document.getElementById('media-caption-input') || {}).value || '';
+  if (modal._objectUrl) URL.revokeObjectURL(modal._objectUrl);
   modal.remove();
-  URL.revokeObjectURL(objectUrl);
-
   if (!file) return;
+  _uploadOneFile(file, isOnce ? '__once__' : caption);
+};
+
+// Multiple files — inline bar at bottom (like Telegram)
+function _showMultiMediaPreview(files) {
+  var existing = document.getElementById('multi-media-bar');
+  if (existing) existing.remove();
+  MULTI_MEDIA_FILES = files;
+
+  var bar = document.createElement('div');
+  bar.id = 'multi-media-bar';
+  bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9000;background:var(--surface);border-top:1px solid var(--border);padding:.6rem .75rem max(.6rem,env(safe-area-inset-bottom));';
+  bar.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">' +
+      '<div style="font-size:.82rem;font-weight:700">' + files.length + ' files selected</div>' +
+      '<button onclick="_closeMediaPreview()" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:.2rem">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+      '</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:.4rem;overflow-x:auto;scrollbar-width:none;margin-bottom:.5rem;padding-bottom:.25rem">' +
+      files.map(function (f, i) {
+        var url = URL.createObjectURL(f);
+        var isVid = f.type.startsWith('video/');
+        return '<div style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;border:2px solid #1565C0">' +
+          (isVid
+            ? '<video src="' + url + '" style="width:100%;height:100%;object-fit:cover" preload="metadata"></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35)"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div>'
+            : '<img src="' + url + '" style="width:100%;height:100%;object-fit:cover">') +
+        '</div>';
+      }).join('') +
+    '</div>' +
+    '<div style="display:flex;gap:.4rem">' +
+      '<div style="flex:1;display:flex;align-items:center;gap:.4rem;background:var(--bg3);border-radius:20px;padding:.35rem .75rem;border:1.5px solid var(--border)">' +
+        '<input id="multi-caption-input" placeholder="Add a caption..." style="flex:1;background:none;border:none;color:var(--text);outline:none;font-size:.85rem;font-family:inherit">' +
+      '</div>' +
+      '<button onclick="_sendMultiMedia()" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#1565C0,#1976D2);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;box-shadow:0 2px 8px rgba(21,101,192,.4)">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>' +
+      '</button>' +
+    '</div>';
+  document.body.appendChild(bar);
+}
+
+var MULTI_MEDIA_FILES = [];
+window._sendMultiMedia = function () {
+  var caption = (document.getElementById('multi-caption-input') || {}).value || '';
+  var bar = document.getElementById('multi-media-bar');
+  if (bar) bar.remove();
+  var files = MULTI_MEDIA_FILES;
+  MULTI_MEDIA_FILES = [];
+  files.forEach(function (f, i) {
+    setTimeout(function () { _uploadOneFile(f, i === 0 ? caption : ''); }, i * 300);
+  });
+};
+
+function _uploadOneFile(file, caption) {
   var isVideo = file.type.startsWith('video/');
   var type = (isVideo || file.type.startsWith('image/')) ? 'media' : 'file';
-
-  toast('Sending...');
   var form = new FormData();
   form.append('room_id', CHAT_curRoom.id);
   form.append('type', type);
-  form.append('text', isOnce ? '__once__' : caption);
+  form.append('text', caption || '');
   form.append('file', file);
-
   api.post('/chat', form, true)
     .then(function () { loadMessages(true); loadChatRooms(); })
     .catch(function (err) { toast('❌ ' + err.message); });
-};
+}
+
+// Keep backward compat
+window._sendMediaFromPreview = window._sendSingleMedia;
 
 // One-time view: reveal once then replace with "Opened"
 window._openOnce = function (msgId, el) {
@@ -1834,14 +1896,19 @@ function _buildCtxMenu(msg) {
   }
 
   var items = '';
-  items += item(SVG.reply,   'Reply',   'ctxReply()');
-  if (msg.type === 'text') items += item(SVG.copy, 'Copy', 'ctxCopy()');
-  if (canEdit)   items += item(SVG.edit,    'Edit',    'ctxEdit()');
-  items +=        item(SVG.forward, 'Forward', 'ctxForward()');
-  if (canPin)    items += item(SVG.pin,     'Pin',     'ctxPin()');
-  if (!isMe)     items += item(SVG.report,  'Report',  'ctxReport()');
-  if (canDelete) items += item(SVG.trash,   'Delete',  'ctxDelete()', true);
-  items +=        item(SVG.close,  'Cancel',  'closeCtxMenu()');
+  var SVG_BOOKMARK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>';
+  var SVG_TRANSLATE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+
+  items += item(SVG.reply,    'Reply',        'ctxReply()');
+  if (msg.type === 'text' || msg.type === 'media') items += item(SVG.copy, 'Copy', 'ctxCopy()');
+  if (canEdit)   items += item(SVG.edit,      'Edit',         'ctxEdit()');
+  items +=        item(SVG.forward,  'Forward',      'ctxForward()');
+  if (canPin)    items += item(SVG.pin,       'Pin',          'ctxPin()');
+  items +=        item(SVG_BOOKMARK, 'Save Message', 'bookmarkMessage(CHAT_ctxMsg.id)');
+  items +=        item(SVG_TRANSLATE,'Translate',    'translateMessage(CHAT_ctxMsg.id)');
+  if (!isMe)     items += item(SVG.report,    'Report',       'ctxReport()');
+  if (canDelete) items += item(SVG.trash,     'Delete',       'ctxDelete()', true);
+  items +=        item(SVG.close,    'Cancel',       'closeCtxMenu()');
 
   var el = document.getElementById('ctx-menu-items');
   el.innerHTML = items;
@@ -2198,9 +2265,10 @@ function _fakeBars(n) {
   return bars;
 }
 
-function _linkify(text) {
-  return text.replace(/(https?:\/\/[^\s]+)/g, function (url) {
-    return '<a href="' + url + '" target="_blank" style="color:var(--blue);word-break:break-all">' + url + '</a>';
+function _linkify(text, isMe) {
+  var c = isMe ? 'rgba(255,255,255,.9)' : 'var(--blue)';
+  return text.replace(/(https?:\/\/[^\s<>"]+)/g, function (url) {
+    return '<a href="' + url + '" target="_blank" style="color:' + c + ';word-break:break-all;text-decoration:underline">' + url + '</a>';
   });
 }
 
@@ -2636,12 +2704,21 @@ window.createNewChannel = function () {
 };
 
 window.openChatSettings = function () {
-  // Sync dark mode toggle
+  var isDark = document.documentElement.classList.contains('dark-mode');
   var darkToggle = document.getElementById('cs-dark-toggle');
-  if (darkToggle) {
-    if (document.documentElement.classList.contains('dark-mode')) darkToggle.classList.add('on');
-    else darkToggle.classList.remove('on');
-  }
+  if (darkToggle) { if (isDark) darkToggle.classList.add('on'); else darkToggle.classList.remove('on'); }
+
+  // Sync font size
+  var savedFont = '';
+  try { savedFont = localStorage.getItem('yp_chat_font') || 'md'; } catch(e) { savedFont = 'md'; }
+  document.querySelectorAll('.cs-font-btn').forEach(function (b) { b.classList.remove('active'); });
+  var activeFont = document.getElementById('cs-font-' + savedFont);
+  if (activeFont) activeFont.classList.add('active');
+
+  // Sync read receipts
+  var receipts = document.getElementById('cs-receipts-toggle');
+  if (receipts) { receipts.classList.add('on'); }
+
   document.getElementById('chat-settings-modal').classList.add('open');
 };
 
@@ -2650,14 +2727,19 @@ window.toggleDarkMode = function (toggleEl) {
   var isDark = toggleEl.classList.contains('on');
   document.documentElement.classList.toggle('dark-mode', isDark);
   try { localStorage.setItem('yp_dark_mode', isDark ? '1' : '0'); } catch (e) {}
+  toast(isDark ? '🌙 Dark mode on' : '☀️ Light mode on');
 };
 
 window.setChatFont = function (size, btn) {
   document.querySelectorAll('.cs-font-btn').forEach(function (b) { b.classList.remove('active'); });
   btn.classList.add('active');
-  var sizes = { sm: '.88rem', md: '1rem', lg: '1.1rem' };
-  document.querySelectorAll('.bubble').forEach(function (b) { b.style.fontSize = sizes[size] || '1rem'; });
+  var sizes = { sm: '.88rem', md: '1rem', lg: '1.12rem' };
+  var sz = sizes[size] || '1rem';
+  // Apply to messages area
+  var msgs = document.getElementById('chat-messages');
+  if (msgs) msgs.style.fontSize = sz;
   try { localStorage.setItem('yp_chat_font', size); } catch (e) {}
+  toast('Font size: ' + size);
 };
 
 // Admin panel show/hide in hamburger
@@ -3053,25 +3135,7 @@ function _applyFolderFilter(rooms) {
 /* ══════════════════════════════════
    ADD TO CONTEXT MENU
 ══════════════════════════════════ */
-// Patch showCtx to add bookmark + translate options
-var _origShowCtx = window.showCtx;
-window.showCtx = function (e, msgId) {
-  if (_origShowCtx) _origShowCtx(e, msgId);
-  // Add bookmark + translate to ctx menu after it renders
-  setTimeout(function () {
-    var menu = document.getElementById('ctx-menu');
-    if (!menu) return;
-    var extra = document.createElement('div');
-    extra.innerHTML =
-      '<div class="ctx-item" onclick="bookmarkMessage(\'' + msgId + '\');closeCtx()">' +
-        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> Save Message' +
-      '</div>' +
-      '<div class="ctx-item" onclick="translateMessage(\'' + msgId + '\');closeCtx()">' +
-        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Translate' +
-      '</div>';
-    while (extra.firstChild) menu.appendChild(extra.firstChild);
-  }, 50);
-};
+// bookmark + translate are built directly into _buildCtxMenu
 
 /* ══════════════════════════════════
    INIT — load folders on startup
