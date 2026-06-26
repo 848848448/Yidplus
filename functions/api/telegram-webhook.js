@@ -381,9 +381,9 @@ async function downloadAndPost(chatId, fileId, fileType, destination, userId, ro
       const nick  = await getUserNick(userId, env);
 
       await env.DB.prepare(
-        `INSERT INTO messages (id, room_id, sender_id, sender_nick, type, text, media_key, media_url, created_at, read)
-         VALUES (?, ?, ?, ?, 'media', ?, ?, ?, ?, 0)`
-      ).bind(msgId, roomId, userId, nick, titleOrCaption || '', key, mediaUrl, now).run();
+        `INSERT INTO messages (id, room_id, sender_id, sender_nick, type, text, media_key, created_at, read)
+         VALUES (?, ?, ?, ?, 'media', ?, ?, ?, 0)`
+      ).bind(msgId, roomId, userId, nick, titleOrCaption || '', key, now).run();
 
       await sendMsg(chatId, '✅ Posted to the group! 💬');
     }
@@ -458,4 +458,4 @@ async function answerCallback(callbackQueryId) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ callback_query_id: callbackQueryId }),
   });
-  }
+                                      }
