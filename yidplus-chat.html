@@ -40,14 +40,22 @@
       </div>
     </div>
     <div style="display:flex;gap:.3rem">
-      <div class="icon-btn" style="background:none;border:none;color:var(--blue)" onclick="toggleChatFab()"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></div>
+      <div class="icon-btn" style="background:none;border:none;color:var(--blue)" onclick="openGlobalSearch()">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <div class="icon-btn" style="background:none;border:none;color:var(--blue)" onclick="toggleChatFab()">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+      </div>
     </div>
   </div>
   <div class="tg-tabs-row">
-    <button class="tg-tab active" onclick="switchChatTab(this,'all')">Chats</button>
+    <button class="tg-tab active" onclick="switchChatTab(this,'all')">All</button>
+    <button class="tg-tab" onclick="switchChatTab(this,'private')">Private Chats</button>
     <button class="tg-tab" onclick="switchChatTab(this,'groups')">Groups</button>
-    <button class="tg-tab" onclick="switchChatTab(this,'private')">Private</button>
+    <button class="tg-tab" onclick="switchChatTab(this,'channels')">Channels</button>
   </div>
+  <!-- Chat Folders Row (Telegram-style) -->
+  <div id="chat-folders-row" style="display:none;overflow-x:auto;scrollbar-width:none;background:var(--surface);border-bottom:1px solid var(--border);padding:.4rem .6rem;gap:.4rem;flex-shrink:0"></div>
   <div class="scroll-area" id="chat-list-area"></div>
   <nav class="bottom-nav">
     <button class="nav-item"        onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-label">Home</span></button>
@@ -121,33 +129,51 @@
     <div id="emoji-grid" style="display:flex;flex-wrap:wrap;padding:.4rem .3rem;max-height:160px;overflow-y:auto;scrollbar-width:none"></div>
   </div>
 
-  <div id="rec-lock-indicator" style="display:none;flex-direction:column;align-items:center;gap:.3rem;padding:.4rem 0;background:var(--surface)">
-    <div id="rec-lock-icon" style="font-size:1.1rem;transition:transform .15s">🔒</div>
-    <div style="font-size:.6rem;color:var(--muted)">↑ slide to lock</div>
-  </div>
-
-  <div id="rec-live-bar" style="display:none;align-items:center;gap:.6rem;padding:.5rem 1rem;background:var(--surface);border-top:1px solid var(--border);position:relative">
-    <div style="width:10px;height:10px;border-radius:50%;background:var(--red);animation:pulse .8s infinite;flex-shrink:0"></div>
-    <div style="display:flex;align-items:center;gap:1px;height:28px;flex:1" id="rec-live-meter">
-      <div id="rec-live-level" style="width:6px;background:var(--red);border-radius:2px;height:4px;transition:height .08s"></div>
+  <!-- Lock indicator (slide up to lock) -->
+  <div class="rec-lock-col" id="rec-lock-indicator">
+    <div class="rec-lock-icon" id="rec-lock-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     </div>
-    <div id="rec-live-time" style="font-size:.78rem;color:var(--muted);flex-shrink:0">0:00</div>
-    <div id="rec-live-hint" style="font-size:.72rem;color:var(--muted);flex-shrink:0">← slide to cancel</div>
-    <button id="rec-locked-send-btn" style="display:none;background:var(--blue);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:.9rem;flex-shrink:0;cursor:pointer" onclick="stopVoiceRecAndSend()"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
-    <button id="rec-locked-cancel-btn" style="display:none;background:none;border:none;color:var(--red);font-size:1.1rem;flex-shrink:0;cursor:pointer" onclick="cancelVoiceRec()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
+    <div class="rec-lock-label">↑ lock</div>
   </div>
 
+  <!-- Recording bar (Telegram style) -->
+  <div class="rec-bar-wrap" id="rec-live-bar">
+    <div class="rec-dot"></div>
+    <div class="rec-waveform" id="rec-live-meter">
+      <div class="rec-waveform-bar" id="rec-live-level" style="height:4px"></div>
+    </div>
+    <div class="rec-time" id="rec-live-time">0:00</div>
+    <div class="rec-hint" id="rec-live-hint">← slide to cancel</div>
+    <button class="rec-action-btn" id="rec-locked-send-btn" style="display:none;background:linear-gradient(135deg,#1565C0,#1976D2);color:#fff;box-shadow:0 2px 8px rgba(21,101,192,.3)" onclick="stopVoiceRecAndSend()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+    </button>
+    <button class="rec-action-btn" id="rec-locked-cancel-btn" style="display:none;background:#FEE2E2;color:#E11D48" onclick="cancelVoiceRec()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <!-- Input bar -->
   <div class="chat-input-bar" id="chat-input-bar">
     <div class="attach-wrap" style="position:relative;flex-shrink:0">
-      <button class="chat-attach-circle" onclick="toggleAttach(event)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+      <button class="chat-attach-circle" onclick="toggleAttach(event)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+      </button>
     </div>
     <div class="chat-input-pill">
-      <button class="chat-emoji-circle" onclick="toggleStickers()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
-      <textarea class="chat-input" id="chat-input" placeholder="Message..." rows="1" oninput="onChatType()" onkeydown="onChatKey(event)" style="unicode-bidi:plaintext;font-size:1.05rem"></textarea>
+      <button class="chat-emoji-circle" onclick="toggleStickers()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+      </button>
+      <textarea class="chat-input" id="chat-input" placeholder="Message..." rows="1" oninput="onChatType()" onkeydown="onChatKey(event)" style="unicode-bidi:plaintext"></textarea>
     </div>
-    <button class="voice-rec-btn" id="voice-rec-btn" onclick="toggleVoiceRec()"
-      ontouchstart="_micTouchStart(event)" ontouchmove="_micTouchMove(event)" ontouchend="_micTouchEnd(event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
-    <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMsg()" style="display:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+    <button class="voice-rec-btn" id="voice-rec-btn"
+      ontouchstart="_micTouchStart(event)" ontouchmove="_micTouchMove(event)" ontouchend="_micTouchEnd(event)"
+      onclick="toggleVoiceRec()">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+    </button>
+    <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMsg()" style="display:none">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+    </button>
   </div>
 
   <div class="quick-react-bar" id="quick-react-bar" style="display:none">
@@ -181,9 +207,24 @@
       <input type="file" id="group-photo-input" accept="image/*" style="display:none" onchange="handleGroupPhoto(event)">
     </div>
     <div class="userinfo-action-row">
-      <div class="setting-row" style="cursor:pointer;border:none" onclick="toast('Notifications toggled')"><span>🔔</span><span style="font-size:.78rem">Mute</span></div>
-      <div class="setting-row" style="cursor:pointer;border:none" id="info-leave-btn" onclick="confirmLeaveGroup()"><span>🚪</span><span style="font-size:.78rem">Leave</span></div>
-      <div class="setting-row" style="cursor:pointer;border:none" onclick="openReportModal()"><span>🚩</span><span style="font-size:.78rem">Report</span></div>
+      <div class="uinfo-action-btn" onclick="toast('Notifications toggled')">
+        <div class="uinfo-action-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <span class="uinfo-action-lbl">Mute</span>
+      </div>
+      <div class="uinfo-action-btn" id="info-leave-btn" onclick="confirmLeaveGroup()">
+        <div class="uinfo-action-icon" style="color:#E11D48">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </div>
+        <span class="uinfo-action-lbl" style="color:#E11D48">Leave</span>
+      </div>
+      <div class="uinfo-action-btn" onclick="openReportModal()">
+        <div class="uinfo-action-icon" style="color:#F59E0B">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <span class="uinfo-action-lbl">Report</span>
+      </div>
     </div>
     <div id="info-bio-card" style="display:none;background:#fff;border-bottom:1px solid var(--border);padding:.85rem 1.25rem">
       <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem">Bio</div>
@@ -197,18 +238,42 @@
     </div>
     <div id="info-tab-content" style="min-height:80px;padding:1rem"></div>
     <div id="info-admin-settings" style="display:none">
-      <div style="padding:.75rem 1.25rem .4rem;font-size:.72rem;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">Group Settings (Admin)</div>
-      <div class="setting-row" style="cursor:pointer" onclick="toggleGroupReadOnly()">
-        <span>✍️</span><span style="font-size:.82rem;flex:1">Everyone Can Write</span>
+      <div style="padding:.85rem 1.25rem .5rem;font-size:.68rem;color:#637087;letter-spacing:.1em;text-transform:uppercase;font-weight:700">Group Settings</div>
+      <div class="setting-row" style="cursor:pointer;padding:.85rem 1.25rem" onclick="toggleGroupReadOnly()">
+        <div style="display:flex;align-items:center;gap:.75rem;flex:1">
+          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1565C0;flex-shrink:0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </div>
+          <div>
+            <div style="font-size:.85rem;font-weight:600">Everyone Can Write</div>
+            <div style="font-size:.7rem;color:#637087;margin-top:.1rem">Turn off = only admins can post</div>
+          </div>
+        </div>
         <div class="toggle-sw" id="group-readonly-toggle"></div>
       </div>
-      <div class="setting-row" style="cursor:pointer" onclick="toggleGroupVisibility()">
-        <span>🌍</span><span style="font-size:.82rem;flex:1">Public Group</span>
+      <div class="setting-row" style="cursor:pointer;padding:.85rem 1.25rem" onclick="toggleGroupVisibility()">
+        <div style="display:flex;align-items:center;gap:.75rem;flex:1">
+          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1565C0;flex-shrink:0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </div>
+          <div>
+            <div style="font-size:.85rem;font-weight:600">Public Group</div>
+            <div style="font-size:.7rem;color:#637087;margin-top:.1rem">Anyone can discover and join</div>
+          </div>
+        </div>
         <div class="toggle-sw" id="group-visibility-toggle"></div>
       </div>
-      <div class="setting-row" style="cursor:pointer" onclick="openAutoDeleteModal()">
-        <span>⏱️</span><span style="font-size:.82rem;flex:1">Auto-Delete Messages</span>
-        <span style="font-size:.72rem;color:var(--muted)" id="auto-delete-label">Off</span>
+      <div class="setting-row" style="cursor:pointer;padding:.85rem 1.25rem" onclick="openAutoDeleteModal()">
+        <div style="display:flex;align-items:center;gap:.75rem;flex:1">
+          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1565C0;flex-shrink:0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div>
+            <div style="font-size:.85rem;font-weight:600">Auto-Delete Messages</div>
+            <div style="font-size:.7rem;color:#637087;margin-top:.1rem" id="auto-delete-label">Off</div>
+          </div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#637087" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
     </div>
     <div id="info-members-section" style="display:none">
@@ -253,17 +318,19 @@
 <!-- ══ NEW GROUP MODAL ══ -->
 <div class="modal-overlay" id="new-group-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal-sheet">
-    <div class="modal-title">👥 New Group</div>
-    <input class="field" id="new-group-name" placeholder="Group name" maxlength="50">
-    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem">Choose an icon:</div>
-    <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem">
-      <label style="cursor:pointer"><input type="radio" name="group-emoji" value="👥" checked style="display:none"><div class="group-emoji-opt">👥</div></label>
-      <label style="cursor:pointer"><input type="radio" name="group-emoji" value="🎵" style="display:none"><div class="group-emoji-opt">🎵</div></label>
-      <label style="cursor:pointer"><input type="radio" name="group-emoji" value="📖" style="display:none"><div class="group-emoji-opt">📖</div></label>
-      <label style="cursor:pointer"><input type="radio" name="group-emoji" value="🥘" style="display:none"><div class="group-emoji-opt">🥘</div></label>
-      <label style="cursor:pointer"><input type="radio" name="group-emoji" value="🎬" style="display:none"><div class="group-emoji-opt">🎬</div></label>
-      <label style="cursor:pointer"><input type="radio" name="group-emoji" value="🕎" style="display:none"><div class="group-emoji-opt">🕎</div></label>
+    <div class="modal-title" style="font-size:1rem;font-weight:700;display:flex;align-items:center;gap:.5rem">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      New Group
     </div>
+    <!-- Photo upload -->
+    <div style="display:flex;justify-content:center;margin-bottom:1rem">
+      <div id="new-group-photo-preview" onclick="document.getElementById('new-group-photo-inp').click()" style="width:72px;height:72px;border-radius:50%;background:#EFF6FF;border:2px dashed #1565C0;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1565C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <div style="font-size:.55rem;color:#1565C0;margin-top:.2rem">Add Photo</div>
+      </div>
+      <input type="file" id="new-group-photo-inp" accept="image/*" style="display:none" onchange="previewNewGroupPhoto(event)">
+    </div>
+    <input class="field" id="new-group-name" placeholder="Group name" maxlength="50" style="margin-bottom:.75rem">
     <div class="poll-setting-row">
       <div><div class="poll-setting-label">Public Group</div><div class="poll-setting-sub">Anyone can discover and join</div></div>
       <div class="toggle-sw" id="new-group-public-toggle" onclick="this.classList.toggle('on')"></div>
@@ -274,6 +341,77 @@
     </div>
     <button class="btn-primary" onclick="createNewGroup()" style="margin-bottom:.5rem">Create Group</button>
     <button class="modal-cancel" onclick="document.getElementById('new-group-modal').classList.remove('open')">Cancel</button>
+  </div>
+</div>
+
+<!-- ══ NEW CHANNEL MODAL ══ -->
+<div class="modal-overlay" id="new-channel-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-title" style="font-size:1rem;font-weight:700;display:flex;align-items:center;gap:.5rem">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.56 2 2 0 0 1 3.6 1.36h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      New Channel
+    </div>
+    <div style="font-size:.78rem;color:#637087;margin-bottom:.85rem;line-height:1.5">A channel is public — only you (and admins you choose) can post. Everyone can join and read.</div>
+    <div style="display:flex;justify-content:center;margin-bottom:1rem">
+      <div id="new-channel-photo-preview" onclick="document.getElementById('new-channel-photo-inp').click()" style="width:72px;height:72px;border-radius:50%;background:#EFF6FF;border:2px dashed #1565C0;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1565C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <div style="font-size:.55rem;color:#1565C0;margin-top:.2rem">Add Photo</div>
+      </div>
+      <input type="file" id="new-channel-photo-inp" accept="image/*" style="display:none" onchange="previewNewChannelPhoto(event)">
+    </div>
+    <input class="field" id="new-channel-name" placeholder="Channel name" maxlength="50" style="margin-bottom:.5rem">
+    <textarea class="field" id="new-channel-desc" placeholder="Description (optional)" rows="2" style="resize:none;height:auto;margin-bottom:.75rem"></textarea>
+    <button class="btn-primary" onclick="createNewChannel()" style="margin-bottom:.5rem">Create Channel</button>
+    <button class="modal-cancel" onclick="document.getElementById('new-channel-modal').classList.remove('open')">Cancel</button>
+  </div>
+</div>
+
+<!-- ══ CHAT SETTINGS MODAL ══ -->
+<div class="modal-overlay" id="chat-settings-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet" style="max-height:85vh;overflow-y:auto">
+    <div class="modal-title" style="font-size:1rem;font-weight:700;display:flex;align-items:center;gap:.5rem">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Chat Settings
+    </div>
+    <!-- Dark Mode -->
+    <div class="poll-setting-row">
+      <div><div class="poll-setting-label">Dark Mode</div><div class="poll-setting-sub">Switch between light and dark</div></div>
+      <div class="toggle-sw" id="cs-dark-toggle" onclick="toggleDarkMode(this)"></div>
+    </div>
+    <!-- Font size -->
+    <div class="poll-setting-row" style="flex-direction:column;align-items:flex-start;gap:.5rem">
+      <div class="poll-setting-label">Font Size</div>
+      <div style="display:flex;gap:.5rem;width:100%">
+        <button class="cs-font-btn active" id="cs-font-sm" onclick="setChatFont('sm',this)">Small</button>
+        <button class="cs-font-btn" id="cs-font-md" onclick="setChatFont('md',this)">Normal</button>
+        <button class="cs-font-btn" id="cs-font-lg" onclick="setChatFont('lg',this)">Large</button>
+      </div>
+    </div>
+    <!-- Enter to send -->
+    <div class="poll-setting-row">
+      <div><div class="poll-setting-label">Shift+Enter to Send</div><div class="poll-setting-sub">Enter = new line, Shift+Enter = send</div></div>
+      <div class="toggle-sw on" id="cs-enter-toggle"></div>
+    </div>
+    <!-- Read receipts -->
+    <div class="poll-setting-row">
+      <div><div class="poll-setting-label">Read Receipts</div><div class="poll-setting-sub">Show ✓✓ when message is read</div></div>
+      <div class="toggle-sw on" id="cs-receipts-toggle" onclick="this.classList.toggle('on')"></div>
+    </div>
+    <!-- Language -->
+    <div class="poll-setting-row">
+      <div><div class="poll-setting-label">Language</div></div>
+      <select style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.35rem .6rem;color:var(--text);font-family:inherit;font-size:.82rem;outline:none">
+        <option>ייִדיש</option>
+        <option>English</option>
+        <option>עברית</option>
+      </select>
+    </div>
+    <!-- Auto-download -->
+    <div class="poll-setting-row">
+      <div><div class="poll-setting-label">Auto-Download Media</div><div class="poll-setting-sub">Automatically load images</div></div>
+      <div class="toggle-sw on" id="cs-autodownload-toggle" onclick="this.classList.toggle('on')"></div>
+    </div>
+    <button class="modal-cancel" onclick="document.getElementById('chat-settings-modal').classList.remove('open')" style="margin-top:.5rem">Close</button>
   </div>
 </div>
 
@@ -379,6 +517,14 @@
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
     Copy Invite Link
   </div>
+  <div class="ctx-item" onclick="openJumpToDate();closeOptMenu()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Jump to Date
+  </div>
+  <div class="ctx-item" onclick="openDisappearingMessages();closeOptMenu()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    Disappearing Messages
+  </div>
   <div class="ctx-item" onclick="toast('Muted notifications for this chat');closeOptMenu()">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
     Mute
@@ -397,17 +543,38 @@
 <div class="hamburger-overlay" id="hamburger-overlay" onclick="if(event.target===this)closeHamburgerMenu()">
   <div class="hamburger-panel">
     <div class="hamburger-profile-hdr" onclick="goPage('yidplus-dashboard.html')" style="cursor:pointer">
-      <div class="hamburger-avatar" id="hb-avatar">👤</div>
-      <div style="font-weight:700;font-size:1rem" id="hb-name">User</div>
-      <div style="font-size:.75rem;opacity:.85" id="hb-handle">@user</div>
+      <div class="hamburger-avatar" id="hb-avatar" style="font-size:1.4rem;color:#fff">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div style="font-weight:700;font-size:1rem;margin-top:.25rem" id="hb-name">User</div>
+      <div style="font-size:.75rem;opacity:.8;margin-top:.1rem" id="hb-handle">@user</div>
     </div>
-    <div class="hamburger-item" onclick="goPage('yidplus-dashboard.html')"><span class="hi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>My Profile</div>
-    <div class="hamburger-item" onclick="toast('Saved Messages: coming soon')"><span class="hi-icon">🔖</span>Saved Messages</div>
-    <div class="hamburger-item" onclick="openNewChatModal();closeHamburgerMenu()"><span class="hi-icon">👥</span>Contacts</div>
-    <div class="hamburger-item" onclick="openNewGroupModal();closeHamburgerMenu()"><span class="hi-icon">➕</span>New Group</div>
-    <div class="hamburger-item" onclick="goPage('yidplus-dashboard.html')"><span class="hi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span>Settings</div>
-    <div style="border-top:1px solid var(--border);margin-top:.5rem"></div>
-    <div class="hamburger-item" onclick="goPage('yidplus-admin.html')"><span class="hi-icon">👑</span>Admin Panel</div>
+    <div class="hamburger-item" onclick="goPage('yidplus-dashboard.html')">
+      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>My Profile
+    </div>
+    <div class="hamburger-item" onclick="openBookmarks();closeHamburgerMenu()">
+      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>Saved Messages
+    </div>
+    <div class="hamburger-item" onclick="openFolderManager();closeHamburgerMenu()">
+      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>Chat Folders
+    </div>
+    <div class="hamburger-item" onclick="openNewChatModal();closeHamburgerMenu()">
+      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Contacts
+    </div>
+    <div class="hamburger-item" onclick="openNewGroupModal();closeHamburgerMenu()">
+      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="9.5" y1="10.5" x2="14.5" y2="10.5"/></svg></span>New Group
+    </div>
+    <div class="hamburger-item" onclick="openNewChannelModal();closeHamburgerMenu()">
+      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.56 2 2 0 0 1 3.6 1.36h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>New Channel
+    </div>
+    <div style="border-top:1px solid var(--border);margin:.4rem 0"></div>
+    <div class="hamburger-item" onclick="openChatSettings();closeHamburgerMenu()">
+      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>Settings
+    </div>
+    <div style="border-top:1px solid var(--border);margin:.4rem 0" id="hb-admin-sep" style="display:none"></div>
+    <div class="hamburger-item" id="hb-admin-btn" onclick="goPage('yidplus-admin.html')" style="display:none">
+      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Admin Panel
+    </div>
   </div>
 </div>
 
