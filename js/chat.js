@@ -18,6 +18,9 @@
 
 var CHAT_rooms       = [];
 var CHAT_tab         = 'all';
+var CHAT_activeFolder = null; // null = no folder, string = folder id
+var CHAT_folders     = [];
+var CHAT_bookmarks   = [];
 var CHAT_search      = '';
 var CHAT_curRoom     = null;
 var CHAT_messages    = [];
@@ -33,6 +36,7 @@ var CHAT_unreadNew   = 0;   // new messages since last scroll
 var CHAT_pinnedMsgId = null;
 var CHAT_atBottom    = true;
 var CHAT_members     = [];  // current room members
+var CHAT_drafts      = {};  // roomId -> draft text
 
 // ============================================================
 // BOOT
@@ -72,8 +76,9 @@ function renderChatList() {
 
   var filtered = CHAT_rooms.filter(function (c) {
     var tabOk = CHAT_tab === 'all' ||
-      (CHAT_tab === 'private' && c.type === 'private') ||
-      (CHAT_tab === 'groups'  && c.type === 'group');
+      (CHAT_tab === 'private'  && c.type === 'private') ||
+      (CHAT_tab === 'groups'   && c.type === 'group') ||
+      (CHAT_tab === 'channels' && c.type === 'channel');
     var srchOk = !CHAT_search ||
       (c.nick || '').toLowerCase().indexOf(CHAT_search.toLowerCase()) !== -1;
     return tabOk && srchOk;
@@ -1006,10 +1011,10 @@ function renderMessages(scrollDown) {
           '<div style="font-size:.78rem;margin-top:.25rem">View once · tap to open</div>' +
         '</div>';
       } else if (isVideo) {
-        inner += '<div style="position:relative;max-width:260px;border-radius:10px;overflow:hidden;cursor:pointer;background:#000" onclick="_openMediaViewer(\'' + m.id + '\')">' +
-          '<video src="' + m.media_url + '" style="width:100%;max-height:220px;display:block;object-fit:cover" preload="metadata"></video>' +
-          '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25)">' +
-            '<div style="width:48px;height:48px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center">' +
+        inner += '<div style="position:relative;max-width:260px;border-radius:14px;overflow:hidden;cursor:pointer;background:#000;display:block" onclick="_openMediaViewer(\'' + m.id + '\')">' +
+          '<video src="' + m.media_url + '" style="width:100%;max-height:240px;display:block;object-fit:cover;border-radius:14px" preload="metadata" playsinline></video>' +
+          '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">' +
+            '<div style="width:50px;height:50px;border-radius:50%;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center">' +
               '<svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>' +
             '</div>' +
           '</div>' +
@@ -1249,7 +1254,8 @@ function _renderTypingBar(typingUsers) {
 }
 
 window.onChatKey = function (e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMsg(); }
+  if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); sendChatMsg(); }
+  // Enter alone = new line (default behavior — do nothing)
 };
 
 window.sendChatMsg = function () {
@@ -1475,11 +1481,26 @@ window.cancelVoiceRec = function () {
   if (CHAT_mediaRec && CHAT_mediaRec.state !== 'inactive') CHAT_mediaRec.stop();
 };
 
+// ── Recording bar waveform bars ──
+var REC_BAR_COUNT = 40;
+function _buildRecWaveform() {
+  var meter = document.getElementById('rec-live-meter');
+  if (!meter) return;
+  meter.innerHTML = '';
+  for (var i = 0; i < REC_BAR_COUNT; i++) {
+    var b = document.createElement('div');
+    b.className = 'rec-waveform-bar';
+    b.style.height = '4px';
+    meter.appendChild(b);
+  }
+}
+
 function _showRecordingBar() {
+  _buildRecWaveform();
   var bar = document.getElementById('rec-live-bar');
-  if (bar) bar.style.display = 'flex';
+  if (bar) bar.classList.add('show');
   var lockIndicator = document.getElementById('rec-lock-indicator');
-  if (lockIndicator) lockIndicator.style.display = 'flex';
+  if (lockIndicator) lockIndicator.classList.add('show');
   var hint = document.getElementById('rec-live-hint');
   if (hint) { hint.style.display = 'block'; hint.textContent = '← slide to cancel'; }
   var sendBtn = document.getElementById('rec-locked-send-btn');
@@ -1487,17 +1508,29 @@ function _showRecordingBar() {
   if (sendBtn) sendBtn.style.display = 'none';
   if (cancelBtn) cancelBtn.style.display = 'none';
 }
+
 function _hideRecordingBar() {
   var bar = document.getElementById('rec-live-bar');
-  if (bar) bar.style.display = 'none';
+  if (bar) bar.classList.remove('show');
   var lockIndicator = document.getElementById('rec-lock-indicator');
-  if (lockIndicator) lockIndicator.style.display = 'none';
+  if (lockIndicator) lockIndicator.classList.remove('show');
   var lockIcon = document.getElementById('rec-lock-icon');
   if (lockIcon) lockIcon.style.transform = 'translateY(0)';
 }
+
+// Shift bars left and add new one — like Telegram live waveform
+var _recBarVals = new Array(REC_BAR_COUNT).fill(0.05);
 function _updateRecordingBar(level) {
-  var fill = document.getElementById('rec-live-level');
-  if (fill) fill.style.height = Math.max(4, level * 28) + 'px';
+  _recBarVals.shift();
+  _recBarVals.push(Math.max(0.04, level));
+  var meter = document.getElementById('rec-live-meter');
+  if (meter) {
+    var bars = meter.querySelectorAll('.rec-waveform-bar');
+    for (var i = 0; i < bars.length; i++) {
+      bars[i].style.height = Math.max(3, Math.round(_recBarVals[i] * 28)) + 'px';
+      bars[i].style.opacity = 0.4 + _recBarVals[i] * 1.5;
+    }
+  }
   var timeEl = document.getElementById('rec-live-time');
   if (timeEl) {
     var elapsed = Math.round((Date.now() - CHAT_recStart) / 1000);
@@ -1648,29 +1681,81 @@ window.triggerMediaPick = function (accept, isOnce) {
 };
 
 window.handleChatMedia = function (e) {
-  var file  = e.target.files[0];
-  if (!file) return; // user cancelled the picker — not an error
+  var files = Array.from(e.target.files || []);
+  if (!files.length) return;
   if (!CHAT_curRoom) { toast('⚠ No chat is open.'); return; }
   var isOnce = !!e.target.dataset.once;
-  var isVideo = file.type.startsWith('video/');
-  var type  = isVideo ? 'media' : (file.type.startsWith('image/') ? 'media' : 'file');
+  e.target.value = '';
 
-  toast('📤 Uploading...');
+  // Show preview modal
+  _showMediaPreview(files, isOnce);
+};
+
+function _showMediaPreview(files, isOnce) {
+  var existing = document.getElementById('media-preview-modal');
+  if (existing) existing.remove();
+
+  var file = files[0];
+  var isVideo = file.type.startsWith('video/');
+  var objectUrl = URL.createObjectURL(file);
+
+  var modal = document.createElement('div');
+  modal.id = 'media-preview-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.92);display:flex;flex-direction:column;';
+  modal.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;flex-shrink:0">' +
+      '<button onclick="document.getElementById(\'media-preview-modal\').remove();URL.revokeObjectURL(\'' + objectUrl + '\')" style="background:none;border:none;color:#fff;cursor:pointer;padding:.35rem">' +
+        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+      '</button>' +
+      '<div style="font-size:.85rem;color:#fff;font-weight:600">' + escHtml(file.name.length > 25 ? file.name.slice(0,22)+'...' : file.name) + '</div>' +
+      '<div style="width:32px"></div>' +
+    '</div>' +
+    '<div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0 1rem">' +
+      (isVideo
+        ? '<video src="' + objectUrl + '" controls style="max-width:100%;max-height:100%;border-radius:12px"></video>'
+        : '<img src="' + objectUrl + '" style="max-width:100%;max-height:100%;border-radius:12px;object-fit:contain">') +
+    '</div>' +
+    '<div style="padding:.75rem 1rem;flex-shrink:0">' +
+      '<div style="display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.12);border-radius:24px;padding:.4rem .75rem;margin-bottom:.6rem">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>' +
+        '<input id="media-caption-input" placeholder="Add a caption..." style="flex:1;background:none;border:none;color:#fff;outline:none;font-size:.9rem;font-family:inherit" unicode-bidi="plaintext">' +
+      '</div>' +
+      '<button onclick="_sendMediaFromPreview(\'' + objectUrl + '\',' + isOnce + ')" style="width:100%;padding:.75rem;background:linear-gradient(135deg,#1565C0,#1976D2);border:none;border-radius:14px;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:.5rem">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>' +
+        'Send' +
+      '</button>' +
+    '</div>';
+
+  modal.dataset.fileRef = objectUrl;
+  modal.dataset.fileName = file.name;
+  modal.dataset.fileType = file.type;
+  modal._fileObj = file;
+
+  document.body.appendChild(modal);
+}
+
+window._sendMediaFromPreview = function (objectUrl, isOnce) {
+  var modal = document.getElementById('media-preview-modal');
+  if (!modal) return;
+  var file = modal._fileObj;
+  var caption = (document.getElementById('media-caption-input') || {}).value || '';
+  modal.remove();
+  URL.revokeObjectURL(objectUrl);
+
+  if (!file) return;
+  var isVideo = file.type.startsWith('video/');
+  var type = (isVideo || file.type.startsWith('image/')) ? 'media' : 'file';
+
+  toast('Sending...');
   var form = new FormData();
   form.append('room_id', CHAT_curRoom.id);
   form.append('type', type);
-  form.append('text', isOnce ? '__once__' : '');
+  form.append('text', isOnce ? '__once__' : caption);
   form.append('file', file);
 
   api.post('/chat', form, true)
-    .then(function () {
-      loadMessages(true);
-      loadChatRooms();
-      toast('✅ Sent!');
-    })
+    .then(function () { loadMessages(true); loadChatRooms(); })
     .catch(function (err) { toast('❌ ' + err.message); });
-
-  e.target.value = '';
 };
 
 // One-time view: reveal once then replace with "Opened"
@@ -2490,4 +2575,509 @@ window.suggestPollOption = function (pollId) {
       }
     })
     .catch(function(err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   NEW CHANNEL + CHAT SETTINGS + GROUP PHOTO
+══════════════════════════════════ */
+
+window.openNewChannelModal = function () {
+  document.getElementById('new-channel-modal').classList.add('open');
+};
+
+window.previewNewGroupPhoto = function (e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var el = document.getElementById('new-group-photo-preview');
+  var url = URL.createObjectURL(file);
+  el.style.backgroundImage = 'url(' + url + ')';
+  el.style.backgroundSize = 'cover';
+  el.style.backgroundPosition = 'center';
+  el.innerHTML = '';
+  el._file = file;
+};
+
+window.previewNewChannelPhoto = function (e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var el = document.getElementById('new-channel-photo-preview');
+  var url = URL.createObjectURL(file);
+  el.style.backgroundImage = 'url(' + url + ')';
+  el.style.backgroundSize = 'cover';
+  el.style.backgroundPosition = 'center';
+  el.innerHTML = '';
+  el._file = file;
+};
+
+window.createNewChannel = function () {
+  var name = (document.getElementById('new-channel-name') || {}).value || '';
+  var desc = (document.getElementById('new-channel-desc') || {}).value || '';
+  if (!name.trim()) { toast('Enter a channel name'); return; }
+
+  var form = new FormData();
+  form.append('name', name.trim());
+  form.append('description', desc.trim());
+  form.append('type', 'channel');
+  form.append('is_public', '1');
+  form.append('read_only', '1');
+
+  var photoEl = document.getElementById('new-channel-photo-preview');
+  if (photoEl && photoEl._file) form.append('photo', photoEl._file);
+
+  api.post('/chat/rooms', form, true)
+    .then(function (res) {
+      document.getElementById('new-channel-modal').classList.remove('open');
+      toast('Channel created!');
+      loadChatRooms(function () {
+        if (res.room_id) openChatRoom(res.room_id);
+      });
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.openChatSettings = function () {
+  // Sync dark mode toggle
+  var darkToggle = document.getElementById('cs-dark-toggle');
+  if (darkToggle) {
+    if (document.documentElement.classList.contains('dark-mode')) darkToggle.classList.add('on');
+    else darkToggle.classList.remove('on');
+  }
+  document.getElementById('chat-settings-modal').classList.add('open');
+};
+
+window.toggleDarkMode = function (toggleEl) {
+  toggleEl.classList.toggle('on');
+  var isDark = toggleEl.classList.contains('on');
+  document.documentElement.classList.toggle('dark-mode', isDark);
+  try { localStorage.setItem('yp_dark_mode', isDark ? '1' : '0'); } catch (e) {}
+};
+
+window.setChatFont = function (size, btn) {
+  document.querySelectorAll('.cs-font-btn').forEach(function (b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  var sizes = { sm: '.88rem', md: '1rem', lg: '1.1rem' };
+  document.querySelectorAll('.bubble').forEach(function (b) { b.style.fontSize = sizes[size] || '1rem'; });
+  try { localStorage.setItem('yp_chat_font', size); } catch (e) {}
+};
+
+// Admin panel show/hide in hamburger
+window._updateHamburgerAdminBtn = function () {
+  var sep = document.getElementById('hb-admin-sep');
+  var btn = document.getElementById('hb-admin-btn');
+  if (sep && btn) {
+    var show = isAnyAdmin();
+    sep.style.display = show ? 'block' : 'none';
+    btn.style.display = show ? 'flex' : 'none';
+  }
+};
+
+/* ══════════════════════════════════
+   CHAT FOLDERS (Telegram-style)
+══════════════════════════════════ */
+var FOLDER_PRESETS = [
+  { id:'__unread__',   name:'Unread',   icon:'🔵', filter:'unread' },
+  { id:'__starred__',  name:'Starred',  icon:'⭐', filter:'starred' },
+  { id:'__groups__',   name:'Groups',   icon:'👥', filter:'groups' },
+  { id:'__channels__', name:'Channels', icon:'📡', filter:'channels' },
+  { id:'__private__',  name:'Private',  icon:'💬', filter:'private' },
+];
+
+function loadChatFolders() {
+  api.get('/chat/folders')
+    .then(function (res) {
+      CHAT_folders = res.folders || [];
+      renderChatFoldersRow();
+    })
+    .catch(function () {});
+}
+
+function renderChatFoldersRow() {
+  var row = document.getElementById('chat-folders-row');
+  if (!row) return;
+  var allFolders = FOLDER_PRESETS.concat(CHAT_folders);
+  if (!allFolders.length) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  row.innerHTML = allFolders.map(function (f) {
+    var isActive = CHAT_activeFolder === f.id;
+    var unread = _getFolderUnread(f);
+    return '<button onclick="setActiveFolder(\'' + f.id + '\')" style="' +
+      'display:flex;align-items:center;gap:.3rem;padding:.3rem .7rem;border-radius:16px;border:none;cursor:pointer;font-family:inherit;font-size:.78rem;font-weight:' + (isActive ? '700' : '500') + ';' +
+      'background:' + (isActive ? '#1565C0' : 'var(--bg3)') + ';' +
+      'color:' + (isActive ? '#fff' : 'var(--muted)') + ';white-space:nowrap;flex-shrink:0;transition:all .18s">' +
+      '<span>' + f.icon + '</span>' + escHtml(f.name) +
+      (unread ? '<span style="background:' + (isActive ? 'rgba(255,255,255,.3)' : '#1565C0') + ';color:#fff;border-radius:10px;padding:.05rem .35rem;font-size:.62rem;font-weight:800;min-width:16px;text-align:center">' + (unread > 99 ? '99+' : unread) + '</span>' : '') +
+    '</button>';
+  }).join('') +
+  '<button onclick="openFolderManager()" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;border:none;background:var(--bg3);color:var(--muted);cursor:pointer;flex-shrink:0;font-size:.9rem;margin-left:.2rem">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+  '</button>';
+}
+
+function _getFolderUnread(f) {
+  var rooms = _getFolderRooms(f);
+  return rooms.reduce(function (sum, r) { return sum + (r.unread || 0); }, 0);
+}
+
+function _getFolderRooms(f) {
+  if (f.filter === 'unread') return CHAT_rooms.filter(function (r) { return r.unread > 0; });
+  if (f.filter === 'starred') return CHAT_rooms.filter(function (r) { return r.starred; });
+  if (f.filter === 'groups') return CHAT_rooms.filter(function (r) { return r.type === 'group'; });
+  if (f.filter === 'channels') return CHAT_rooms.filter(function (r) { return r.type === 'channel'; });
+  if (f.filter === 'private') return CHAT_rooms.filter(function (r) { return r.type === 'private'; });
+  // Custom folder
+  var ids = [];
+  try { ids = JSON.parse(f.room_ids || '[]'); } catch (e) {}
+  return CHAT_rooms.filter(function (r) { return ids.indexOf(r.id) !== -1; });
+}
+
+window.setActiveFolder = function (folderId) {
+  CHAT_activeFolder = CHAT_activeFolder === folderId ? null : folderId;
+  renderChatFoldersRow();
+  renderChatList();
+};
+
+window.openFolderManager = function () {
+  var existing = document.getElementById('folder-manager-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'folder-manager-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+  modal.innerHTML =
+    '<div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:500px;padding:1.25rem;max-height:80vh;overflow-y:auto">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">' +
+        '<div style="font-size:.95rem;font-weight:700">📁 Chat Folders</div>' +
+        '<button onclick="document.getElementById(\'folder-manager-modal\').remove()" style="background:none;border:none;cursor:pointer;color:var(--muted)">' +
+          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+        '</button>' +
+      '</div>' +
+      '<div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">Custom folders help you organize chats, like Telegram.</div>' +
+      '<div id="folder-list-items">' +
+        CHAT_folders.map(function (f) {
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem 0;border-bottom:.5px solid var(--border)">' +
+            '<div style="display:flex;align-items:center;gap:.5rem"><span>' + f.icon + '</span><span style="font-size:.85rem">' + escHtml(f.name) + '</span></div>' +
+            '<button onclick="deleteFolder(\'' + f.id + '\')" style="background:none;border:none;cursor:pointer;color:#E11D48;padding:.25rem">' +
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>' +
+            '</button>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+      '<div style="margin-top:.75rem;display:flex;gap:.5rem">' +
+        '<input id="new-folder-name" placeholder="Folder name..." style="flex:1;padding:.5rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.82rem;outline:none;font-family:inherit">' +
+        '<button onclick="createNewFolder()" style="padding:.5rem 1rem;background:#1565C0;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit">+ Add</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) modal.remove(); });
+};
+
+window.createNewFolder = function () {
+  var name = (document.getElementById('new-folder-name') || {}).value || '';
+  if (!name.trim()) return;
+  api.post('/chat/folders', { name: name.trim(), icon: '📁', filter: 'custom', room_ids: [], sort_order: CHAT_folders.length })
+    .then(function () { loadChatFolders(); document.getElementById('folder-manager-modal').remove(); toast('Folder created!'); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.deleteFolder = function (id) {
+  api.del('/chat/folders?id=' + encodeURIComponent(id))
+    .then(function () { loadChatFolders(); document.getElementById('folder-manager-modal').remove(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   BOOKMARKS / STARRED MESSAGES
+══════════════════════════════════ */
+window.bookmarkMessage = function (msgId) {
+  if (!CHAT_curRoom) return;
+  api.post('/chat/bookmarks', { message_id: msgId, room_id: CHAT_curRoom.id })
+    .then(function () { toast('⭐ Bookmarked!'); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.removeBookmark = function (msgId) {
+  api.del('/chat/bookmarks?message_id=' + encodeURIComponent(msgId))
+    .then(function () { toast('Removed from bookmarks'); })
+    .catch(function () {});
+};
+
+window.openBookmarks = function () {
+  api.get('/chat/bookmarks')
+    .then(function (res) {
+      var bms = res.bookmarks || [];
+      var modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+      modal.innerHTML =
+        '<div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:500px;padding:1.25rem;max-height:80vh;overflow-y:auto">' +
+          '<div style="font-size:.95rem;font-weight:700;margin-bottom:.85rem">⭐ Saved Messages</div>' +
+          (bms.length ? bms.map(function (b) {
+            return '<div style="padding:.6rem 0;border-bottom:.5px solid var(--border)">' +
+              '<div style="font-size:.7rem;color:var(--muted);margin-bottom:.2rem">@' + escHtml(b.sender_nick||'') + ' · ' + timeAgo(b.msg_time) + '</div>' +
+              '<div style="font-size:.85rem">' + escHtml((b.text||'').slice(0,120)) + '</div>' +
+            '</div>';
+          }).join('') : '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">No saved messages yet</div>') +
+          '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:.65rem;background:var(--bg3);border:none;border-radius:10px;cursor:pointer;color:var(--text);font-family:inherit;margin-top:.75rem">Close</button>' +
+        '</div>';
+      document.body.appendChild(modal);
+      modal.addEventListener('click', function (e) { if (e.target === modal) modal.remove(); });
+    })
+    .catch(function () { toast('Could not load bookmarks'); });
+};
+
+/* ══════════════════════════════════
+   DRAFTS — auto-save
+══════════════════════════════════ */
+var CHAT_draftTimer = null;
+function saveDraft(roomId, text) {
+  clearTimeout(CHAT_draftTimer);
+  CHAT_draftTimer = setTimeout(function () {
+    api.post('/chat/drafts', { room_id: roomId, text: text }).catch(function () {});
+    CHAT_drafts[roomId] = text;
+  }, 1500);
+}
+
+function loadDraft(roomId) {
+  var inp = document.getElementById('chat-input');
+  if (!inp) return;
+  if (CHAT_drafts[roomId]) {
+    inp.value = CHAT_drafts[roomId];
+    onChatType();
+    return;
+  }
+  api.get('/chat/drafts?room_id=' + encodeURIComponent(roomId))
+    .then(function (res) {
+      if (res.text && inp) {
+        inp.value = res.text;
+        CHAT_drafts[roomId] = res.text;
+        onChatType();
+      }
+    }).catch(function () {});
+}
+
+/* ══════════════════════════════════
+   UNREAD SEPARATOR
+══════════════════════════════════ */
+function _insertUnreadSeparator(messages) {
+  if (!messages.length) return messages;
+  var userId = STATE.user && STATE.user.id;
+  var firstUnreadIdx = -1;
+  for (var i = 0; i < messages.length; i++) {
+    if (messages[i].sender_id !== userId && !messages[i].read) {
+      firstUnreadIdx = i;
+      break;
+    }
+  }
+  if (firstUnreadIdx <= 0) return messages;
+  var result = messages.slice();
+  result.splice(firstUnreadIdx, 0, { __separator__: true, id: '__unread_sep__' });
+  return result;
+}
+
+/* ══════════════════════════════════
+   GLOBAL SEARCH
+══════════════════════════════════ */
+window.openGlobalSearch = function () {
+  var existing = document.getElementById('global-search-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'global-search-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:var(--surface);display:flex;flex-direction:column';
+  modal.innerHTML =
+    '<div style="display:flex;align-items:center;gap:.5rem;padding:.6rem .75rem;border-bottom:1px solid var(--border);flex-shrink:0">' +
+      '<button onclick="document.getElementById(\'global-search-modal\').remove()" style="background:none;border:none;cursor:pointer;color:var(--blue);padding:.3rem">' +
+        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>' +
+      '</button>' +
+      '<div style="flex:1;background:var(--bg3);border-radius:10px;display:flex;align-items:center;gap:.4rem;padding:.4rem .75rem">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+        '<input id="global-search-inp" placeholder="Search messages, chats..." style="flex:1;background:none;border:none;outline:none;font-size:.9rem;color:var(--text);font-family:inherit" oninput="doGlobalSearch()">' +
+      '</div>' +
+    '</div>' +
+    '<div id="global-search-results" style="flex:1;overflow-y:auto;padding:.5rem">' +
+      '<div style="text-align:center;padding:3rem 1rem;color:var(--muted);font-size:.85rem">Type to search across all chats</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  setTimeout(function () { var i = document.getElementById('global-search-inp'); if (i) i.focus(); }, 100);
+};
+
+var _globalSearchTimer = null;
+window.doGlobalSearch = function () {
+  var q = (document.getElementById('global-search-inp') || {}).value || '';
+  clearTimeout(_globalSearchTimer);
+  if (q.length < 2) return;
+  _globalSearchTimer = setTimeout(function () {
+    api.get('/chat?search=' + encodeURIComponent(q))
+      .then(function (res) {
+        var el = document.getElementById('global-search-results');
+        if (!el) return;
+        var msgs = res.messages || [];
+        if (!msgs.length) { el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">No results found</div>'; return; }
+        el.innerHTML = msgs.map(function (m) {
+          return '<div style="padding:.65rem .5rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();openChatRoom(\'' + m.room_id + '\')">' +
+            '<div style="font-size:.7rem;color:var(--muted);margin-bottom:.2rem">@' + escHtml(m.sender_nick||'') + ' in ' + escHtml(m.room_name||'Chat') + ' · ' + timeAgo(m.created_at) + '</div>' +
+            '<div style="font-size:.85rem">' + escHtml((m.text||'').slice(0,100)) + '</div>' +
+          '</div>';
+        }).join('');
+      })
+      .catch(function () {});
+  }, 400);
+};
+
+/* ══════════════════════════════════
+   TRANSLATE MESSAGE
+══════════════════════════════════ */
+window.translateMessage = function (msgId) {
+  var msg = CHAT_messages.find(function (m) { return m.id === msgId; });
+  if (!msg || !msg.text) { toast('Nothing to translate'); return; }
+  var tUrl = 'https://translate.google.com/?sl=auto&tl=en&text=' + encodeURIComponent(msg.text);
+  window.open(tUrl, '_blank');
+};
+
+/* ══════════════════════════════════
+   JUMP TO DATE
+══════════════════════════════════ */
+window.openJumpToDate = function () {
+  if (!CHAT_curRoom) return;
+  var existing = document.getElementById('jump-date-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'jump-date-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  modal.innerHTML =
+    '<div style="background:var(--surface);border-radius:16px;padding:1.25rem;width:100%;max-width:320px">' +
+      '<div style="font-size:.9rem;font-weight:700;margin-bottom:.85rem">📅 Jump to Date</div>' +
+      '<input type="date" id="jump-date-inp" style="width:100%;box-sizing:border-box;padding:.55rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.9rem;outline:none;margin-bottom:.75rem">' +
+      '<div style="display:flex;gap:.5rem">' +
+        '<button onclick="doJumpToDate()" style="flex:1;padding:.6rem;background:#1565C0;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit">Go</button>' +
+        '<button onclick="document.getElementById(\'jump-date-modal\').remove()" style="flex:1;padding:.6rem;background:var(--bg3);border:none;border-radius:10px;cursor:pointer;font-family:inherit">Cancel</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) modal.remove(); });
+};
+
+window.doJumpToDate = function () {
+  var dateVal = (document.getElementById('jump-date-inp') || {}).value;
+  if (!dateVal) return;
+  document.getElementById('jump-date-modal').remove();
+  // Find first message on/after that date
+  var target = new Date(dateVal).toISOString().split('T')[0];
+  var msg = CHAT_messages.find(function (m) { return m.created_at && m.created_at.startsWith(target); });
+  if (msg) {
+    var el = document.getElementById('msg-' + msg.id);
+    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.style.background = 'rgba(21,101,192,.1)'; setTimeout(function () { el.style.background = ''; }, 1500); }
+    else toast('Message visible — scroll up to find it');
+  } else {
+    toast('No messages found on that date');
+  }
+};
+
+/* ══════════════════════════════════
+   DISAPPEARING MESSAGES
+══════════════════════════════════ */
+window.openDisappearingMessages = function () {
+  if (!CHAT_curRoom) return;
+  var current = CHAT_curRoom.auto_delete_minutes || 0;
+  var options = [[0,'Off'],[60,'1 hour'],[1440,'1 day'],[10080,'1 week'],[43200,'1 month']];
+  var modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+  modal.innerHTML =
+    '<div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:500px;padding:1.25rem">' +
+      '<div style="font-size:.9rem;font-weight:700;margin-bottom:.85rem">⏱ Disappearing Messages</div>' +
+      options.map(function (o) {
+        return '<div onclick="setAutoDelete(' + o[0] + ',this.closest(\'div[style*=fixed]\')" style="display:flex;align-items:center;justify-content:space-between;padding:.7rem 0;border-bottom:.5px solid var(--border);cursor:pointer">' +
+          '<span style="font-size:.88rem">' + o[1] + '</span>' +
+          (current === o[0] ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1565C0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : '') +
+        '</div>';
+      }).join('') +
+      '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:.6rem;background:var(--bg3);border:none;border-radius:10px;cursor:pointer;font-family:inherit;margin-top:.75rem">Cancel</button>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) modal.remove(); });
+};
+
+window.setAutoDelete = function (minutes, modalEl) {
+  if (!CHAT_curRoom) return;
+  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, auto_delete_minutes: minutes })
+    .then(function () {
+      CHAT_curRoom.auto_delete_minutes = minutes;
+      var label = document.getElementById('auto-delete-label');
+      if (label) label.textContent = minutes ? (minutes < 60 ? minutes + ' min' : minutes < 1440 ? (minutes/60) + ' hours' : (minutes/1440) + ' days') : 'Off';
+      toast(minutes ? '⏱ Auto-delete: ' + (minutes/60 < 1 ? minutes + 'm' : minutes/1440 < 1 ? (minutes/60) + 'h' : (minutes/1440) + 'd') : 'Auto-delete off');
+      if (modalEl) modalEl.remove();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   STICKERS — פיקסן CDN לינקס
+══════════════════════════════════ */
+// Replace broken tenor CDN with working static emoji GIFs via giphy
+var STICKER_PACKS = [
+  { id:'s1',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f483/512.gif',   label:'Dance' },
+  { id:'s2',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f44d/512.gif',   label:'Thumbs Up' },
+  { id:'s3',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f602/512.gif',   label:'LOL' },
+  { id:'s4',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/2764_fe0f/512.gif', label:'Love' },
+  { id:'s5',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f44b/512.gif',   label:'Hi' },
+  { id:'s6',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f44f/512.gif',   label:'Clap' },
+  { id:'s7',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f62d/512.gif',   label:'Sad' },
+  { id:'s8',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f926/512.gif',   label:'Facepalm' },
+  { id:'s9',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f604/512.gif',   label:'Happy' },
+  { id:'s10', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f44c/512.gif',   label:'OK' },
+  { id:'s11', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f937/512.gif',   label:'Shrug' },
+  { id:'s12', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f525/512.gif',   label:'Fire' },
+  { id:'s13', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f389/512.gif',   label:'Party' },
+  { id:'s14', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f62a/512.gif',   label:'Sleepy' },
+  { id:'s15', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f644/512.gif',   label:'Eye Roll' },
+  { id:'s16', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f60e/512.gif',   label:'Cool' },
+  { id:'s17', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f64f/512.gif',   label:'Pray' },
+  { id:'s18', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/2728/512.gif',    label:'Sparkles' },
+  { id:'s19', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f973/512.gif',   label:'Party Face' },
+  { id:'s20', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f48b/512.gif',   label:'Kiss' },
+];
+
+/* ══════════════════════════════════
+   FOLDERS FILTER in renderChatList
+══════════════════════════════════ */
+// Override renderChatList to support folder filtering
+var _origRenderChatList = null;
+
+function _applyFolderFilter(rooms) {
+  if (!CHAT_activeFolder) return rooms;
+  var f = FOLDER_PRESETS.find(function (p) { return p.id === CHAT_activeFolder; }) ||
+          CHAT_folders.find(function (f) { return f.id === CHAT_activeFolder; });
+  if (!f) return rooms;
+  return _getFolderRooms(f).filter(function (r) {
+    return rooms.some(function (cr) { return cr.id === r.id; });
+  });
+}
+
+/* ══════════════════════════════════
+   ADD TO CONTEXT MENU
+══════════════════════════════════ */
+// Patch showCtx to add bookmark + translate options
+var _origShowCtx = window.showCtx;
+window.showCtx = function (e, msgId) {
+  if (_origShowCtx) _origShowCtx(e, msgId);
+  // Add bookmark + translate to ctx menu after it renders
+  setTimeout(function () {
+    var menu = document.getElementById('ctx-menu');
+    if (!menu) return;
+    var extra = document.createElement('div');
+    extra.innerHTML =
+      '<div class="ctx-item" onclick="bookmarkMessage(\'' + msgId + '\');closeCtx()">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> Save Message' +
+      '</div>' +
+      '<div class="ctx-item" onclick="translateMessage(\'' + msgId + '\');closeCtx()">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Translate' +
+      '</div>';
+    while (extra.firstChild) menu.appendChild(extra.firstChild);
+  }, 50);
+};
+
+/* ══════════════════════════════════
+   INIT — load folders on startup
+══════════════════════════════════ */
+var _origChatInit = window.initChat || function () {};
+window.initChat = function () {
+  _origChatInit();
+  loadChatFolders();
 };
