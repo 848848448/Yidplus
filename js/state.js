@@ -180,6 +180,11 @@ window.navTo = function (id) {
     if (tb) tb.style.display = 'none';
   }
 
+  // Settings screen — build full page
+  if (id === 'settings' && typeof buildSettingsPage === 'function') {
+    buildSettingsPage();
+  }
+
   document.querySelectorAll('.nav-item').forEach(function (b) {
     b.classList.toggle('active', b.dataset.nav === id);
   });
