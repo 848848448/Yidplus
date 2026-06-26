@@ -319,11 +319,13 @@ async function downloadAndPost(chatId, fileId, fileType, destination, userId, ro
     let fileData, ext, contentType;
 
     if (!info.ok || !info.result?.file_path) {
-      // File too large (>20MB) — store file_id reference instead
-      // We'll save the Telegram file_id and let the media endpoint proxy it
-      ext = fileType === 'photo' ? 'jpg' : fileType === 'video' ? 'mp4' : 'mp3';
-      contentType = fileType === 'photo' ? 'image/jpeg' : fileType === 'video' ? 'video/mp4' : 'audio/mpeg';
-      fileData = null; // will use tg:// reference
+      // File too large (>20MB) — Telegram Bot API limitation
+      await sendMsg(chatId,
+        '⚠️ Your file is too large for the bot right now (max 20MB).\n\n' +
+        '🔧 We are working on support for larger files — stay tuned!\n\n' +
+        'For now, please upload it directly on YID PLUS. 🙏'
+      );
+      return;
     } else {
       const filePath = info.result.file_path;
       const fileUrl  = `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
