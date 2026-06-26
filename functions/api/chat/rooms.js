@@ -179,6 +179,29 @@ export async function onRequestPost(context) {
       return json({ ok: true, room_id: roomId }, 201);
     }
 
+    // Channel room
+    if (body.type === 'channel') {
+      const name = (body.name || '').trim();
+      if (!name) return json({ ok: false, error: 'name is required' }, 400);
+      const roomId = crypto.randomUUID();
+      await env.DB.prepare(
+        `INSERT INTO rooms (id, type, name, emoji, visibility, read_only, created_by, created_at, description, channel_admins)
+         VALUES (?, 'channel', ?, '📡', 'public', 1, ?, ?, ?, ?)`
+      ).bind(roomId, name, user.id, now, body.description || '', JSON.stringify([user.id])).run();
+
+      // Creator joins as admin
+      await env.DB.prepare(
+        `INSERT INTO room_members (room_id, user_id, is_group_admin, joined_at) VALUES (?, ?, 1, ?)`
+      ).bind(roomId, user.id, now).run();
+
+      await env.DB.prepare(
+        `INSERT INTO messages (id, room_id, sender_id, sender_nick, type, text, created_at, read)
+         VALUES (?, ?, ?, ?, 'system', ?, ?, 1)`
+      ).bind(crypto.randomUUID(), roomId, user.id, user.nickname || '', `Channel "${name}" created`, now).run();
+
+      return json({ ok: true, room_id: roomId }, 201);
+    }
+
     // Group room
     const name  = (body.name || '').trim();
     const emoji = body.emoji || '👥';
@@ -369,4 +392,4 @@ export async function onRequestDelete(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-          }
+      }
