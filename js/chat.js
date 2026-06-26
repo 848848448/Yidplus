@@ -503,7 +503,7 @@ window.openChatRoom = function (roomId) {
   }
 
   navTo('chatroom');
-
+  _applyChannelInputState(room);
   loadMessages(true);
   clearInterval(CHAT_pollTimer);
   CHAT_pollTimer = setInterval(function () { loadMessages(false); }, 3000);
@@ -887,9 +887,12 @@ function renderMessages(scrollDown) {
     return;
   }
 
-  var meId    = STATE.user && STATE.user.id;
-  var isGroup = CHAT_curRoom.type === 'group';
-  var lastDate = '';
+  var meId      = STATE.user && STATE.user.id;
+  var isGroup   = CHAT_curRoom.type === 'group';
+  var isChannel = CHAT_curRoom.type === 'channel';
+  var lastDate  = '';
+  // Group consecutive media messages into albums
+  var albumGroups = _groupMediaAlbums(CHAT_messages);
 
   var html = CHAT_messages.map(function (m, idx) {
     var isMe = m.sender_id === meId;
@@ -1011,14 +1014,32 @@ function renderMessages(scrollDown) {
           '<div style="font-size:.78rem;margin-top:.25rem">View once · tap to open</div>' +
         '</div>';
       } else if (isVideo) {
-        inner += '<div style="position:relative;max-width:260px;border-radius:14px;overflow:hidden;cursor:pointer;background:#000;display:block" onclick="_openMediaViewer(\'' + m.id + '\')">' +
-          '<video src="' + m.media_url + '" style="width:100%;max-height:240px;display:block;object-fit:cover;border-radius:14px" preload="metadata" playsinline></video>' +
-          '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">' +
-            '<div style="width:50px;height:50px;border-radius:50%;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center">' +
-              '<svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
+        // Check if part of album
+        var albumInfo = albumGroups[m.id];
+        if (albumInfo && albumInfo.index > 0) {
+          inner = ''; // will be rendered as part of album by first item
+        } else if (albumInfo && albumInfo.total > 1) {
+          // Render full album grid
+          var cols = albumInfo.total === 2 ? 2 : 3;
+          inner += '<div class="media-album cols-' + cols + '">';
+          albumInfo.ids.forEach(function (aid) {
+            var am = CHAT_messages.find(function (x) { return x.id === aid; });
+            if (!am || !am.media_url) return;
+            var aIsVid = /\.(mp4|webm|mov)$/i.test(am.media_key || '');
+            inner += '<div class="media-album-item" onclick="_openMediaViewer(\'' + aid + '\')">' +
+              (aIsVid
+                ? '<video src="' + am.media_url + '" preload="metadata" playsinline></video>' +
+                  '<div class="media-album-play"><div style="width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>'
+                : '<img src="' + am.media_url + '" loading="lazy">') +
+            '</div>';
+          });
+          inner += '</div>';
+        } else {
+          inner += '<div class="video-bubble-wrap" onclick="_openMediaViewer(\'' + m.id + '\')">' +
+            '<video src="' + m.media_url + '" preload="metadata" playsinline></video>' +
+            '<div class="video-bubble-play"><div class="video-bubble-play-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>' +
+          '</div>';
+        }
       } else {
         inner += '<img src="' + m.media_url + '" style="max-width:260px;border-radius:10px;display:block;cursor:pointer;width:100%" loading="lazy" onclick="_openMediaViewer(\'' + m.id + '\')">';
       }
@@ -1036,19 +1057,26 @@ function renderMessages(scrollDown) {
     } else if (m.type === 'text' || !m.type) {
       // Text — detect links, auto-detect RTL for Hebrew/Yiddish
       var isRTL = /[\u0590-\u05FF\uFB1D-\uFB4F]/.test(m.text || '');
-      inner += '<span style="unicode-bidi:plaintext;display:block;' + (isRTL ? 'direction:rtl;text-align:right' : '') + '">' + _linkify(escHtml(m.text || '')) + '</span>';
-      // Link preview placeholder
+      var txtStyle = 'unicode-bidi:plaintext;display:block;' + (isRTL ? 'direction:rtl;text-align:right' : '');
+      if (isChannel) {
+        inner += '<div class="ch-text" style="' + txtStyle + '">' + _linkify(escHtml(m.text || ''), false) + '</div>';
+      } else {
+        inner += '<span style="' + txtStyle + '">' + _linkify(escHtml(m.text || ''), isMe) + '</span>';
+      }
+      // Link preview — detect join links + regular OG previews
       var urlMatch = (m.text || '').match(/(https?:\/\/[^\s]+)/);
       if (urlMatch) {
-        inner += '<div class="link-preview" id="lp-' + m.id + '" style="display:none;margin-top:.4rem;border-radius:10px;overflow:hidden;border:1px solid var(--border);cursor:pointer"></div>';
+        var joinCode = _detectJoinLink(urlMatch[1]);
+        if (joinCode) {
+          inner += '<div id="lp-' + m.id + '" style="margin-top:.4rem"></div>';
+          setTimeout(function () { _loadJoinLinkPreview(m.id, joinCode); }, 100);
+        } else {
+          inner += '<div class="link-preview" id="lp-' + m.id + '" style="display:none;margin-top:.4rem;border-radius:10px;overflow:hidden;border:1px solid var(--border);cursor:pointer"></div>';
+        }
       }
     }
 
     inner += '<div class="bubble-meta">' + (m.edited_at ? '<span class="edited-tag">edited</span>' : '') + '<span class="bubble-time">' + time + '</span>' + ticks + '</div>';
-
-    var miniAv = (!isMe && isGroup)
-      ? '<div class="msg-mini-av">' + escHtml((m.sender_nick || '?').slice(0, 1).toUpperCase()) + '</div>'
-      : '';
 
     var myReaction = CHAT_reactions[m.id] && CHAT_reactions[m.id].my_reaction;
     var reactionCounts = (CHAT_reactions[m.id] && CHAT_reactions[m.id].counts) || {};
@@ -1057,12 +1085,44 @@ function renderMessages(scrollDown) {
     }).join('');
     var reactionRow = reactionPills ? '<div class="reaction-row">' + reactionPills + '</div>' : '';
 
+    // ── CHANNEL style (Telegram channel look) ──
+    if (isChannel) {
+      var selectClass = CHAT_selected[m.id] ? ' msg-selected' : '';
+      var viewCnt = m.view_count || 0;
+      var shareBtn = '<button class="ch-share-btn" onclick="event.stopPropagation();_shareMsg(\'' + m.id + '\')">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>' +
+      '</button>';
+      var metaOverlay = '<div class="ch-meta">' +
+        (viewCnt ? '<span class="ch-views"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> ' + fmtN(viewCnt) + '</span>' : '') +
+        '<span class="ch-time">' + time + '</span>' +
+        shareBtn +
+      '</div>';
+      return dateSep +
+        '<div class="ch-post' + selectClass + '" id="msg-' + m.id + '" data-id="' + m.id + '"' +
+          ' onclick="_toggleSelect(\'' + m.id + '\')"' +
+          ' oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')"' +
+          ' ontouchstart="_ctxTouchStart(event,\'' + m.id + '\')" ontouchend="_ctxTouchEnd()" ontouchmove="_ctxTouchEnd()">' +
+          inner +
+          metaOverlay +
+          (reactionPills ? '<div class="reaction-row ch-reactions">' + reactionPills + '</div>' : '') +
+        '</div>';
+    }
+
+    // ── NORMAL (group/DM) style ──
+    var miniAv = (!isMe && isGroup)
+      ? '<div class="msg-mini-av">' + escHtml((m.sender_nick || '?').slice(0, 1).toUpperCase()) + '</div>'
+      : '';
+
+    var selectClass2 = CHAT_selected[m.id] ? ' msg-selected' : '';
+
     return dateSep +
-      '<div class="msg-wrap' + (isMe ? ' me' : '') + '" id="msg-' + m.id + '" data-id="' + m.id + '">' +
+      '<div class="msg-wrap' + (isMe ? ' me' : '') + selectClass2 + '" id="msg-' + m.id + '" data-id="' + m.id + '"' +
+        ' onclick="_toggleSelect(\'' + m.id + '\')"' +
+        ' oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')"' +
+        ' ontouchstart="_ctxTouchStart(event,\'' + m.id + '\')" ontouchend="_ctxTouchEnd()" ontouchmove="_ctxTouchEnd()">' +
         miniAv +
         '<div style="display:flex;flex-direction:column;' + (isMe ? 'align-items:flex-end' : 'align-items:flex-start') + '">' +
-          '<div class="' + bubbleClass + '" data-msg-id="' + m.id + '" ' +
-            'oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')">' +
+          '<div class="' + bubbleClass + '" data-msg-id="' + m.id + '">' +
             inner +
             '<div class="swipe-reply-icon">↩️</div>' +
           '</div>' +
@@ -3144,4 +3204,224 @@ var _origChatInit = window.initChat || function () {};
 window.initChat = function () {
   _origChatInit();
   loadChatFolders();
+};
+
+/* ══════════════════════════════════
+   MULTI-SELECT SYSTEM
+══════════════════════════════════ */
+var CHAT_selected = {}; // msgId -> true
+var CHAT_selectMode = false;
+
+window._toggleSelect = function (msgId) {
+  if (!CHAT_selectMode && Object.keys(CHAT_selected).length === 0) return; // only in select mode
+  if (CHAT_selected[msgId]) {
+    delete CHAT_selected[msgId];
+  } else {
+    CHAT_selected[msgId] = true;
+  }
+  var count = Object.keys(CHAT_selected).length;
+  if (count === 0) { _exitSelectMode(); return; }
+  _updateSelectBar(count);
+  // Update visual
+  document.querySelectorAll('[data-id]').forEach(function (el) {
+    var id = el.dataset.id;
+    if (CHAT_selected[id]) el.classList.add('msg-selected');
+    else el.classList.remove('msg-selected');
+  });
+};
+
+function _enterSelectMode(msgId) {
+  CHAT_selectMode = true;
+  CHAT_selected = {};
+  CHAT_selected[msgId] = true;
+  _updateSelectBar(1);
+  document.querySelectorAll('[data-id="' + msgId + '"]').forEach(function (el) {
+    el.classList.add('msg-selected');
+  });
+}
+
+function _exitSelectMode() {
+  CHAT_selectMode = false;
+  CHAT_selected = {};
+  var bar = document.getElementById('select-action-bar');
+  if (bar) bar.style.display = 'none';
+  document.querySelectorAll('.msg-selected').forEach(function (el) { el.classList.remove('msg-selected'); });
+  var ib = document.getElementById('chat-input-bar');
+  if (ib) ib.style.display = 'flex';
+}
+
+function _updateSelectBar(count) {
+  var bar = document.getElementById('select-action-bar');
+  if (!bar) return;
+  var ib = document.getElementById('chat-input-bar');
+  if (ib) ib.style.display = 'none';
+  bar.style.display = 'flex';
+  var lbl = document.getElementById('select-count-label');
+  if (lbl) lbl.textContent = count + ' message' + (count !== 1 ? 's' : '') + ' selected';
+}
+
+window._selectForwardAll = function () {
+  var ids = Object.keys(CHAT_selected);
+  _exitSelectMode();
+  toast('Forward ' + ids.length + ' messages — coming soon');
+};
+
+window._selectDeleteAll = function () {
+  var ids = Object.keys(CHAT_selected);
+  if (!confirm('Delete ' + ids.length + ' messages?')) return;
+  var promises = ids.map(function (id) {
+    return api.del('/chat?id=' + encodeURIComponent(id)).catch(function () {});
+  });
+  Promise.all(promises).then(function () {
+    _exitSelectMode();
+    loadMessages(true);
+    toast('Deleted ' + ids.length + ' messages');
+  });
+};
+
+window._selectCopyAll = function () {
+  var msgs = Object.keys(CHAT_selected).map(function (id) {
+    var m = CHAT_messages.find(function (x) { return x.id === id; });
+    return m ? (m.text || '[media]') : '';
+  }).filter(Boolean);
+  if (navigator.clipboard) navigator.clipboard.writeText(msgs.join('\n'));
+  _exitSelectMode();
+  toast('Copied!');
+};
+
+// Patch long-press to enter select mode
+var _origCtxTouchStart = window._ctxTouchStart;
+window._ctxTouchStart = function (e, msgId) {
+  _ctxTimer = setTimeout(function () {
+    if (CHAT_selectMode || Object.keys(CHAT_selected).length > 0) {
+      _toggleSelect(msgId);
+    } else {
+      _enterSelectMode(msgId);
+      renderMessages(false);
+    }
+  }, 500);
+};
+
+/* ══════════════════════════════════
+   MEDIA ALBUM GROUPING
+══════════════════════════════════ */
+function _groupMediaAlbums(messages) {
+  // Returns map of msgId -> albumInfo {ids, index, total}
+  var result = {};
+  var i = 0;
+  while (i < messages.length) {
+    var m = messages[i];
+    if (m.type === 'media' && m.media_url && m.text !== '__once__') {
+      var group = [m.id];
+      var senderId = m.sender_id;
+      var j = i + 1;
+      while (j < messages.length) {
+        var next = messages[j];
+        if (next.type === 'media' && next.media_url && next.text !== '__once__' &&
+            next.sender_id === senderId &&
+            (!next.text || next.text === '') &&
+            group.length < 10) {
+          group.push(next.id);
+          j++;
+        } else break;
+      }
+      if (group.length > 1) {
+        group.forEach(function (id, idx) {
+          result[id] = { ids: group, index: idx, total: group.length };
+        });
+        i = j;
+      } else {
+        i++;
+      }
+    } else {
+      i++;
+    }
+  }
+  return result;
+}
+
+/* ══════════════════════════════════
+   CHANNEL INPUT BAR HIDE/SHOW
+══════════════════════════════════ */
+// Patch openChatRoom to hide input for channels (non-admin/non-owner)
+var _origOpenChatRoom = window.openChatRoom;
+window._applyChannelInputState = function (room) {
+  var ib = document.getElementById('chat-input-bar');
+  var recBar = document.getElementById('rec-live-bar');
+  var recLock = document.getElementById('rec-lock-indicator');
+  if (!room || room.type !== 'channel') {
+    if (ib) ib.style.display = 'flex';
+    return;
+  }
+  // Channel: only admins and channel admins can post
+  var userId = STATE.user && STATE.user.id;
+  var channelAdmins = [];
+  try { channelAdmins = JSON.parse(room.channel_admins || '[]'); } catch(e) {}
+  var canPost = isAnyAdmin() || room.is_group_admin || channelAdmins.indexOf(userId) !== -1;
+  if (ib) ib.style.display = canPost ? 'flex' : 'none';
+  if (recBar) recBar.classList.remove('show');
+  if (recLock) recLock.classList.remove('show');
+};
+
+/* ══════════════════════════════════
+   SHARE MESSAGE
+══════════════════════════════════ */
+window._shareMsg = function (msgId) {
+  var msg = CHAT_messages.find(function (m) { return m.id === msgId; });
+  if (!msg) return;
+  var text = msg.text || msg.media_url || '';
+  if (navigator.share) {
+    navigator.share({ text: text, url: msg.media_url || '' }).catch(function () {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text);
+    toast('Copied to clipboard!');
+  }
+};
+
+/* ══════════════════════════════════
+   GROUP JOIN LINK PREVIEW
+══════════════════════════════════ */
+// Detect yidplus join links and render rich preview
+function _detectJoinLink(text) {
+  var m = (text || '').match(/yidplus(?:\.com|\.pages\.dev)[^\s]*[?&]join=([a-z0-9-]+)/i);
+  return m ? m[1] : null;
+}
+
+var _joinLinkCache = {};
+function _loadJoinLinkPreview(msgId, inviteCode) {
+  if (_joinLinkCache[inviteCode] === 'loading') return;
+  _joinLinkCache[inviteCode] = 'loading';
+  api.get('/chat/rooms?invite=' + encodeURIComponent(inviteCode))
+    .then(function (res) {
+      var room = res.room;
+      if (!room) return;
+      _joinLinkCache[inviteCode] = room;
+      var el = document.getElementById('lp-' + msgId);
+      if (!el) return;
+      var photoHtml = room.photo_url
+        ? '<img src="' + escHtml(room.photo_url) + '" style="width:48px;height:48px;border-radius:12px;object-fit:cover;flex-shrink:0">'
+        : '<div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#1565C0,#1976D2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.3rem;flex-shrink:0">👥</div>';
+      el.style.display = 'block';
+      el.innerHTML =
+        '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem;background:var(--bg3);border-radius:10px">' +
+          photoHtml +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:.88rem;font-weight:700;color:var(--text)">' + escHtml(room.name || 'Group') + '</div>' +
+            '<div style="font-size:.72rem;color:var(--muted);margin-top:.1rem">' + (room.members || 0) + ' members · ' + (room.type || 'group') + '</div>' +
+          '</div>' +
+          '<button onclick="joinViaInvite(\'' + escHtml(inviteCode) + '\')" style="padding:.35rem .85rem;background:linear-gradient(135deg,#1565C0,#1976D2);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:700;font-family:inherit;white-space:nowrap">Join</button>' +
+        '</div>';
+    })
+    .catch(function () { _joinLinkCache[inviteCode] = null; });
+}
+
+window.joinViaInvite = function (inviteCode) {
+  api.post('/chat/join', { invite_code: inviteCode })
+    .then(function (res) {
+      toast('Joined!');
+      loadChatRooms(function () {
+        if (res.room_id) openChatRoom(res.room_id);
+      });
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
 };
