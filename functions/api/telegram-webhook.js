@@ -312,33 +312,38 @@ async function handleCallback(cb, telegramId, env) {
 // ─────────────────────────────────────────────
 async function downloadAndPost(chatId, fileId, fileType, destination, userId, roomId, musicType, titleOrCaption, env) {
   try {
-    // Get file path from Telegram
+    // Get file info from Telegram
     const infoRes = await fetch(`${TG_API}/getFile?file_id=${fileId}`);
     const info    = await infoRes.json();
-    if (!info.ok) throw new Error('Could not get file from Telegram');
 
-    const filePath = info.result.file_path;
-    const fileUrl  = `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
+    let fileData, ext, contentType;
 
-    // Download the file
-    const fileRes  = await fetch(fileUrl);
-    if (!fileRes.ok) throw new Error('Could not download file');
-    const fileData = await fileRes.arrayBuffer();
-
-    // Determine extension + content type
-    const ext = filePath.split('.').pop() || 'bin';
-    const contentType = fileType === 'video' || fileType === 'photo'
-      ? (fileType === 'photo' ? 'image/jpeg' : 'video/mp4')
-      : 'audio/mpeg';
+    if (!info.ok || !info.result?.file_path) {
+      // File too large (>20MB) — store file_id reference instead
+      // We'll save the Telegram file_id and let the media endpoint proxy it
+      ext = fileType === 'photo' ? 'jpg' : fileType === 'video' ? 'mp4' : 'mp3';
+      contentType = fileType === 'photo' ? 'image/jpeg' : fileType === 'video' ? 'video/mp4' : 'audio/mpeg';
+      fileData = null; // will use tg:// reference
+    } else {
+      const filePath = info.result.file_path;
+      const fileUrl  = `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
+      const fileRes  = await fetch(fileUrl);
+      if (!fileRes.ok) throw new Error('Could not download file from Telegram');
+      fileData = await fileRes.arrayBuffer();
+      ext = filePath.split('.').pop() || 'bin';
+      contentType = fileType === 'photo' ? 'image/jpeg' : fileType === 'video' ? 'video/mp4' : 'audio/mpeg';
+    }
 
     const now = new Date().toISOString();
 
-    // Upload to R2
+    // Upload to R2 (or store tg:// reference for large files)
     if (destination === 'shorts' || destination === 'video') {
-      const key = `shorts/${userId}/${Date.now()}.${ext}`;
-      await env.MY_BUCKET.put(key, fileData, {
-        httpMetadata: { contentType: contentType }
-      });
+      const key = fileData
+        ? `shorts/${userId}/${Date.now()}.${ext}`
+        : `tg://${fileId}`;
+      if (fileData) {
+        await env.MY_BUCKET.put(key, fileData, { httpMetadata: { contentType } });
+      }
       const id = crypto.randomUUID();
       await env.DB.prepare(
         'INSERT INTO shorts (id, owner_id, media_key, caption, likes, views, created_at) VALUES (?, ?, ?, ?, 0, 0, ?)'
@@ -451,4 +456,4 @@ async function answerCallback(callbackQueryId) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ callback_query_id: callbackQueryId }),
   });
-      }
+  }
