@@ -36,32 +36,58 @@ window.APP = window.STATE; // alias for legacy code
 // ============================================================
 // API CLIENT — thin fetch wrapper
 // ============================================================
+// Simple in-memory cache for GET requests
+var _apiCache = {};
+var _apiCacheTTL = {};
+var API_CACHE_SECONDS = 30; // cache for 30 seconds
+
 window.api = {
-  get: function (path) {
+  get: function (path, noCache) {
+    var cacheKey = path;
+    var now = Date.now();
+    // Return cached if fresh
+    if (!noCache && _apiCache[cacheKey] && _apiCacheTTL[cacheKey] > now) {
+      return Promise.resolve(_apiCache[cacheKey]);
+    }
     return fetch(CONFIG.API_BASE + path, { credentials: 'include' })
-      .then(handleRes);
+      .then(handleRes)
+      .then(function (data) {
+        // Cache GET responses
+        _apiCache[cacheKey] = data;
+        _apiCacheTTL[cacheKey] = now + API_CACHE_SECONDS * 1000;
+        return data;
+      });
+  },
+  // Invalidate cache for a path
+  bust: function (path) {
+    delete _apiCache[path];
+    delete _apiCacheTTL[path];
   },
   post: function (path, body, isForm) {
     var opts = { method: 'POST', credentials: 'include' };
     if (isForm) {
-      opts.body = body; // FormData — browser sets content-type
+      opts.body = body;
     } else {
       opts.headers = { 'Content-Type': 'application/json' };
       opts.body = JSON.stringify(body);
     }
+    // Bust cache on mutation
+    api.bust(path.split('?')[0]);
     return fetch(CONFIG.API_BASE + path, opts).then(handleRes);
   },
   put: function (path, body, isForm) {
     var opts = { method: 'PUT', credentials: 'include' };
     if (isForm) {
-      opts.body = body; // FormData — browser sets content-type
+      opts.body = body;
     } else {
       opts.headers = { 'Content-Type': 'application/json' };
       opts.body = JSON.stringify(body);
     }
+    api.bust(path.split('?')[0]);
     return fetch(CONFIG.API_BASE + path, opts).then(handleRes);
   },
   del: function (path) {
+    api.bust(path.split('?')[0]);
     return fetch(CONFIG.API_BASE + path, { method: 'DELETE', credentials: 'include' })
       .then(handleRes);
   },
@@ -566,3 +592,125 @@ window.addEventListener('beforeunload', function () {
 });
 
 console.log('[YID PLUS] state.js loaded — Cloudflare D1/R2 mode ✓ — build v2026-06-21-handleRes-fix');
+
+/* ══════════════════════════════════
+   PWA + PUSH NOTIFICATIONS
+══════════════════════════════════ */
+window.PWA = {
+  // Register service worker
+  init: function () {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.register('/sw.js')
+      .then(function (reg) {
+        window.PWA._swReg = reg;
+        // Listen for messages from SW
+        navigator.serviceWorker.addEventListener('message', function (e) {
+          if (e.data && e.data.type === 'notification_click' && e.data.url) {
+            goPage(e.data.url);
+          }
+        });
+      })
+      .catch(function (err) { console.warn('[PWA] SW registration failed:', err); });
+  },
+
+  // Ask user for push permission + subscribe
+  requestPush: function () {
+    if (!('Notification' in window)) {
+      toast('Your browser does not support notifications');
+      return Promise.reject('no support');
+    }
+    if (Notification.permission === 'denied') {
+      toast('Notifications are blocked. Enable them in browser settings.');
+      return Promise.reject('denied');
+    }
+    return Notification.requestPermission().then(function (perm) {
+      if (perm !== 'granted') {
+        toast('Notifications not enabled');
+        return;
+      }
+      return PWA._subscribePush();
+    });
+  },
+
+  _subscribePush: function () {
+    var reg = window.PWA._swReg;
+    if (!reg) return Promise.reject('No SW registration');
+
+    // VAPID public key (replace with your own from https://vapidkeys.com)
+    var VAPID_PUBLIC = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+
+    return reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: PWA._urlBase64ToUint8Array(VAPID_PUBLIC),
+    }).then(function (sub) {
+      return api.post('/push/subscribe', sub.toJSON());
+    }).then(function () {
+      toast('🔔 Notifications enabled!');
+    }).catch(function (err) {
+      console.warn('[PWA] Push subscribe failed:', err);
+      toast('Could not enable notifications');
+    });
+  },
+
+  // Unsubscribe
+  disablePush: function () {
+    var reg = window.PWA._swReg;
+    if (!reg) return;
+    reg.pushManager.getSubscription().then(function (sub) {
+      if (sub) sub.unsubscribe();
+    });
+    api.del('/push/subscribe').catch(function () {});
+    toast('🔕 Notifications disabled');
+  },
+
+  // Check current permission
+  isPushEnabled: function () {
+    return 'Notification' in window && Notification.permission === 'granted';
+  },
+
+  // Convert VAPID key
+  _urlBase64ToUint8Array: function (base64String) {
+    var padding = '='.repeat((4 - base64String.length % 4) % 4);
+    var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var rawData = window.atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+    for (var i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+    return outputArray;
+  },
+
+  // Show "Add to Home Screen" prompt
+  _deferredPrompt: null,
+  initInstallPrompt: function () {
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      window.PWA._deferredPrompt = e;
+      // Show install button if available
+      var btn = document.getElementById('pwa-install-btn');
+      if (btn) btn.style.display = 'flex';
+    });
+    window.addEventListener('appinstalled', function () {
+      var btn = document.getElementById('pwa-install-btn');
+      if (btn) btn.style.display = 'none';
+      toast('✅ YID PLUS installed!');
+    });
+  },
+
+  install: function () {
+    var prompt = window.PWA._deferredPrompt;
+    if (!prompt) {
+      toast('Open in browser menu → "Add to Home Screen"');
+      return;
+    }
+    prompt.prompt();
+    prompt.userChoice.then(function (result) {
+      if (result.outcome === 'accepted') toast('Installing YID PLUS...');
+      window.PWA._deferredPrompt = null;
+    });
+  },
+};
+
+// Auto-init PWA
+(function () {
+  PWA.init();
+  PWA.initInstallPrompt();
+})();
