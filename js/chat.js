@@ -757,7 +757,7 @@ function _renderInfoTab(tab) {
             return '<div style="aspect-ratio:1;background:#000;border-radius:4px;overflow:hidden;position:relative">' +
               (isVideo
                 ? '<video src="' + m.media_url + '" style="width:100%;height:100%;object-fit:cover"></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>'
-                : '<img src="' + m.media_url + '" style="width:100%;height:100%;object-fit:cover">') +
+                : '<img src="' + m.media_url + '" style="width:100%;height:100%;object-fit:cover" loading="lazy">') +
             '</div>';
           }).join('') + '</div>';
       } else if (tab === 'files') {
@@ -844,24 +844,47 @@ function loadMessages(scrollToBottom) {
           if (!m.text) return;
           var urlMatch = m.text.match(/(https?:\/\/[^\s]{10,})/);
           if (!urlMatch) return;
+          var rawUrl = urlMatch[1];
           var lpEl = document.getElementById('lp-' + m.id);
           if (!lpEl || lpEl.dataset.loaded) return;
           lpEl.dataset.loaded = '1';
-          api.get('/link-preview?url=' + encodeURIComponent(urlMatch[1]))
+
+          // YouTube embed
+          var ytMatch = rawUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+          if (ytMatch) {
+            var vid = ytMatch[1];
+            lpEl.style.display = 'block';
+            lpEl.innerHTML =
+              '<div style="border-radius:12px;overflow:hidden;cursor:pointer;background:#000;position:relative;padding-top:56.25%">' +
+                '<iframe src="https://www.youtube.com/embed/' + vid + '?rel=0" ' +
+                  'style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" ' +
+                  'allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" ' +
+                  'allowfullscreen loading="lazy"></iframe>' +
+              '</div>';
+            return;
+          }
+
+          // OG Preview for other links
+          api.get('/link-preview?url=' + encodeURIComponent(rawUrl))
             .then(function (res) {
               if (!res || !res.ok || !res.title) return;
+              var isMe = m.sender_id === (STATE.user && STATE.user.id);
               lpEl.style.display = 'block';
-              lpEl.onclick = function () { window.open(urlMatch[1], '_blank'); };
+              lpEl.onclick = function () { window.open(rawUrl, '_blank'); };
+              lpEl.style.cssText = 'display:block;margin-top:.4rem;border-radius:12px;overflow:hidden;border:1px solid var(--border);cursor:pointer;background:var(--surface);max-width:100%';
               lpEl.innerHTML =
-                (res.image ? '<img src="' + escHtml(res.image) + '" style="width:100%;max-height:130px;object-fit:cover">' : '') +
-                '<div style="padding:.45rem .6rem;background:var(--bg3)">' +
-                  '<div style="font-size:.78rem;font-weight:700;color:var(--text);line-height:1.3">' + escHtml(res.title) + '</div>' +
-                  (res.description ? '<div style="font-size:.7rem;color:var(--muted);margin-top:.2rem">' + escHtml(res.description.slice(0, 80)) + '</div>' : '') +
+                (res.image
+                  ? '<img src="' + escHtml(res.image) + '" style="width:100%;max-height:150px;object-fit:cover;display:block" loading="lazy">'
+                  : '') +
+                '<div style="padding:.5rem .65rem">' +
+                  '<div style="font-size:.7rem;color:' + (isMe ? 'rgba(255,255,255,.6)' : 'var(--muted)') + ';margin-bottom:.15rem;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">' + escHtml(new URL(rawUrl).hostname) + '</div>' +
+                  '<div style="font-size:.82rem;font-weight:700;color:' + (isMe ? '#fff' : 'var(--text)') + ';line-height:1.3">' + escHtml(res.title.slice(0, 80)) + '</div>' +
+                  (res.description ? '<div style="font-size:.72rem;color:' + (isMe ? 'rgba(255,255,255,.75)' : 'var(--muted)') + ';margin-top:.2rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + escHtml(res.description.slice(0, 120)) + '</div>' : '') +
                 '</div>';
             })
             .catch(function () {});
         });
-      }, 500);
+      }, 600);
 
       // Mark as read
       if (CHAT_curRoom.joined !== false) {
@@ -909,7 +932,10 @@ function renderMessages(scrollDown) {
     }
 
     var time = m.created_at ? _fmt12(m.created_at) : '';
-    var ticks = isMe ? '<span class="read-ticks">' + (m.read ? '✓✓' : '✓') + '</span>' : '';
+    var tickSvg = m.read
+      ? '<svg width="16" height="10" viewBox="0 0 16 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-7" stroke="rgba(255,255,255,.7)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5l3 3 5-7" stroke="rgba(255,255,255,.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-6" stroke="rgba(255,255,255,.6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    var ticks = isMe ? '<span class="read-ticks">' + tickSvg + '</span>' : '';
 
     // System messages (e.g. "X joined the group") — centered, no bubble
     if (m.type === 'system') {
@@ -935,7 +961,7 @@ function renderMessages(scrollDown) {
         var quotedThumb = quotedIsMedia
           ? (quotedIsVideo
               ? '<div style="width:40px;height:40px;border-radius:4px;background:#000;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden"><video src="' + quoted.media_url + '" style="width:100%;height:100%;object-fit:cover" preload="metadata"></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>'
-              : '<img src="' + quoted.media_url + '" style="width:40px;height:40px;border-radius:4px;object-fit:cover;flex-shrink:0">')
+              : '<img src="' + quoted.media_url + '" style="width:40px;height:40px;border-radius:4px;object-fit:cover;flex-shrink:0" loading="lazy">')
           : '';
         var quotedText = quoted.type === 'media' ? (quotedIsVideo ? '🎬 Video' : '🖼 Photo') :
                          quoted.type === 'voice'  ? '🎤 Voice message' :
@@ -1051,7 +1077,7 @@ function renderMessages(scrollDown) {
       }
       if (m.text && m.text !== '__once__') {
         var capRTL = /[\u0590-\u05FF]/.test(m.text);
-        inner += '<div style="margin-top:.35rem;font-size:.88rem;unicode-bidi:plaintext;' + (capRTL ? 'direction:rtl;text-align:right' : '') + '">' + _linkify(escHtml(m.text)) + '</div>';
+        inner += '<div style="margin-top:.35rem;font-size:.88rem;unicode-bidi:plaintext;' + (capRTL ? 'direction:rtl;text-align:right' : '') + '">' + _linkify(escHtml(m.text), isMe) + '</div>';
       }
 
     } else if (m.type === 'file' && m.media_url) {
@@ -1843,7 +1869,7 @@ function _showMultiMediaPreview(files) {
         return '<div style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;border:2px solid #1565C0">' +
           (isVid
             ? '<video src="' + url + '" style="width:100%;height:100%;object-fit:cover" preload="metadata"></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35)"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div>'
-            : '<img src="' + url + '" style="width:100%;height:100%;object-fit:cover">') +
+            : '<img src="' + url + '" style="width:100%;height:100%;object-fit:cover" loading="lazy">') +
         '</div>';
       }).join('') +
     '</div>' +
@@ -3384,7 +3410,7 @@ function _loadJoinLinkPreview(msgId, inviteCode) {
       var el = document.getElementById('lp-' + msgId);
       if (!el) return;
       var photoHtml = room.photo_url
-        ? '<img src="' + escHtml(room.photo_url) + '" style="width:48px;height:48px;border-radius:12px;object-fit:cover;flex-shrink:0">'
+        ? '<img src="' + escHtml(room.photo_url) + '" style="width:48px;height:48px;border-radius:12px;object-fit:cover;flex-shrink:0" loading="lazy">'
         : '<div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#1565C0,#1976D2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.3rem;flex-shrink:0">👥</div>';
       el.style.display = 'block';
       el.innerHTML =
