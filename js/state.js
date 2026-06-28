@@ -786,18 +786,29 @@ var FILTER_regex = null;
 var FILTER_loaded = false;
 var FILTER_warned = {}; // track which words we already warned about
 
-// Load bad words from server (cached)
+var FILTER_phrases = [];
+var FILTER_phrase_regex = null;
+
+// Load bad words + phrases from server (cached)
 window.loadContentFilter = function () {
   if (FILTER_loaded) return;
   api.get('/admin/bad-words?public=1', true)
     .then(function (res) {
+      // Single words
       FILTER_words = (res.words || []).map(function (w) { return w.toLowerCase(); });
       if (FILTER_words.length) {
-        // Build regex that matches whole words, case-insensitive, multi-language
         var escaped = FILTER_words.map(function (w) {
-          return w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          return '\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b';
         });
         FILTER_regex = new RegExp('(' + escaped.join('|') + ')', 'gi');
+      }
+      // Multi-word phrases
+      FILTER_phrases = (res.phrases || []).map(function (p) { return p.toLowerCase(); });
+      if (FILTER_phrases.length) {
+        var escapedPhrases = FILTER_phrases.map(function (p) {
+          return p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        });
+        FILTER_phrase_regex = new RegExp('(' + escapedPhrases.join('|') + ')', 'gi');
       }
       FILTER_loaded = true;
     })
@@ -806,19 +817,33 @@ window.loadContentFilter = function () {
 
 // Apply blur to bad words in a string of HTML
 window.filterContent = function (html) {
-  if (!FILTER_regex || !FILTER_words.length) return html;
-  return html.replace(FILTER_regex, function (match) {
-    return '<span class="blurred-word" title="Filtered content" onclick="this.style.filter=\'none\'">' + match + '</span>';
-  });
+  if (!html) return html;
+  // Apply phrase filter first (multi-word — more specific)
+  if (FILTER_phrase_regex && FILTER_phrases.length) {
+    html = html.replace(FILTER_phrase_regex, function (match) {
+      return '<span class="blurred-word" title="Filtered content" onclick="this.style.filter=\'none\'">' + match + '</span>';
+    });
+  }
+  // Apply single word filter
+  if (FILTER_regex && FILTER_words.length) {
+    html = html.replace(FILTER_regex, function (match) {
+      return '<span class="blurred-word" title="Filtered content" onclick="this.style.filter=\'none\'">' + match + '</span>';
+    });
+  }
+  return html;
 };
 
 // Check text being typed — warn if bad word detected
 var FILTER_warnTimer = null;
 window.checkInputForBadWords = function (text) {
-  if (!FILTER_regex || !text) return;
+  if (!text) return;
   clearTimeout(FILTER_warnTimer);
   FILTER_warnTimer = setTimeout(function () {
-    var match = text.match(FILTER_regex);
+    var match = null;
+    // Check phrases first
+    if (FILTER_phrase_regex) match = text.match(FILTER_phrase_regex);
+    // Then single words
+    if (!match && FILTER_regex) match = text.match(FILTER_regex);
     if (match) {
       var word = match[0].toLowerCase();
       if (!FILTER_warned[word]) {
