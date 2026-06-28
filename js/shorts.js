@@ -62,13 +62,17 @@ function renderShorts() {
     slide.className = 'short-slide';
     slide.dataset.idx = i;
 
+    var avatarHtml = s.photo_url
+      ? '<div class="short-avatar" style="background-image:url(' + s.photo_url + ');background-size:cover;background-position:center"></div>'
+      : '<div class="short-avatar">' + escHtml((s.nick || '?').slice(0, 1).toUpperCase()) + '</div>';
+
     var tagsHTML = '#YidPlus #JewishContent';
-    var verifiedBadge = s.verified ? '<span style="font-size:.75rem">👑</span>' : '';
+    var verifiedBadge = s.verified ? '<span style="font-size:.75rem">✅</span>' : '';
     var likedIcon = s.liked ? ICON_HEART_FILLED : ICON_HEART_OUTLINE;
     var likedClass = s.liked ? ' liked' : '';
 
     slide.innerHTML =
-      '<video class="slide-video" src="' + s.media_url + '" playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000"></video>' +
+      '<video class="slide-video" src="' + s.media_url + '" playsinline preload="' + (i < 2 ? 'auto' : 'none') + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000"></video>' +
       '<div class="slide-grad"></div>' +
       '<div class="center-flash" id="flash-' + i + '"></div>' +
       '<div class="scrub-wrap" id="scrub-' + i + '">' +
@@ -79,7 +83,7 @@ function renderShorts() {
       '</div>' +
       '<div class="slide-info">' +
         '<div class="short-channel" onclick="event.stopPropagation();openShortChannel(' + i + ')">' +
-          '<div class="short-avatar">' + escHtml((s.nick || '?').slice(0, 1).toUpperCase()) + '</div>' +
+          avatarHtml +
           '<span class="short-nick">@' + escHtml(s.nick) + '</span>' + verifiedBadge +
         '</div>' +
         '<div class="short-caption">' + escHtml(s.caption || '') + '</div>' +
@@ -87,7 +91,7 @@ function renderShorts() {
       '</div>' +
       '<div class="slide-actions">' +
         '<div class="action-avatar-wrap" onclick="event.stopPropagation();openShortChannel(' + i + ')">' +
-          '<div class="action-avatar">' + escHtml((s.nick || '?').slice(0, 1).toUpperCase()) + '</div>' +
+          '<div class="action-avatar"' + (s.photo_url ? ' style="background-image:url(' + s.photo_url + ');background-size:cover;background-position:center"' : '') + '>' + (s.photo_url ? '' : escHtml((s.nick || '?').slice(0, 1).toUpperCase())) + '</div>' +
           '<div class="action-avatar-plus">' + ICON_PLUS + '</div>' +
         '</div>' +
         '<div class="s-action' + likedClass + '" id="like-' + i + '" onclick="toggleShortLike(' + i + ')">' +
@@ -303,7 +307,15 @@ window.toggleShortLike = function (i) {
 window.openShortChannel = function (i) {
   var s = SHORTS_data[i];
   if (!s) return;
-  goPage('yidplus-dashboard.html?channel=' + encodeURIComponent(s.owner_id));
+  // Try to open profile on dashboard if available
+  if (typeof openUserProfile === 'function') {
+    goPage('yidplus-dashboard.html');
+    setTimeout(function () {
+      if (typeof openUserProfile === 'function') openUserProfile(s.owner_id);
+    }, 600);
+  } else {
+    goPage('yidplus-dashboard.html?channel=' + encodeURIComponent(s.owner_id));
+  }
 };
 
 // ── SHARE ──
