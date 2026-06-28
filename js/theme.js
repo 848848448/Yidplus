@@ -164,6 +164,12 @@ window.buildSettingsPage = function () {
       _row(_svg_share(), 'Share my profile', '<button class="settings-edit-btn" onclick="shareProfile()">Share</button>'),
       _row('🔗', 'Copy link', '<button class="settings-edit-btn" onclick="copyProfileLink()">Copy</button>'),
     ]) +
+    _section('App', [
+      _row(_svg_notif(), 'Push Notifications',
+        '<div class="toggle-sw' + (typeof PWA !== 'undefined' && PWA.isPushEnabled() ? ' on' : '') + '" id="push-notif-toggle" onclick="togglePushNotifications(this)"></div>'),
+      _row('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+        'Add to Home Screen', '<button class="settings-edit-btn" onclick="PWA.install()">Install</button>'),
+    ]) +
     _section('More', [
       _row(_svg_admin(), 'Admin Panel', '›', 'onclick="goPage(\'yidplus-admin.html\')"'),
       _row(_svg_feedback(), 'Send Feedback', '›', 'onclick="openFeedbackModal()"'),
@@ -336,4 +342,16 @@ window.confirmDeleteAccount = function () {
   api.del('/profile')
     .then(function () { toast('Account deleted'); doLogout(); })
     .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.togglePushNotifications = function (el) {
+  if (typeof PWA === 'undefined') { toast('Not supported'); return; }
+  if (PWA.isPushEnabled()) {
+    PWA.disablePush();
+    el.classList.remove('on');
+  } else {
+    PWA.requestPush().then(function () {
+      if (PWA.isPushEnabled()) el.classList.add('on');
+    });
+  }
 };
