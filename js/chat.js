@@ -109,6 +109,10 @@ function renderChatList() {
     var avatarContent = c.photo_url ? '' : initial;
     var onlineDot = (!isGroup && c.online && isAnyAdmin()) ? '<div class="online-dot"></div>' : '';
     var previewText = c.preview || '';
+    // Filter bad words in preview
+    var previewHtml = (typeof filterContent === 'function' && FILTER_regex)
+      ? filterContent(escHtml(previewText))
+      : escHtml(previewText);
     var timeText = c.last_time ? _fmt12(c.last_time) : '';
     var unreadBadge = c.unread
       ? '<div style="min-width:20px;height:20px;border-radius:10px;background:var(--blue);color:#fff;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px;flex-shrink:0">' + (c.unread > 99 ? '99+' : c.unread) + '</div>'
@@ -124,7 +128,7 @@ function renderChatList() {
             '<div style="font-size:.68rem;color:var(--muted);flex-shrink:0">' + timeText + '</div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">' +
-            '<div style="font-size:.82rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1;font-weight:' + (c.unread ? '500' : '400') + '">' + escHtml(previewText) + '</div>' +
+            '<div style="font-size:.82rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1;font-weight:' + (c.unread ? '500' : '400') + '">' + previewHtml + '</div>' +
             unreadBadge +
           '</div>' +
         '</div>' +
