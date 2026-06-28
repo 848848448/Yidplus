@@ -118,30 +118,18 @@ window.init_home = function () {
 // ══════════════════════════════════════════════════════════
 window.loadDynamicFeed = function () {
   var feed = document.getElementById('home-feed');
-  if (!feed) {
-    console.warn('[HOME] #home-feed element not found in DOM');
-    return;
-  }
+  if (!feed) return;
 
-  // ── 1. LOADING STATE ────────────────────────────────────
-  console.log('[HOME] loadDynamicFeed() → fetching posts...');
   feed.innerHTML =
     '<div class="feed-state">' +
       '<div class="spinner"></div>' +
-      '<div class="feed-state-text">Loading posts...</div>' +
     '</div>';
 
-  // ── 2. FETCH FROM /api/posts ─────────────────────────────
-  api.get('/posts')
+  // Limit to 20 posts for speed
+  api.get('/posts?limit=20')
     .then(function (res) {
-      console.log('[HOME] /api/posts response:', res);
-
       var posts = res.posts || [];
-      console.log('[HOME] Posts received:', posts.length);
-
-      // ── 3. EMPTY STATE ─────────────────────────────────
-      if (posts.length === 0) {
-        console.log('[HOME] No posts in database yet');
+      if (!posts.length) {
         feed.innerHTML =
           '<div class="feed-state">' +
             '<div style="font-size:2.5rem">📭</div>' +
@@ -150,22 +138,14 @@ window.loadDynamicFeed = function () {
           '</div>';
         return;
       }
-
-      // ── 4. SUCCESS — RENDER POSTS ──────────────────────
-      console.log('[HOME] Rendering ' + posts.length + ' posts');
       feed.innerHTML = '';
-      posts.forEach(function (p) {
-        feed.appendChild(buildPostCard(p));
-      });
+      posts.forEach(function (p) { feed.appendChild(buildPostCard(p)); });
     })
     .catch(function (err) {
-      // ── 5. ERROR STATE ─────────────────────────────────
-      console.error('[HOME] /api/posts error:', err.message);
       feed.innerHTML =
         '<div class="feed-state">' +
           '<div style="font-size:2rem">⚠️</div>' +
           '<div class="feed-state-text">Could not load posts.</div>' +
-          '<div class="feed-state-sub">' + escHtml(err.message || 'Unknown error') + '</div>' +
           '<button class="feed-retry" onclick="loadDynamicFeed()">Try Again</button>' +
         '</div>';
     });
@@ -201,13 +181,13 @@ function buildPostCard(p) {
       '<div class="post-play">▶</div>' +
     '</div>' +
     // Caption
-    (caption ? '<div style="padding:.6rem .75rem;font-size:.82rem;color:var(--muted);border-bottom:.5px solid var(--border)">' + escHtml(caption) + '</div>' : '') +
+    (caption ? '<div style="padding:.6rem .75rem;font-size:.82rem;color:var(--muted);border-bottom:.5px solid var(--border)">' + (typeof filterContent==='function'?filterContent(_linkHashtags(escHtml(caption))):_linkHashtags(escHtml(caption))) + '</div>' : '') +
     // Actions
     '<div style="display:flex;gap:1rem;padding:.75rem">' +
       '<button class="post-action" id="like-btn-' + p.id + '" onclick="handleLike(this,\'' + p.id + '\',' + likes + ')">' +
         '🤍 ' + fmtN(likes) +
       '</button>' +
-      '<button class="post-action" onclick="toast(\'Comments coming soon\')">' +
+      '<button class="post-action" onclick="openPostComments(\'' + p.id + '\')">' +
         '💬 ' + fmtN(cmts) +
       '</button>' +
       '<button class="post-action" onclick="copyPostLink(\'' + p.id + '\')">' +
@@ -1490,7 +1470,7 @@ function _loadChannelPosts() {
       }
       el.innerHTML = newPostBtn + posts.map(function (p) {
         return '<div style="padding:.85rem 1rem;border-bottom:1px solid var(--border)">' +
-          '<div style="font-size:.88rem;line-height:1.55;unicode-bidi:plaintext">' + escHtml(p.content || p.caption || '') + '</div>' +
+          '<div style="font-size:.88rem;line-height:1.55;unicode-bidi:plaintext">' + _linkHashtags(escHtml(p.content || p.caption || '')) + '</div>' +
           '<div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">' + timeAgo(p.created_at) + '</div>' +
         '</div>';
       }).join('');
@@ -1955,4 +1935,148 @@ window.openNotifPanel = function () {
     var el = document.getElementById('notif-panel-list');
     if (el) el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-size:.85rem">Could not load notifications</div>';
   });
+};
+
+/* ══════════════════════════════════
+   POST COMMENTS
+══════════════════════════════════ */
+window.openPostComments = function (postId) {
+  var modal = document.createElement('div');
+  modal.id = 'comments-modal-' + postId;
+  modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+  modal.innerHTML =
+    '<div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:500px;max-height:80vh;display:flex;flex-direction:column">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.1rem;border-bottom:1px solid var(--border);flex-shrink:0">' +
+        '<div style="font-weight:700;font-size:.92rem">Comments</div>' +
+        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;cursor:pointer;color:var(--muted)">' +
+          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+        '</button>' +
+      '</div>' +
+      '<div id="comments-list-' + postId + '" style="flex:1;overflow-y:auto;padding:.5rem .85rem"><div style="text-align:center;padding:1.5rem"><div class="spinner"></div></div></div>' +
+      '<div style="padding:.6rem .85rem max(.6rem,env(safe-area-inset-bottom));border-top:1px solid var(--border);display:flex;gap:.5rem;flex-shrink:0">' +
+        '<input id="comment-inp-' + postId + '" placeholder="Write a comment..." style="flex:1;padding:.5rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none" onkeydown="if(event.key===\'Enter\')submitComment(\'' + postId + '\')">' +
+        '<button onclick="submitComment(\'' + postId + '\')" style="width:38px;height:38px;border-radius:50%;background:var(--gold);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+
+  // Load comments
+  api.get('/posts/comments?post_id=' + encodeURIComponent(postId), true)
+    .then(function (res) {
+      var el = document.getElementById('comments-list-' + postId);
+      if (!el) return;
+      var comments = res.comments || [];
+      if (!comments.length) {
+        el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">No comments yet — be first!</div>';
+        return;
+      }
+      el.innerHTML = comments.map(function (c) {
+        return '<div style="padding:.6rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">' +
+            '<span style="font-size:.8rem;font-weight:700">@' + escHtml(c.nickname||c.username||'User') + '</span>' +
+            '<span style="font-size:.68rem;color:var(--muted)">' + timeAgo(c.created_at) + '</span>' +
+          '</div>' +
+          '<div style="font-size:.85rem;color:var(--text)">' + (typeof filterContent==='function'?filterContent(escHtml(c.text)):escHtml(c.text)) + '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function () {
+      var el = document.getElementById('comments-list-' + postId);
+      if (el) el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted)">Could not load comments</div>';
+    });
+};
+
+window.submitComment = function (postId) {
+  var inp = document.getElementById('comment-inp-' + postId);
+  if (!inp) return;
+  var text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  inp.disabled = true;
+
+  api.post('/posts/comments', { post_id: postId, text: text })
+    .then(function () {
+      inp.disabled = false;
+      api.bust('/posts/comments?post_id=' + postId);
+      openPostComments(postId);
+      // Update comment count
+      var countEl = document.querySelector('[data-post-comments="' + postId + '"]');
+      if (countEl) countEl.textContent = parseInt(countEl.textContent || 0) + 1;
+    })
+    .catch(function (err) {
+      inp.disabled = false;
+      toast('❌ ' + err.message);
+    });
+};
+
+/* ══════════════════════════════════
+   HASHTAGS
+══════════════════════════════════ */
+function _linkHashtags(html) {
+  return html.replace(/#([\w\u0590-\u05FF\uFB1D-\uFB4F]+)/g, function (match, tag) {
+    return '<span style="color:var(--blue);cursor:pointer;font-weight:600" onclick="searchHashtag(\'' + tag + '\')">' + match + '</span>';
+  });
+}
+
+window.searchHashtag = function (tag) {
+  // Switch to explore and search for hashtag
+  navTo('explore');
+  setTimeout(function () {
+    var inp = document.getElementById('explore-search-inp');
+    if (inp) {
+      inp.value = '#' + tag;
+      onExploreSearch();
+    }
+  }, 200);
+};
+
+/* ══════════════════════════════════
+   TRENDING
+══════════════════════════════════ */
+window.loadTrending = function (type) {
+  // type: 'posts' | 'shorts' | 'music'
+  var path = type === 'shorts' ? '/shorts?trending=1' : type === 'music' ? '/music?trending=1' : '/posts?trending=1';
+  api.get(path, true).then(function (res) {
+    toast('Trending ' + type + ' loaded!');
+    if (type === 'shorts') goPage('yidplus-shorts.html');
+    else if (type === 'music') goPage('yidplus-music.html');
+  }).catch(function () { toast('Could not load trending'); });
+};
+
+/* ══════════════════════════════════
+   SPAM DETECTION — rate limiting
+══════════════════════════════════ */
+var _postRateLimiter = [];
+window.checkPostRateLimit = function () {
+  var now = Date.now();
+  _postRateLimiter = _postRateLimiter.filter(function (t) { return now - t < 60000; });
+  if (_postRateLimiter.length >= 10) {
+    toast('⚠️ Too many posts. Please wait a minute.');
+    return false;
+  }
+  _postRateLimiter.push(now);
+  return true;
+};
+
+/* ══════════════════════════════════
+   SEARCH HISTORY
+══════════════════════════════════ */
+var SEARCH_history = [];
+try { SEARCH_history = JSON.parse(localStorage.getItem('yp_search_hist') || '[]'); } catch(e) {}
+
+window.addSearchHistory = function (q) {
+  if (!q || !q.trim()) return;
+  SEARCH_history = [q].concat(SEARCH_history.filter(function(h){ return h !== q; })).slice(0, 10);
+  try { localStorage.setItem('yp_search_hist', JSON.stringify(SEARCH_history)); } catch(e) {}
+};
+
+window.getSearchHistory = function () { return SEARCH_history; };
+
+window.clearSearchHistory = function () {
+  SEARCH_history = [];
+  try { localStorage.removeItem('yp_search_hist'); } catch(e) {}
+  toast('Search history cleared');
 };
