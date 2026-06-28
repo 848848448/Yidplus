@@ -1482,31 +1482,383 @@ window.openChannelPostComposer = function () {
 };
 
 // ── EXPLORE SCREEN — load channels ──
+// ── EXPLORE STATE ──
+var EXPLORE_tab = 'all';
+var EXPLORE_searchTimer = null;
+
 window.init_explore = function () {
-  var el = document.getElementById('explore-channels');
-  if (!el) return;
-  el.innerHTML = '<div style="padding:2rem;text-align:center"><div class="spinner"></div></div>';
-  api.get('/channels')
-    .then(function (res) {
-      var channels = res.channels || [];
-      if (!channels.length) {
-        el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:.85rem">No channels yet</div>';
-        return;
-      }
-      el.innerHTML = channels.map(function (ch) {
-        var initial = (ch.nickname || '?').slice(0,1).toUpperCase();
-        var avatarStyle = ch.photo_url ? 'background-image:url(\'' + ch.photo_url + '\');background-size:cover;background-position:center' : '';
-        return '<div style="display:flex;align-items:center;gap:.85rem;padding:.75rem;background:var(--surface);border:1px solid var(--border);border-radius:14px;cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + ch.owner_id + '\';navTo(\'channel\')">' +
-          '<div style="width:50px;height:50px;border-radius:14px;background:linear-gradient(135deg,#1565C0,#1976D2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:700;color:#fff;flex-shrink:0;overflow:hidden;' + avatarStyle + '">' + (ch.photo_url ? '' : initial) + '</div>' +
-          '<div style="flex:1;min-width:0">' +
-            '<div style="font-size:.92rem;font-weight:700;color:var(--text)">@' + escHtml(ch.nickname || 'Channel') + '</div>' +
-            '<div style="font-size:.75rem;color:var(--muted);margin-top:.15rem">' + fmtN(ch.followers || 0) + ' followers</div>' +
-          '</div>' +
-          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>' +
-        '</div>';
-      }).join('');
-    })
-    .catch(function () {
-      el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--red);font-size:.82rem">Could not load channels</div>';
-    });
+  EXPLORE_tab = 'all';
+  var inp = document.getElementById('explore-search-inp');
+  if (inp) inp.value = '';
+  var clr = document.getElementById('explore-clear-btn');
+  if (clr) clr.style.display = 'none';
+  document.querySelectorAll('.ctab[id^="etab-"]').forEach(function(b){b.classList.remove('active');});
+  var allTab = document.getElementById('etab-all');
+  if (allTab) allTab.classList.add('active');
+  _loadExploreAll();
 };
+
+window.switchExploreTab = function (tab, btn) {
+  EXPLORE_tab = tab;
+  document.querySelectorAll('.ctab[id^="etab-"]').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var q = (document.getElementById('explore-search-inp')||{}).value || '';
+  if (q.trim().length >= 2) {
+    _doExploreSearch(q);
+  } else {
+    _loadExploreAll();
+  }
+};
+
+window.onExploreSearch = function () {
+  var inp = document.getElementById('explore-search-inp');
+  var clr = document.getElementById('explore-clear-btn');
+  var q = inp ? inp.value : '';
+  if (clr) clr.style.display = q ? 'block' : 'none';
+  clearTimeout(EXPLORE_searchTimer);
+  if (!q.trim()) { _loadExploreAll(); return; }
+  EXPLORE_searchTimer = setTimeout(function () { _doExploreSearch(q); }, 350);
+};
+
+window.clearExploreSearch = function () {
+  var inp = document.getElementById('explore-search-inp');
+  if (inp) inp.value = '';
+  var clr = document.getElementById('explore-clear-btn');
+  if (clr) clr.style.display = 'none';
+  _loadExploreAll();
+};
+
+function _doExploreSearch(q) {
+  var body = document.getElementById('explore-body');
+  if (!body) return;
+  body.innerHTML = '<div style="padding:2rem;text-align:center"><div class="spinner"></div></div>';
+
+  var tab = EXPLORE_tab;
+  var calls = [];
+
+  if (tab === 'all' || tab === 'users') {
+    calls.push(api.get('/users/search?q=' + encodeURIComponent(q), true).catch(function(){ return { users: [] }; }));
+  } else { calls.push(Promise.resolve({ users: [] })); }
+
+  if (tab === 'all' || tab === 'channels') {
+    calls.push(api.get('/channels?search=' + encodeURIComponent(q), true).catch(function(){ return { channels: [] }; }));
+  } else { calls.push(Promise.resolve({ channels: [] })); }
+
+  if (tab === 'all' || tab === 'groups') {
+    calls.push(api.get('/chat/rooms?search=' + encodeURIComponent(q), true).catch(function(){ return { rooms: [] }; }));
+  } else { calls.push(Promise.resolve({ rooms: [] })); }
+
+  Promise.all(calls).then(function (res) {
+    var users    = res[0].users || [];
+    var channels = res[1].channels || [];
+    var groups   = (res[2].rooms || []).filter(function(r){ return r.type === 'group'; });
+    var html = '';
+
+    if (users.length) {
+      html += _exploreSection('People', users.map(function(u){ return _userRow(u); }).join(''));
+    }
+    if (channels.length) {
+      html += _exploreSection('Channels', channels.map(function(c){ return _channelRow(c); }).join(''));
+    }
+    if (groups.length) {
+      html += _exploreSection('Groups', groups.map(function(g){ return _groupRow(g); }).join(''));
+    }
+    if (!html) html = '<div style="padding:3rem;text-align:center;color:var(--muted);font-size:.88rem">No results for "' + escHtml(q) + '"</div>';
+    body.innerHTML = html;
+  });
+}
+
+function _loadExploreAll() {
+  var body = document.getElementById('explore-body');
+  if (!body) return;
+  body.innerHTML = '<div style="padding:2rem;text-align:center"><div class="spinner"></div></div>';
+
+  var tab = EXPLORE_tab;
+  var calls = [];
+
+  if (tab === 'all' || tab === 'users') {
+    calls.push(api.get('/users/search?featured=1', true).catch(function(){ return { users: [] }; }));
+  } else { calls.push(Promise.resolve({ users: [] })); }
+
+  if (tab === 'all' || tab === 'channels') {
+    calls.push(api.get('/channels', true).catch(function(){ return { channels: [] }; }));
+  } else { calls.push(Promise.resolve({ channels: [] })); }
+
+  if (tab === 'all' || tab === 'groups') {
+    calls.push(api.get('/chat/rooms?public=1', true).catch(function(){ return { rooms: [] }; }));
+  } else { calls.push(Promise.resolve({ rooms: [] })); }
+
+  Promise.all(calls).then(function (res) {
+    var users    = (res[0].users || []).slice(0, 10);
+    var channels = (res[1].channels || []).slice(0, 10);
+    var groups   = (res[2].rooms || []).filter(function(r){ return r.type === 'group'; }).slice(0, 10);
+    var html = '';
+
+    if (tab === 'all' || tab === 'users') {
+      html += _exploreSection('People', users.length ? users.map(function(u){ return _userRow(u); }).join('') : '<div style="padding:1rem;color:var(--muted);font-size:.82rem;text-align:center">No users yet</div>');
+    }
+    if (tab === 'all' || tab === 'channels') {
+      html += _exploreSection('Channels', channels.length ? channels.map(function(c){ return _channelRow(c); }).join('') : '<div style="padding:1rem;color:var(--muted);font-size:.82rem;text-align:center">No channels yet</div>');
+    }
+    if (tab === 'all' || tab === 'groups') {
+      html += _exploreSection('Public Groups', groups.length ? groups.map(function(g){ return _groupRow(g); }).join('') : '<div style="padding:1rem;color:var(--muted);font-size:.82rem;text-align:center">No public groups yet</div>');
+    }
+    body.innerHTML = html || '<div style="padding:3rem;text-align:center;color:var(--muted)">Nothing to explore yet!</div>';
+  });
+}
+
+function _exploreSection(title, content) {
+  return '<div style="padding:.5rem .75rem .2rem"><div style="font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:.4rem">' + title + '</div>' +
+    '<div style="background:var(--surface);border-radius:14px;overflow:hidden;border:1px solid var(--border)">' + content + '</div>' +
+  '</div><div style="height:.5rem"></div>';
+}
+
+function _userRow(u) {
+  var av = u.photo_url
+    ? '<div style="width:44px;height:44px;border-radius:50%;background-image:url(' + u.photo_url + ');background-size:cover;flex-shrink:0"></div>'
+    : '<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0">' + (u.nickname||'U').slice(0,1).toUpperCase() + '</div>';
+  return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem .85rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="openUserProfile(\'' + u.id + '\')">' +
+    av +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:.88rem;font-weight:700">@' + escHtml(u.nickname||'User') + (u.verified?' ✅':'') + '</div>' +
+      (u.bio ? '<div style="font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(u.bio) + '</div>' : '') +
+    '</div>' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>' +
+  '</div>';
+}
+
+function _channelRow(c) {
+  var av = c.photo_url
+    ? '<div style="width:46px;height:46px;border-radius:12px;background-image:url(' + c.photo_url + ');background-size:cover;flex-shrink:0"></div>'
+    : '<div style="width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#1565C0,#1976D2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;color:#fff;flex-shrink:0">' + (c.nickname||'C').slice(0,1).toUpperCase() + '</div>';
+  return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem .85rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
+    av +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:.88rem;font-weight:700">@' + escHtml(c.nickname||'Channel') + (c.verified?' ✅':'') + '</div>' +
+      '<div style="font-size:.72rem;color:var(--muted)">' + fmtN(c.followers||0) + ' followers</div>' +
+    '</div>' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>' +
+  '</div>';
+}
+
+function _groupRow(g) {
+  return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem .85rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="goPage(\'yidplus-chat.html\')">' +
+    '<div style="width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#7C3AED,#5B21B6);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;color:#fff;flex-shrink:0">' + (g.nick||g.name||'G').slice(0,1).toUpperCase() + '</div>' +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:.88rem;font-weight:700">' + escHtml(g.nick||g.name||'Group') + '</div>' +
+      '<div style="font-size:.72rem;color:var(--muted)">' + (g.members||0) + ' members</div>' +
+    '</div>' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>' +
+  '</div>';
+}
+
+/* ══════════════════════════════════
+   USER PROFILE SCREEN
+══════════════════════════════════ */
+var PROFILE_userId = null;
+
+window.openUserProfile = function (userId) {
+  if (!userId) return;
+  PROFILE_userId = userId;
+  navTo('profile');
+  _buildProfileScreen(userId);
+};
+
+window.navBack = function () {
+  navTo(STATE.prevScreen || 'home');
+};
+
+function _buildProfileScreen(userId) {
+  var body = document.getElementById('profile-screen-body');
+  var nick = document.getElementById('profile-screen-nick');
+  if (body) body.innerHTML = '<div style="text-align:center;padding:3rem"><div class="spinner"></div></div>';
+
+  Promise.all([
+    api.get('/profile?user_id=' + encodeURIComponent(userId), true),
+    api.get('/follows?user_id=' + encodeURIComponent(userId), true),
+  ]).then(function (res) {
+    var p     = res[0].profile || {};
+    var stats = res[0].stats   || {};
+    var fdata = res[1];
+    var isMe  = STATE.user && STATE.user.id === userId;
+
+    if (nick) nick.textContent = '@' + (p.nickname || 'User');
+
+    var avatarHtml = p.photo_url
+      ? '<div style="width:80px;height:80px;border-radius:50%;background-image:url(' + p.photo_url + ');background-size:cover;background-position:center;border:2.5px solid var(--border);flex-shrink:0"></div>'
+      : '<div style="width:80px;height:80px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:2rem;border:2.5px solid var(--border);flex-shrink:0">' + (p.nickname||'U').slice(0,1).toUpperCase() + '</div>';
+
+    var followBtn = '';
+    if (!isMe) {
+      followBtn = fdata.is_following
+        ? '<button onclick="unfollowUser(\'' + userId + '\')" style="padding:.45rem 1.25rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:600;color:var(--text)">Following</button>'
+        : '<button onclick="followUser(\'' + userId + '\')" style="padding:.45rem 1.25rem;background:var(--gold);border:none;border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:700;color:#fff">Follow</button>';
+    } else {
+      followBtn = '<button onclick="navTo(\'settings\')" style="padding:.45rem 1.25rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:600">Edit Profile</button>';
+    }
+
+    var msgBtn = !isMe
+      ? '<button onclick="openDMWith(\'' + userId + '\')" style="padding:.45rem 1.25rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:600">Message</button>'
+      : '';
+
+    var bioHtml = p.bio ? '<div style="font-size:.85rem;color:var(--text);text-align:center;padding:0 1.25rem;margin-bottom:.75rem;line-height:1.5">' + escHtml(p.bio) + '</div>' : '';
+
+    var linksHtml = '';
+    if (p.location) linksHtml += '<span style="font-size:.75rem;color:var(--muted)">📍 ' + escHtml(p.location) + '</span>';
+    if (p.website)  linksHtml += '<a href="' + escHtml(p.website) + '" target="_blank" style="font-size:.75rem;color:var(--blue);text-decoration:none">🌐 Website</a>';
+    if (linksHtml)  linksHtml = '<div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;margin-bottom:.75rem">' + linksHtml + '</div>';
+
+    if (body) body.innerHTML =
+      // Banner
+      (p.banner_url ? '<div style="width:100%;height:120px;background-image:url(' + p.banner_url + ');background-size:cover;background-position:center"></div>' : '<div style="width:100%;height:80px;background:linear-gradient(135deg,var(--gold),var(--gold-l))"></div>') +
+
+      // Profile card
+      '<div style="padding:0 1rem 1rem;background:var(--surface);border-bottom:1px solid var(--border)">' +
+        '<div style="display:flex;align-items:flex-end;gap:.75rem;margin-top:-40px;margin-bottom:.75rem">' +
+          avatarHtml +
+          '<div style="flex:1;padding-bottom:.25rem">' +
+            '<div style="font-size:1rem;font-weight:800">' + escHtml(p.nickname || 'User') + (p.verified ? ' ✅' : '') + '</div>' +
+            (p.role && p.role !== 'member' ? '<div style="font-size:.68rem;color:var(--gold);font-weight:700;text-transform:uppercase">' + escHtml(p.role) + '</div>' : '') +
+          '</div>' +
+        '</div>' +
+        bioHtml + linksHtml +
+        // Stats row
+        '<div style="display:flex;justify-content:center;gap:2rem;margin-bottom:.75rem">' +
+          _pStat(fdata.followers || 0, 'Followers', 'openFollowersList(\'' + userId + '\')') +
+          _pStat(fdata.following || 0, 'Following', 'openFollowingList(\'' + userId + '\')') +
+          _pStat(stats.shorts || 0, 'Videos', '') +
+          _pStat(stats.music  || 0, 'Music', '') +
+        '</div>' +
+        // Action buttons
+        '<div style="display:flex;gap:.5rem;justify-content:center">' + followBtn + msgBtn + '</div>' +
+      '</div>' +
+
+      // Content tabs
+      '<div style="display:flex;border-bottom:1px solid var(--border);background:var(--surface);margin-top:.5rem">' +
+        '<button class="ctab active" onclick="switchProfileTab(this,\'shorts\')" style="flex:1">Videos</button>' +
+        '<button class="ctab" onclick="switchProfileTab(this,\'music\')" style="flex:1">Music</button>' +
+      '</div>' +
+      '<div id="profile-content-area"><div style="padding:2rem;text-align:center;color:var(--muted);font-size:.85rem">Loading...</div></div>';
+
+    _loadProfileContent(userId, 'shorts');
+
+  }).catch(function (err) {
+    if (body) body.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted)">' + escHtml(err.message) + '</div>';
+  });
+}
+
+function _pStat(val, label, onclick) {
+  return '<div style="text-align:center;cursor:' + (onclick ? 'pointer' : 'default') + '"' + (onclick ? ' onclick="' + onclick + '"' : '') + '>' +
+    '<div style="font-size:1rem;font-weight:800">' + fmtN(val) + '</div>' +
+    '<div style="font-size:.68rem;color:var(--muted)">' + label + '</div>' +
+  '</div>';
+}
+
+window.switchProfileTab = function (btn, tab) {
+  document.querySelectorAll('#profile-screen-body .ctab').forEach(function (b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  _loadProfileContent(PROFILE_userId, tab);
+};
+
+function _loadProfileContent(userId, tab) {
+  var area = document.getElementById('profile-content-area');
+  if (!area) return;
+  area.innerHTML = '<div style="padding:2rem;text-align:center"><div class="spinner"></div></div>';
+
+  if (tab === 'shorts') {
+    api.get('/shorts?owner_id=' + encodeURIComponent(userId), true)
+      .then(function (res) {
+        var items = res.shorts || [];
+        if (!items.length) { area.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:.85rem">No videos yet</div>'; return; }
+        area.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px">' +
+          items.map(function (s) {
+            return '<div style="aspect-ratio:9/16;position:relative;background:#000;overflow:hidden;cursor:pointer" onclick="openShort(\'' + s.id + '\')">' +
+              (s.media_url ? '<video src="' + s.media_url + '" style="width:100%;height:100%;object-fit:cover" preload="none"></video>' : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff">📹</div>') +
+              '<div style="position:absolute;bottom:4px;left:4px;font-size:.68rem;color:#fff;font-weight:700">▶ ' + fmtN(s.views||0) + '</div>' +
+            '</div>';
+          }).join('') +
+        '</div>';
+      })
+      .catch(function () { area.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted)">Could not load videos</div>'; });
+  } else if (tab === 'music') {
+    api.get('/music?owner_id=' + encodeURIComponent(userId), true)
+      .then(function (res) {
+        var items = res.tracks || res.music || [];
+        if (!items.length) { area.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:.85rem">No music yet</div>'; return; }
+        area.innerHTML = '<div style="padding:.5rem">' +
+          items.map(function (t) {
+            return '<div style="display:flex;align-items:center;gap:.65rem;padding:.6rem .5rem;border-bottom:.5px solid var(--border)">' +
+              '<div style="width:44px;height:44px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🎵</div>' +
+              '<div style="flex:1;min-width:0">' +
+                '<div style="font-size:.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(t.title||'Track') + '</div>' +
+                '<div style="font-size:.7rem;color:var(--muted)">' + fmtN(t.plays||0) + ' plays</div>' +
+              '</div>' +
+            '</div>';
+          }).join('') +
+        '</div>';
+      })
+      .catch(function () { area.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted)">Could not load music</div>'; });
+  }
+}
+
+window.followUser = function (userId) {
+  api.post('/follows', { user_id: userId })
+    .then(function () { toast('Following!'); _buildProfileScreen(userId); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.unfollowUser = function (userId) {
+  api.del('/follows?user_id=' + encodeURIComponent(userId))
+    .then(function () { toast('Unfollowed'); _buildProfileScreen(userId); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.openDMWith = function (userId) {
+  api.post('/chat/rooms', { type: 'private', other_user_id: userId })
+    .then(function (res) {
+      goPage('yidplus-chat.html');
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.openFollowersList = function (userId) {
+  _openFollowModal('Followers', '/follows?followers=1&user_id=' + encodeURIComponent(userId));
+};
+
+window.openFollowingList = function (userId) {
+  _openFollowModal('Following', '/follows?following=1&user_id=' + encodeURIComponent(userId));
+};
+
+function _openFollowModal(title, path) {
+  var modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+  modal.innerHTML =
+    '<div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:500px;padding:1.25rem;max-height:75vh;display:flex;flex-direction:column">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem;flex-shrink:0">' +
+        '<div style="font-size:.95rem;font-weight:700">' + title + '</div>' +
+        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;cursor:pointer;color:var(--muted)">' +
+          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+        '</button>' +
+      '</div>' +
+      '<div id="follow-list-content" style="flex:1;overflow-y:auto"><div style="text-align:center;padding:1.5rem"><div class="spinner"></div></div></div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) modal.remove(); });
+
+  api.get(path, true).then(function (res) {
+    var el = document.getElementById('follow-list-content');
+    if (!el) return;
+    var users = res.users || [];
+    if (!users.length) { el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.85rem">Nobody here yet</div>'; return; }
+    el.innerHTML = users.map(function (u) {
+      return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem 0;border-bottom:.5px solid var(--border);cursor:pointer" onclick="this.closest(\'div[style*=fixed]\').remove();openUserProfile(\'' + u.id + '\')">' +
+        (u.photo_url
+          ? '<div style="width:42px;height:42px;border-radius:50%;background-image:url(' + u.photo_url + ');background-size:cover;flex-shrink:0"></div>'
+          : '<div style="width:42px;height:42px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">' + (u.nickname||'U').slice(0,1).toUpperCase() + '</div>') +
+        '<div>' +
+          '<div style="font-size:.88rem;font-weight:700">@' + escHtml(u.nickname) + (u.verified ? ' ✅' : '') + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }).catch(function () {});
+}
