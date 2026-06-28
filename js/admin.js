@@ -601,15 +601,24 @@ window.deleteFeedback = function (id) {
 
 /* ── ANALYTICS ── */
 function refreshAnalytics() {
-  api.get('/admin/stats')
+  api.get('/admin/stats', true)
     .then(function (res) {
       var stats  = res.stats || {};
-      var online = stats.online   || 0;
-      var total  = stats.users    || 0;
-      var shorts = stats.shorts   || 0;
-      var msgs   = stats.messages || 0;
-      var vals   = res.dailyVisitors || [0,0,0,0,0,0,0];
-      var max    = Math.max.apply(null, vals) || 1;
+      var online = stats.online    || 0;
+      var total  = stats.users     || 0;
+      var shorts = stats.shorts    || 0;
+      var msgs   = stats.messages  || 0;
+      var music  = stats.music     || 0;
+      var newTdy = stats.new_today || 0;
+      var openRp = stats.open_reports || 0;
+
+      // Daily visitors from API
+      var dailyData = res.daily_visitors || [];
+      var vals = dailyData.map(function(d){ return d.visitors || 0; });
+      // Pad to 7 days if needed
+      while (vals.length < 7) vals.unshift(0);
+      vals = vals.slice(-7);
+      var max = Math.max.apply(null, vals) || 1;
 
       var liveCt = document.getElementById('live-ct');
       if (liveCt) liveCt.textContent = '● ' + online + ' users online now';
@@ -617,16 +626,18 @@ function refreshAnalytics() {
       var grid = document.getElementById('stats-grid');
       if (grid) {
         var cards = [
-          ['Total Users', total,  '↑ Today',       'up'],
-          ['Online Now',  online, 'Live count',     'up'],
-          ['Shorts',      shorts, 'Cloudflare R2',  'up'],
-          ['Messages',    msgs,   'Cloudflare D1',  'up'],
+          ['Total Users',    total,  '↑ ' + newTdy + ' today',  'up'],
+          ['Online Now',     online, 'Live count',               'up'],
+          ['Videos',         shorts, 'Cloudflare R2',            'up'],
+          ['Messages',       msgs,   'Cloudflare D1',            'up'],
+          ['Music Tracks',   music,  'Cloudflare R2',            'up'],
+          ['Open Reports',   openRp, 'Needs review',             openRp > 0 ? 'down' : 'up'],
         ];
         grid.innerHTML = cards.map(function (c) {
           return '<div class="stat-card">' +
             '<div class="stat-num">' + fmtN(c[1]) + '</div>' +
             '<div class="stat-lbl">' + c[0] + '</div>' +
-            '<div class="stat-' + c[3] + '">' + c[2] + '</div>' +
+            '<div style="font-size:.65rem;color:' + (c[3]==='up'?'var(--green)':'#E11D48') + ';margin-top:.15rem">' + c[2] + '</div>' +
           '</div>';
         }).join('');
       }
