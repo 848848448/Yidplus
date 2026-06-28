@@ -2000,8 +2000,19 @@ function buildBadWordsPanel(content) {
         '<button onclick="addBadWord()" style="padding:.55rem 1rem;background:#DC2626;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit;font-size:.85rem">Add</button>' +
       '</div>' +
       '<div style="border-top:1px solid var(--border);padding-top:.75rem">' +
-        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.5rem;font-weight:700">Currently blocked words:</div>' +
+        '<div style="display:flex;gap:.5rem;margin-bottom:.5rem">' +
+          '<button onclick="bwShowTab(\'words\',this)" class="bw-tab-btn active" style="flex:1;padding:.4rem;background:var(--blue);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:700;font-family:inherit">Words</button>' +
+          '<button onclick="bwShowTab(\'phrases\',this)" class="bw-tab-btn" style="flex:1;padding:.4rem;background:var(--bg3);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:600;font-family:inherit;color:var(--text)">Phrases (multi-word)</button>' +
+        '</div>' +
         '<div id="bw-list"><div class="spinner-sm"></div></div>' +
+        '<div id="bw-phrases-list" style="display:none"><div class="spinner-sm"></div></div>' +
+        '<div id="bw-add-phrase" style="display:none;margin-top:.5rem">' +
+          '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem">Add a phrase (2+ words that are bad together):</div>' +
+          '<div style="display:flex;gap:.5rem">' +
+            '<input id="bw-phrase-inp" placeholder="e.g. two word phrase..." style="flex:1;padding:.5rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none" onkeydown="if(event.key===\'Enter\')addBadPhrase()">' +
+            '<button onclick="addBadPhrase()" style="padding:.5rem .85rem;background:#DC2626;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit">Add</button>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
     '</div>';
 
@@ -2136,6 +2147,87 @@ window.removeBadWord = function (id) {
     .then(function () {
       toast('Removed from filter');
       loadBadWordsList();
+      FILTER_loaded = false;
+      if (typeof loadContentFilter === 'function') loadContentFilter();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ── BAD WORDS TABS ── */
+window.bwShowTab = function (tab, btn) {
+  document.querySelectorAll('.bw-tab-btn').forEach(function (b) {
+    b.style.background = 'var(--bg3)';
+    b.style.color = 'var(--text)';
+    b.style.border = '1px solid var(--border)';
+  });
+  btn.style.background = 'var(--blue)';
+  btn.style.color = '#fff';
+  btn.style.border = 'none';
+
+  var wordsList = document.getElementById('bw-list');
+  var phrasesList = document.getElementById('bw-phrases-list');
+  var phraseAdd = document.getElementById('bw-add-phrase');
+
+  if (tab === 'words') {
+    if (wordsList) wordsList.style.display = 'block';
+    if (phrasesList) phrasesList.style.display = 'none';
+    if (phraseAdd) phraseAdd.style.display = 'none';
+  } else {
+    if (wordsList) wordsList.style.display = 'none';
+    if (phrasesList) { phrasesList.style.display = 'block'; loadBadPhrasesList(); }
+    if (phraseAdd) phraseAdd.style.display = 'block';
+  }
+};
+
+function loadBadPhrasesList() {
+  var el = document.getElementById('bw-phrases-list');
+  if (!el || el.dataset.loaded) return;
+  el.innerHTML = '<div class="spinner-sm"></div>';
+  api.get('/admin/bad-words', true)
+    .then(function (res) {
+      var phrases = res.phrases || [];
+      el.dataset.loaded = '1';
+      if (!phrases.length) {
+        el.innerHTML = '<div style="text-align:center;padding:1.25rem;color:var(--muted);font-size:.82rem">No phrases blocked yet</div>';
+        return;
+      }
+      el.innerHTML =
+        '<div style="display:flex;flex-direction:column;gap:.35rem">' +
+          phrases.map(function (p) {
+            return '<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.2);border-radius:8px;padding:.35rem .65rem">' +
+              '<span style="font-size:.82rem;font-weight:600;color:#DC2626">"' + escHtml(p.phrase) + '"</span>' +
+              '<button onclick="removeBadPhrase(\'' + p.id + '\')" style="background:none;border:none;cursor:pointer;color:#DC2626;padding:0;font-size:.85rem">✕</button>' +
+            '</div>';
+          }).join('') +
+        '</div>';
+    })
+    .catch(function () { el.innerHTML = '<div style="color:#DC2626;font-size:.82rem">Could not load</div>'; });
+}
+
+window.addBadPhrase = function () {
+  var inp = document.getElementById('bw-phrase-inp');
+  if (!inp) return;
+  var phrase = inp.value.trim().toLowerCase();
+  if (!phrase) return;
+  if (phrase.split(/\s+/).length < 2) { toast('A phrase needs at least 2 words'); return; }
+  inp.value = '';
+  api.post('/admin/bad-words', { phrase: phrase })
+    .then(function () {
+      toast('✅ Phrase added!');
+      var el = document.getElementById('bw-phrases-list');
+      if (el) { el.dataset.loaded = ''; loadBadPhrasesList(); }
+      FILTER_loaded = false;
+      if (typeof loadContentFilter === 'function') loadContentFilter();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.removeBadPhrase = function (id) {
+  api.del('/admin/bad-words?id=' + encodeURIComponent(id) + '&type=phrase')
+    .then(function () {
+      toast('Phrase removed');
+      var el = document.getElementById('bw-phrases-list');
+      if (el) { el.dataset.loaded = ''; loadBadPhrasesList(); }
       FILTER_loaded = false;
       if (typeof loadContentFilter === 'function') loadContentFilter();
     })
