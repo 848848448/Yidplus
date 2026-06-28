@@ -115,6 +115,16 @@ export async function onRequestPut(context) {
                      'notif_followers','notif_channels','photo_url','banner_url'];
 
     const updates = []; const params = [];
+
+    // Handle password change separately
+    if (body.password) {
+      if (body.password.length < 6) return json({ ok: false, error: 'Password must be at least 6 characters' }, 400);
+      const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body.password));
+      const hash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+      updates.push('password_hash = ?');
+      params.push(hash);
+    }
+
     for (const [k, v] of Object.entries(body)) {
       if (ALLOWED.includes(k)) { updates.push(`${k} = ?`); params.push(v); }
     }
@@ -138,4 +148,4 @@ export async function onRequestDelete(context) {
     await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id).run();
     return json({ ok: true });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
-    }
+          }
