@@ -1978,14 +1978,31 @@ function buildBadWordsPanel(content) {
     '<div class="admin-section-title">🚫 Word Filter</div>' +
     '<div class="admin-card">' +
       '<div style="font-size:.82rem;color:var(--muted);margin-bottom:.85rem;line-height:1.5">' +
-        'Words in this list will be automatically blurred in all messages, posts, and comments. ' +
-        'Users will receive a warning when typing them.' +
+        'Words will be automatically blurred for all users. Users get a warning when typing them.' +
       '</div>' +
+      // ── Step 1: Paste ──
+      '<div style="margin-bottom:.65rem">' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.3rem;font-weight:700">Step 1 — Paste your word list:</div>' +
+        '<textarea id="bw-bulk-inp" placeholder="Paste words here — one per line or comma/space separated..." rows="5" style="width:100%;box-sizing:border-box;padding:.55rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none;resize:vertical" oninput="previewBulkWords()"></textarea>' +
+      '</div>' +
+      // ── Step 2: Preview ──
+      '<div id="bw-preview-area" style="display:none;margin-bottom:.65rem">' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.4rem;font-weight:700">Step 2 — Review words (click ✕ to remove mistakes):</div>' +
+        '<div id="bw-preview-tags" style="display:flex;flex-wrap:wrap;gap:.35rem;max-height:150px;overflow-y:auto;padding:.5rem;background:var(--bg3);border-radius:10px;border:1px solid var(--border)"></div>' +
+        '<div style="margin-top:.5rem;display:flex;gap:.5rem">' +
+          '<div id="bw-preview-count" style="flex:1;font-size:.78rem;color:var(--muted);display:flex;align-items:center"></div>' +
+          '<button onclick="importPreviewedWords()" id="bw-import-btn" style="padding:.55rem 1.25rem;background:#DC2626;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit;font-size:.85rem">⬆️ Import All</button>' +
+        '</div>' +
+      '</div>' +
+      // ── Single word ──
       '<div style="display:flex;gap:.5rem;margin-bottom:.85rem">' +
-        '<input id="bw-inp" placeholder="Type word to block..." style="flex:1;padding:.55rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none" onkeydown="if(event.key===\'Enter\')addBadWord()">' +
+        '<input id="bw-inp" placeholder="Or add one word at a time..." style="flex:1;padding:.55rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none" onkeydown="if(event.key===\'Enter\')addBadWord()">' +
         '<button onclick="addBadWord()" style="padding:.55rem 1rem;background:#DC2626;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit;font-size:.85rem">Add</button>' +
       '</div>' +
-      '<div id="bw-list" style="min-height:60px"><div class="spinner-sm"></div></div>' +
+      '<div style="border-top:1px solid var(--border);padding-top:.75rem">' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.5rem;font-weight:700">Currently blocked words:</div>' +
+        '<div id="bw-list"><div class="spinner-sm"></div></div>' +
+      '</div>' +
     '</div>';
 
   loadBadWordsList();
@@ -2016,6 +2033,85 @@ function loadBadWordsList() {
       if (el) el.innerHTML = '<div style="color:#DC2626;font-size:.82rem">Could not load list</div>';
     });
 }
+
+// Preview words before importing
+var BW_previewWords = [];
+
+window.previewBulkWords = function () {
+  var inp = document.getElementById('bw-bulk-inp');
+  var area = document.getElementById('bw-preview-area');
+  var tagsEl = document.getElementById('bw-preview-tags');
+  var countEl = document.getElementById('bw-preview-count');
+  if (!inp || !area || !tagsEl) return;
+
+  var raw = inp.value;
+  if (!raw.trim()) { area.style.display = 'none'; BW_previewWords = []; return; }
+
+  // Split by newlines, commas, spaces
+  var words = raw.split(/[\n,\s]+/)
+    .map(function (w) { return w.trim().toLowerCase().replace(/[^a-z\u0590-\u05FF\u0400-\u04FF\w]/g, ''); })
+    .filter(function (w) { return w.length >= 2; });
+
+  // Remove duplicates
+  var seen = {};
+  words = words.filter(function (w) { if (seen[w]) return false; seen[w] = true; return true; });
+
+  BW_previewWords = words;
+  area.style.display = 'block';
+
+  // Render tag chips
+  tagsEl.innerHTML = words.map(function (w, i) {
+    return '<div id="bw-tag-' + i + '" style="display:flex;align-items:center;gap:.25rem;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.2);border-radius:20px;padding:.2rem .55rem">' +
+      '<span style="font-size:.78rem;color:#DC2626;font-weight:600">' + escHtml(w) + '</span>' +
+      '<button onclick="removeBWPreviewWord(' + i + ')" style="background:none;border:none;cursor:pointer;color:#DC2626;padding:0;font-size:.8rem;line-height:1">✕</button>' +
+    '</div>';
+  }).join('');
+
+  if (countEl) countEl.textContent = words.length + ' word' + (words.length !== 1 ? 's' : '') + ' ready to import';
+};
+
+window.removeBWPreviewWord = function (i) {
+  BW_previewWords.splice(i, 1);
+  var tag = document.getElementById('bw-tag-' + i);
+  if (tag) tag.remove();
+  var countEl = document.getElementById('bw-preview-count');
+  if (countEl) countEl.textContent = BW_previewWords.length + ' words ready to import';
+  if (!BW_previewWords.length) {
+    var area = document.getElementById('bw-preview-area');
+    if (area) area.style.display = 'none';
+  }
+};
+
+window.importPreviewedWords = function () {
+  var words = BW_previewWords.slice();
+  if (!words.length) { toast('No words to import'); return; }
+
+  var btn = document.getElementById('bw-import-btn');
+  if (btn) { btn.textContent = 'Importing...'; btn.disabled = true; }
+
+  var added = 0, failed = 0;
+  function sendNext(i) {
+    if (i >= words.length) {
+      BW_previewWords = [];
+      var inp = document.getElementById('bw-bulk-inp');
+      if (inp) inp.value = '';
+      var area = document.getElementById('bw-preview-area');
+      if (area) area.style.display = 'none';
+      if (btn) { btn.textContent = '⬆️ Import All'; btn.disabled = false; }
+      toast('✅ Imported ' + added + ' words!' + (failed ? ' (' + failed + ' skipped)' : ''));
+      loadBadWordsList();
+      FILTER_loaded = false;
+      if (typeof loadContentFilter === 'function') loadContentFilter();
+      return;
+    }
+    api.post('/admin/bad-words', { word: words[i] })
+      .then(function () { added++; sendNext(i + 1); })
+      .catch(function () { failed++; sendNext(i + 1); });
+  }
+  sendNext(0);
+};
+
+window.addBulkBadWords = window.importPreviewedWords;
 
 window.addBadWord = function () {
   var inp = document.getElementById('bw-inp');
