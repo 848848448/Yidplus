@@ -17,9 +17,12 @@ export async function onRequestGet(context) {
     const user = await requireUser(request, env).catch(() => null);
 
     const { results } = await env.DB.prepare(
-      `SELECT id, owner_id, title, artist, type, album_id, album_name,
-              audio_key, video_key, cover_key, duration_sec, trending, plays, created_at
-       FROM music_tracks ORDER BY created_at DESC LIMIT 200`
+      `SELECT m.id, m.owner_id, m.title, m.artist, m.type, m.album_id, m.album_name,
+              m.audio_key, m.video_key, m.cover_key, m.duration_sec, m.trending, m.plays, m.created_at,
+              u.nickname as owner_nick, u.photo_url as owner_photo
+       FROM music_tracks m
+       LEFT JOIN users u ON u.id = m.owner_id
+       ORDER BY m.created_at DESC LIMIT 200`
     ).all();
 
     let likedIds = new Set();
@@ -179,4 +182,4 @@ export async function onRequestDelete(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-        }
+      }
