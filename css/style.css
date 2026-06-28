@@ -1055,7 +1055,7 @@ html.dark-mode .chat-messages { background:
    ============================================= */
 .new-arrow { position: absolute; bottom: 90px; right: 16px; z-index: 30; background: var(--blue); color: #fff; border: none; border-radius: 20px; padding: .5rem 1rem; font-size: .8rem; display: flex; align-items: center; gap: .4rem; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,.2); }
 .new-arrow .new-count { background: rgba(255,255,255,.25); border-radius: 10px; padding: 0 .4rem; font-size: .68rem; }
-.typing-indicator-row { display: flex; align-items: center; gap: .4rem; padding: .3rem .9rem; }
+.typing-indicator-row { display: flex; align-items: center; gap: .5rem; padding: .3rem .9rem; background: var(--surface); flex-shrink: 0; border-top: .5px solid var(--border); }
 .report-reason-opt { display: flex; align-items: center; gap: .6rem; padding: .65rem 0; border-bottom: 1px solid var(--border); cursor: pointer; font-size: .85rem; }
 .report-reason-opt input { width: 18px; height: 18px; accent-color: var(--blue); }
 .avatar-upload-circle { width: 90px; height: 90px; border-radius: 50%; background: var(--bg3); border: 2px dashed var(--border2); display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem; cursor: pointer; overflow: hidden; background-size: cover; background-position: center; position: relative; }
@@ -1290,3 +1290,11 @@ html.dark-mode .settings-card { box-shadow: 0 1px 6px rgba(0,0,0,.25); }
 /* ── Performance: smooth transitions ── */
 * { -webkit-tap-highlight-color: transparent; }
 img { loading: lazy; }
+
+/* ══════════════════════════════════
+   LAZY LOADING / PERFORMANCE
+══════════════════════════════════ */
+/* Fade in images when they load */
+img[loading="lazy"] { opacity: 0; transition: opacity .3s ease; }
+img[loading="lazy"].loaded, img[loading="lazy"]:not([src=""]) { opacity: 1; }
+img { opacity: 1; }
