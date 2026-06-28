@@ -740,3 +740,131 @@ window.PWA = {
   observer.observe(document.body, { childList: true, subtree: true });
   observeLazyImages();
 })();
+
+/* ══════════════════════════════════
+   AUTO DARK MODE — לויט סיסטעם
+══════════════════════════════════ */
+(function () {
+  // Only auto-apply if user hasn't manually set it
+  try {
+    var manual = localStorage.getItem('yp_dark_mode');
+    if (manual === null && window.matchMedia) {
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDark) document.documentElement.classList.add('dark-mode');
+
+      // Listen for changes
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+        var hasManual = localStorage.getItem('yp_dark_mode');
+        if (hasManual === null) {
+          document.documentElement.classList.toggle('dark-mode', e.matches);
+        }
+      });
+    } else if (manual === '1') {
+      document.documentElement.classList.add('dark-mode');
+    }
+  } catch (e) {}
+})();
+
+/* ══════════════════════════════════
+   HAPTIC FEEDBACK
+══════════════════════════════════ */
+window.haptic = function (type) {
+  if (!navigator.vibrate) return;
+  if (type === 'light')  navigator.vibrate(10);
+  if (type === 'medium') navigator.vibrate(25);
+  if (type === 'heavy')  navigator.vibrate([30, 10, 30]);
+  if (type === 'error')  navigator.vibrate([50, 20, 50, 20, 50]);
+};
+
+/* ══════════════════════════════════
+   CONTENT FILTER — BAD WORDS
+   Blurs bad words in all text content
+   Warns user when typing them
+══════════════════════════════════ */
+var FILTER_words = [];
+var FILTER_regex = null;
+var FILTER_loaded = false;
+var FILTER_warned = {}; // track which words we already warned about
+
+// Load bad words from server (cached)
+window.loadContentFilter = function () {
+  if (FILTER_loaded) return;
+  api.get('/admin/bad-words?public=1', true)
+    .then(function (res) {
+      FILTER_words = (res.words || []).map(function (w) { return w.toLowerCase(); });
+      if (FILTER_words.length) {
+        // Build regex that matches whole words, case-insensitive, multi-language
+        var escaped = FILTER_words.map(function (w) {
+          return w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        });
+        FILTER_regex = new RegExp('(' + escaped.join('|') + ')', 'gi');
+      }
+      FILTER_loaded = true;
+    })
+    .catch(function () {});
+};
+
+// Apply blur to bad words in a string of HTML
+window.filterContent = function (html) {
+  if (!FILTER_regex || !FILTER_words.length) return html;
+  return html.replace(FILTER_regex, function (match) {
+    return '<span class="blurred-word" title="Filtered content" onclick="this.style.filter=\'none\'">' + match + '</span>';
+  });
+};
+
+// Check text being typed — warn if bad word detected
+var FILTER_warnTimer = null;
+window.checkInputForBadWords = function (text) {
+  if (!FILTER_regex || !text) return;
+  clearTimeout(FILTER_warnTimer);
+  FILTER_warnTimer = setTimeout(function () {
+    var match = text.match(FILTER_regex);
+    if (match) {
+      var word = match[0].toLowerCase();
+      if (!FILTER_warned[word]) {
+        FILTER_warned[word] = true;
+        _showFilterWarning(match[0]);
+        setTimeout(function () { delete FILTER_warned[word]; }, 10000);
+      }
+    }
+  }, 500);
+};
+
+function _showFilterWarning(word) {
+  // Remove existing warning
+  var existing = document.getElementById('filter-warning-toast');
+  if (existing) existing.remove();
+
+  var el = document.createElement('div');
+  el.id = 'filter-warning-toast';
+  el.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:9999;background:#DC2626;color:#fff;padding:.6rem 1.1rem;border-radius:12px;font-size:.82rem;font-weight:600;box-shadow:0 4px 16px rgba(220,38,38,.4);display:flex;align-items:center;gap:.5rem;max-width:calc(100vw - 2rem);text-align:center';
+  el.innerHTML =
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+    '⚠️ This word is not allowed on YID PLUS';
+  document.body.appendChild(el);
+  setTimeout(function () { if (el.parentElement) el.remove(); }, 4000);
+}
+
+// Apply filter to element's innerHTML
+window.filterElement = function (el) {
+  if (!el || !FILTER_regex) return;
+  // Find all text nodes and apply blur
+  var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  var nodesToProcess = [];
+  var node;
+  while ((node = walker.nextNode())) {
+    if (FILTER_regex.test(node.textContent)) {
+      nodesToProcess.push(node);
+    }
+  }
+  nodesToProcess.forEach(function (textNode) {
+    var wrapper = document.createElement('span');
+    wrapper.innerHTML = filterContent(escHtml(textNode.textContent));
+    textNode.parentNode.replaceChild(wrapper, textNode);
+  });
+};
+
+// Auto-load on startup
+(function () {
+  setTimeout(function () { loadContentFilter(); }, 2000);
+})();
