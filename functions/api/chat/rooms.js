@@ -47,7 +47,9 @@ export async function onRequestGet(context) {
 
     // Rooms the user is a member of
     const { results: myRooms } = await env.DB.prepare(
-      `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code, r.pinned_message_id, r.photo_key
+      `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at,
+              r.invite_code, r.pinned_message_id, r.photo_key,
+              r.channel_admins, r.description, r.created_by
        FROM rooms r
        JOIN room_members m ON m.room_id = r.id
        WHERE m.user_id = ?`
@@ -137,7 +139,7 @@ export async function onRequestGet(context) {
         id: r.id,
         type: r.type,
         nick,
-        emoji: r.emoji || (r.type === 'group' ? '👥' : '👤'),
+        emoji: r.emoji || (r.type === 'group' ? '👥' : r.type === 'channel' ? '📡' : '👤'),
         photo_url: photoUrl || r.photo_key || null,
         visibility: r.visibility || 'private',
         read_only: !!r.read_only,
@@ -149,6 +151,9 @@ export async function onRequestGet(context) {
         member_list: memberList,
         invite_code: r.invite_code || null,
         pinned_message_id: r.pinned_message_id || null,
+        created_by: r.created_by || null,
+        channel_admins: r.channel_admins || '[]',
+        description: r.description || null,
         preview: lastMsg ? (lastMsg.type === 'text' ? lastMsg.text : '[' + lastMsg.type + ']') : '',
         unread: unreadRow ? unreadRow.c : 0,
         last_time: lastMsg ? lastMsg.created_at : r.created_at,
@@ -416,4 +421,4 @@ export async function onRequestDelete(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-}
+        }
