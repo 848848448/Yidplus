@@ -66,12 +66,20 @@ export async function onRequestGet(context) {
       await ensureMember(env, roomId, user.id);
     }
 
+    // Increment view count for channel messages
+    const roomInfo = await env.DB.prepare('SELECT type FROM rooms WHERE id = ?').bind(roomId).first().catch(() => null);
+    if (roomInfo && roomInfo.type === 'channel') {
+      await env.DB.prepare('UPDATE messages SET view_count = view_count + 1 WHERE room_id = ?').bind(roomId).run().catch(() => {});
+    }
+
     const { results } = await env.DB.prepare(
-      `SELECT id, room_id, sender_id, sender_nick, type, text, media_key,
-              reply_to_id, view_once, opened, edited_at, created_at, read
-       FROM messages
-       WHERE room_id = ?
-       ORDER BY created_at ASC
+      `SELECT m.id, m.room_id, m.sender_id, m.sender_nick, m.type, m.text, m.media_key,
+              m.reply_to_id, m.view_once, m.opened, m.edited_at, m.created_at, m.read,
+              u.photo_url as sender_photo
+       FROM messages m
+       LEFT JOIN users u ON u.id = m.sender_id
+       WHERE m.room_id = ?
+       ORDER BY m.created_at ASC
        LIMIT 200`
     ).bind(roomId).all();
 
@@ -229,4 +237,4 @@ async function ensureMember(env, roomId, userId) {
       ).bind(roomId, userId, new Date().toISOString()).run();
     }
   }
-      }
+        }
