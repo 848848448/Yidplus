@@ -14,10 +14,15 @@ export async function onRequestGet(context) {
 
     // Public endpoint — for frontend JS to load the filter list
     if (url.searchParams.get('public')) {
-      const { results } = await env.DB.prepare(
-        'SELECT word FROM bad_words ORDER BY word ASC'
-      ).all();
-      return json({ ok: true, words: results.map(r => r.word) });
+      const [wordsRes, phrasesRes] = await Promise.all([
+        env.DB.prepare('SELECT word FROM bad_words ORDER BY word ASC').all(),
+        env.DB.prepare('SELECT phrase FROM bad_phrases ORDER BY phrase ASC').all().catch(() => ({ results: [] })),
+      ]);
+      return json({
+        ok: true,
+        words: wordsRes.results.map(r => r.word),
+        phrases: phrasesRes.results.map(r => r.phrase),
+      });
     }
 
     // Admin only
@@ -25,10 +30,11 @@ export async function onRequestGet(context) {
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
     if (!isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
-    const { results } = await env.DB.prepare(
-      'SELECT id, word, added_by, created_at FROM bad_words ORDER BY created_at DESC'
-    ).all();
-    return json({ ok: true, words: results });
+    const [wordsRes, phrasesRes] = await Promise.all([
+      env.DB.prepare('SELECT id, word, added_by, created_at FROM bad_words ORDER BY created_at DESC').all(),
+      env.DB.prepare('SELECT id, phrase, added_by, created_at FROM bad_phrases ORDER BY created_at DESC').all().catch(() => ({ results: [] })),
+    ]);
+    return json({ ok: true, words: wordsRes.results, phrases: phrasesRes.results });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
 }
 
@@ -39,8 +45,22 @@ export async function onRequestPost(context) {
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
     if (!isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
-    const { word } = await request.json();
-    if (!word || !word.trim()) return json({ ok: false, error: 'word required' }, 400);
+    const body = await request.json();
+    const word = body.word;
+    const phrase = body.phrase;
+
+    if (phrase) {
+      // Adding a phrase
+      const phraseClean = phrase.trim().toLowerCase();
+      if (!phraseClean || phraseClean.split(/\s+/).length < 2) return json({ ok: false, error: 'phrase must have at least 2 words' }, 400);
+      const id = crypto.randomUUID();
+      await env.DB.prepare(
+        'INSERT OR IGNORE INTO bad_phrases (id, phrase, added_by, created_at) VALUES (?, ?, ?, ?)'
+      ).bind(id, phraseClean, user.nickname || user.id, new Date().toISOString()).run();
+      return json({ ok: true, id });
+    }
+
+    if (!word || !word.trim()) return json({ ok: false, error: 'word or phrase required' }, 400);
 
     const id = crypto.randomUUID();
     await env.DB.prepare(
@@ -58,9 +78,15 @@ export async function onRequestDelete(context) {
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
     if (!isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
-    const id = new URL(request.url).searchParams.get('id');
+    const url2 = new URL(request.url);
+    const id = url2.searchParams.get('id');
+    const type = url2.searchParams.get('type') || 'word'; // 'word' or 'phrase'
     if (!id) return json({ ok: false, error: 'id required' }, 400);
-    await env.DB.prepare('DELETE FROM bad_words WHERE id = ?').bind(id).run();
+    if (type === 'phrase') {
+      await env.DB.prepare('DELETE FROM bad_phrases WHERE id = ?').bind(id).run();
+    } else {
+      await env.DB.prepare('DELETE FROM bad_words WHERE id = ?').bind(id).run();
+    }
     return json({ ok: true });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
         }
