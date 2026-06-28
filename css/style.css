@@ -1298,3 +1298,17 @@ img { loading: lazy; }
 img[loading="lazy"] { opacity: 0; transition: opacity .3s ease; }
 img[loading="lazy"].loaded, img[loading="lazy"]:not([src=""]) { opacity: 1; }
 img { opacity: 1; }
+
+/* ══════════════════════════════════
+   CONTENT FILTER — BLURRED WORDS
+══════════════════════════════════ */
+.blurred-word {
+  filter: blur(6px);
+  cursor: pointer;
+  user-select: none;
+  border-radius: 3px;
+  display: inline-block;
+  transition: filter .25s;
+  background: rgba(220, 38, 38, .08);
+}
+.blurred-word:hover { filter: blur(4px); }
