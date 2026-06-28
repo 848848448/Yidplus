@@ -2046,7 +2046,8 @@ function loadBadWordsList() {
 }
 
 // Preview words before importing
-var BW_previewWords = [];
+var BW_previewWords = [];   // single words
+var BW_previewPhrases = []; // multi-word phrases
 
 window.previewBulkWords = function () {
   var inp = document.getElementById('bw-bulk-inp');
@@ -2056,66 +2057,109 @@ window.previewBulkWords = function () {
   if (!inp || !area || !tagsEl) return;
 
   var raw = inp.value;
-  if (!raw.trim()) { area.style.display = 'none'; BW_previewWords = []; return; }
+  if (!raw.trim()) { area.style.display = 'none'; BW_previewWords = []; BW_previewPhrases = []; return; }
 
-  // Split by newlines, commas, spaces
-  var words = raw.split(/[\n,\s]+/)
-    .map(function (w) { return w.trim().toLowerCase().replace(/[^a-z\u0590-\u05FF\u0400-\u04FF\w]/g, ''); })
-    .filter(function (w) { return w.length >= 2; });
+  // Split by newlines ONLY — each line is one entry (could be 1 word or a phrase)
+  var lines = raw.split(/\n/)
+    .map(function (line) { return line.trim().toLowerCase(); })
+    .filter(function (line) { return line.length >= 2; });
 
   // Remove duplicates
   var seen = {};
-  words = words.filter(function (w) { if (seen[w]) return false; seen[w] = true; return true; });
+  lines = lines.filter(function (l) { if (seen[l]) return false; seen[l] = true; return true; });
 
-  BW_previewWords = words;
+  // Separate single words from multi-word phrases
+  BW_previewWords = [];
+  BW_previewPhrases = [];
+  lines.forEach(function (line) {
+    var parts = line.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      BW_previewPhrases.push(line); // multi-word → phrase
+    } else {
+      BW_previewWords.push(line); // single word
+    }
+  });
+
   area.style.display = 'block';
 
-  // Render tag chips
-  tagsEl.innerHTML = words.map(function (w, i) {
-    return '<div id="bw-tag-' + i + '" style="display:flex;align-items:center;gap:.25rem;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.2);border-radius:20px;padding:.2rem .55rem">' +
-      '<span style="font-size:.78rem;color:#DC2626;font-weight:600">' + escHtml(w) + '</span>' +
-      '<button onclick="removeBWPreviewWord(' + i + ')" style="background:none;border:none;cursor:pointer;color:#DC2626;padding:0;font-size:.8rem;line-height:1">✕</button>' +
-    '</div>';
-  }).join('');
+  // Render tag chips — words in red, phrases in orange
+  tagsEl.innerHTML =
+    BW_previewWords.map(function (w, i) {
+      return '<div id="bw-tag-w-' + i + '" style="display:flex;align-items:center;gap:.25rem;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.25);border-radius:20px;padding:.2rem .55rem">' +
+        '<span style="font-size:.78rem;color:#DC2626;font-weight:600">' + escHtml(w) + '</span>' +
+        '<button onclick="removeBWItem(\'w\',' + i + ')" style="background:none;border:none;cursor:pointer;color:#DC2626;padding:0;font-size:.8rem;line-height:1">✕</button>' +
+      '</div>';
+    }).join('') +
+    BW_previewPhrases.map(function (p, i) {
+      return '<div id="bw-tag-p-' + i + '" style="display:flex;align-items:center;gap:.25rem;background:rgba(234,88,12,.1);border:1px solid rgba(234,88,12,.3);border-radius:20px;padding:.2rem .55rem">' +
+        '<span style="font-size:.65rem;color:#EA580C;margin-right:.1rem">📝</span>' +
+        '<span style="font-size:.78rem;color:#EA580C;font-weight:600">' + escHtml(p) + '</span>' +
+        '<button onclick="removeBWItem(\'p\',' + i + ')" style="background:none;border:none;cursor:pointer;color:#EA580C;padding:0;font-size:.8rem;line-height:1">✕</button>' +
+      '</div>';
+    }).join('');
 
-  if (countEl) countEl.textContent = words.length + ' word' + (words.length !== 1 ? 's' : '') + ' ready to import';
+  var total = BW_previewWords.length + BW_previewPhrases.length;
+  if (countEl) countEl.innerHTML =
+    '<span style="color:#DC2626;font-weight:600">' + BW_previewWords.length + ' words</span>' +
+    (BW_previewPhrases.length ? ' + <span style="color:#EA580C;font-weight:600">' + BW_previewPhrases.length + ' phrases</span>' : '') +
+    ' ready to import';
 };
 
-window.removeBWPreviewWord = function (i) {
-  BW_previewWords.splice(i, 1);
-  var tag = document.getElementById('bw-tag-' + i);
-  if (tag) tag.remove();
+window.removeBWItem = function (type, i) {
+  if (type === 'w') {
+    BW_previewWords.splice(i, 1);
+    var tag = document.getElementById('bw-tag-w-' + i);
+    if (tag) tag.remove();
+  } else {
+    BW_previewPhrases.splice(i, 1);
+    var tag2 = document.getElementById('bw-tag-p-' + i);
+    if (tag2) tag2.remove();
+  }
+  var total = BW_previewWords.length + BW_previewPhrases.length;
   var countEl = document.getElementById('bw-preview-count');
-  if (countEl) countEl.textContent = BW_previewWords.length + ' words ready to import';
-  if (!BW_previewWords.length) {
+  if (countEl) countEl.innerHTML =
+    '<span style="color:#DC2626;font-weight:600">' + BW_previewWords.length + ' words</span>' +
+    (BW_previewPhrases.length ? ' + <span style="color:#EA580C;font-weight:600">' + BW_previewPhrases.length + ' phrases</span>' : '') +
+    ' ready to import';
+  if (!total) {
     var area = document.getElementById('bw-preview-area');
     if (area) area.style.display = 'none';
   }
 };
 
+// Keep backward compat
+window.removeBWPreviewWord = function (i) { removeBWItem('w', i); };
+
 window.importPreviewedWords = function () {
   var words = BW_previewWords.slice();
-  if (!words.length) { toast('No words to import'); return; }
+  var phrases = BW_previewPhrases.slice();
+  var total = words.length + phrases.length;
+  if (!total) { toast('No words to import'); return; }
 
   var btn = document.getElementById('bw-import-btn');
-  if (btn) { btn.textContent = 'Importing...'; btn.disabled = true; }
+  if (btn) { btn.textContent = 'Importing ' + total + '...'; btn.disabled = true; }
 
   var added = 0, failed = 0;
+  var allItems = words.map(function(w){ return {word: w}; }).concat(phrases.map(function(p){ return {phrase: p}; }));
+
   function sendNext(i) {
-    if (i >= words.length) {
+    if (i >= allItems.length) {
       BW_previewWords = [];
+      BW_previewPhrases = [];
       var inp = document.getElementById('bw-bulk-inp');
       if (inp) inp.value = '';
       var area = document.getElementById('bw-preview-area');
       if (area) area.style.display = 'none';
       if (btn) { btn.textContent = '⬆️ Import All'; btn.disabled = false; }
-      toast('✅ Imported ' + added + ' words!' + (failed ? ' (' + failed + ' skipped)' : ''));
+      toast('✅ Imported ' + added + (failed ? ' (' + failed + ' skipped)' : ''));
       loadBadWordsList();
+      var el = document.getElementById('bw-phrases-list');
+      if (el) { el.dataset.loaded = ''; }
       FILTER_loaded = false;
       if (typeof loadContentFilter === 'function') loadContentFilter();
       return;
     }
-    api.post('/admin/bad-words', { word: words[i] })
+    api.post('/admin/bad-words', allItems[i])
       .then(function () { added++; sendNext(i + 1); })
       .catch(function () { failed++; sendNext(i + 1); });
   }
