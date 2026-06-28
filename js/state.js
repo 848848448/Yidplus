@@ -714,3 +714,29 @@ window.PWA = {
   PWA.init();
   PWA.initInstallPrompt();
 })();
+
+/* ══════════════════════════════════
+   LAZY IMAGE FADE-IN
+══════════════════════════════════ */
+(function () {
+  // Observe all lazy images and add .loaded when they load
+  function observeLazyImages() {
+    document.querySelectorAll('img[loading="lazy"]').forEach(function (img) {
+      if (img._lazyObserved) return;
+      img._lazyObserved = true;
+      img.addEventListener('load', function () {
+        img.classList.add('loaded');
+      });
+      if (img.complete && img.naturalWidth > 0) {
+        img.classList.add('loaded');
+      }
+    });
+  }
+
+  // Run on DOM mutations
+  var observer = new MutationObserver(function () {
+    observeLazyImages();
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+  observeLazyImages();
+})();
