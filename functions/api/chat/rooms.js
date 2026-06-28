@@ -19,6 +19,30 @@ export async function onRequestGet(context) {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
 
+    const url = new URL(request.url);
+
+    // ── Invite code lookup (for join link preview) ──
+    const inviteCode = url.searchParams.get('invite');
+    if (inviteCode) {
+      const room = await env.DB.prepare(
+        `SELECT r.id, r.type, r.name, r.emoji, r.photo_key,
+                COUNT(rm.user_id) as members
+         FROM rooms r
+         LEFT JOIN room_members rm ON rm.room_id = r.id
+         WHERE r.invite_code = ?
+         GROUP BY r.id`
+      ).bind(inviteCode).first().catch(() => null);
+      if (!room) return json({ ok: false, error: 'Invalid invite link' }, 404);
+      return json({ ok: true, room: {
+        id: room.id,
+        type: room.type,
+        name: room.name,
+        emoji: room.emoji,
+        members: room.members || 0,
+        photo_url: room.photo_key ? `/api/media/${encodeURIComponent(room.photo_key)}` : null,
+      }});
+    }
+
     const isAdmin = isAdminRole(user, env.OWNER_EMAIL);
 
     // Rooms the user is a member of
@@ -392,4 +416,4 @@ export async function onRequestDelete(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-      }
+}
