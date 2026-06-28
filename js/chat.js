@@ -84,6 +84,11 @@ function renderChatList() {
     return tabOk && srchOk;
   });
 
+  // Apply folder filter if active
+  if (CHAT_activeFolder) {
+    filtered = _applyFolderFilter(filtered);
+  }
+
   if (!filtered.length) {
     el.innerHTML =
       '<div class="feed-state">' +
@@ -911,12 +916,13 @@ function renderMessages(scrollDown) {
       return dateSep + '<div class="sys-msg"><span>' + escHtml(m.text || '') + '</span></div>';
     }
 
-    var bubbleClass = 'bubble ' + (isMe ? 'me' : 'them');
+    var isMediaMsg = (m.type === 'media' && m.media_url);
+    var bubbleClass = 'bubble ' + (isMe ? 'me' : 'them') + (isMediaMsg ? ' bubble-media' : '');
     var inner = '';
 
     // Group sender nick
     if (!isMe && isGroup) {
-      inner += '<div class="bubble-nick">@' + escHtml(m.sender_nick || '') + '</div>';
+      inner += '<div class="bubble-nick" onclick="openUserProfile(\'' + m.sender_id + '\')" style="cursor:pointer">@' + escHtml(m.sender_nick || '') + '</div>';
     }
 
     // Reply quote
@@ -1110,7 +1116,7 @@ function renderMessages(scrollDown) {
 
     // ── NORMAL (group/DM) style ──
     var miniAv = (!isMe && isGroup)
-      ? '<div class="msg-mini-av">' + escHtml((m.sender_nick || '?').slice(0, 1).toUpperCase()) + '</div>'
+      ? '<div class="msg-mini-av" style="' + (m.sender_photo ? 'background-image:url(' + m.sender_photo + ');background-size:cover;background-position:center' : '') + '">' + (m.sender_photo ? '' : escHtml((m.sender_nick || '?').slice(0, 1).toUpperCase())) + '</div>'
       : '';
 
     var selectClass2 = CHAT_selected[m.id] ? ' msg-selected' : '';
@@ -3153,28 +3159,7 @@ window.setAutoDelete = function (minutes, modalEl) {
    STICKERS — פיקסן CDN לינקס
 ══════════════════════════════════ */
 // Replace broken tenor CDN with working static emoji GIFs via giphy
-var STICKER_PACKS = [
-  { id:'s1',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f483/512.gif',   label:'Dance' },
-  { id:'s2',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f44d/512.gif',   label:'Thumbs Up' },
-  { id:'s3',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f602/512.gif',   label:'LOL' },
-  { id:'s4',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/2764_fe0f/512.gif', label:'Love' },
-  { id:'s5',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f44b/512.gif',   label:'Hi' },
-  { id:'s6',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f44f/512.gif',   label:'Clap' },
-  { id:'s7',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f62d/512.gif',   label:'Sad' },
-  { id:'s8',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f926/512.gif',   label:'Facepalm' },
-  { id:'s9',  url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f604/512.gif',   label:'Happy' },
-  { id:'s10', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f44c/512.gif',   label:'OK' },
-  { id:'s11', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f937/512.gif',   label:'Shrug' },
-  { id:'s12', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f525/512.gif',   label:'Fire' },
-  { id:'s13', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f389/512.gif',   label:'Party' },
-  { id:'s14', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f62a/512.gif',   label:'Sleepy' },
-  { id:'s15', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f644/512.gif',   label:'Eye Roll' },
-  { id:'s16', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f60e/512.gif',   label:'Cool' },
-  { id:'s17', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f64f/512.gif',   label:'Pray' },
-  { id:'s18', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/2728/512.gif',    label:'Sparkles' },
-  { id:'s19', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f973/512.gif',   label:'Party Face' },
-  { id:'s20', url:'https://fonts.gstatic.com/s/e/notoemoji/latest/1f48b/512.gif',   label:'Kiss' },
-];
+// STICKER_PACKS defined above
 
 /* ══════════════════════════════════
    FOLDERS FILTER in renderChatList
