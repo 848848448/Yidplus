@@ -1090,10 +1090,11 @@ function renderMessages(scrollDown) {
       // Text — detect links, auto-detect RTL for Hebrew/Yiddish
       var isRTL = /[\u0590-\u05FF\uFB1D-\uFB4F]/.test(m.text || '');
       var txtStyle = 'unicode-bidi:plaintext;display:block;' + (isRTL ? 'direction:rtl;text-align:right' : '');
+      var filteredTxt = (typeof filterContent === 'function') ? filterContent(_linkify(escHtml(m.text || ''), isMe)) : _linkify(escHtml(m.text || ''), isMe);
       if (isChannel) {
-        inner += '<div class="ch-text" style="' + txtStyle + '">' + _linkify(escHtml(m.text || ''), false) + '</div>';
+        inner += '<div class="ch-text" style="' + txtStyle + '">' + filteredTxt + '</div>';
       } else {
-        inner += '<span style="' + txtStyle + '">' + _linkify(escHtml(m.text || ''), isMe) + '</span>';
+        inner += '<span style="' + txtStyle + '">' + filteredTxt + '</span>';
       }
       // Link preview — detect join links + regular OG previews
       var urlMatch = (m.text || '').match(/(https?:\/\/[^\s]+)/);
@@ -1289,6 +1290,9 @@ window.onChatType = function () {
   document.getElementById('chat-send-btn').style.display  = has ? 'flex' : 'none';
   document.getElementById('voice-rec-btn').style.display  = has ? 'none' : 'flex';
   document.getElementById('attach-sheet').classList.remove('open');
+
+  // Check for bad words while typing
+  if (has && typeof checkInputForBadWords === 'function') checkInputForBadWords(val);
 
   // Auto RTL detection — switch direction when typing Hebrew/Yiddish
   var isRTL = /[\u0590-\u05FF\uFB1D-\uFB4F]/.test(val);
@@ -3273,8 +3277,53 @@ function _updateSelectBar(count) {
 
 window._selectForwardAll = function () {
   var ids = Object.keys(CHAT_selected);
+  if (!ids.length) return;
+  var msgs = ids.map(function (id) {
+    return CHAT_messages.find(function (m) { return m.id === id; });
+  }).filter(Boolean);
   _exitSelectMode();
-  toast('Forward ' + ids.length + ' messages — coming soon');
+  _showForwardPicker(msgs);
+};
+
+function _showForwardPicker(msgs) {
+  var modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+  var roomList = CHAT_rooms.slice(0, 20).map(function (r) {
+    var av = r.photo_url
+      ? '<div style="width:40px;height:40px;border-radius:50%;background-image:url(' + r.photo_url + ');background-size:cover;flex-shrink:0"></div>'
+      : '<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0">' + (r.nick||'?').slice(0,1).toUpperCase() + '</div>';
+    return '<div style="display:flex;align-items:center;gap:.65rem;padding:.6rem .85rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="_forwardMsgsToRoom(\'' + r.id + '\',' + JSON.stringify(msgs.map(function(m){return {type:m.type,text:m.text,media_url:m.media_url};})) + ',this.closest(\'div[style*=fixed]\')">' +
+      av +
+      '<div style="font-size:.88rem;font-weight:600">' + escHtml(r.nick||'Chat') + '</div>' +
+    '</div>';
+  }).join('');
+
+  modal.innerHTML =
+    '<div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:500px;max-height:75vh;display:flex;flex-direction:column">' +
+      '<div style="padding:.85rem 1.1rem;border-bottom:1px solid var(--border);font-weight:700;font-size:.92rem">Forward ' + msgs.length + ' message' + (msgs.length>1?'s':'') + ' to...</div>' +
+      '<div style="overflow-y:auto;flex:1">' + roomList + '</div>' +
+      '<div style="padding:.6rem .75rem;border-top:1px solid var(--border)">' +
+        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:.6rem;background:var(--bg3);border:none;border-radius:10px;cursor:pointer;font-family:inherit">Cancel</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+}
+
+window._forwardMsgsToRoom = function (roomId, msgs, modalEl) {
+  if (modalEl) modalEl.remove();
+  var sent = 0;
+  msgs.forEach(function (m, i) {
+    setTimeout(function () {
+      var payload = { room_id: roomId, type: m.type || 'text', text: (m.text || '') + (sent === 0 ? ' ↩ Forwarded' : '') };
+      api.post('/chat', payload)
+        .then(function () {
+          sent++;
+          if (sent === msgs.length) { toast('✅ Forwarded!'); loadChatRooms(); }
+        })
+        .catch(function () { toast('❌ Forward failed'); });
+    }, i * 200);
+  });
 };
 
 window._selectDeleteAll = function () {
