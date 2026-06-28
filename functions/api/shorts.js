@@ -18,7 +18,7 @@ export async function onRequestGet(context) {
 
     const { results } = await env.DB.prepare(
       `SELECT s.id, s.owner_id, s.media_key, s.caption, s.likes, s.views, s.created_at,
-              u.nickname, u.verified
+              u.nickname, u.verified, u.photo_url
        FROM shorts s
        JOIN users u ON u.id = s.owner_id
        ORDER BY s.created_at DESC
@@ -37,6 +37,7 @@ export async function onRequestGet(context) {
       id: row.id,
       owner_id: row.owner_id,
       nick: row.nickname,
+      photo_url: row.photo_url || null,
       verified: !!row.verified,
       caption: row.caption,
       likes: row.likes,
@@ -167,4 +168,4 @@ export async function onRequestDelete(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-                                                  }
+        }
