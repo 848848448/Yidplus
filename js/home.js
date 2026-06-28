@@ -89,17 +89,22 @@ function buildChannelsPrev() {
 }
 
 // ── INIT (called by router) ───────────────────────────────
+var _homeInitDone = false;
 window.init_home = function () {
-  console.log('[HOME] init_home() called');
   buildStatusRow();
   _updateNotifBadge();
   _updateNavBadges();
-  setInterval(_updateNotifBadge, 30000);
-  setInterval(_updateNavBadges, 60000);
+
+  // Only set intervals once
+  if (!_homeInitDone) {
+    _homeInitDone = true;
+    setInterval(_updateNotifBadge, 30000);
+    setInterval(_updateNavBadges, 60000);
+  }
 
   buildShortsPrev();
   buildChannelsPrev();
-  loadDynamicFeed();      // ← Cloudflare D1 feed
+  loadDynamicFeed();
   listenBroadcasts();
   if (typeof applyRoleUI  === 'function') applyRoleUI();
   if (typeof loadAppSettings === 'function') loadAppSettings();
@@ -295,6 +300,30 @@ function fetchLatestBroadcast() {
       if (list[0]) showBroadcast(list[0].text);
     })
     .catch(function () { /* silent */ });
+
+  // Welcome banner — show only once ever
+  try {
+    if (!localStorage.getItem('yp_welcomed')) {
+      localStorage.setItem('yp_welcomed', '1');
+      var bar = document.getElementById('broadcast-bar');
+      if (bar) {
+        var wb = document.createElement('div');
+        wb.style.cssText = 'margin:.5rem .75rem;background:linear-gradient(135deg,rgba(21,101,192,.08),rgba(21,101,192,.04));border:1px solid rgba(21,101,192,.2);border-radius:14px;padding:.75rem 1rem;display:flex;align-items:center;gap:.65rem';
+        wb.innerHTML =
+          '<div style="font-size:1.5rem;flex-shrink:0">✡️</div>' +
+          '<div style="flex:1">' +
+            '<div style="font-size:.85rem;font-weight:700;color:var(--blue)">ברוכים הבאים ל-YID PLUS!</div>' +
+            '<div style="font-size:.72rem;color:var(--muted);margin-top:.15rem">A Yiddish social platform for the Jewish community 🎉</div>' +
+          '</div>' +
+          '<button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:.25rem;flex-shrink:0">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+          '</button>';
+        bar.insertBefore(wb, bar.firstChild);
+        // Auto-dismiss after 8 seconds
+        setTimeout(function () { if (wb.parentElement) wb.remove(); }, 8000);
+      }
+    }
+  } catch (e) {}
 }
 function showBroadcast(text) {
   var bar = document.getElementById('broadcast-bar');
@@ -893,7 +922,7 @@ window.openHighlightsModal = function () {
     list.innerHTML = HOME_HIGHLIGHTS.map(function (h, i) {
       return '<div style="display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--border)">' +
         '<div style="width:48px;height:48px;border-radius:10px;background:' + (h.bg || '#1a0a2e') + ';flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden">' +
-          (h.media_url ? '<img src="' + h.media_url + '" style="width:100%;height:100%;object-fit:cover">' : '<span style="font-size:.7rem;color:#fff">' + escHtml((h.text || '').slice(0,20)) + '</span>') +
+          (h.media_url ? '<img src="' + h.media_url + '" style="width:100%;height:100%;object-fit:cover" loading="lazy">' : '<span style="font-size:.7rem;color:#fff">' + escHtml((h.text || '').slice(0,20)) + '</span>') +
         '</div>' +
         '<div style="flex:1"><div style="font-size:.82rem;font-weight:700">@' + escHtml(h.nick || '') + '</div><div style="font-size:.68rem;color:var(--muted)">' + timeAgo(h.created_at) + '</div></div>' +
         '<button onclick="removeHighlight(' + i + ')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem">Remove</button>' +
@@ -1047,7 +1076,7 @@ window.onStatusFileSelected = function (e) {
   var isVid = STATUS_selectedFile.type.startsWith('video/');
   preview.innerHTML = isVid
     ? '<video src="' + url + '" style="width:100%;max-height:220px;object-fit:cover;border-radius:14px" controls muted playsinline></video>'
-    : '<img src="' + url + '" style="width:100%;max-height:220px;object-fit:cover;border-radius:14px">';
+    : '<img src="' + url + '" style="width:100%;max-height:220px;object-fit:cover;border-radius:14px" loading="lazy">';
 };
 
 window.submitStatus = function () {
@@ -1862,3 +1891,68 @@ function _openFollowModal(title, path) {
     }).join('');
   }).catch(function () {});
 }
+
+/* ══════════════════════════════════
+   IN-APP NOTIFICATION PANEL
+══════════════════════════════════ */
+window.openNotifPanel = function () {
+  var existing = document.getElementById('notif-panel-modal');
+  if (existing) { existing.remove(); return; }
+
+  var modal = document.createElement('div');
+  modal.id = 'notif-panel-modal';
+  modal.style.cssText = 'position:fixed;top:56px;right:.75rem;z-index:8000;width:min(340px,calc(100vw - 1.5rem));background:var(--surface);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.15);border:1px solid var(--border);overflow:hidden;max-height:70vh;display:flex;flex-direction:column';
+
+  modal.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;border-bottom:1px solid var(--border);flex-shrink:0">' +
+      '<div style="font-size:.9rem;font-weight:700">Notifications</div>' +
+      '<button onclick="document.getElementById(\'notif-panel-modal\').remove()" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:.2rem">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+      '</button>' +
+    '</div>' +
+    '<div id="notif-panel-list" style="overflow-y:auto;flex:1"><div style="padding:1.5rem;text-align:center"><div class="spinner"></div></div></div>' +
+    '<div style="padding:.5rem .75rem;border-top:1px solid var(--border);flex-shrink:0">' +
+      '<button onclick="goPage(\'yidplus-chat.html\')" style="width:100%;padding:.5rem;background:var(--bg3);border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.8rem;color:var(--blue);font-weight:600">Open Chats</button>' +
+    '</div>';
+
+  document.body.appendChild(modal);
+
+  // Close on outside click
+  setTimeout(function () {
+    document.addEventListener('click', function handler(e) {
+      if (!modal.contains(e.target) && !e.target.closest('.icon-btn')) {
+        modal.remove();
+        document.removeEventListener('click', handler);
+      }
+    });
+  }, 100);
+
+  // Load unread chats as notifications
+  api.get('/chat/rooms', true).then(function (res) {
+    var el = document.getElementById('notif-panel-list');
+    if (!el) return;
+    var rooms = (res.rooms || []).filter(function(r){ return r.unread > 0; });
+
+    if (!rooms.length) {
+      el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:.85rem">No new notifications 🎉</div>';
+      return;
+    }
+
+    el.innerHTML = rooms.map(function (r) {
+      var av = r.photo_url
+        ? '<div style="width:42px;height:42px;border-radius:50%;background-image:url(' + r.photo_url + ');background-size:cover;flex-shrink:0"></div>'
+        : '<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0">' + (r.nick||'?').slice(0,1).toUpperCase() + '</div>';
+      return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem 1rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="document.getElementById(\'notif-panel-modal\').remove();goPage(\'yidplus-chat.html\')">' +
+        av +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:.85rem;font-weight:700">' + escHtml(r.nick || 'Chat') + '</div>' +
+          '<div style="font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(r.last_msg || 'New message') + '</div>' +
+        '</div>' +
+        '<div style="background:var(--gold);color:#fff;border-radius:10px;padding:.1rem .4rem;font-size:.72rem;font-weight:800;flex-shrink:0">' + r.unread + '</div>' +
+      '</div>';
+    }).join('');
+  }).catch(function () {
+    var el = document.getElementById('notif-panel-list');
+    if (el) el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-size:.85rem">Could not load notifications</div>';
+  });
+};
