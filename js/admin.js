@@ -194,6 +194,7 @@ var ADMIN_PANELS = [
   { id:'badges',         label:'Badges',          roles:['owner'] },
   { id:'ad-exempt',      label:'Ad-Free',         roles:['owner'] },
   { id:'nuclear',        label:'Nuclear',         roles:['owner'] },
+  { id:'bad-words',      label:'Word Filter',     roles:['owner','admin_super'] },
   { id:'export',         label:'Export',          roles:['owner'] },
   { id:'admin-settings', label:'Admin Settings',  roles:['owner'] },
 ];
@@ -360,6 +361,9 @@ function buildAdminPanel(id) {
 
   } else if (id === 'nuclear') {
     buildNuclearPanel(content);
+
+  } else if (id === 'bad-words') {
+    buildBadWordsPanel(content);
 
   } else if (id === 'reports') {
     buildReportsPanel(content);
@@ -1963,5 +1967,81 @@ window.adminSendWarning = function (userId) {
   if (!msg.trim()) { toast('Write a message first'); return; }
   api.post('/admin/warnings', { user_id: userId, message: msg.trim() })
     .then(function () { toast('⚠️ Warning sent!'); buildWarningsPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   BAD WORDS / CONTENT FILTER PANEL
+══════════════════════════════════ */
+function buildBadWordsPanel(content) {
+  content.innerHTML =
+    '<div class="admin-section-title">🚫 Word Filter</div>' +
+    '<div class="admin-card">' +
+      '<div style="font-size:.82rem;color:var(--muted);margin-bottom:.85rem;line-height:1.5">' +
+        'Words in this list will be automatically blurred in all messages, posts, and comments. ' +
+        'Users will receive a warning when typing them.' +
+      '</div>' +
+      '<div style="display:flex;gap:.5rem;margin-bottom:.85rem">' +
+        '<input id="bw-inp" placeholder="Type word to block..." style="flex:1;padding:.55rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none" onkeydown="if(event.key===\'Enter\')addBadWord()">' +
+        '<button onclick="addBadWord()" style="padding:.55rem 1rem;background:#DC2626;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit;font-size:.85rem">Add</button>' +
+      '</div>' +
+      '<div id="bw-list" style="min-height:60px"><div class="spinner-sm"></div></div>' +
+    '</div>';
+
+  loadBadWordsList();
+}
+
+function loadBadWordsList() {
+  var el = document.getElementById('bw-list');
+  if (!el) return;
+  api.get('/admin/bad-words', true)
+    .then(function (res) {
+      var words = res.words || [];
+      if (!words.length) {
+        el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.85rem">No words blocked yet</div>';
+        return;
+      }
+      el.innerHTML =
+        '<div style="display:flex;flex-wrap:wrap;gap:.4rem">' +
+          words.map(function (w) {
+            return '<div style="display:flex;align-items:center;gap:.35rem;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.25);border-radius:20px;padding:.25rem .65rem">' +
+              '<span style="font-size:.82rem;font-weight:600;color:#DC2626">' + escHtml(w.word) + '</span>' +
+              '<button onclick="removeBadWord(\'' + w.id + '\')" style="background:none;border:none;cursor:pointer;color:#DC2626;padding:0;line-height:1;font-size:.9rem">✕</button>' +
+            '</div>';
+          }).join('') +
+        '</div>';
+    })
+    .catch(function () {
+      var el = document.getElementById('bw-list');
+      if (el) el.innerHTML = '<div style="color:#DC2626;font-size:.82rem">Could not load list</div>';
+    });
+}
+
+window.addBadWord = function () {
+  var inp = document.getElementById('bw-inp');
+  if (!inp) return;
+  var word = inp.value.trim().toLowerCase();
+  if (!word) return;
+  if (word.length < 2) { toast('Word too short'); return; }
+  inp.value = '';
+  api.post('/admin/bad-words', { word: word })
+    .then(function () {
+      toast('✅ "' + word + '" added to filter');
+      loadBadWordsList();
+      // Reload filter in frontend
+      FILTER_loaded = false;
+      if (typeof loadContentFilter === 'function') loadContentFilter();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.removeBadWord = function (id) {
+  api.del('/admin/bad-words?id=' + encodeURIComponent(id))
+    .then(function () {
+      toast('Removed from filter');
+      loadBadWordsList();
+      FILTER_loaded = false;
+      if (typeof loadContentFilter === 'function') loadContentFilter();
+    })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
