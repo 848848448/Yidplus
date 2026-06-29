@@ -2179,7 +2179,7 @@ function _renderStatusRow(statuses) {
   var html = '';
 
   // My status bubble
-  html += '<div style="display:flex;flex-direction:column;align-items:center;gap:.3rem;cursor:pointer;flex-shrink:0" onclick="openMyStatus()">' +
+  html += '<div style="display:flex;flex-direction:column;align-items:center;gap:.3rem;cursor:pointer;flex-shrink:0" onclick="openStatusUpload()">' +
     '<div style="position:relative;width:58px;height:58px">' +
       '<div style="width:58px;height:58px;border-radius:50%;border:2.5px dashed var(--blue);display:flex;align-items:center;justify-content:center;background:var(--bg3);overflow:hidden">' +
         (me && me.photo_url
@@ -2191,11 +2191,12 @@ function _renderStatusRow(statuses) {
     '<div style="font-size:.65rem;color:var(--muted);text-align:center">My Status</div>' +
   '</div>';
 
-  // Other statuses
-  statuses.forEach(function (s) {
+  // Other statuses — use index so openSV(idx) works correctly
+  var idx = 0;
+  statuses.forEach(function (s, i) {
     if (!s || !s.user_id || (me && s.user_id === me.id)) return;
     var seg = _svSegments(s.count || 1, false);
-    html += '<div style="display:flex;flex-direction:column;align-items:center;gap:.3rem;cursor:pointer;flex-shrink:0" onclick="openSV(' + JSON.stringify(s) + ')">' +
+    html += '<div style="display:flex;flex-direction:column;align-items:center;gap:.3rem;cursor:pointer;flex-shrink:0" onclick="openSV(' + i + ')">' +
       '<div style="position:relative;width:58px;height:58px">' +
         '<svg width="58" height="58" style="position:absolute;top:0;left:0">' + seg + '</svg>' +
         '<div style="position:absolute;inset:4px;border-radius:50%;overflow:hidden;background:var(--bg3)">' +
@@ -2212,7 +2213,7 @@ function _renderStatusRow(statuses) {
 }
 
 function _renderShortsPrev(shorts) {
-  var el = document.getElementById('shorts-prev-row');
+  var el = document.getElementById('home-shorts');
   if (!el) return;
   if (!shorts.length) { el.closest('.home-section') && (el.closest('.home-section').style.display = 'none'); return; }
   el.innerHTML = shorts.slice(0,6).map(function (s) {
@@ -2228,7 +2229,7 @@ function _renderShortsPrev(shorts) {
 }
 
 function _renderChannelsPrev(channels) {
-  var el = document.getElementById('explore-channels');
+  var el = document.getElementById('home-channels');
   if (!el) return;
   el.innerHTML = channels.slice(0,6).map(function (c) {
     return '<div style="display:flex;align-items:center;gap:.65rem;padding:.6rem 0;border-bottom:.5px solid var(--border);cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
@@ -2283,4 +2284,4 @@ function _showWelcomeBannerIfFirst() {
     bar.insertBefore(wb, bar.firstChild);
     setTimeout(function(){ if(wb.parentElement) wb.remove(); }, 8000);
   } catch(e) {}
-                                           }
+   }
