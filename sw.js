@@ -1,13 +1,16 @@
-// YID PLUS Service Worker v4 — PWA + Push Notifications
-const CACHE_NAME = 'yidplus-static-v4';
-const STATIC_ASSETS = ['/css/style.css'];
+// YID PLUS Service Worker v5 — Optimized Caching
+const CACHE_NAME = 'yidplus-v5';
+const CACHE_CSS  = 'yidplus-css-v5';
+
+// Static assets to pre-cache
+const PRECACHE = ['/css/style.css'];
 
 // ── INSTALL ──
 self.addEventListener('install', function(e) {
   self.skipWaiting();
   e.waitUntil(
-    caches.open(CACHE_NAME).then(function(cache) {
-      return cache.addAll(STATIC_ASSETS).catch(function() {});
+    caches.open(CACHE_CSS).then(function(cache) {
+      return cache.addAll(PRECACHE).catch(function() {});
     })
   );
 });
@@ -16,7 +19,10 @@ self.addEventListener('install', function(e) {
 self.addEventListener('activate', function(e) {
   e.waitUntil(
     caches.keys().then(function(keys) {
-      return Promise.all(keys.filter(function(k) { return k !== CACHE_NAME; }).map(function(k) { return caches.delete(k); }));
+      return Promise.all(
+        keys.filter(function(k) { return k !== CACHE_CSS && k !== CACHE_NAME; })
+            .map(function(k) { return caches.delete(k); })
+      );
     })
   );
   self.clients.claim();
@@ -25,46 +31,68 @@ self.addEventListener('activate', function(e) {
 // ── FETCH ──
 self.addEventListener('fetch', function(e) {
   var url = e.request.url;
-  // Always network-first for HTML, JS, API
-  if (url.includes('.html') || url.includes('.js') || url.includes('/api/')) {
+
+  // NEVER cache: HTML, JS, API calls
+  if (url.includes('.html') ||
+      url.includes('.js') ||
+      url.includes('/api/') ||
+      e.request.method !== 'GET') {
     e.respondWith(fetch(e.request).catch(function() { return caches.match(e.request); }));
     return;
   }
-  // Cache-first for CSS + images
+
+  // CSS — cache first, revalidate in background
+  if (url.includes('.css')) {
+    e.respondWith(
+      caches.open(CACHE_CSS).then(function(cache) {
+        return cache.match(e.request).then(function(cached) {
+          var fetchPromise = fetch(e.request).then(function(res) {
+            if (res && res.status === 200) cache.put(e.request, res.clone());
+            return res;
+          });
+          return cached || fetchPromise;
+        });
+      })
+    );
+    return;
+  }
+
+  // Images & media from R2 — cache aggressively (immutable)
+  if (url.includes('r2.cloudflarestorage.com') ||
+      url.includes('/images/') ||
+      url.match(/\.(png|jpg|jpeg|gif|webp|svg|ico)$/)) {
+    e.respondWith(
+      caches.open(CACHE_NAME).then(function(cache) {
+        return cache.match(e.request).then(function(cached) {
+          if (cached) return cached;
+          return fetch(e.request).then(function(res) {
+            if (res && res.status === 200) cache.put(e.request, res.clone());
+            return res;
+          });
+        });
+      })
+    );
+    return;
+  }
+
+  // Everything else — network first
   e.respondWith(
-    caches.match(e.request).then(function(cached) {
-      return cached || fetch(e.request).then(function(res) {
-        if (res && res.status === 200) {
-          var clone = res.clone();
-          caches.open(CACHE_NAME).then(function(cache) { cache.put(e.request, clone); });
-        }
-        return res;
-      });
-    })
+    fetch(e.request).catch(function() { return caches.match(e.request); })
   );
 });
 
-// ── PUSH NOTIFICATION ──
+// ── PUSH ──
 self.addEventListener('push', function(e) {
   var data = {};
   try { data = e.data ? e.data.json() : {}; } catch(err) {}
-
-  var title   = data.title   || 'YID PLUS';
-  var body    = data.body    || 'You have a new notification';
-  var icon    = data.icon    || '/images/logo.png';
-  var badge   = data.badge   || '/images/logo.png';
-  var url     = data.url     || '/yidplus-dashboard.html';
-  var tag     = data.tag     || 'yidplus-notif';
-
   e.waitUntil(
-    self.registration.showNotification(title, {
-      body:    body,
-      icon:    icon,
-      badge:   badge,
-      tag:     tag,
-      data:    { url: url },
+    self.registration.showNotification(data.title || 'YID PLUS', {
+      body:    data.body    || 'You have a new notification',
+      icon:    data.icon    || '/images/logo.png',
+      badge:   '/images/logo.png',
+      tag:     data.tag     || 'yidplus',
+      data:    { url: data.url || '/yidplus-dashboard.html' },
       vibrate: [200, 100, 200],
-      actions: data.actions || [],
     })
   );
 });
@@ -72,41 +100,13 @@ self.addEventListener('push', function(e) {
 // ── NOTIFICATION CLICK ──
 self.addEventListener('notificationclick', function(e) {
   e.notification.close();
-  var targetUrl = (e.notification.data && e.notification.data.url) || '/yidplus-dashboard.html';
-
-  if (e.action === 'reply') {
-    // Open chat directly
-    targetUrl = '/yidplus-chat.html';
-  }
-
+  var url = (e.notification.data && e.notification.data.url) || '/yidplus-dashboard.html';
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(wins) {
-      // If app is already open, focus it
       for (var i = 0; i < wins.length; i++) {
-        var win = wins[i];
-        if (win.url.includes('yidplus') && 'focus' in win) {
-          win.focus();
-          win.postMessage({ type: 'notification_click', url: targetUrl });
-          return;
-        }
+        if ('focus' in wins[i]) { wins[i].focus(); wins[i].postMessage({ type: 'notification_click', url: url }); return; }
       }
-      // Otherwise open new window
-      if (clients.openWindow) return clients.openWindow(targetUrl);
+      if (clients.openWindow) return clients.openWindow(url);
     })
-  );
-});
-
-// ── PUSH SUBSCRIPTION CHANGE ──
-self.addEventListener('pushsubscriptionchange', function(e) {
-  e.waitUntil(
-    self.registration.pushManager.subscribe({ userVisibleOnly: true })
-      .then(function(sub) {
-        return fetch('/api/push/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sub.toJSON()),
-          credentials: 'include',
-        });
-      })
   );
 });
