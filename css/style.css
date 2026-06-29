@@ -1312,3 +1312,7 @@ img { opacity: 1; }
   background: rgba(220, 38, 38, .08);
 }
 .blurred-word:hover { filter: blur(4px); }
+
+.chart-bar { flex: 1; border-radius: 3px 3px 0 0; background: rgba(21,101,192,.25); min-height: 4px; cursor: pointer; transition: background .2s; }
+.chart-bar.today { background: #1565C0; }
+.chart-bar:hover { background: #1976D2; }
