@@ -28,9 +28,9 @@ export async function onRequestPost(context) {
 
     const { enabled } = await request.json();
     await env.DB.prepare(
-      "INSERT INTO app_settings (key, value) VALUES ('guest_mode', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value"
+      "INSERT INTO app_settings (key, value, updated_at) VALUES ('guest_mode', ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=datetime('now')"
     ).bind(enabled ? 'true' : 'false').run();
 
     return json({ ok: true, enabled: !!enabled });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
-                 }
+      }
