@@ -91,24 +91,52 @@ function buildChannelsPrev() {
 // ── INIT (called by router) ───────────────────────────────
 var _homeInitDone = false;
 window.init_home = function () {
-  buildStatusRow();
-  _updateNotifBadge();
-  _updateNavBadges();
+  if (typeof applyRoleUI === 'function') applyRoleUI();
+
+  // Run all home data fetches in parallel for max speed
+  Promise.all([
+    _fetchHomeData(),
+  ]).catch(function () {});
 
   // Only set intervals once
   if (!_homeInitDone) {
     _homeInitDone = true;
-    setInterval(_updateNotifBadge, 30000);
-    setInterval(_updateNavBadges, 60000);
+    setInterval(_updateNotifBadge, 45000);  // was 30s
+    setInterval(_updateNavBadges, 90000);   // was 60s
+    setInterval(listenBroadcasts, 120000);  // every 2 min
   }
-
-  buildShortsPrev();
-  buildChannelsPrev();
-  loadDynamicFeed();
-  listenBroadcasts();
-  if (typeof applyRoleUI  === 'function') applyRoleUI();
-  if (typeof loadAppSettings === 'function') loadAppSettings();
 };
+
+// Single batched fetch for all home screen data
+function _fetchHomeData() {
+  // Fire all requests simultaneously
+  var p1 = api.get('/statuses').catch(function(){ return { statuses: [] }; });
+  var p2 = api.get('/shorts?limit=6').catch(function(){ return { shorts: [] }; });
+  var p3 = api.get('/channels?limit=6').catch(function(){ return { channels: [] }; });
+  var p4 = api.get('/posts?limit=20').catch(function(){ return { posts: [] }; });
+  var p5 = api.get('/broadcasts').catch(function(){ return { announcements: [] }; });
+  var p6 = api.get('/chat/rooms').catch(function(){ return { rooms: [] }; });
+
+  return Promise.all([p1, p2, p3, p4, p5, p6]).then(function(res) {
+    var statuses   = res[0];
+    var shortsRes  = res[1];
+    var channelRes = res[2];
+    var postsRes   = res[3];
+    var broadRes   = res[4];
+    var roomsRes   = res[5];
+
+    // Build all sections at once
+    _renderStatusRow(statuses.statuses || []);
+    _renderShortsPrev(shortsRes.shorts || []);
+    _renderChannelsPrev(channelRes.channels || []);
+    _renderFeed(postsRes.posts || []);
+    _renderBroadcast(broadRes.announcements || broadRes.pinned || []);
+    _updateBadgesFromRooms(roomsRes.rooms || []);
+
+    // Welcome banner (first time only)
+    _showWelcomeBannerIfFirst();
+  });
+}
 
 // ══════════════════════════════════════════════════════════
 //  DYNAMIC FEED — reads from /api/posts (D1-backed)
@@ -2080,3 +2108,179 @@ window.clearSearchHistory = function () {
   try { localStorage.removeItem('yp_search_hist'); } catch(e) {}
   toast('Search history cleared');
 };
+
+/* ══════════════════════════════════
+   MISSING FUNCTIONS
+══════════════════════════════════ */
+
+// Open a short from profile screen grid
+window.openShort = function (shortId) {
+  goPage('yidplus-shorts.html?id=' + encodeURIComponent(shortId));
+};
+
+// Feedback modal
+window.openFeedbackModal = function () {
+  var modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+  modal.innerHTML =
+    '<div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:500px;padding:1.25rem;padding-bottom:max(1.25rem,env(safe-area-inset-bottom))">' +
+      '<div style="font-size:.95rem;font-weight:700;margin-bottom:.25rem">Send Feedback</div>' +
+      '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.85rem">Help us improve YID PLUS</div>' +
+      '<div style="display:flex;gap:.5rem;margin-bottom:.75rem">' +
+        '<button class="feedback-type-btn active" id="fb-type-bug" onclick="selectFeedbackType(\'bug\',this)" style="flex:1;padding:.45rem;border-radius:8px;border:1.5px solid #E11D48;background:#FFF1F2;color:#E11D48;cursor:pointer;font-size:.78rem;font-weight:600;font-family:inherit">🐛 Bug</button>' +
+        '<button class="feedback-type-btn" id="fb-type-suggest" onclick="selectFeedbackType(\'suggestion\',this)" style="flex:1;padding:.45rem;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3);color:var(--muted);cursor:pointer;font-size:.78rem;font-weight:600;font-family:inherit">💡 Suggestion</button>' +
+        '<button class="feedback-type-btn" id="fb-type-other" onclick="selectFeedbackType(\'other\',this)" style="flex:1;padding:.45rem;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3);color:var(--muted);cursor:pointer;font-size:.78rem;font-weight:600;font-family:inherit">💬 Other</button>' +
+      '</div>' +
+      '<textarea id="feedback-text" placeholder="Describe the issue or suggestion..." rows="4" style="width:100%;box-sizing:border-box;padding:.65rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.88rem;font-family:inherit;outline:none;resize:none;margin-bottom:.65rem"></textarea>' +
+      '<div style="display:flex;gap:.5rem">' +
+        '<button onclick="submitFeedback()" style="flex:1;padding:.65rem;background:var(--gold);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit">Send Feedback</button>' +
+        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:.65rem 1rem;background:var(--bg3);border:none;border-radius:10px;cursor:pointer;font-family:inherit">Cancel</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+};
+
+var _feedbackType = 'bug';
+window.selectFeedbackType = function (type, btn) {
+  _feedbackType = type;
+  document.querySelectorAll('.feedback-type-btn').forEach(function(b){
+    b.style.borderColor = 'var(--border)';
+    b.style.background = 'var(--bg3)';
+    b.style.color = 'var(--muted)';
+  });
+  btn.style.borderColor = 'var(--gold)';
+  btn.style.background = 'rgba(201,168,76,.1)';
+  btn.style.color = 'var(--gold)';
+};
+
+window.submitFeedback = function () {
+  var text = (document.getElementById('feedback-text') || {}).value || '';
+  if (!text.trim()) { toast('Please write something first'); return; }
+  api.post('/feedback', { type: _feedbackType, text: text.trim(), device: navigator.userAgent.slice(0, 100) })
+    .then(function () {
+      document.querySelector('div[style*="z-index:8000"]') && document.querySelector('div[style*="z-index:8000"]').remove();
+      toast('✅ Feedback sent! Thank you!');
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   FAST HOME RENDERERS
+   (called from batched _fetchHomeData)
+══════════════════════════════════ */
+function _renderStatusRow(statuses) {
+  // reuse existing buildStatusRow logic but with pre-fetched data
+  var el = document.getElementById('status-row');
+  if (!el) return;
+  HOME_svStatuses = statuses;
+
+  var me = STATE.user;
+  var html = '';
+
+  // My status bubble
+  html += '<div style="display:flex;flex-direction:column;align-items:center;gap:.3rem;cursor:pointer;flex-shrink:0" onclick="openMyStatus()">' +
+    '<div style="position:relative;width:58px;height:58px">' +
+      '<div style="width:58px;height:58px;border-radius:50%;border:2.5px dashed var(--blue);display:flex;align-items:center;justify-content:center;background:var(--bg3);overflow:hidden">' +
+        (me && me.photo_url
+          ? '<img src="' + me.photo_url + '" style="width:100%;height:100%;object-fit:cover" loading="lazy">'
+          : '<div style="font-size:1.5rem;font-weight:700;color:var(--blue)">' + ((me&&me.nickname)||'?').slice(0,1).toUpperCase() + '</div>') +
+      '</div>' +
+      '<div style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:var(--blue);border:2px solid var(--surface);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.85rem;font-weight:700">+</div>' +
+    '</div>' +
+    '<div style="font-size:.65rem;color:var(--muted);text-align:center">My Status</div>' +
+  '</div>';
+
+  // Other statuses
+  statuses.forEach(function (s) {
+    if (!s || !s.user_id || (me && s.user_id === me.id)) return;
+    var seg = _svSegments(s.count || 1, false);
+    html += '<div style="display:flex;flex-direction:column;align-items:center;gap:.3rem;cursor:pointer;flex-shrink:0" onclick="openSV(' + JSON.stringify(s) + ')">' +
+      '<div style="position:relative;width:58px;height:58px">' +
+        '<svg width="58" height="58" style="position:absolute;top:0;left:0">' + seg + '</svg>' +
+        '<div style="position:absolute;inset:4px;border-radius:50%;overflow:hidden;background:var(--bg3)">' +
+          (s.photo_url
+            ? '<img src="' + s.photo_url + '" style="width:100%;height:100%;object-fit:cover" loading="lazy">'
+            : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;color:var(--blue)">' + (s.nick||'?').slice(0,1).toUpperCase() + '</div>') +
+        '</div>' +
+      '</div>' +
+      '<div style="font-size:.65rem;color:var(--text);text-align:center;max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(s.nick||'') + '</div>' +
+    '</div>';
+  });
+
+  el.innerHTML = html;
+}
+
+function _renderShortsPrev(shorts) {
+  var el = document.getElementById('shorts-prev-row');
+  if (!el) return;
+  if (!shorts.length) { el.closest('.home-section') && (el.closest('.home-section').style.display = 'none'); return; }
+  el.innerHTML = shorts.slice(0,6).map(function (s) {
+    return '<div style="flex-shrink:0;width:100px;cursor:pointer" onclick="goPage(\'yidplus-shorts.html\')">' +
+      '<div style="width:100px;height:160px;border-radius:12px;background:#111;overflow:hidden;position:relative">' +
+        (s.media_url ? '<video src="' + s.media_url + '" style="width:100%;height:100%;object-fit:cover" preload="none"></video>' : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem">📹</div>') +
+        '<div style="position:absolute;bottom:0;left:0;right:0;padding:.35rem .4rem;background:linear-gradient(transparent,rgba(0,0,0,.7))">' +
+          '<div style="font-size:.6rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@' + escHtml(s.nick||'') + '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function _renderChannelsPrev(channels) {
+  var el = document.getElementById('explore-channels');
+  if (!el) return;
+  el.innerHTML = channels.slice(0,6).map(function (c) {
+    return '<div style="display:flex;align-items:center;gap:.65rem;padding:.6rem 0;border-bottom:.5px solid var(--border);cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
+      '<div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#1565C0,#1976D2);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0">' + (c.nickname||'C').slice(0,1).toUpperCase() + '</div>' +
+      '<div><div style="font-size:.85rem;font-weight:700">@' + escHtml(c.nickname||'') + '</div><div style="font-size:.7rem;color:var(--muted)">' + fmtN(c.followers||0) + ' followers</div></div>' +
+    '</div>';
+  }).join('');
+}
+
+function _renderFeed(posts) {
+  var feed = document.getElementById('home-feed');
+  if (!feed) return;
+  if (!posts.length) {
+    feed.innerHTML = '<div class="feed-state"><div style="font-size:2.5rem">📭</div><div class="feed-state-text">No posts yet</div></div>';
+    return;
+  }
+  feed.innerHTML = '';
+  posts.forEach(function (p) { feed.appendChild(buildPostCard(p)); });
+}
+
+function _renderBroadcast(list) {
+  if (list && list[0]) showBroadcast(list[0].text);
+}
+
+function _updateBadgesFromRooms(rooms) {
+  var unread = rooms.reduce(function(sum, r){ return sum + (r.unread||0); }, 0);
+  ['nav-badge-chats','nav-badge-chats2'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = unread > 0 ? 'flex' : 'none';
+    el.textContent = unread > 99 ? '99+' : unread;
+  });
+  var notifBadge = document.getElementById('notif-badge');
+  if (notifBadge) {
+    notifBadge.style.display = unread > 0 ? 'flex' : 'none';
+    notifBadge.textContent = unread > 99 ? '99+' : unread;
+  }
+}
+
+function _showWelcomeBannerIfFirst() {
+  try {
+    if (localStorage.getItem('yp_welcomed')) return;
+    localStorage.setItem('yp_welcomed', '1');
+    var bar = document.getElementById('broadcast-bar');
+    if (!bar) return;
+    var wb = document.createElement('div');
+    wb.style.cssText = 'margin:.5rem .75rem;background:linear-gradient(135deg,rgba(21,101,192,.08),rgba(21,101,192,.04));border:1px solid rgba(21,101,192,.2);border-radius:14px;padding:.75rem 1rem;display:flex;align-items:center;gap:.65rem';
+    wb.innerHTML =
+      '<div style="font-size:1.5rem;flex-shrink:0">✡️</div>' +
+      '<div style="flex:1"><div style="font-size:.85rem;font-weight:700;color:var(--blue)">ברוכים הבאים ל-YID PLUS!</div><div style="font-size:.72rem;color:var(--muted);margin-top:.15rem">A Yiddish social platform 🎉</div></div>' +
+      '<button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:.25rem;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+    bar.insertBefore(wb, bar.firstChild);
+    setTimeout(function(){ if(wb.parentElement) wb.remove(); }, 8000);
+  } catch(e) {}
+                                           }
