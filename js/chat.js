@@ -1138,7 +1138,7 @@ function renderMessages(scrollDown) {
         '<div class="ch-post' + selectClass + '" id="msg-' + m.id + '" data-id="' + m.id + '"' +
           ' onclick="_toggleSelect(\'' + m.id + '\')"' +
           ' oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')"' +
-          ' ontouchstart="_ctxTouchStart(event,\'' + m.id + '\')" ontouchend="_ctxTouchEnd()" ontouchmove="_ctxTouchEnd()">' +
+          ' ontouchstart="_ctxTouchStart(event,\'' + m.id + '\')" ontouchend="_ctxClear()" ontouchmove="_ctxClear()">' +
           inner +
           metaOverlay +
           (reactionPills ? '<div class="reaction-row ch-reactions">' + reactionPills + '</div>' : '') +
@@ -1156,7 +1156,7 @@ function renderMessages(scrollDown) {
       '<div class="msg-wrap' + (isMe ? ' me' : '') + selectClass2 + '" id="msg-' + m.id + '" data-id="' + m.id + '"' +
         ' onclick="_toggleSelect(\'' + m.id + '\')"' +
         ' oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')"' +
-        ' ontouchstart="_ctxTouchStart(event,\'' + m.id + '\')" ontouchend="_ctxTouchEnd()" ontouchmove="_ctxTouchEnd()">' +
+        ' ontouchstart="_ctxTouchStart(event,\'' + m.id + '\')" ontouchend="_ctxClear()" ontouchmove="_ctxClear()">' +
         miniAv +
         '<div style="display:flex;flex-direction:column;' + (isMe ? 'align-items:flex-end' : 'align-items:flex-start') + '">' +
           '<div class="' + bubbleClass + '" data-msg-id="' + m.id + '">' +
@@ -1966,9 +1966,17 @@ window.cancelReply = _cancelReply;
 // ============================================================
 var _ctxTimer = null;
 window._ctxTouch = function (e, msgId) {
-  _ctxTimer = setTimeout(function () { showCtx(e.touches[0], msgId); }, 500);
+  var t = e.touches && e.touches[0];
+  _ctxStartX = t ? t.clientX : 0;
+  _ctxStartY = t ? t.clientY : 0;
+  _ctxMoved = false;
+  clearTimeout(_ctxTimer);
+  _ctxTimer = setTimeout(function () {
+    if (_ctxMoved) return;
+    showCtx(e.touches[0], msgId);
+  }, 500);
 };
-window._ctxClear = function () { clearTimeout(_ctxTimer); };
+window._ctxClear = function () { clearTimeout(_ctxTimer); _ctxMoved = false; };
 
 function _buildCtxMenu(msg) {
   var isMe = msg.sender_id === (STATE.user && STATE.user.id);
@@ -3353,10 +3361,33 @@ window._selectCopyAll = function () {
   toast('Copied!');
 };
 
-// Patch long-press to enter select mode
+// Patch long-press to enter select mode — with scroll detection
+var _ctxStartX = 0, _ctxStartY = 0, _ctxMoved = false;
+
+// Track touch movement globally to detect scroll
+document.addEventListener('touchmove', function (e) {
+  if (_ctxTimer) {
+    var t = e.touches[0];
+    var dx = Math.abs(t.clientX - _ctxStartX);
+    var dy = Math.abs(t.clientY - _ctxStartY);
+    if (dx > 8 || dy > 8) {
+      _ctxMoved = true;
+      clearTimeout(_ctxTimer);
+      _ctxTimer = null;
+    }
+  }
+}, { passive: true });
+
 var _origCtxTouchStart = window._ctxTouchStart;
 window._ctxTouchStart = function (e, msgId) {
+  var t = e.touches && e.touches[0];
+  _ctxStartX = t ? t.clientX : 0;
+  _ctxStartY = t ? t.clientY : 0;
+  _ctxMoved = false;
+
+  clearTimeout(_ctxTimer);
   _ctxTimer = setTimeout(function () {
+    if (_ctxMoved) return; // user was scrolling — ignore
     if (CHAT_selectMode || Object.keys(CHAT_selected).length > 0) {
       _toggleSelect(msgId);
     } else {
