@@ -515,7 +515,7 @@ window.openChatRoom = function (roomId) {
   _applyChannelInputState(room);
   loadMessages(true);
   clearInterval(CHAT_pollTimer);
-  CHAT_pollTimer = setInterval(function () { loadMessages(false); }, 3000);
+  CHAT_pollTimer = setInterval(function () { loadMessages(false); }, 8000);
 
   // Load members list for groups
   if (isGroup) loadGroupMembers(roomId);
