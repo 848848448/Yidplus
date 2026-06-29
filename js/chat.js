@@ -1093,7 +1093,7 @@ function renderMessages(scrollDown) {
     } else if (m.type === 'text' || !m.type) {
       // Text — detect links, auto-detect RTL for Hebrew/Yiddish
       var isRTL = /[\u0590-\u05FF\uFB1D-\uFB4F]/.test(m.text || '');
-      var txtStyle = 'unicode-bidi:plaintext;display:block;' + (isRTL ? 'direction:rtl;text-align:right' : '');
+      var txtStyle = 'unicode-bidi:plaintext;display:block;word-break:break-word;overflow-wrap:anywhere;' + (isRTL ? 'direction:rtl;text-align:right' : '');
       var filteredTxt = (typeof filterContent === 'function') ? filterContent(_linkify(escHtml(m.text || ''), isMe)) : _linkify(escHtml(m.text || ''), isMe);
       if (isChannel) {
         inner += '<div class="ch-text" style="' + txtStyle + '">' + filteredTxt + '</div>';
@@ -1108,7 +1108,7 @@ function renderMessages(scrollDown) {
           inner += '<div id="lp-' + m.id + '" style="margin-top:.4rem"></div>';
           setTimeout(function () { _loadJoinLinkPreview(m.id, joinCode); }, 100);
         } else {
-          inner += '<div class="link-preview" id="lp-' + m.id + '" style="display:none;margin-top:.4rem;border-radius:10px;overflow:hidden;border:1px solid var(--border);cursor:pointer"></div>';
+          inner += '<div class="link-preview" id="lp-' + m.id + '" style="display:none;margin-top:.5rem;border-radius:12px;overflow:hidden;border:1.5px solid ' + (isMe ? 'rgba(255,255,255,.25)' : 'var(--border)') + ';cursor:pointer;max-width:280px"></div>';
         }
       }
     }
@@ -1490,7 +1490,15 @@ window.toggleVoiceRec = function () {
         };
         CHAT_mediaRec.start(250); // collect data every 250ms — prevents cutoff on long recordings
       })
-      .catch(function () { toast('⚠ Microphone permission denied.'); });
+      .catch(function (err) {
+        var msg = '⚠ Microphone access denied.';
+        if (err && err.name === 'NotAllowedError') {
+          msg = '🎙️ Please allow microphone in your browser settings, then try again.';
+        } else if (err && err.name === 'NotFoundError') {
+          msg = '🎙️ No microphone found on this device.';
+        }
+        toast(msg);
+      });
   }
 };
 window.startVoiceRec = window.toggleVoiceRec;
@@ -1668,20 +1676,25 @@ function _parseVoicePacked(text) {
 var EMOJI_RECENT = JSON.parse(localStorage.getItem('yp_emoji_recent') || '[]');
 
 // Animated sticker URLs (Tenor/Giphy CDN public GIFs — Jewish/fun themed)
+// Stickers use Google Noto Animated Emoji (reliable, always available)
+var STICKER_BASE = 'https://fonts.gstatic.com/s/e/notoemoji/latest/';
 var STICKER_PACKS = [
-  // Pack 1: Expressions
-  { id:'s1', url:'https://media.tenor.com/x8v1oNUOmg4AAAAi/dance-cartoon.gif', label:'Dance' },
-  { id:'s2', url:'https://media.tenor.com/3RBRmJ_YgEEAAAAi/thumbs-up-good.gif', label:'Thumbs Up' },
-  { id:'s3', url:'https://media.tenor.com/ZCFCcJ9wTpEAAAAi/laugh-haha.gif', label:'LOL' },
-  { id:'s4', url:'https://media.tenor.com/kXcEoGBepJkAAAAi/love-heart.gif', label:'Love' },
-  { id:'s5', url:'https://media.tenor.com/kxkH1OExrJgAAAAi/hello-wave.gif', label:'Hi' },
-  { id:'s6', url:'https://media.tenor.com/8p2j5bMCzxsAAAAi/clap-clapping.gif', label:'Clap' },
-  { id:'s7', url:'https://media.tenor.com/g26PYq_V7HoAAAAi/sad-cry.gif', label:'Sad' },
-  { id:'s8', url:'https://media.tenor.com/MjRcuh2JJSIAAAAC/facepalm.gif', label:'Facepalm' },
-  { id:'s9', url:'https://media.tenor.com/2DRR7oLbumQAAAAi/happy-jumping.gif', label:'Happy' },
-  { id:'s10', url:'https://media.tenor.com/mRDxcnKEeWoAAAAi/ok-okay.gif', label:'OK' },
-  { id:'s11', url:'https://media.tenor.com/eSIR6TGUIV8AAAAi/shrug-idk.gif', label:'Shrug' },
-  { id:'s12', url:'https://media.tenor.com/VBzEAbRFHFkAAAAi/fire-flames.gif', label:'Fire' },
+  { id:'s1',  url: STICKER_BASE + '1f600/512.gif', label:'😀 Grinning' },
+  { id:'s2',  url: STICKER_BASE + '1f602/512.gif', label:'😂 LOL' },
+  { id:'s3',  url: STICKER_BASE + '1f60d/512.gif', label:'😍 Love' },
+  { id:'s4',  url: STICKER_BASE + '1f62d/512.gif', label:'😭 Cry' },
+  { id:'s5',  url: STICKER_BASE + '1f621/512.gif', label:'😡 Angry' },
+  { id:'s6',  url: STICKER_BASE + '1f973/512.gif', label:'🥳 Party' },
+  { id:'s7',  url: STICKER_BASE + '1f44f/512.gif', label:'👏 Clap' },
+  { id:'s8',  url: STICKER_BASE + '1f525/512.gif', label:'🔥 Fire' },
+  { id:'s9',  url: STICKER_BASE + '2764_fe0f/512.gif', label:'❤️ Heart' },
+  { id:'s10', url: STICKER_BASE + '1f64f/512.gif', label:'🙏 Pray' },
+  { id:'s11', url: STICKER_BASE + '1f44d/512.gif', label:'👍 Thumbs Up' },
+  { id:'s12', url: STICKER_BASE + '1f914/512.gif', label:'🤔 Thinking' },
+  { id:'s13', url: STICKER_BASE + '1f389/512.gif', label:'🎉 Party Popper' },
+  { id:'s14', url: STICKER_BASE + '1f48b/512.gif', label:'💋 Kiss' },
+  { id:'s15', url: STICKER_BASE + '1f499/512.gif', label:'💙 Blue Heart' },
+  { id:'s16', url: STICKER_BASE + '2728/512.gif',  label:'✨ Sparkles' },
 ];
 
 var EMOJI_CATS = {
@@ -2184,10 +2197,21 @@ window.ctxReport = function () {
 };
 window.ctxDelete = function () {
   if (!CHAT_ctxMsg) return;
-  api.del('/chat?id=' + encodeURIComponent(CHAT_ctxMsg.id))
-    .then(function () { loadMessages(true); toast('🗑 Deleted'); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  var msgId = CHAT_ctxMsg.id;
   document.getElementById('ctx-menu').classList.remove('open');
+  // Immediately hide from UI for instant feel
+  var el = document.querySelector('[data-msg-id="' + msgId + '"]');
+  if (el) {
+    el.style.transition = 'opacity .15s, transform .15s';
+    el.style.opacity = '0';
+    el.style.transform = 'scale(0.95)';
+    setTimeout(function () { if (el.parentElement) el.remove(); }, 150);
+  }
+  // Remove from local cache
+  CHAT_messages = CHAT_messages.filter(function(m){ return m.id !== msgId; });
+  api.del('/chat?id=' + encodeURIComponent(msgId))
+    .then(function () { toast('🗑 Deleted'); loadChatRooms(); })
+    .catch(function (err) { toast('❌ ' + err.message); loadMessages(true); });
 };
 
 document.addEventListener('click', function (e) {
