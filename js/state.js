@@ -923,6 +923,7 @@ window.filterElement = function (el) {
    or take any action without signing in.
 ══════════════════════════════════ */
 var GUEST_MODE = false;
+window.GUEST_MODE = false;
 
 // Load guest mode status on startup
 window._loadGuestMode = function () {
@@ -936,7 +937,7 @@ window._loadGuestMode = function () {
 };
 
 // Apply guest mode UI
-function _applyGuestMode() {
+window._applyGuestMode = function _applyGuestMode() {
   if (!STATE.user) {
     // Show login button in nav
     _addNavLoginBtn();
