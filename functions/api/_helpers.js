@@ -10,8 +10,14 @@ export const corsHeaders = {
   'Access-Control-Allow-Credentials': 'true',
 };
 
-export function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), { status, headers: corsHeaders });
+export function json(obj, status = 200, cacheSeconds = 0) {
+  const headers = { ...corsHeaders, 'Content-Type': 'application/json' };
+  if (cacheSeconds > 0) {
+    headers['Cache-Control'] = `public, max-age=${cacheSeconds}, s-maxage=${cacheSeconds}`;
+  } else {
+    headers['Cache-Control'] = 'no-store';
+  }
+  return new Response(JSON.stringify(obj), { status, headers });
 }
 
 export function getCookie(request, name) {
@@ -42,29 +48,32 @@ export async function requireUser(request, env) {
 // ── ROLE SEMANTICS ──────────────────────────────────────────
 // member        : regular user
 // admin_limited : "Moderator" — can view, delete content, block users.
-//                 Actions are tracked in audit_logs.
-// admin_super   : "Super Admin" — full access: settings, ads, role
-//                 management, broadcasts. Includes everything a
-//                 Moderator can do.
-// owner (by email match) : ultimate Super Admin, cannot be demoted/blocked.
+// admin_super   : "Super Admin" — full access.
+// owner (by email): ultimate admin, cannot be demoted/blocked.
+// CO_OWNER      : Jmittelman2@gmail.com — same rights as owner, hardcoded.
+
+const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
 
 export function isAdminRole(user, ownerEmail) {
   if (!user) return false;
-  return user.email === ownerEmail || user.role === 'admin_super' || user.role === 'admin_limited';
+  // Both owners always have admin access
+  if (OWNER_EMAILS.includes(user.email)) return true;
+  if (ownerEmail && user.email === ownerEmail) return true;
+  return user.role === 'admin_super' || user.role === 'admin_limited';
 }
 
 export function isSuperOrOwner(user, ownerEmail) {
   if (!user) return false;
-  const CO_OWNER = 'Jmittelman2@gmail.com';
-  return user.email === ownerEmail ||
-         user.email === CO_OWNER ||
-         user.role  === 'admin_super';
+  if (OWNER_EMAILS.includes(user.email)) return true;
+  if (ownerEmail && user.email === ownerEmail) return true;
+  return user.role === 'admin_super';
 }
 
 export function isOwnerOrCoOwner(user, ownerEmail) {
   if (!user) return false;
-  const CO_OWNER = 'Jmittelman2@gmail.com';
-  return user.email === ownerEmail || user.email === CO_OWNER;
+  if (OWNER_EMAILS.includes(user.email)) return true;
+  if (ownerEmail && user.email === ownerEmail) return true;
+  return false;
 }
 
 // Moderator-or-above: anyone who can view/delete/block (Moderator + Super Admin + Owner)
@@ -91,7 +100,7 @@ export async function logAudit(env, actor, action, targetType, targetId, details
       crypto.randomUUID(),
       actor.id,
       actor.nickname || '',
-      actor.email === env.OWNER_EMAIL ? 'owner' : (actor.role || 'member'),
+      actor.email === env.OWNER_EMAIL || OWNER_EMAILS.includes(actor.email) ? 'owner' : (actor.role || 'member'),
       action,
       targetType || null,
       targetId || null,
