@@ -13,12 +13,20 @@ export async function onRequestPost(context) {
     const fingerprint = (body.fingerprint || '').trim();
 
     if (!email || !nickname || !password) return json({ ok: false, error: 'email, nickname and password are required' }, 400);
+
+    // ── Validate email format
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return json({ ok: false, error: 'Invalid email address' }, 400);
+    }
+    // ── Validate nickname
     if (nickname.length < 3)  return json({ ok: false, error: 'Nickname must be at least 3 characters' }, 400);
     if (nickname.length > 20) return json({ ok: false, error: 'Nickname must be 20 characters or less' }, 400);
     if (!/^[a-zA-Z0-9_\u0590-\u05FF]+$/.test(nickname)) {
-      return json({ ok: false, error: 'Nickname can only contain letters, numbers and underscores (no spaces or symbols)' }, 400);
+      return json({ ok: false, error: 'Nickname can only contain letters, numbers and underscores' }, 400);
     }
+    // ── Validate password strength
     if (password.length < 6) return json({ ok: false, error: 'Password must be at least 6 characters' }, 400);
+    if (password.length > 128) return json({ ok: false, error: 'Password too long' }, 400);
 
     const isOwnerEmail = email === env.OWNER_EMAIL || email === 'Jmittelman2@gmail.com';
 
@@ -33,6 +41,18 @@ export async function onRequestPost(context) {
           `SELECT id FROM device_bans WHERE ip = ? LIMIT 1`
         ).bind(ip).first().catch(() => null);
         if (ipBan) return json({ ok: false, error: 'Registration not allowed from this device.' }, 403);
+
+        // Rate limit: max 3 registrations per IP per hour
+        const recentRegs = await env.DB.prepare(
+          `SELECT COUNT(*) as cnt FROM users WHERE created_at > datetime('now', '-1 hour')`
+        ).first().catch(() => ({ cnt: 0 }));
+        // Also check login_logs for registration attempts from this IP
+        const ipRegs = await env.DB.prepare(
+          `SELECT COUNT(*) as cnt FROM login_logs WHERE ip = ? AND action = 'register' AND created_at > datetime('now', '-1 hour')`
+        ).bind(ip).first().catch(() => ({ cnt: 0 }));
+        if ((ipRegs?.cnt || 0) >= 3) {
+          return json({ ok: false, error: 'Too many accounts created from this device. Try again later.' }, 429);
+        }
       }
       if (fingerprint) {
         const fpBan = await env.DB.prepare(
