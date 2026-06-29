@@ -1496,6 +1496,19 @@ window.adminDeleteChannel = function (id, nick) {
 function buildMaintenancePanel(content) {
   content.innerHTML =
     '<div class="admin-panel">' +
+
+      // ── Guest Mode (Owner only) ──
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">👁️ Guest Mode</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">When ON — anyone can browse the site without signing in, but cannot post, like, chat, or take any action. They will see a "Sign In" popup when they try.</div>' +
+        '<div id="guest-status" style="font-size:.88rem;font-weight:700;margin-bottom:1rem;padding:.6rem;border-radius:8px;text-align:center">Loading...</div>' +
+        '<div style="display:flex;gap:.5rem">' +
+          '<button class="save-pill" style="flex:1;background:var(--blue)" onclick="setGuestMode(true)">👁️ Turn ON (Allow Guests)</button>' +
+          '<button class="save-pill" style="flex:1;background:#7C3AED" onclick="setGuestMode(false)">🔒 Turn OFF (Login Required)</button>' +
+        '</div>' +
+      '</div>' +
+
+      // ── Maintenance Mode ──
       '<div class="admin-card">' +
         '<div class="admin-card-title">🔧 Maintenance Mode</div>' +
         '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">When ON — nobody can log in or register. You (Owner/Super Admin) are always exempt.</div>' +
@@ -1508,6 +1521,18 @@ function buildMaintenancePanel(content) {
       '</div>' +
     '</div>';
 
+  // Load guest mode status
+  api.get('/admin/guest-mode')
+    .then(function (res) {
+      var el = document.getElementById('guest-status');
+      if (!el) return;
+      el.style.background = res.enabled ? 'rgba(21,101,192,.1)' : 'rgba(124,58,237,.1)';
+      el.style.color = res.enabled ? 'var(--blue)' : '#7C3AED';
+      el.textContent = res.enabled ? '👁️ GUEST MODE IS ON — Anyone can browse' : '🔒 LOGIN REQUIRED — Guests cannot access';
+    })
+    .catch(function () {});
+
+  // Load maintenance status
   api.get('/admin/maintenance')
     .then(function (res) {
       var el = document.getElementById('maint-status');
@@ -1520,6 +1545,15 @@ function buildMaintenancePanel(content) {
     })
     .catch(function () {});
 }
+
+window.setGuestMode = function (enabled) {
+  api.post('/admin/guest-mode', { enabled: enabled })
+    .then(function () {
+      toast(enabled ? '👁️ Guest Mode ON' : '🔒 Login Required');
+      buildMaintenancePanel(document.getElementById('admin-content'));
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 window.setMaintenance = function (enabled) {
   var msg = (document.getElementById('maint-msg') || {}).value || '';
