@@ -36,32 +36,55 @@ window.APP = window.STATE; // alias for legacy code
 // ============================================================
 // API CLIENT — thin fetch wrapper
 // ============================================================
-// Simple in-memory cache for GET requests
+// Smart in-memory cache for GET requests
 var _apiCache = {};
 var _apiCacheTTL = {};
-var API_CACHE_SECONDS = 30; // cache for 30 seconds
+var _apiInflight = {}; // dedup simultaneous requests
+
+// Cache TTLs per endpoint type
+function _cacheTTL(path) {
+  if (path.includes('/chat/rooms')) return 15000;  // 15s — changes fast
+  if (path.includes('/statuses'))   return 20000;  // 20s
+  if (path.includes('/posts'))      return 20000;  // 20s
+  if (path.includes('/shorts'))     return 30000;  // 30s
+  if (path.includes('/channels'))   return 60000;  // 1 min
+  if (path.includes('/broadcasts')) return 120000; // 2 min
+  if (path.includes('/profile'))    return 60000;  // 1 min
+  return 30000; // default 30s
+}
 
 window.api = {
   get: function (path, noCache) {
     var cacheKey = path;
     var now = Date.now();
-    // Return cached if fresh
+    // Return cached if still fresh
     if (!noCache && _apiCache[cacheKey] && _apiCacheTTL[cacheKey] > now) {
       return Promise.resolve(_apiCache[cacheKey]);
     }
-    return fetch(CONFIG.API_BASE + path, { credentials: 'include' })
+    // Dedup: if same request is already inflight, wait for it
+    if (_apiInflight[cacheKey]) {
+      return _apiInflight[cacheKey];
+    }
+    var promise = fetch(CONFIG.API_BASE + path, { credentials: 'include' })
       .then(handleRes)
       .then(function (data) {
-        // Cache GET responses
         _apiCache[cacheKey] = data;
-        _apiCacheTTL[cacheKey] = now + API_CACHE_SECONDS * 1000;
+        _apiCacheTTL[cacheKey] = now + _cacheTTL(path);
+        delete _apiInflight[cacheKey];
         return data;
+      })
+      .catch(function (err) {
+        delete _apiInflight[cacheKey];
+        throw err;
       });
+    _apiInflight[cacheKey] = promise;
+    return promise;
   },
   // Invalidate cache for a path
   bust: function (path) {
     delete _apiCache[path];
     delete _apiCacheTTL[path];
+    delete _apiInflight[path];
   },
   post: function (path, body, isForm) {
     var opts = { method: 'POST', credentials: 'include' };
@@ -239,16 +262,14 @@ window.goPage = function (page) {
 // window.ADMIN_GATE_SESSION is set by admin.js after a successful
 // email+PIN gate unlock: { email, role }. When present, these helpers
 // trust THAT verified identity over STATE.user — this matters because
-// the gate intentionally allows unlocking with any authorized admin
-// email, which may differ from whichever account the browser is
-// currently logged into as a regular user.
+// ── OWNER EMAILS (hardcoded, cannot be changed) ──
+var OWNER_EMAILS_LIST = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
+
 window.isOwner = function () {
-  var CO_OWNER = 'Jmittelman2@gmail.com';
-  if (window.ADMIN_GATE_SESSION) {
-    return window.ADMIN_GATE_SESSION.email === CONFIG.OWNER_EMAIL ||
-           window.ADMIN_GATE_SESSION.email === CO_OWNER;
-  }
-  return !!(STATE.user && (STATE.user.email === CONFIG.OWNER_EMAIL || STATE.user.email === CO_OWNER));
+  var email = window.ADMIN_GATE_SESSION
+    ? window.ADMIN_GATE_SESSION.email
+    : (STATE.user && STATE.user.email);
+  return !!(email && OWNER_EMAILS_LIST.includes(email));
 };
 window.isSuperAdmin = function () {
   if (window.ADMIN_GATE_SESSION) {
@@ -257,10 +278,11 @@ window.isSuperAdmin = function () {
   return !!(STATE.user && (STATE.user.role === 'admin_super' || isOwner()));
 };
 window.isAnyAdmin = function () {
-  if (window.ADMIN_GATE_SESSION) {
+  var gateSess = window.ADMIN_GATE_SESSION;
+  if (gateSess) {
     return isOwner() ||
-      window.ADMIN_GATE_SESSION.role === 'admin_super' ||
-      window.ADMIN_GATE_SESSION.role === 'admin_limited';
+      gateSess.role === 'admin_super' ||
+      gateSess.role === 'admin_limited';
   }
   return !!(STATE.user && (
     STATE.user.role === 'admin_super' ||
@@ -892,4 +914,132 @@ window.filterElement = function (el) {
 // Auto-load on startup
 (function () {
   setTimeout(function () { loadContentFilter(); }, 2000);
+})();
+
+/* ══════════════════════════════════
+   GUEST MODE
+   When enabled: users can browse but
+   cannot post, like, comment, chat,
+   or take any action without signing in.
+══════════════════════════════════ */
+var GUEST_MODE = false;
+
+// Load guest mode status on startup
+window._loadGuestMode = function () {
+  fetch(CONFIG.API_BASE + '/admin/guest-mode')
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      GUEST_MODE = !!(res && res.enabled);
+      if (GUEST_MODE) _applyGuestMode();
+    })
+    .catch(function () {});
+};
+
+// Apply guest mode UI
+function _applyGuestMode() {
+  if (!STATE.user) {
+    // Show login button in nav
+    _addNavLoginBtn();
+    // Intercept all interactive elements
+    _interceptGuestActions();
+  }
+}
+
+function _addNavLoginBtn() {
+  // Add "Sign In" button in topbar if not already there
+  var existing = document.getElementById('guest-login-btn');
+  if (existing) return;
+
+  var topbar = document.querySelector('.topbar');
+  if (!topbar) return;
+
+  var btn = document.createElement('button');
+  btn.id = 'guest-login-btn';
+  btn.onclick = _showGuestLoginPopup;
+  btn.style.cssText = 'padding:.35rem .9rem;background:linear-gradient(135deg,#1565C0,#1976D2);color:#fff;border:none;border-radius:20px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:.3rem;white-space:nowrap';
+  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>Sign In';
+  topbar.appendChild(btn);
+}
+
+// Show login popup
+window._showGuestLoginPopup = function (msg) {
+  var existing = document.getElementById('guest-login-popup');
+  if (existing) { existing.remove(); return; }
+
+  var overlay = document.createElement('div');
+  overlay.id = 'guest-login-popup';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.innerHTML =
+    '<div style="background:var(--surface);border-radius:20px;padding:2rem 1.5rem;width:100%;max-width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">' +
+      '<div style="font-size:2.5rem;margin-bottom:.75rem">✡️</div>' +
+      '<div style="font-size:1.1rem;font-weight:800;margin-bottom:.4rem">YID PLUS</div>' +
+      '<div style="font-size:.85rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.5">' +
+        (msg || 'Sign in to interact with the YID PLUS community') +
+      '</div>' +
+      '<button onclick="goPage(\'index.html\')" style="width:100%;padding:.75rem;background:linear-gradient(135deg,#1565C0,#1976D2);color:#fff;border:none;border-radius:14px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:.5rem;display:flex;align-items:center;justify-content:center;gap:.5rem">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>' +
+        'Sign In' +
+      '</button>' +
+      '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:.6rem;background:var(--bg3);border:none;border-radius:14px;font-size:.88rem;cursor:pointer;font-family:inherit;color:var(--muted)">Continue Browsing</button>' +
+    '</div>';
+
+  overlay.addEventListener('click', function(e){ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+};
+
+// Check if action is allowed — call before any user action
+window.requireLogin = function (msg) {
+  if (!GUEST_MODE) return true;  // guest mode off — always allowed
+  if (STATE.user) return true;   // logged in — always allowed
+  _showGuestLoginPopup(msg || 'Sign in to do this');
+  return false;
+};
+
+// Intercept guest actions via event delegation
+function _interceptGuestActions() {
+  // Intercept form submissions and action buttons
+  document.addEventListener('click', function (e) {
+    if (!GUEST_MODE || STATE.user) return;
+
+    var target = e.target.closest('button, [onclick]');
+    if (!target) return;
+
+    var onclick = target.getAttribute('onclick') || '';
+    var text = (target.textContent || '').toLowerCase().trim();
+
+    // Things that should trigger login popup
+    var actionPatterns = [
+      'sendChatMsg', 'postToFeed', 'likePost', 'likeShort',
+      'openNewChatModal', 'openNewGroupModal', 'openNewChannelModal',
+      'submitComment', 'submitFeedback', 'followUser',
+      'handleChatMedia', 'startRecord', 'toggleReaction',
+      'heartTrack', 'sendStatus',
+    ];
+
+    var isAction = actionPatterns.some(function(p){ return onclick.includes(p); });
+    // Also catch common action words in button text
+    var actionWords = ['post', 'send', 'like', 'follow', 'comment', 'join', 'upload'];
+    var isActionText = actionWords.some(function(w){ return text === w; });
+
+    if (isAction || isActionText) {
+      e.preventDefault();
+      e.stopPropagation();
+      _showGuestLoginPopup('Sign in to ' + (text || 'do this'));
+    }
+  }, true); // capture phase
+
+  // Intercept text inputs
+  document.addEventListener('focus', function (e) {
+    if (!GUEST_MODE || STATE.user) return;
+    var tag = e.target.tagName;
+    if (tag === 'TEXTAREA' || (tag === 'INPUT' && e.target.type !== 'search')) {
+      e.target.blur();
+      _showGuestLoginPopup('Sign in to write something');
+    }
+  }, true);
+}
+
+// Auto-load guest mode
+(function () {
+  setTimeout(function () { _loadGuestMode(); }, 500);
 })();
