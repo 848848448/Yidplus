@@ -565,7 +565,6 @@ window.submitFeedback = function () {
 document.addEventListener('DOMContentLoaded', function () {
   AUTH.restore().then(function (user) {
     if (!user) {
-      // Session cookie might be slow — retry once after 300ms before redirecting to auth
       return new Promise(function (resolve) { setTimeout(resolve, 300); })
         .then(function () { return AUTH.restore(); });
     }
@@ -573,10 +572,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }).then(function (user) {
     if (user) {
       sessionStorage.setItem('yp_logged_in', '1');
-      // Cross-page channel link support: yidplus-dashboard.html?channel=OWNER_ID
       var urlParams = new URLSearchParams(window.location.search);
       var channelOwnerId = urlParams.get('channel');
-
       if (channelOwnerId) {
         CHANNEL_pendingOwnerId = channelOwnerId;
         navTo('channel');
@@ -589,8 +586,30 @@ document.addEventListener('DOMContentLoaded', function () {
       loadAppSettings();
       initAds('home');
     } else {
-      sessionStorage.removeItem('yp_logged_in');
-      navTo('auth');
+      // Check if Guest Mode is ON — if yes, allow browsing without login
+      fetch('/api/admin/guest-mode')
+        .then(function(r){ return r.json(); })
+        .then(function(res) {
+          if (res && res.enabled) {
+            // Guest Mode ON — let them browse
+            sessionStorage.removeItem('yp_logged_in');
+            GUEST_MODE = true;
+            _applyGuestMode();
+            var page = localStorage.getItem('yp_page');
+            navTo((page && page !== 'auth') ? page : 'home');
+            loadAppSettings();
+            initAds('home');
+          } else {
+            // Guest Mode OFF — must login
+            sessionStorage.removeItem('yp_logged_in');
+            navTo('auth');
+          }
+        })
+        .catch(function() {
+          // If can't reach server — show login
+          sessionStorage.removeItem('yp_logged_in');
+          navTo('auth');
+        });
     }
     loadPosts();
   });
@@ -599,4 +618,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <script src="js/ads.js"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
-    </html>
+  </html>
