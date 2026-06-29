@@ -39,14 +39,14 @@ export async function onRequestPost(context) {
     const message = body.message || 'We\'ll be back shortly. 🛠️';
 
     await env.DB.prepare(
-      `INSERT INTO app_settings (key, value) VALUES ('maintenance_mode', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`
+      `INSERT INTO app_settings (key, value, updated_at) VALUES ('maintenance_mode', ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=datetime('now')`
     ).bind(enabled ? 'true' : 'false').run();
     await env.DB.prepare(
-      `INSERT INTO app_settings (key, value) VALUES ('maintenance_message', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`
+      `INSERT INTO app_settings (key, value, updated_at) VALUES ('maintenance_message', ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=datetime('now')`
     ).bind(message).run();
 
     return json({ ok: true });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-      }
+}
