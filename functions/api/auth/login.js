@@ -47,13 +47,32 @@ export async function onRequestPost(context) {
       }
     }
 
+    // ── Brute-force protection ──
+    // Count failed attempts from this IP in last 15 minutes
+    const failKey = 'login_fail_' + ip.replace(/[^0-9a-f:.]/gi, '');
+    const recentFails = await env.DB.prepare(
+      `SELECT COUNT(*) as cnt FROM login_logs
+       WHERE ip = ? AND action = 'fail' AND created_at > datetime('now', '-15 minutes')`
+    ).bind(ip).first().catch(() => ({ cnt: 0 }));
+
+    if (!isOwnerEmail && (recentFails?.cnt || 0) >= 10) {
+      return json({ ok: false, error: 'Too many failed attempts. Please wait 15 minutes.' }, 429);
+    }
+
     const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
     const hash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
 
     const user = await env.DB.prepare(
       'SELECT id, email, nickname, role, verified, blocked FROM users WHERE email = ? AND password_hash = ?'
     ).bind(email, hash).first();
-    if (!user) return json({ ok: false, error: 'Invalid email or password' }, 401);
+
+    if (!user) {
+      // Log failed attempt for brute-force tracking
+      await env.DB.prepare(
+        `INSERT INTO login_logs (id, user_id, ip, fingerprint, action, created_at) VALUES (?, NULL, ?, ?, 'fail', ?)`
+      ).bind(crypto.randomUUID(), ip, fingerprint || null, new Date().toISOString()).run().catch(() => {});
+      return json({ ok: false, error: 'Invalid email or password' }, 401);
+    }
     if (user.blocked) return json({ ok: false, error: 'Account suspended. Contact support.' }, 403);
 
     const sessionId = crypto.randomUUID();
