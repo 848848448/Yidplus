@@ -192,5 +192,5 @@ window.checkNickAvail = function () {
 
 // ── GOOGLE SIGN-IN ──
 window.signInWithGoogle = function () {
-  window.location.href = '/api/auth/google-login?return_to=' + encodeURIComponent('//');
+  window.location.href = '/api/auth/google-login?return_to=' + encodeURIComponent('/');
 };
