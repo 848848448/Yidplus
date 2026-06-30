@@ -58,14 +58,14 @@
   </div>
   <!-- Chat Folders Row (Telegram-style) -->
   <div id="chat-folders-row" style="display:none;overflow-x:auto;scrollbar-width:none;background:var(--surface);border-bottom:1px solid var(--border);padding:.4rem .6rem;gap:.4rem;flex-shrink:0"></div>
-  <div class="scroll-area" id="chat-list-area"></div>
+  <div class="scroll-area" id="chat-list-area" style="padding-bottom:160px"></div>
 
   <!-- WhatsApp-style floating action buttons -->
-  <div style="position:fixed;right:1rem;bottom:80px;display:flex;flex-direction:column;gap:.85rem;z-index:200">
-    <button onclick="_handleStatusButtonTap()" title="My Status" style="width:48px;height:48px;border-radius:50%;background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 14px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text)">
+  <div style="position:fixed;right:1rem;bottom:80px;display:flex;flex-direction:column;gap:.85rem;z-index:200;pointer-events:none">
+    <button onclick="_handleStatusButtonTap()" title="My Status" style="width:48px;height:48px;border-radius:50%;background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 14px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);pointer-events:all">
       <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
     </button>
-    <button onclick="toggleChatFab()" title="New chat" style="width:58px;height:58px;border-radius:50%;background:var(--blue);box-shadow:0 4px 14px rgba(21,101,192,.4);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;border:none">
+    <button onclick="toggleChatFab()" title="New chat" style="width:58px;height:58px;border-radius:50%;background:var(--blue);box-shadow:0 4px 14px rgba(21,101,192,.4);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;border:none;pointer-events:all">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     </button>
   </div>
