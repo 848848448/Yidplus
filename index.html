@@ -596,6 +596,10 @@ document.addEventListener('DOMContentLoaded', function () {
       };
       var key = errParam || verifyParam;
       var msg = msgMap[key] || (errParam ? 'Something went wrong with sign-in.' : '');
+      var detailMsg = urlParams0.get('msg');
+      if (detailMsg && errParam === 'google_failed') {
+        msg += ' (' + decodeURIComponent(detailMsg) + ')';
+      }
       if (msg) {
         setTimeout(function () {
           var el = document.getElementById('auth-msg');
@@ -674,4 +678,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <script src="js/ads.js"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
-                                                                                        </html>
+      </html>
