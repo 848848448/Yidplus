@@ -1347,3 +1347,12 @@ img { opacity: 1; }
 /* ══ STICKER FIX ══ */
 .sticker-gif { width: 100px; height: 100px; object-fit: contain; border-radius: 8px; cursor: pointer; transition: transform .15s; }
 .sticker-gif:hover { transform: scale(1.08); }
+
+/* ══════════════════════════════════
+   STATUS RING — chat list avatars
+   (WhatsApp-style: shows when contact has an active status)
+══════════════════════════════════ */
+.chat-av.has-status-ring {
+  box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--blue);
+  cursor: pointer;
+   }
