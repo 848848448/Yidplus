@@ -110,23 +110,20 @@ window.init_home = function () {
 // Single batched fetch for all home screen data
 function _fetchHomeData() {
   // Fire all requests simultaneously
-  var p1 = api.get('/statuses').catch(function(){ return { statuses: [] }; });
   var p2 = api.get('/shorts?limit=6').catch(function(){ return { shorts: [] }; });
   var p3 = api.get('/channels?limit=6').catch(function(){ return { channels: [] }; });
   var p4 = api.get('/posts?limit=20').catch(function(){ return { posts: [] }; });
   var p5 = api.get('/broadcasts').catch(function(){ return { announcements: [] }; });
   var p6 = api.get('/chat/rooms').catch(function(){ return { rooms: [] }; });
 
-  return Promise.all([p1, p2, p3, p4, p5, p6]).then(function(res) {
-    var statuses   = res[0];
-    var shortsRes  = res[1];
-    var channelRes = res[2];
-    var postsRes   = res[3];
-    var broadRes   = res[4];
-    var roomsRes   = res[5];
+  return Promise.all([p2, p3, p4, p5, p6]).then(function(res) {
+    var shortsRes  = res[0];
+    var channelRes = res[1];
+    var postsRes   = res[2];
+    var broadRes   = res[3];
+    var roomsRes   = res[4];
 
     // Build all sections at once
-    _renderStatusRow(statuses.statuses || []);
     _renderShortsPrev(shortsRes.shorts || []);
     _renderChannelsPrev(channelRes.channels || []);
     _renderFeed(postsRes.posts || []);
@@ -1713,23 +1710,38 @@ function _buildProfileScreen(userId) {
   Promise.all([
     api.get('/profile?user_id=' + encodeURIComponent(userId), true),
     api.get('/follows?user_id=' + encodeURIComponent(userId), true),
+    api.get('/statuses?user_id=' + encodeURIComponent(userId), true).catch(function(){ return { statuses: [] }; }),
   ]).then(function (res) {
     var p     = res[0].profile || {};
     var stats = res[0].stats   || {};
     var fdata = res[1];
+    var statusData = (res[2].statuses || [])[0]; // statuses for this one user, if visible
+    var hasStatus = statusData && statusData.slides && statusData.slides.length;
     var isMe  = STATE.user && STATE.user.id === userId;
 
     if (nick) nick.textContent = '@' + (p.nickname || 'User');
 
-    var avatarHtml = p.photo_url
-      ? '<div style="width:80px;height:80px;border-radius:50%;background-image:url(' + p.photo_url + ');background-size:cover;background-position:center;border:2.5px solid var(--border);flex-shrink:0"></div>'
-      : '<div style="width:80px;height:80px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:2rem;border:2.5px solid var(--border);flex-shrink:0">' + (p.nickname||'U').slice(0,1).toUpperCase() + '</div>';
+    var avatarInner = p.photo_url
+      ? '<div style="width:80px;height:80px;border-radius:50%;background-image:url(' + p.photo_url + ');background-size:cover;background-position:center;border:2.5px solid var(--surface);flex-shrink:0"></div>'
+      : '<div style="width:80px;height:80px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:2rem;border:2.5px solid var(--surface);flex-shrink:0">' + (p.nickname||'U').slice(0,1).toUpperCase() + '</div>';
+
+    // Wrap avatar with a status ring if they have an active status
+    var avatarHtml = hasStatus
+      ? '<div style="position:relative;width:86px;height:86px;cursor:pointer" onclick="_viewProfileStatus(\'' + userId + '\')">' +
+          '<svg width="86" height="86" style="position:absolute;top:0;left:0">' + _svSegments(statusData.slides.length, false) + '</svg>' +
+          '<div style="position:absolute;inset:3px">' + avatarInner + '</div>' +
+        '</div>'
+      : avatarInner;
 
     var followBtn = '';
     if (!isMe) {
-      followBtn = fdata.is_following
-        ? '<button onclick="unfollowUser(\'' + userId + '\')" style="padding:.45rem 1.25rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:600;color:var(--text)">Following</button>'
-        : '<button onclick="followUser(\'' + userId + '\')" style="padding:.45rem 1.25rem;background:var(--gold);border:none;border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:700;color:#fff">Follow</button>';
+      if (fdata.is_following) {
+        followBtn = '<button onclick="unfollowUser(\'' + userId + '\')" style="padding:.45rem 1.25rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:600;color:var(--text)">Following</button>';
+      } else if (fdata.has_pending_request) {
+        followBtn = '<button disabled style="padding:.45rem 1.25rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.82rem;font-family:inherit;font-weight:600;color:var(--muted)">Requested</button>';
+      } else {
+        followBtn = '<button onclick="followUser(\'' + userId + '\')" style="padding:.45rem 1.25rem;background:var(--gold);border:none;border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:700;color:#fff">' + (fdata.is_private ? 'Request' : 'Follow') + '</button>';
+      }
     } else {
       followBtn = '<button onclick="navTo(\'settings\')" style="padding:.45rem 1.25rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:600">Edit Profile</button>';
     }
@@ -1838,9 +1850,24 @@ function _loadProfileContent(userId, tab) {
   }
 }
 
+window._viewProfileStatus = function (userId) {
+  api.get('/statuses?user_id=' + encodeURIComponent(userId), true)
+    .then(function (res) {
+      var data = (res.statuses || [])[0];
+      if (!data || !data.slides || !data.slides.length) { toast('No active status'); return; }
+      HOME_svStatuses = [data];
+      openSV(0);
+    })
+    .catch(function () { toast('Could not load status'); });
+};
+
 window.followUser = function (userId) {
   api.post('/follows', { user_id: userId })
-    .then(function () { toast('Following!'); _buildProfileScreen(userId); })
+    .then(function (res) {
+      if (res.requested) { toast('Follow request sent'); }
+      else { toast('Following!'); }
+      _buildProfileScreen(userId);
+    })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
 
