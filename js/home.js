@@ -39,7 +39,7 @@ function buildShortsPrev() {
         var c = document.createElement('div');
         c.className = 'short-prev-card';
         c.style.cssText = 'flex-shrink:0;width:110px;height:185px;border-radius:12px;background:var(--bg2);border:1px solid var(--border);overflow:hidden;position:relative;cursor:pointer';
-        c.onclick = function () { goPage('yidplus-shorts.html'); };
+        c.onclick = function () { goPage('/shorts'); };
         c.innerHTML =
           '<video src="' + s.media_url + '" muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" preload="metadata"></video>' +
           '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.75),transparent 50%);display:flex;flex-direction:column;justify-content:flex-end;padding:.5rem">' +
@@ -1303,7 +1303,7 @@ window.toggleChannelPrivacy = function () {
     grid.innerHTML = '<div style="grid-column:1/-1;padding:2rem;text-align:center;font-size:.82rem;color:var(--muted)">No content yet</div>';
   } else {
     grid.innerHTML = shorts.map(function (s) {
-      return '<div class="ch-grid-item" style="position:relative;aspect-ratio:9/16;background:var(--bg3);border-radius:8px;overflow:hidden;cursor:pointer" onclick="goPage(\'yidplus-shorts.html\')">' +
+      return '<div class="ch-grid-item" style="position:relative;aspect-ratio:9/16;background:var(--bg3);border-radius:8px;overflow:hidden;cursor:pointer" onclick="goPage(\'/shorts\')">' +
         (s.media_url ? '<video src="' + s.media_url + '" muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" preload="metadata"></video>' : '') +
         '<div style="position:absolute;bottom:.3rem;left:.3rem;font-size:.65rem;color:#fff;background:rgba(0,0,0,.5);padding:.1rem .35rem;border-radius:4px">▶ ' + fmtN(s.likes || 0) + '</div>' +
       '</div>';
@@ -1679,7 +1679,7 @@ function _channelRow(c) {
 }
 
 function _groupRow(g) {
-  return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem .85rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="goPage(\'yidplus-chat.html\')">' +
+  return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem .85rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="goPage(\'/chat\')">' +
     '<div style="width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#7C3AED,#5B21B6);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;color:#fff;flex-shrink:0">' + (g.nick||g.name||'G').slice(0,1).toUpperCase() + '</div>' +
     '<div style="flex:1;min-width:0">' +
       '<div style="font-size:.88rem;font-weight:700">' + escHtml(g.nick||g.name||'Group') + '</div>' +
@@ -1853,7 +1853,7 @@ window.unfollowUser = function (userId) {
 window.openDMWith = function (userId) {
   api.post('/chat/rooms', { type: 'private', other_user_id: userId })
     .then(function (res) {
-      goPage('yidplus-chat.html');
+      goPage('/chat');
     })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
@@ -1920,7 +1920,7 @@ window.openNotifPanel = function () {
     '</div>' +
     '<div id="notif-panel-list" style="overflow-y:auto;flex:1"><div style="padding:1.5rem;text-align:center"><div class="spinner"></div></div></div>' +
     '<div style="padding:.5rem .75rem;border-top:1px solid var(--border);flex-shrink:0">' +
-      '<button onclick="goPage(\'yidplus-chat.html\')" style="width:100%;padding:.5rem;background:var(--bg3);border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.8rem;color:var(--blue);font-weight:600">Open Chats</button>' +
+      '<button onclick="goPage(\'/chat\')" style="width:100%;padding:.5rem;background:var(--bg3);border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.8rem;color:var(--blue);font-weight:600">Open Chats</button>' +
     '</div>';
 
   document.body.appendChild(modal);
@@ -1950,7 +1950,7 @@ window.openNotifPanel = function () {
       var av = r.photo_url
         ? '<div style="width:42px;height:42px;border-radius:50%;background-image:url(' + r.photo_url + ');background-size:cover;flex-shrink:0"></div>'
         : '<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0">' + (r.nick||'?').slice(0,1).toUpperCase() + '</div>';
-      return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem 1rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="document.getElementById(\'notif-panel-modal\').remove();goPage(\'yidplus-chat.html\')">' +
+      return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem 1rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="document.getElementById(\'notif-panel-modal\').remove();goPage(\'/chat\')">' +
         av +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:.85rem;font-weight:700">' + escHtml(r.nick || 'Chat') + '</div>' +
@@ -2069,8 +2069,8 @@ window.loadTrending = function (type) {
   var path = type === 'shorts' ? '/shorts?trending=1' : type === 'music' ? '/music?trending=1' : '/posts?trending=1';
   api.get(path, true).then(function (res) {
     toast('Trending ' + type + ' loaded!');
-    if (type === 'shorts') goPage('yidplus-shorts.html');
-    else if (type === 'music') goPage('yidplus-music.html');
+    if (type === 'shorts') goPage('/shorts');
+    else if (type === 'music') goPage('/music');
   }).catch(function () { toast('Could not load trending'); });
 };
 
@@ -2115,7 +2115,7 @@ window.clearSearchHistory = function () {
 
 // Open a short from profile screen grid
 window.openShort = function (shortId) {
-  goPage('yidplus-shorts.html?id=' + encodeURIComponent(shortId));
+  goPage('/shorts?id=' + encodeURIComponent(shortId));
 };
 
 // Feedback modal
@@ -2217,7 +2217,7 @@ function _renderShortsPrev(shorts) {
   if (!el) return;
   if (!shorts.length) { el.closest('.home-section') && (el.closest('.home-section').style.display = 'none'); return; }
   el.innerHTML = shorts.slice(0,6).map(function (s) {
-    return '<div style="flex-shrink:0;width:100px;cursor:pointer" onclick="goPage(\'yidplus-shorts.html\')">' +
+    return '<div style="flex-shrink:0;width:100px;cursor:pointer" onclick="goPage(\'/shorts\')">' +
       '<div style="width:100px;height:160px;border-radius:12px;background:#111;overflow:hidden;position:relative">' +
         (s.media_url ? '<video src="' + s.media_url + '" style="width:100%;height:100%;object-fit:cover" preload="none"></video>' : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem">📹</div>') +
         '<div style="position:absolute;bottom:0;left:0;right:0;padding:.35rem .4rem;background:linear-gradient(transparent,rgba(0,0,0,.7))">' +
@@ -2284,4 +2284,4 @@ function _showWelcomeBannerIfFirst() {
     bar.insertBefore(wb, bar.firstChild);
     setTimeout(function(){ if(wb.parentElement) wb.remove(); }, 8000);
   } catch(e) {}
-  }
+                                           }
