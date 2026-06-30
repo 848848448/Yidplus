@@ -72,7 +72,7 @@ function buildChannelsPrev() {
         var card = document.createElement('div');
         card.className = 'ch-preview-card';
         card.style.cssText = 'flex-shrink:0;width:130px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:.9rem .75rem;text-align:center;cursor:pointer';
-        card.onclick = function () { goPage('yidplus-dashboard.html?channel=' + c.owner_id); };
+        card.onclick = function () { goPage('/?channel=' + c.owner_id); };
         card.innerHTML =
           '<div style="width:50px;height:50px;border-radius:50%;background:var(--bg3);margin:0 auto .5rem;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;border:1.5px solid var(--border);position:relative">' +
             escHtml((c.nickname || '?').slice(0, 1).toUpperCase()) +
@@ -1378,7 +1378,7 @@ window.respondFollowRequest = function (requestId, action) {
 
 window.shareChannel = function () {
   if (!CHANNEL_current) return;
-  var url = window.location.origin + '/yidplus-dashboard.html?channel=' + encodeURIComponent(CHANNEL_current.owner_id);
+  var url = window.location.origin + '//?channel=' + encodeURIComponent(CHANNEL_current.owner_id);
   if (navigator.share) {
     navigator.share({ title: '@' + CHANNEL_current.nickname + ' on YID PLUS', url: url });
   } else if (navigator.clipboard) {
@@ -1390,7 +1390,7 @@ window.shareChannel = function () {
 
 window.copyChannelLink = function () {
   if (!CHANNEL_current) return;
-  var url = window.location.origin + '/yidplus-dashboard.html?channel=' + encodeURIComponent(CHANNEL_current.owner_id);
+  var url = window.location.origin + '//?channel=' + encodeURIComponent(CHANNEL_current.owner_id);
   if (navigator.clipboard) {
     navigator.clipboard.writeText(url).then(function () { toast('✅ Link copied!'); });
   } else {
@@ -2284,4 +2284,4 @@ function _showWelcomeBannerIfFirst() {
     bar.insertBefore(wb, bar.firstChild);
     setTimeout(function(){ if(wb.parentElement) wb.remove(); }, 8000);
   } catch(e) {}
-   }
+  }
