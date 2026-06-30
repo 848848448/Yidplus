@@ -63,7 +63,13 @@ function loadChatRooms(callback) {
       var statusRes = resArr[1];
       CHAT_rooms = res.rooms || [];
       CHAT_activeStatusUserIds = new Set((statusRes.statuses || []).map(function (s) { return s.user_id; }));
-      renderChatList();
+      // Ensure content filter is loaded before rendering (blurs bad words in preview)
+      if (typeof loadContentFilter === 'function' && !FILTER_loaded) {
+        loadContentFilter();
+        setTimeout(function () { renderChatList(); }, 800);
+      } else {
+        renderChatList();
+      }
       if (typeof callback === 'function') callback();
     })
     .catch(function (err) {
@@ -110,7 +116,7 @@ function renderChatList() {
   el.innerHTML = filtered.map(function (c) {
     var initial  = (c.nick || '?').slice(0, 1).toUpperCase();
     var isGroup  = c.type === 'group';
-    var hasPhoto = c.photo_url && c.photo_url.length > 5;
+    var hasPhoto = c.photo_url && typeof c.photo_url === 'string' && c.photo_url.length > 5 && !c.photo_url.startsWith('null');
     var photoBg  = hasPhoto ? "background-image:url('" + c.photo_url + "');background-size:cover;background-position:center;" : '';
     // Groups get rounded-square avatar like Telegram, DMs get circle
     var avClass  = 'chat-av' + (isGroup ? ' group chat-av-square' : ' chat-av-round');
@@ -121,9 +127,19 @@ function renderChatList() {
     var onlineDot = (!isGroup && c.online && isAnyAdmin()) ? '<div class="online-dot"></div>' : '';
     var previewText = c.preview || '';
     // Filter bad words in preview
-    var previewHtml = (typeof filterContent === 'function' && FILTER_regex)
-      ? filterContent(escHtml(previewText))
-      : escHtml(previewText);
+    // For preview text: replace bad words with *** (simpler than blur spans in 1-line truncated text)
+    var previewHtml = escHtml(previewText);
+    if (typeof FILTER_regex !== 'undefined' && FILTER_regex) {
+      previewHtml = escHtml(previewText.replace(FILTER_regex, function(m) {
+        return '*'.repeat(Math.min(m.length, 5));
+      }));
+      if (typeof FILTER_phrase_regex !== 'undefined' && FILTER_phrase_regex) {
+        previewHtml = escHtml(previewText
+          .replace(FILTER_phrase_regex, function(m) { return '*'.repeat(Math.min(m.length, 7)); })
+          .replace(FILTER_regex, function(m) { return '*'.repeat(Math.min(m.length, 5)); })
+        );
+      }
+    }
     var timeText = c.last_time ? _fmt12(c.last_time) : '';
     var unreadBadge = c.unread
       ? '<div style="min-width:20px;height:20px;border-radius:10px;background:var(--blue);color:#fff;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px;flex-shrink:0">' + (c.unread > 99 ? '99+' : c.unread) + '</div>'
