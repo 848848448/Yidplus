@@ -18,7 +18,7 @@ export async function onRequestGet(context) {
     return Response.redirect(`${origin}/index.html?error=google_no_code`, 302);
   }
 
-  let returnTo = '/yidplus-dashboard.html';
+  let returnTo = '/';
   try {
     const state = JSON.parse(atob(stateRaw || ''));
     if (state && state.returnTo) returnTo = state.returnTo;
