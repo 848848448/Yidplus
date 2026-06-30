@@ -72,7 +72,7 @@
     </div>
 
     <div style="text-align:center;margin-top:1.25rem">
-      <span style="font-size:.75rem;color:var(--muted);cursor:pointer" onclick="goPage('yidplus-dashboard.html')">← Back to YID PLUS</span>
+      <span style="font-size:.75rem;color:var(--muted);cursor:pointer" onclick="goPage('/')">← Back to YID PLUS</span>
     </div>
   </div>
 </div>
@@ -85,7 +85,7 @@
       <span class="topbar-logo">YID PLUS</span>
       <span class="owner-badge" id="admin-role-badge">ADMIN</span>
     </div>
-    <button class="logout-btn" onclick="goPage('yidplus-dashboard.html')">Exit</button>
+    <button class="logout-btn" onclick="goPage('/')">Exit</button>
   </div>
 
   <div class="admin-nav" id="admin-nav-row" style="display:flex;overflow-x:auto;border-bottom:1px solid var(--border);background:var(--bg2);scrollbar-width:none;flex-shrink:0"></div>
@@ -103,10 +103,10 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   AUTH.restore().then(function (user) {
-    if (!user) { goPage('yidplus-dashboard.html'); return; }
+    if (!user) { goPage('/'); return; }
     if (!isAnyAdmin()) {
       toast('⚠ You do not have admin access.');
-      setTimeout(function () { goPage('yidplus-dashboard.html'); }, 1500);
+      setTimeout(function () { goPage('/'); }, 1500);
       return;
     }
     // Pre-fill the gate email for convenience
@@ -117,4 +117,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 </body>
-        </html>
+          </html>
