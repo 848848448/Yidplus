@@ -189,3 +189,8 @@ window.checkNickAvail = function () {
       .catch(function () { icon.textContent = ''; });
   }, 500);
 };
+
+// ── GOOGLE SIGN-IN ──
+window.signInWithGoogle = function () {
+  window.location.href = '/api/auth/google-login?return_to=' + encodeURIComponent('//');
+};
