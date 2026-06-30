@@ -110,13 +110,14 @@ function renderChatList() {
   el.innerHTML = filtered.map(function (c) {
     var initial  = (c.nick || '?').slice(0, 1).toUpperCase();
     var isGroup  = c.type === 'group';
-    var photoBg  = c.photo_url ? "background-image:url('" + c.photo_url + "');background-size:cover;background-position:center;" : '';
+    var hasPhoto = c.photo_url && c.photo_url.length > 5;
+    var photoBg  = hasPhoto ? "background-image:url('" + c.photo_url + "');background-size:cover;background-position:center;" : '';
     // Groups get rounded-square avatar like Telegram, DMs get circle
     var avClass  = 'chat-av' + (isGroup ? ' group chat-av-square' : ' chat-av-round');
     var hasStatus = !isGroup && CHAT_activeStatusUserIds && CHAT_activeStatusUserIds.has(c.other_user_id || c.id);
     if (hasStatus) avClass += ' has-status-ring';
     var avStyle  = photoBg;
-    var avatarContent = c.photo_url ? '' : initial;
+    var avatarContent = hasPhoto ? '' : initial;
     var onlineDot = (!isGroup && c.online && isAnyAdmin()) ? '<div class="online-dot"></div>' : '';
     var previewText = c.preview || '';
     // Filter bad words in preview
