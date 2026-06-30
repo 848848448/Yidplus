@@ -626,6 +626,21 @@ document.addEventListener('DOMContentLoaded', function () {
       applyRoleUI();
       loadAppSettings();
       initAds('home');
+
+      // If the user tapped "Add status" from the Chats page, open the upload modal now
+      try {
+        if (sessionStorage.getItem('yp_open_status_upload')) {
+          sessionStorage.removeItem('yp_open_status_upload');
+          setTimeout(function () { if (typeof openStatusUpload === 'function') openStatusUpload(); }, 400);
+        }
+        var viewStatusUserId = sessionStorage.getItem('yp_view_status_user');
+        if (viewStatusUserId) {
+          sessionStorage.removeItem('yp_view_status_user');
+          setTimeout(function () {
+            if (typeof _viewProfileStatus === 'function') _viewProfileStatus(viewStatusUserId);
+          }, 400);
+        }
+      } catch (e) {}
     } else {
       // Check if Guest Mode is ON — if yes, allow browsing without login
       fetch('/api/admin/guest-mode')
@@ -659,4 +674,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <script src="js/ads.js"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
-  </html>
+                                                                                        </html>
