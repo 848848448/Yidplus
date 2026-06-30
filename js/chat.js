@@ -48,13 +48,21 @@ window.init_chats = function () {
 // ============================================================
 // CHAT LIST
 // ============================================================
+var CHAT_activeStatusUserIds = new Set();
+
 function loadChatRooms(callback) {
   var el = document.getElementById('chat-list-area');
   if (el) el.innerHTML = '<div class="feed-state"><div class="spinner"></div><div>Loading chats...</div></div>';
 
-  api.get('/chat/rooms')
-    .then(function (res) {
+  Promise.all([
+    api.get('/chat/rooms'),
+    api.get('/statuses', true).catch(function () { return { statuses: [] }; }),
+  ])
+    .then(function (resArr) {
+      var res = resArr[0];
+      var statusRes = resArr[1];
       CHAT_rooms = res.rooms || [];
+      CHAT_activeStatusUserIds = new Set((statusRes.statuses || []).map(function (s) { return s.user_id; }));
       renderChatList();
       if (typeof callback === 'function') callback();
     })
@@ -105,6 +113,8 @@ function renderChatList() {
     var photoBg  = c.photo_url ? "background-image:url('" + c.photo_url + "');background-size:cover;background-position:center;" : '';
     // Groups get rounded-square avatar like Telegram, DMs get circle
     var avClass  = 'chat-av' + (isGroup ? ' group chat-av-square' : ' chat-av-round');
+    var hasStatus = !isGroup && CHAT_activeStatusUserIds && CHAT_activeStatusUserIds.has(c.other_user_id || c.id);
+    if (hasStatus) avClass += ' has-status-ring';
     var avStyle  = photoBg;
     var avatarContent = c.photo_url ? '' : initial;
     var onlineDot = (!isGroup && c.online && isAnyAdmin()) ? '<div class="online-dot"></div>' : '';
@@ -118,10 +128,11 @@ function renderChatList() {
       ? '<div style="min-width:20px;height:20px;border-radius:10px;background:var(--blue);color:#fff;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px;flex-shrink:0">' + (c.unread > 99 ? '99+' : c.unread) + '</div>'
       : '';
 
+    var avatarClickAttr = hasStatus ? ' onclick="event.stopPropagation();_viewChatListAvatarStatus(\'' + (c.other_user_id || c.id) + '\')"' : '';
     return '<div class="chat-item-wrap" data-room-id="' + c.id + '">' +
       '<div class="chat-item-delete" onclick="event.stopPropagation();deleteChatRoom(\'' + c.id + '\',\'' + escHtml((c.nick || 'Chat')).replace(/'/g, "\\'") + '\')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></div>' +
       '<div class="chat-item' + (c.unread ? ' unread' : '') + '" onclick="_chatItemClick(this,\'' + c.id + '\')">' +
-        '<div class="' + avClass + '" style="' + avStyle + '">' + avatarContent + onlineDot + '</div>' +
+        '<div class="' + avClass + '" style="' + avStyle + '"' + avatarClickAttr + '>' + avatarContent + onlineDot + '</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
             '<div style="font-size:.92rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1">' + escHtml(c.nick || 'Chat') + '</div>' +
@@ -3573,6 +3584,22 @@ window._viewChatPartnerStatus = function () {
         window.HOME_svStatuses = [data];
         if (typeof openSV === 'function') openSV(0);
       }
+    })
+    .catch(function () {});
+};
+
+window._goAddStatus = function () {
+  try { sessionStorage.setItem('yp_open_status_upload', '1'); } catch (e) {}
+  goPage('/');
+};
+
+window._viewChatListAvatarStatus = function (userId) {
+  api.get('/statuses?user_id=' + encodeURIComponent(userId), true)
+    .then(function (res) {
+      var data = (res.statuses || [])[0];
+      if (!data || !data.slides || !data.slides.length) return;
+      try { sessionStorage.setItem('yp_view_status_user', userId); } catch (e) {}
+      goPage('/');
     })
     .catch(function () {});
 };
