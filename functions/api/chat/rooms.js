@@ -122,13 +122,14 @@ export async function onRequestGet(context) {
       let nick = r.name;
       let online = false;
       let photoUrl = null;
+      let otherUserId = null;
       if (r.type === 'private') {
         const other = await env.DB.prepare(
-          `SELECT u.nickname, u.online, u.photo_url FROM room_members rm
+          `SELECT u.id, u.nickname, u.online, u.photo_url FROM room_members rm
            JOIN users u ON u.id = rm.user_id
            WHERE rm.room_id = ? AND rm.user_id != ?`
         ).bind(r.id, user.id).first();
-        if (other) { nick = other.nickname; online = !!other.online; photoUrl = other.photo_url; }
+        if (other) { nick = other.nickname; online = !!other.online; photoUrl = other.photo_url; otherUserId = other.id; }
       }
 
       // Whether the current user is a sub-admin of this specific group
@@ -139,6 +140,7 @@ export async function onRequestGet(context) {
         id: r.id,
         type: r.type,
         nick,
+        other_user_id: otherUserId,
         emoji: r.emoji || (r.type === 'group' ? '👥' : r.type === 'channel' ? '📡' : '👤'),
         photo_url: photoUrl || r.photo_key || null,
         visibility: r.visibility || 'private',
