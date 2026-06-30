@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#1565C0">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<!-- Open Graph -->
+<meta property="og:title" content="YID PLUS — Chats">
+<meta property="og:description" content="Chat with the Jewish community on YID PLUS">
+<meta property="og:image" content="https://yidplus.pages.dev/images/logo.png">
+<meta property="og:url" content="https://yidplus.pages.dev">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="YID PLUS — Chats">
+<meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>YID PLUS — Chats</title>
 <link rel="stylesheet" href="css/style.css">
 <script>
@@ -55,11 +64,11 @@
   <div id="chat-folders-row" style="display:none;overflow-x:auto;scrollbar-width:none;background:var(--surface);border-bottom:1px solid var(--border);padding:.4rem .6rem;gap:.4rem;flex-shrink:0"></div>
   <div class="scroll-area" id="chat-list-area"></div>
   <nav class="bottom-nav">
-    <button class="nav-item"        onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-label">Home</span></button>
+    <button class="nav-item"        onclick="goPage('/')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-label">Home</span></button>
     <button class="nav-item"        onclick="goPage('yidplus-shorts.html')">  <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button>
     <button class="nav-item"        onclick="goPage('yidplus-music.html')">   <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button>
     <button class="nav-item active" onclick="navTo('chats')">              <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button>
-    <button class="nav-item"        onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="nav-label">Settings</span></button>
+    <button class="nav-item"        onclick="goPage('/')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="nav-label">Settings</span></button>
   </nav>
 </div>
 
@@ -539,14 +548,14 @@
 <!-- ══ HAMBURGER SIDE MENU ══ -->
 <div class="hamburger-overlay" id="hamburger-overlay" onclick="if(event.target===this)closeHamburgerMenu()">
   <div class="hamburger-panel">
-    <div class="hamburger-profile-hdr" onclick="goPage('yidplus-dashboard.html')" style="cursor:pointer">
+    <div class="hamburger-profile-hdr" onclick="goPage('/')" style="cursor:pointer">
       <div class="hamburger-avatar" id="hb-avatar" style="font-size:1.4rem;color:#fff">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       </div>
       <div style="font-weight:700;font-size:1rem;margin-top:.25rem" id="hb-name">User</div>
       <div style="font-size:.75rem;opacity:.8;margin-top:.1rem" id="hb-handle">@user</div>
     </div>
-    <div class="hamburger-item" onclick="goPage('yidplus-dashboard.html')">
+    <div class="hamburger-item" onclick="goPage('/')">
       <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>My Profile
     </div>
     <div class="hamburger-item" onclick="openBookmarks();closeHamburgerMenu()">
@@ -755,7 +764,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     return user;
   }).then(function (user) {
-    if (!user) { goPage('yidplus-dashboard.html'); return; }
+    if (!user) { goPage('/'); return; }
     applyRoleUI();
 
     // Handle invite link: yidplus-chat.html?join=CODE
