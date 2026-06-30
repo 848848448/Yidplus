@@ -350,7 +350,7 @@ window.copyInviteLink = function () {
   if (!CHAT_curRoom) return;
   var code = CHAT_curRoom.invite_code;
   if (code) {
-    var url = window.location.origin + '/yidplus-chat.html?join=' + code;
+    var url = window.location.origin + '/chat?join=' + code;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url).then(function () { toast('✅ Invite link copied!'); });
     } else { toast('🔗 ' + url); }
@@ -363,7 +363,7 @@ window.copyInviteLink = function () {
       code = room && room.invite_code;
       if (!code) return toast('⚠ Run the SQL migration first to generate invite codes.');
       CHAT_curRoom.invite_code = code;
-      var url = window.location.origin + '/yidplus-chat.html?join=' + code;
+      var url = window.location.origin + '/chat?join=' + code;
       if (navigator.clipboard) {
         navigator.clipboard.writeText(url).then(function () { toast('✅ Invite link copied!'); });
       } else { toast('🔗 ' + url); }
