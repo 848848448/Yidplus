@@ -109,11 +109,10 @@ export async function onRequestGet(context) {
 
     // ── Create session ──
     const sessionId = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
 
     await env.DB.prepare(
-      'INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)'
-    ).bind(sessionId, user.id, new Date().toISOString(), expiresAt).run();
+      'INSERT INTO sessions (id, user_id, created_at) VALUES (?, ?, ?)'
+    ).bind(sessionId, user.id, new Date().toISOString()).run();
 
     // Log login
     await env.DB.prepare(
@@ -132,4 +131,4 @@ export async function onRequestGet(context) {
   } catch (err) {
     return Response.redirect(`${origin}/index.html?error=google_failed&msg=${encodeURIComponent(err.message)}`, 302);
   }
-      }
+        }
