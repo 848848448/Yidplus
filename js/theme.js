@@ -142,6 +142,8 @@ window.buildSettingsPage = function () {
       _row(_svg_key(), 'Change Password', '<button class="settings-edit-btn" onclick="openChangePassword()">Change</button>'),
     ]) +
     _section('Privacy', [
+      _row('🔒', 'Private Account', _toggle('is_private', !!p.is_private) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">When ON, people must request to follow you before seeing your posts and statuses.</div>'),
+      _row('👥', 'Follow Requests', '<button class="settings-edit-btn" onclick="openFollowRequests()" id="follow-req-btn">View</button>'),
       _row(_svg_privacy(), 'Who can see my profile', _select('privacy_profile', p.privacy_profile||'public', ['public:Everyone','friends:Friends only','private:Only me'])),
       _row(_svg_msg(), 'Who can message me', _select('privacy_messages', p.privacy_messages||'everyone', ['everyone:Everyone','friends:Friends only','nobody:Nobody'])),
     ]) +
@@ -179,6 +181,8 @@ window.buildSettingsPage = function () {
     '</div>';
 
     if (body) body.innerHTML = '';
+
+    _updateFollowReqBadge();
 
   }).catch(function () {
     // Fallback if not loaded
@@ -354,4 +358,81 @@ window.togglePushNotifications = function (el) {
       if (PWA.isPushEnabled()) el.classList.add('on');
     });
   }
+};
+
+/* ══════════════════════════════════
+   FOLLOW REQUESTS MODAL
+══════════════════════════════════ */
+window.openFollowRequests = function () {
+  var modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+  modal.innerHTML =
+    '<div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:500px;max-height:75vh;display:flex;flex-direction:column">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.1rem;border-bottom:1px solid var(--border)">' +
+        '<div style="font-weight:700;font-size:.92rem">Follow Requests</div>' +
+        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;cursor:pointer;color:var(--muted)">' +
+          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+        '</button>' +
+      '</div>' +
+      '<div id="follow-req-list" style="overflow-y:auto;flex:1;padding:.5rem 0"><div style="text-align:center;padding:1.5rem"><div class="spinner"></div></div></div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+
+  api.get('/follows?requests=1')
+    .then(function (res) {
+      var el = document.getElementById('follow-req-list');
+      if (!el) return;
+      var reqs = res.requests || [];
+      if (!reqs.length) {
+        el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">No pending requests</div>';
+        return;
+      }
+      el.innerHTML = reqs.map(function (r) {
+        var av = r.photo_url
+          ? '<div style="width:44px;height:44px;border-radius:50%;background-image:url(' + r.photo_url + ');background-size:cover;flex-shrink:0"></div>'
+          : '<div style="width:44px;height:44px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">' + (r.nickname||'?').slice(0,1).toUpperCase() + '</div>';
+        return '<div id="freq-' + r.id + '" style="display:flex;align-items:center;gap:.65rem;padding:.6rem 1rem">' +
+          av +
+          '<div style="flex:1;font-size:.85rem;font-weight:700">@' + escHtml(r.nickname||'User') + (r.verified?' ✅':'') + '</div>' +
+          '<button onclick="acceptFollowRequest(\'' + r.id + '\')" style="padding:.4rem .9rem;background:var(--gold);color:#fff;border:none;border-radius:16px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit">Accept</button>' +
+          '<button onclick="rejectFollowRequest(\'' + r.id + '\')" style="padding:.4rem .7rem;background:var(--bg3);border:1px solid var(--border);border-radius:16px;font-size:.78rem;cursor:pointer;font-family:inherit;margin-left:.3rem">✕</button>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function () {
+      var el = document.getElementById('follow-req-list');
+      if (el) el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted)">Could not load requests</div>';
+    });
+};
+
+window.acceptFollowRequest = function (requesterId) {
+  api.post('/follows', { action: 'accept', requester_id: requesterId })
+    .then(function () {
+      toast('✅ Accepted');
+      var el = document.getElementById('freq-' + requesterId);
+      if (el) el.remove();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.rejectFollowRequest = function (requesterId) {
+  api.del('/follows?user_id=' + encodeURIComponent(requesterId) + '&request=1')
+    .then(function () {
+      toast('Rejected');
+      var el = document.getElementById('freq-' + requesterId);
+      if (el) el.remove();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+// Update Follow Requests badge count on Settings load
+window._updateFollowReqBadge = function () {
+  api.get('/follows?requests=1', true)
+    .then(function (res) {
+      var count = (res.requests || []).length;
+      var btn = document.getElementById('follow-req-btn');
+      if (btn && count > 0) btn.textContent = 'View (' + count + ')';
+    })
+    .catch(function () {});
 };
