@@ -1,0 +1,10 @@
+# Clean URLs — browser keeps showing yidplus.com/path, server serves the real file
+# Format: /clean-path  /real-file.html  200 (200 = proxy/rewrite, not redirect)
+
+/chat       /yidplus-chat.html        200
+/shorts     /yidplus-shorts.html      200
+/music      /yidplus-music.html       200
+/admin      /yidplus-admin.html       200
+
+# Keep old direct .html links working too (in case anything still uses them)
+/yidplus-dashboard.html  /  200
