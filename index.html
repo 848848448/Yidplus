@@ -582,6 +582,40 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     return user;
   }).then(function (user) {
+    // Show feedback for Google sign-in errors or email verification results
+    var urlParams0 = new URLSearchParams(window.location.search);
+    var errParam = urlParams0.get('error');
+    var verifyParam = urlParams0.get('verify');
+    if (errParam || verifyParam) {
+      var msgMap = {
+        google_no_code: 'Google sign-in was cancelled.',
+        google_token_failed: 'Google sign-in failed. Please try again.',
+        google_email_unverified: 'Your Google email is not verified.',
+        google_failed: 'Google sign-in failed. Please try again.',
+        banned: 'This device is not allowed to sign in.',
+        suspended: 'Your account has been suspended.',
+        success: '✅ Email confirmed! You can now sign in.',
+        expired: 'Verification link expired. Please request a new one.',
+        invalid: 'Invalid verification link.',
+        missing_token: 'Invalid verification link.',
+      };
+      var key = errParam || verifyParam;
+      var msg = msgMap[key] || (errParam ? 'Something went wrong with sign-in.' : '');
+      if (msg) {
+        setTimeout(function () {
+          var el = document.getElementById('auth-msg');
+          if (el) {
+            el.textContent = msg;
+            el.style.display = 'block';
+            el.style.color = verifyParam === 'success' ? 'var(--green)' : 'var(--red)';
+          } else {
+            toast(msg);
+          }
+        }, 200);
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
     if (user) {
       sessionStorage.setItem('yp_logged_in', '1');
       var urlParams = new URLSearchParams(window.location.search);
@@ -630,4 +664,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <script src="js/ads.js"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
-  </html>
+                                                                                                                                         </html>
