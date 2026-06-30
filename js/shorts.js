@@ -309,12 +309,12 @@ window.openShortChannel = function (i) {
   if (!s) return;
   // Try to open profile on dashboard if available
   if (typeof openUserProfile === 'function') {
-    goPage('yidplus-dashboard.html');
+    goPage('/');
     setTimeout(function () {
       if (typeof openUserProfile === 'function') openUserProfile(s.owner_id);
     }, 600);
   } else {
-    goPage('yidplus-dashboard.html?channel=' + encodeURIComponent(s.owner_id));
+    goPage('/?channel=' + encodeURIComponent(s.owner_id));
   }
 };
 
