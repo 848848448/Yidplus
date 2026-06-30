@@ -536,8 +536,21 @@ window.openChatInfo = function () {
     avBig.style.backgroundImage = '';
     avBig.textContent = isGroup ? '👥' : (CHAT_curRoom.nick || '?').slice(0, 1).toUpperCase();
   }
-  avBig.onclick = isGroup ? function () { document.getElementById('group-photo-input').click(); } : null;
-  avBig.style.cursor = isGroup ? 'pointer' : 'default';
+  avBig.onclick = isGroup ? function () { document.getElementById('group-photo-input').click(); } : function () { _viewChatPartnerStatus(); };
+  avBig.style.cursor = 'pointer';
+
+  // For 1-on-1 chats, check if the other person has an active status and add a ring
+  if (!isGroup && CHAT_curRoom.id) {
+    var otherUserId = CHAT_curRoom.other_user_id || CHAT_curRoom.id;
+    api.get('/statuses?user_id=' + encodeURIComponent(otherUserId), true)
+      .then(function (res) {
+        var data = (res.statuses || [])[0];
+        avBig.style.boxShadow = (data && data.slides && data.slides.length) ? '0 0 0 3px var(--blue)' : 'none';
+      })
+      .catch(function () {});
+  } else {
+    avBig.style.boxShadow = 'none';
+  }
 
   document.getElementById('info-name').textContent = CHAT_curRoom.nick || 'Chat';
   document.getElementById('info-sub').textContent = isGroup
@@ -3543,4 +3556,23 @@ window.joinViaInvite = function (inviteCode) {
       });
     })
     .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window._viewChatPartnerStatus = function () {
+  if (!CHAT_curRoom || CHAT_curRoom.type === 'group') return;
+  var otherUserId = CHAT_curRoom.other_user_id || CHAT_curRoom.id;
+  api.get('/statuses?user_id=' + encodeURIComponent(otherUserId), true)
+    .then(function (res) {
+      var data = (res.statuses || [])[0];
+      if (!data || !data.slides || !data.slides.length) {
+        // No status — go to their profile instead
+        if (typeof openUserProfile === 'function') openUserProfile(otherUserId);
+        return;
+      }
+      if (typeof HOME_svStatuses !== 'undefined') {
+        window.HOME_svStatuses = [data];
+        if (typeof openSV === 'function') openSV(0);
+      }
+    })
+    .catch(function () {});
 };
