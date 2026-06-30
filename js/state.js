@@ -1001,12 +1001,19 @@ function _interceptGuestActions() {
   // Intercept form submissions and action buttons
   document.addEventListener('click', function (e) {
     if (!GUEST_MODE || STATE.user) return;
+    if (STATE.screen === 'auth') return; // never block clicks on the sign-in screen itself
 
     var target = e.target.closest('button, [onclick]');
     if (!target) return;
 
     var onclick = target.getAttribute('onclick') || '';
     var text = (target.textContent || '').toLowerCase().trim();
+
+    // Never intercept sign-in/auth related actions
+    if (onclick.includes('signInWithGoogle') || onclick.includes('doLogin') ||
+        onclick.includes('doRegister') || onclick.includes('authTab')) {
+      return;
+    }
 
     // Things that should trigger login popup
     var actionPatterns = [
@@ -1032,6 +1039,7 @@ function _interceptGuestActions() {
   // Intercept text inputs
   document.addEventListener('focus', function (e) {
     if (!GUEST_MODE || STATE.user) return;
+    if (STATE.screen === 'auth') return; // allow typing in login/register fields
     var tag = e.target.tagName;
     if (tag === 'TEXTAREA' || (tag === 'INPUT' && e.target.type !== 'search')) {
       e.target.blur();
