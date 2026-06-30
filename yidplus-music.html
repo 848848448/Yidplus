@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#FFFFFF">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<!-- Open Graph -->
+<meta property="og:title" content="YID PLUS — Music">
+<meta property="og:description" content="Listen to Jewish music on YID PLUS">
+<meta property="og:image" content="https://yidplus.pages.dev/images/logo.png">
+<meta property="og:url" content="https://yidplus.pages.dev">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="YID PLUS — Music">
+<meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>🎵 YID PLUS — Music</title>
 <link rel="stylesheet" href="css/style.css">
 <script>
@@ -65,11 +74,11 @@
     </div>
   </div>
   <nav class="bottom-nav">
-    <button class="nav-item"        onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon">🏠</span><span class="nav-label">Home</span></button>
+    <button class="nav-item"        onclick="goPage('/')"><span class="nav-icon">🏠</span><span class="nav-label">Home</span></button>
     <button class="nav-item"        onclick="goPage('yidplus-shorts.html')">  <span class="nav-icon">🎬</span><span class="nav-label">Shorts</span></button>
     <button class="nav-item active" onclick="navTo('music')">              <span class="nav-icon">🎵</span><span class="nav-label">Music</span></button>
     <button class="nav-item"        onclick="goPage('yidplus-chat.html')">   <span class="nav-icon">💬</span><span class="nav-label">Chats</span></button>
-    <button class="nav-item"        onclick="goPage('yidplus-dashboard.html')"><span class="nav-icon">⚙️</span><span class="nav-label">Settings</span></button>
+    <button class="nav-item"        onclick="goPage('/')"><span class="nav-icon">⚙️</span><span class="nav-label">Settings</span></button>
   </nav>
 </div>
 
@@ -165,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!user) return new Promise(function(r){setTimeout(r,300)}).then(function(){return AUTH.restore();});
     return user;
   }).then(function (user) {
-    if (!user) { goPage('yidplus-dashboard.html'); return; }
+    if (!user) { goPage('/'); return; }
     applyRoleUI();
     navTo('music');
   });
@@ -173,4 +182,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
-      </html>
+  </html>
