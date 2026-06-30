@@ -7,22 +7,40 @@ export async function onRequestGet(context) {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const isAdmin = user && (user.email === env.OWNER_EMAIL || user.email === "Jmittelman2@gmail.com" || user.role === 'admin_super' || user.role === 'admin_limited');
 
-    // Admins see ALL statuses (including private ones).
-    // Regular users see: public, followers (simplified to public for now), and their own private.
-    const { results } = await env.DB.prepare(
-      `SELECT s.id, s.user_id, s.type, s.text, s.media_key, s.bg, s.color, s.created_at, s.privacy,
+    // Optional: fetch statuses for ONE specific user (used by profile screen)
+    const url = new URL(request.url);
+    const filterUserId = url.searchParams.get('user_id');
+
+    // Build set of user IDs the current viewer follows (used for visibility)
+    let myFollowing = new Set();
+    if (user) {
+      const { results: followRows } = await env.DB.prepare(
+        'SELECT following_id FROM user_follows WHERE follower_id = ?'
+      ).bind(user.id).all().catch(() => ({ results: [] }));
+      myFollowing = new Set(followRows.map(r => r.following_id));
+    }
+
+    let query = `SELECT s.id, s.user_id, s.type, s.text, s.media_key, s.bg, s.color, s.created_at, s.privacy,
               u.nickname, u.photo_url
        FROM statuses s JOIN users u ON u.id = s.user_id
-       WHERE s.created_at > ?
-       ORDER BY s.user_id, s.created_at ASC`
-    ).bind(cutoff).all();
+       WHERE s.created_at > ?`;
+    const params = [cutoff];
+    if (filterUserId) { query += ' AND s.user_id = ?'; params.push(filterUserId); }
+    query += ' ORDER BY s.user_id, s.created_at ASC';
 
-    // Group by user, applying privacy filter
+    const { results } = await env.DB.prepare(query).bind(...params).all();
+
+    // Group by user, applying privacy + follow-based visibility
     const grouped = {};
     const myId = user ? user.id : null;
     for (const s of results) {
-      // Privacy filtering (admin bypasses all)
-      if (!isAdmin && s.privacy === 'private' && s.user_id !== myId) continue;
+      if (!isAdmin && s.user_id !== myId) {
+        // Explicit "private" status flag — only the owner can see it
+        if (s.privacy === 'private') continue;
+        // Visibility rule: you must follow the user to see their statuses
+        // (unless you're not logged in at all — then nothing shows except admins)
+        if (!user || !myFollowing.has(s.user_id)) continue;
+      }
 
       if (!grouped[s.user_id]) {
         grouped[s.user_id] = { user_id: s.user_id, nickname: s.nickname, photo_url: s.photo_url || null, slides: [] };
@@ -110,4 +128,4 @@ export async function onRequestPut(context) {
 
     return json({ ok: false, error: 'Unknown action' }, 400);
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
-                             }
+}
