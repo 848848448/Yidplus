@@ -14,7 +14,7 @@ export async function onRequestGet(context) {
   const redirectUri = `${origin}/api/auth/google-callback`;
 
   // Optional: where to send the user after login (default dashboard)
-  const returnTo = url.searchParams.get('return_to') || '/yidplus-dashboard.html';
+  const returnTo = url.searchParams.get('return_to') || '/';
 
   const state = btoa(JSON.stringify({ returnTo, nonce: crypto.randomUUID() }));
 
