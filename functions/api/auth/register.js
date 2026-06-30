@@ -1,4 +1,5 @@
 import { json, corsHeaders } from '../_helpers.js';
+import { sendVerificationEmail } from './send-verification.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -110,9 +111,22 @@ export async function onRequestPost(context) {
       `INSERT INTO login_logs (id, user_id, ip, fingerprint, action, created_at) VALUES (?, ?, ?, ?, 'register', ?)`
     ).bind(crypto.randomUUID(), userId, ip, fingerprint || null, now).run().catch(() => {});
 
+    // ── Send verification email if admin has enabled this requirement ──
+    const verifySetting = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'require_email_verify'"
+    ).first().catch(() => null);
+    const requireVerify = verifySetting && verifySetting.value === 'true';
+
+    if (requireVerify) {
+      const origin = new URL(request.url).origin;
+      await sendVerificationEmail(env, userId, email, origin).catch(() => {});
+    } else {
+      await env.DB.prepare('UPDATE users SET email_verified = 1 WHERE id = ?').bind(userId).run().catch(() => {});
+    }
+
     const headers = { ...corsHeaders, 'Set-Cookie': `yp_session=${sessionId}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000` };
-    return new Response(JSON.stringify({ ok: true, user: { id: userId, email, nickname, role, verified: 0 } }), { status: 201, headers: { 'Content-Type': 'application/json', ...headers } });
+    return new Response(JSON.stringify({ ok: true, user: { id: userId, email, nickname, role, verified: 0 }, email_verify_required: requireVerify }), { status: 201, headers: { 'Content-Type': 'application/json', ...headers } });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-}
+                               }
