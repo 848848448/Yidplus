@@ -18,7 +18,7 @@ export async function onRequestGet(context) {
       // Public profile
       const profile = await env.DB.prepare(
         `SELECT id, nickname, photo_url, banner_url, bio, location, website, instagram, youtube,
-                profile_color, verified, role, created_at, privacy_profile
+                profile_color, verified, role, created_at, privacy_profile, is_private
          FROM users WHERE id = ?`
       ).bind(targetId).first();
       if (!profile) return json({ ok: false, error: 'User not found' }, 404);
@@ -47,7 +47,7 @@ export async function onRequestGet(context) {
       `SELECT id, email, nickname, phone, photo_url, banner_url, bio, location, birthday, website,
               instagram, youtube, profile_color, verified, role, created_at, profile_views,
               privacy_profile, privacy_messages, notif_messages, notif_likes, notif_followers, notif_channels,
-              no_ads, muted_until
+              no_ads, muted_until, is_private
        FROM users WHERE id = ?`
     ).bind(user.id).first();
 
@@ -112,7 +112,7 @@ export async function onRequestPut(context) {
 
     const ALLOWED = ['bio','location','birthday','website','instagram','youtube','profile_color',
                      'privacy_profile','privacy_messages','notif_messages','notif_likes',
-                     'notif_followers','notif_channels','photo_url','banner_url'];
+                     'notif_followers','notif_channels','photo_url','banner_url','is_private'];
 
     const updates = []; const params = [];
 
@@ -148,4 +148,4 @@ export async function onRequestDelete(context) {
     await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id).run();
     return json({ ok: true });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
-          }
+        }
