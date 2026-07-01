@@ -551,6 +551,11 @@ window.showChatList = function () {
   document.getElementById('screen-chatroom').classList.add('hidden');
   document.getElementById('screen-chatinfo').classList.add('hidden');
   document.getElementById('screen-chats').classList.remove('hidden');
+  // Reload list if it's empty
+  var area = document.getElementById('chat-list-area');
+  if (!area || !area.querySelector('.chat-item-wrap')) {
+    loadChatRooms();
+  }
 };
 
 window.showChatRoom = function () {
