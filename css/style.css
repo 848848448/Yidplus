@@ -77,17 +77,15 @@ body.night {
 .screen {
   position: fixed;
   inset: 0;
-  display: flex;
   flex-direction: column;
   background: var(--bg);
-  transform: translateX(0);
-  pointer-events: none;
   overflow: hidden;
-  opacity: 0;
   display: none;
+  opacity: 0;
+  pointer-events: none;
 }
-.screen.active { display: flex; opacity: 1; pointer-events: all; }
-.screen.prev   { display: none; }
+.screen.active { display: flex; opacity: 1; pointer-events: all !important; }
+.screen.prev   { display: none; opacity: 0; pointer-events: none; }
 
 .scroll-area {
   flex: 1;
@@ -1283,8 +1281,7 @@ html.dark-mode .settings-card { box-shadow: 0 1px 6px rgba(0,0,0,.25); }
 .avatar-edit-btn { position: absolute; bottom: 0; right: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--gold); color: #fff; display: flex; align-items: center; justify-content: center; border: 2px solid var(--surface); cursor: pointer; }
 
 /* ── Scroll fix — no jump ── */
-.screen { position: absolute; inset: 0; display: none; flex-direction: column; overflow: hidden; background: var(--bg2); }
-.screen.active { display: flex; }
+/* Note: main .screen rules are defined above in SCREEN SYSTEM section */
 .scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scroll-behavior: auto; }
 
 /* ── Performance: smooth transitions ── */
