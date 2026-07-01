@@ -21,6 +21,7 @@ export async function onRequestGet(context) {
     }
 
     let query = `SELECT s.id, s.user_id, s.type, s.text, s.media_key, s.bg, s.color, s.created_at, s.privacy,
+              COALESCE(s.views, 0) as views,
               u.nickname, u.photo_url
        FROM statuses s JOIN users u ON u.id = s.user_id
        WHERE s.created_at > ?`;
@@ -128,4 +129,4 @@ export async function onRequestPut(context) {
 
     return json({ ok: false, error: 'Unknown action' }, 400);
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
-}
+                             }
