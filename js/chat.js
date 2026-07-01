@@ -1427,19 +1427,36 @@ window.sendChatMsg = function () {
   if (CHAT_replyTo) payload.reply_to_id = CHAT_replyTo.id;
 
   // Clear input immediately (feels instant)
+  var msgText = text;
   inp.value = '';
   inp.style.height = 'auto';
   document.getElementById('chat-send-btn').style.display = 'none';
   document.getElementById('voice-rec-btn').style.display = 'flex';
   _cancelReply();
 
+  // Optimistic render: show message immediately before server confirms
+  var tempId = 'tmp-' + Date.now();
+  var me = STATE.user || {};
+  var now = new Date().toISOString();
+  var tempMsg = {
+    id: tempId, room_id: CHAT_curRoom ? CHAT_curRoom.id : '',
+    sender_id: me.id, sender_nick: me.nickname || '',
+    type: 'text', text: msgText, created_at: now, read: 0,
+    _pending: true,
+  };
+  CHAT_messages.push(tempMsg);
+  renderMessages(false);
+  scrollToBottom();
+
   api.post('/chat', payload)
     .then(function () {
-      loadMessages(true);
+      loadMessages(true); // get real message from server
     })
     .catch(function (err) {
       toast('❌ ' + err.message);
-      inp.value = text; // restore text if failed
+      inp.value = msgText; // restore text if failed
+      CHAT_messages = CHAT_messages.filter(function(m){ return m.id !== tempId; });
+      renderMessages(false);
     });
 };
 
@@ -3808,12 +3825,14 @@ function _svShowSlide() {
   var myId = STATE.user && STATE.user.id;
   var isMySlide = s.user_id === myId;
   if (slide.id && !isMySlide) {
-    api.post('/statuses/view', { id: slide.id }).catch(function () {});
+    api.post('/statuses', { view: true, id: slide.id }).catch(function () {});
+    // Increment local view count for immediate feedback
+    if (slide.views !== undefined) slide.views = (slide.views || 0) + 1;
   }
   var viewsRow = document.getElementById('sv-views-row');
   var viewsCount = document.getElementById('sv-views-count');
   if (viewsRow) viewsRow.style.display = isMySlide ? 'flex' : 'none';
-  if (viewsCount && slide.views !== undefined) viewsCount.textContent = fmtN(slide.views || 0);
+  if (viewsCount && isMySlide) viewsCount.textContent = fmtN(slide.views || 0);
 
   // ── Progress bars ──
   var barsEl = document.getElementById('sv-bars');
@@ -4185,18 +4204,24 @@ window.svDeleteCurrent = function () {
   var slide = s.slides[HOME_svSlideIdx];
   if (!slide || !slide.id) return;
   if (!confirm('Delete this status?')) return;
-  api.del ? api.del('/statuses?id=' + encodeURIComponent(slide.id)).catch(function(){}) : null;
+
+  var slideId = slide.id;
+
+  // Remove from local cache immediately
   s.slides.splice(HOME_svSlideIdx, 1);
   if (!s.slides.length) {
     HOME_svStatuses.splice(HOME_svUserIdx, 1);
-    if (!HOME_svStatuses.length) { closeSV(); buildStatusRow(); return; }
-    HOME_svUserIdx = Math.max(0, HOME_svUserIdx - 1);
-    HOME_svSlideIdx = 0;
+    closeSV();
+    toast('🗑 Status deleted.');
   } else {
     HOME_svSlideIdx = Math.min(HOME_svSlideIdx, s.slides.length - 1);
+    _svShowSlide();
+    toast('🗑 Slide deleted.');
   }
-  _svShowSlide();
-  toast('🗑 Deleted.');
+
+  // Delete on server
+  api.del('/statuses?id=' + encodeURIComponent(slideId))
+    .catch(function (err) { toast('⚠ Could not delete: ' + err.message); });
 };
 
 // Load saved highlights on startup
