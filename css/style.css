@@ -81,11 +81,13 @@ body.night {
   background: var(--bg);
   overflow: hidden;
   display: none;
-  opacity: 0;
-  pointer-events: none;
 }
-.screen.active { display: flex; opacity: 1; pointer-events: all !important; }
-.screen.prev   { display: none; opacity: 0; pointer-events: none; }
+.screen.active {
+  display: flex;
+}
+.screen.prev {
+  display: none;
+}
 
 .scroll-area {
   flex: 1;
@@ -1352,4 +1354,4 @@ img { opacity: 1; }
 .chat-av.has-status-ring {
   box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--blue);
   cursor: pointer;
-   }
+     }
