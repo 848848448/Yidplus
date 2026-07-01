@@ -442,9 +442,12 @@ window.filterChats = function () {
 
 window.switchChatTab = function (btn, tab) {
   CHAT_tab = tab;
-  document.querySelectorAll('.ctab').forEach(function (t) { t.classList.remove('active'); });
+  document.querySelectorAll('.ctab, .tg-tab').forEach(function (t) { t.classList.remove('active'); });
   btn.classList.add('active');
   renderChatList();
+  // Show status FAB only on Private Chats tab
+  var fab = document.getElementById('status-fab-btn');
+  if (fab) fab.style.display = (tab === 'private') ? 'flex' : 'none';
 };
 
 // ============================================================
@@ -1423,17 +1426,21 @@ window.sendChatMsg = function () {
   var payload = { room_id: CHAT_curRoom.id, type: 'text', text: text };
   if (CHAT_replyTo) payload.reply_to_id = CHAT_replyTo.id;
 
+  // Clear input immediately (feels instant)
+  inp.value = '';
+  inp.style.height = 'auto';
+  document.getElementById('chat-send-btn').style.display = 'none';
+  document.getElementById('voice-rec-btn').style.display = 'flex';
+  _cancelReply();
+
   api.post('/chat', payload)
     .then(function () {
-      inp.value = '';
-      inp.style.height = 'auto';
-      document.getElementById('chat-send-btn').style.display = 'none';
-      document.getElementById('voice-rec-btn').style.display = 'flex';
-      _cancelReply();
       loadMessages(true);
-      loadChatRooms();
     })
-    .catch(function (err) { toast('❌ ' + err.message); });
+    .catch(function (err) {
+      toast('❌ ' + err.message);
+      inp.value = text; // restore text if failed
+    });
 };
 
 // ============================================================
@@ -2870,17 +2877,13 @@ window.createNewChannel = function () {
   var desc = (document.getElementById('new-channel-desc') || {}).value || '';
   if (!name.trim()) { toast('Enter a channel name'); return; }
 
-  var form = new FormData();
-  form.append('name', name.trim());
-  form.append('description', desc.trim());
-  form.append('type', 'channel');
-  form.append('is_public', '1');
-  form.append('read_only', '1');
-
-  var photoEl = document.getElementById('new-channel-photo-preview');
-  if (photoEl && photoEl._file) form.append('photo', photoEl._file);
-
-  api.post('/chat/rooms', form, true)
+  api.post('/chat/rooms', {
+    type: 'channel',
+    name: name.trim(),
+    description: desc.trim(),
+    is_public: true,
+    read_only: true,
+  })
     .then(function (res) {
       document.getElementById('new-channel-modal').classList.remove('open');
       toast('Channel created!');
