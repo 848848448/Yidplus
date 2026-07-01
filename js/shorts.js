@@ -218,6 +218,20 @@ function canDeleteShort(s) {
 function setupShortsObserver() {
   if (SHORTS_observer) SHORTS_observer.disconnect();
 
+  // Prevent fast swipes from flying past multiple slides
+  var cont = document.getElementById('swipe-cont');
+  var _isScrolling = false;
+  if (cont) {
+    cont.addEventListener('touchstart', function () { _isScrolling = false; }, { passive: true });
+    cont.addEventListener('scroll', function () {
+      if (_isScrolling) return;
+      _isScrolling = true;
+      // After scroll snaps, disable scroll briefly to prevent chaining
+      cont.style.overflow = 'hidden';
+      setTimeout(function () { cont.style.overflow = ''; _isScrolling = false; }, 600);
+    }, { passive: true });
+  }
+
   SHORTS_observer = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {
       var video = entry.target.querySelector('.slide-video');
