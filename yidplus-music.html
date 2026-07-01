@@ -3,18 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#0F0F0F">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<!-- Open Graph -->
 <meta property="og:title" content="YID PLUS — Music">
 <meta property="og:description" content="Listen to Jewish music on YID PLUS">
 <meta property="og:image" content="https://yidplus.pages.dev/images/logo.png">
-<meta property="og:url" content="https://yidplus.pages.dev">
-<meta property="og:type" content="website">
-<meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="YID PLUS — Music">
-<meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
-<title>🎵 YID PLUS — Music</title>
+<title>YID PLUS — Music</title>
 <link rel="stylesheet" href="css/style.css">
 <script>
 (function () {
@@ -23,119 +17,428 @@
     if (!raw) return;
     var t = JSON.parse(raw);
     var r = document.documentElement.style;
-    r.setProperty('--gold', t.gold);
-    r.setProperty('--gold-l', t.goldL);
-    r.setProperty('--gold-d', t.gold);
-    r.setProperty('--bg', t.bg);
-    r.setProperty('--bg2', t.bg2);
-    r.setProperty('--text', t.text);
+    r.setProperty('--gold', t.gold); r.setProperty('--bg', t.bg);
+    r.setProperty('--bg2', t.bg2); r.setProperty('--text', t.text);
   } catch (e) {}
-  try {
-    if (localStorage.getItem('yp_dark_mode') === '1') document.documentElement.classList.add('dark-mode');
-  } catch (e) {}
+  try { if (localStorage.getItem('yp_dark_mode') === '1') document.documentElement.classList.add('dark-mode'); } catch (e) {}
 })();
 </script>
-<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#1565C0"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"></head>
+<link rel="manifest" href="/manifest.json">
+
+<style>
+/* ══ YID PLUS MUSIC — YouTube Music aesthetic ══ */
+:root {
+  --ym-red: #FF0000;
+  --ym-bg: #0F0F0F;
+  --ym-surface: #1A1A1A;
+  --ym-surface2: #282828;
+  --ym-text: #FFFFFF;
+  --ym-muted: #AAAAAA;
+  --ym-border: #333333;
+}
+.dark-mode body { background: var(--ym-bg); }
+
+/* Top bar */
+.ym-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .65rem 1rem; flex-shrink: 0;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.ym-logo { display: flex; align-items: center; gap: .45rem; }
+.ym-logo-icon { color: var(--ym-red); }
+.ym-logo-text { font-size: .95rem; font-weight: 800; letter-spacing: -.02em; }
+.ym-logo-text span { color: var(--ym-red); }
+
+/* Tabs — pill style like YouTube Music */
+.ym-tabs {
+  display: flex; gap: .45rem; padding: .5rem 1rem;
+  overflow-x: auto; scrollbar-width: none; flex-shrink: 0;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.ym-tabs::-webkit-scrollbar { display: none; }
+.ym-tab {
+  padding: .38rem .9rem; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--bg3); color: var(--text); font-size: .8rem; font-weight: 600;
+  white-space: nowrap; cursor: pointer; transition: all .15s;
+}
+.ym-tab.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+/* Section headers */
+.ym-section-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .85rem 1rem .45rem;
+}
+.ym-section-title { font-size: .92rem; font-weight: 700; }
+.ym-see-all { font-size: .78rem; color: var(--blue); font-weight: 600; cursor: pointer; }
+
+/* Album card — square with shadow */
+.ym-album-card {
+  flex-shrink: 0; width: 130px; cursor: pointer;
+}
+.ym-album-art {
+  width: 130px; height: 130px; border-radius: 8px;
+  background: var(--bg3); overflow: hidden; position: relative;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4); margin-bottom: .45rem;
+  display: flex; align-items: center; justify-content: center;
+}
+.ym-album-art img { width: 100%; height: 100%; object-fit: cover; }
+.ym-album-art-fallback {
+  font-size: 3rem; color: var(--muted);
+  display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
+}
+.ym-album-play {
+  position: absolute; bottom: 6px; right: 6px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(0,0,0,.75); display: flex; align-items: center; justify-content: center;
+  color: #fff; opacity: 0; transition: opacity .15s;
+}
+.ym-album-card:hover .ym-album-play, .ym-album-card:active .ym-album-play { opacity: 1; }
+.ym-album-name { font-size: .78rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ym-album-sub { font-size: .68rem; color: var(--muted); margin-top: .1rem; }
+
+/* Track row — YouTube Music style */
+.ym-track {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .55rem 1rem; cursor: pointer; transition: background .1s;
+  border-radius: 8px; margin: 0 .25rem;
+}
+.ym-track:hover, .ym-track:active { background: var(--bg3); }
+.ym-track.playing { background: rgba(21,101,192,.1); }
+.ym-track-thumb {
+  width: 46px; height: 46px; border-radius: 6px;
+  background: var(--bg3); flex-shrink: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; position: relative;
+}
+.ym-track-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ym-track-thumb-fallback { font-size: 1.4rem; }
+.ym-playing-bars {
+  position: absolute; inset: 0; background: rgba(0,0,0,.5);
+  display: flex; align-items: flex-end; justify-content: center; gap: 2px; padding: 6px 8px;
+}
+.ym-playing-bars span {
+  width: 3px; background: var(--blue); border-radius: 2px;
+  animation: ymbar .8s ease-in-out infinite alternate;
+}
+.ym-playing-bars span:nth-child(2) { animation-delay: .2s; }
+.ym-playing-bars span:nth-child(3) { animation-delay: .4s; }
+@keyframes ymbar { from { height: 4px; } to { height: 18px; } }
+
+.ym-track-info { flex: 1; min-width: 0; }
+.ym-track-name { font-size: .86rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ym-track-name.playing { color: var(--blue); }
+.ym-track-artist { font-size: .72rem; color: var(--muted); margin-top: .1rem; }
+.ym-track-duration { font-size: .72rem; color: var(--muted); flex-shrink: 0; }
+.ym-track-more {
+  width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; color: var(--muted); flex-shrink: 0; cursor: pointer;
+}
+
+/* Mini player — floating bar at bottom */
+.ym-mini-player {
+  position: fixed; bottom: 60px; left: 0; right: 0; z-index: 50;
+  display: none; align-items: center; gap: .65rem;
+  padding: .6rem .85rem;
+  background: var(--surface); border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 20px rgba(0,0,0,.15);
+  cursor: pointer;
+}
+.ym-mini-player.active { display: flex; }
+.ym-mini-prog {
+  position: absolute; top: 0; left: 0; height: 2.5px;
+  background: var(--blue); transition: width .5s linear;
+}
+.ym-mini-thumb {
+  width: 40px; height: 40px; border-radius: 6px;
+  background: var(--bg3); flex-shrink: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.ym-mini-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ym-mini-info { flex: 1; min-width: 0; }
+.ym-mini-name { font-size: .83rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ym-mini-artist { font-size: .7rem; color: var(--muted); }
+.ym-mini-controls { display: flex; align-items: center; gap: .3rem; flex-shrink: 0; }
+.ym-ctrl {
+  width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; background: none; border: none; color: var(--text); cursor: pointer;
+}
+.ym-play-ctrl {
+  width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; background: var(--text); color: var(--bg);
+  border: none; cursor: pointer; flex-shrink: 0;
+}
+
+/* Full player screen */
+.ym-player-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .65rem 1rem; flex-shrink: 0;
+}
+.ym-player-artwork {
+  width: calc(100vw - 3rem); max-width: 340px; aspect-ratio: 1/1;
+  border-radius: 12px; background: var(--bg3); overflow: hidden;
+  margin: 1rem auto; box-shadow: 0 8px 32px rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center;
+}
+.ym-player-artwork img { width: 100%; height: 100%; object-fit: cover; }
+.ym-player-artwork-fallback {
+  font-size: 6rem; display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+}
+.ym-player-track-info { padding: 0 1.25rem .5rem; }
+.ym-player-name { font-size: 1.15rem; font-weight: 800; margin-bottom: .2rem; }
+.ym-player-artist { font-size: .85rem; color: var(--muted); }
+.ym-progress-wrap { padding: 0 1.25rem; margin-bottom: .25rem; }
+.ym-progress-bar {
+  height: 4px; background: var(--border); border-radius: 2px;
+  cursor: pointer; position: relative;
+}
+.ym-progress-fill { height: 100%; background: var(--text); border-radius: 2px; transition: width .5s linear; }
+.ym-progress-dot {
+  position: absolute; right: -6px; top: -4px; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--text); transition: right .5s linear;
+}
+.ym-time-row {
+  display: flex; justify-content: space-between; padding: 0 1.25rem;
+  font-size: .65rem; color: var(--muted); margin-bottom: .75rem;
+}
+.ym-player-controls {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 1.5rem; margin-bottom: 1.25rem;
+}
+.ym-ctrl-sm { background: none; border: none; color: var(--muted); cursor: pointer; padding: .4rem; }
+.ym-ctrl-sm.active { color: var(--blue); }
+.ym-play-big {
+  width: 60px; height: 60px; border-radius: 50%; background: var(--text);
+  color: var(--bg); border: none; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+}
+.ym-ctrl-md { background: none; border: none; color: var(--text); cursor: pointer; padding: .4rem; }
+</style>
+</head>
 <body>
 
 <!-- ══ MUSIC SCREEN ══ -->
 <div class="screen active" id="screen-music">
-  <div class="topbar">
-    <div class="topbar-logo">👑 Music</div>
-    <div style="display:flex;gap:.5rem">
-      <div class="icon-btn" onclick="toast('Search music')">🔍</div>
-      <div class="icon-btn" onclick="openLikedSongs()">❤️</div>
-      <div class="icon-btn" onclick="openMusicUpload()">＋</div>
+  <!-- Top bar — YouTube Music style -->
+  <div class="ym-topbar">
+    <div class="ym-logo">
+      <div class="ym-logo-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+        </svg>
+      </div>
+      <div class="ym-logo-text">YID <span>PLUS</span> Music</div>
+    </div>
+    <div style="display:flex;gap:.35rem">
+      <button class="icon-btn" onclick="openMusicSearch()" style="background:none;border:none">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <button class="icon-btn" onclick="openLikedSongs()" style="background:none;border:none">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </button>
+      <button class="icon-btn" onclick="openMusicUpload()" style="background:none;border:none">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      </button>
     </div>
   </div>
-  <div class="music-tabs">
-    <button class="mtab active" onclick="switchMusicTab(this,'all')">All</button>
-    <button class="mtab" onclick="switchMusicTab(this,'albums')">Albums</button>
-    <button class="mtab" onclick="switchMusicTab(this,'singles')">Singles</button>
-    <button class="mtab" onclick="switchMusicTab(this,'videos')">Videos</button>
-    <button class="mtab" onclick="openLikedSongs()">❤️ Liked</button>
+
+  <!-- Filter tabs — pill style -->
+  <div class="ym-tabs">
+    <button class="ym-tab active" onclick="switchMusicTab(this,'all')">All</button>
+    <button class="ym-tab" onclick="switchMusicTab(this,'albums')">Albums</button>
+    <button class="ym-tab" onclick="switchMusicTab(this,'singles')">Singles</button>
+    <button class="ym-tab" onclick="switchMusicTab(this,'videos')">Music Videos</button>
+    <button class="ym-tab" onclick="openLikedSongs()">Liked</button>
   </div>
-  <div class="scroll-area" style="padding-bottom:160px" id="music-scroll">
+
+  <!-- Content -->
+  <div class="scroll-area" style="padding-bottom:130px" id="music-scroll">
+
+    <!-- Albums section -->
     <div id="sec-albums">
-      <div class="section-hdr"><h2>💿 Albums & CDs</h2><button class="see-all">See All →</button></div>
+      <div class="ym-section-hdr">
+        <div class="ym-section-title">Albums</div>
+        <div class="ym-see-all">See all</div>
+      </div>
       <div style="display:flex;gap:.75rem;overflow-x:auto;padding:0 1rem .75rem;scrollbar-width:none" id="albums-row"></div>
     </div>
+
+    <!-- Singles section -->
     <div id="sec-singles">
-      <div class="section-hdr"><h2>🎵 Singles</h2><button class="see-all">See All →</button></div>
+      <div class="ym-section-hdr">
+        <div class="ym-section-title">Singles</div>
+        <div class="ym-see-all">See all</div>
+      </div>
       <div id="singles-list"></div>
     </div>
+
+    <!-- Music Videos section -->
     <div id="sec-videos">
-      <div class="section-hdr"><h2>🎬 Music Videos</h2><button class="see-all">See All →</button></div>
+      <div class="ym-section-hdr">
+        <div class="ym-section-title">Music Videos</div>
+        <div class="ym-see-all">See all</div>
+      </div>
       <div class="mv-row" id="mv-row"></div>
     </div>
+
+    <!-- Liked songs -->
     <div id="sec-liked" style="display:none">
-      <div class="section-hdr"><h2>❤️ My Liked Songs</h2></div>
+      <div class="ym-section-hdr">
+        <div class="ym-section-title">Liked Songs</div>
+      </div>
       <div id="liked-list"></div>
     </div>
+
+    <!-- Empty state -->
+    <div id="music-empty" style="display:none;padding:3rem 1rem;text-align:center">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 1rem"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      <div style="font-size:.9rem;font-weight:700;margin-bottom:.4rem">No music yet</div>
+      <div style="font-size:.78rem;color:var(--muted)">Be the first to upload a track</div>
+      <button onclick="openMusicUpload()" style="margin-top:1rem;padding:.55rem 1.25rem;background:var(--blue);color:#fff;border:none;border-radius:20px;font-size:.82rem;font-weight:700;cursor:pointer">Upload Music</button>
+    </div>
   </div>
+
+  <!-- Bottom nav -->
   <nav class="bottom-nav">
-    <button class="nav-item"        onclick="goPage('/')"><span class="nav-icon">🏠</span><span class="nav-label">Home</span></button>
-    <button class="nav-item"        onclick="goPage('yidplus-shorts.html')">  <span class="nav-icon">🎬</span><span class="nav-label">Shorts</span></button>
-    <button class="nav-item active" onclick="navTo('music')">              <span class="nav-icon">🎵</span><span class="nav-label">Music</span></button>
-    <button class="nav-item"        onclick="goPage('yidplus-chat.html')">   <span class="nav-icon">💬</span><span class="nav-label">Chats</span></button>
-    <button class="nav-item"        onclick="goPage('/')"><span class="nav-icon">⚙️</span><span class="nav-label">Settings</span></button>
+    <button class="nav-item" onclick="goPage('/')">
+      <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+      <span class="nav-label">Home</span>
+    </button>
+    <button class="nav-item" onclick="goPage('/shorts')">
+      <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span>
+      <span class="nav-label">Shorts</span>
+    </button>
+    <button class="nav-item active" onclick="navTo('music')">
+      <span class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>
+        </svg>
+      </span>
+      <span class="nav-label">Music</span>
+    </button>
+    <button class="nav-item" onclick="goPage('/chat')">
+      <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+      <span class="nav-label">Chats</span>
+    </button>
+    <button class="nav-item" onclick="goPage('/')">
+      <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+      <span class="nav-label">Settings</span>
+    </button>
   </nav>
 </div>
 
 <!-- ══ MINI PLAYER ══ -->
-<div class="mini-player" id="mini-player" onclick="navTo('player')">
-  <div id="mini-prog"></div>
-  <div class="mini-thumb" id="mini-thumb">🎵</div>
-  <div style="flex:1;min-width:0">
-    <div id="mini-name" style="font-size:.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
-    <div id="mini-artist" style="font-size:.67rem;color:var(--muted)"></div>
+<div class="ym-mini-player" id="mini-player" onclick="navTo('player')">
+  <div class="ym-mini-prog" id="mini-prog"></div>
+  <div class="ym-mini-thumb" id="mini-thumb">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
   </div>
-  <div style="display:flex;align-items:center;gap:.4rem" onclick="event.stopPropagation()">
-    <button class="mini-ctrl-btn" onclick="prevTrack()">⏮</button>
-    <button class="mini-play-btn" id="mini-play-btn" onclick="togglePlay()">▶</button>
-    <button class="mini-ctrl-btn" onclick="nextTrack()">⏭</button>
+  <div class="ym-mini-info">
+    <div class="ym-mini-name" id="mini-name">—</div>
+    <div class="ym-mini-artist" id="mini-artist">No track playing</div>
+  </div>
+  <div class="ym-mini-controls" onclick="event.stopPropagation()">
+    <button class="ym-ctrl" onclick="prevTrack()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+    </button>
+    <button class="ym-play-ctrl" id="mini-play-btn" onclick="togglePlay()">
+      <svg id="mini-play-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <button class="ym-ctrl" onclick="nextTrack()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8l-5.5 4zM16 6h2v12h-2z"/></svg>
+    </button>
   </div>
 </div>
 
 <!-- ══ FULL PLAYER SCREEN ══ -->
 <div class="screen" id="screen-player">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;flex-shrink:0">
-    <div class="icon-btn" onclick="navTo('music')">‹</div>
-    <div style="font-size:.73rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)">Now Playing</div>
-    <div class="icon-btn" onclick="shareTrack()">📤</div>
+  <!-- Header -->
+  <div class="ym-player-header">
+    <button class="icon-btn" onclick="navTo('music')" style="background:none;border:none">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div style="font-size:.72rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)">Now Playing</div>
+    <button class="icon-btn" onclick="shareTrack()" style="background:none;border:none">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    </button>
   </div>
+
   <div class="scroll-area">
+    <!-- Mode toggle -->
     <div class="mode-toggle">
-      <button class="mode-btn active" id="song-mode-btn" onclick="setPlayerMode('song')">🎵 Song Mode</button>
-      <button class="mode-btn" id="video-mode-btn" onclick="setPlayerMode('video')">🎬 Video Mode</button>
+      <button class="mode-btn active" id="song-mode-btn" onclick="setPlayerMode('song')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        Song
+      </button>
+      <button class="mode-btn" id="video-mode-btn" onclick="setPlayerMode('video')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        Video
+      </button>
     </div>
-    <div class="artwork-wrap" id="artwork-wrap">
-      <div class="artwork" id="artwork"><div class="artwork-bg" id="artwork-bg"></div><div class="artwork-emoji" id="artwork-emoji">🎵</div></div>
+
+    <!-- Artwork -->
+    <div class="ym-player-artwork" id="artwork-wrap">
+      <div class="ym-player-artwork-fallback" id="artwork-emoji">
+        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      </div>
+      <div class="artwork-bg" id="artwork-bg"></div>
     </div>
+
+    <!-- Video player -->
     <div id="vid-player-wrap" style="display:none;margin:0 1rem 1.25rem">
-      <div style="border-radius:14px;background:#111;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;font-size:5rem;border:1px solid var(--border);position:relative;overflow:hidden;cursor:pointer;color:#fff" onclick="togglePlay()">
-        <div id="vp-emoji" style="position:relative;z-index:1;font-size:5rem"></div>
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25)"><div id="vp-btn" style="width:56px;height:56px;border-radius:50%;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;font-size:1.4rem">▶</div></div>
+      <div style="border-radius:14px;background:#111;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);position:relative;overflow:hidden;cursor:pointer" onclick="togglePlay()">
+        <div id="vp-emoji" style="font-size:5rem;position:relative;z-index:1"></div>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25)">
+          <div id="vp-btn" style="width:56px;height:56px;border-radius:50%;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+        </div>
       </div>
     </div>
-    <div style="padding:0 1.25rem;margin-bottom:.75rem;display:flex;align-items:center;justify-content:space-between">
-      <div><div id="player-name" style="font-size:1.05rem;font-weight:700"></div><div id="player-artist" style="font-size:.8rem;color:var(--muted);margin-top:.2rem"></div></div>
-      <div style="display:flex;gap:.5rem;align-items:center">
-        <div class="heart-big" id="heart-big" onclick="toggleLike()">🤍</div>
-        <div class="icon-btn" onclick="shareTrack()">📤</div>
+
+    <!-- Track info + like -->
+    <div class="ym-player-track-info" style="display:flex;align-items:center;justify-content:space-between;padding:0 1.25rem .5rem">
+      <div style="min-width:0;flex:1;margin-right:.75rem">
+        <div class="ym-player-name" id="player-name">—</div>
+        <div class="ym-player-artist" id="player-artist">Select a track</div>
+      </div>
+      <button class="heart-big" id="heart-big" onclick="toggleLike()" style="background:none;border:none;cursor:pointer;flex-shrink:0">
+        <svg id="like-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </button>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="ym-progress-wrap">
+      <div class="ym-progress-bar" id="prog-bar" onclick="seekTo(event)">
+        <div class="ym-progress-fill" id="prog-fill" style="width:0%"></div>
+        <div class="ym-progress-dot" id="prog-dot" style="right:calc(100% - 6px)"></div>
       </div>
     </div>
-    <div style="padding:0 1.25rem;margin-bottom:.5rem">
-      <div class="prog-bar" id="prog-bar" onclick="seekTo(event)"><div class="prog-fill" id="prog-fill"></div><div class="prog-dot" id="prog-dot"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted)"><span id="t-cur">0:00</span><span id="t-tot">0:00</span></div>
+    <div class="ym-time-row">
+      <span id="t-cur">0:00</span>
+      <span id="t-tot">0:00</span>
     </div>
-    <div class="player-controls">
-      <button class="ctrl-btn" id="shuf-btn" onclick="toggleShuffle()">🔀</button>
-      <button class="ctrl-btn" onclick="prevTrack()">⏮</button>
-      <button class="play-big-btn" id="play-big-btn" onclick="togglePlay()">▶</button>
-      <button class="ctrl-btn" onclick="nextTrack()">⏭</button>
-      <button class="ctrl-btn" id="rep-btn" onclick="toggleRepeat()">🔁</button>
+
+    <!-- Controls -->
+    <div class="ym-player-controls">
+      <button class="ym-ctrl-sm" id="shuf-btn" onclick="toggleShuffle()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+      </button>
+      <button class="ym-ctrl-md" onclick="prevTrack()">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+      </button>
+      <button class="ym-play-big" id="play-big-btn" onclick="togglePlay()">
+        <svg id="play-icon" width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button class="ym-ctrl-md" onclick="nextTrack()">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8l-5.5 4zM16 6h2v12h-2z"/></svg>
+      </button>
+      <button class="ym-ctrl-sm" id="rep-btn" onclick="toggleRepeat()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      </button>
     </div>
+
+    <!-- Queue -->
     <div class="queue-section">
       <div class="queue-hdr">Up Next</div>
       <div id="queue-list"></div>
@@ -143,14 +446,17 @@
   </div>
 </div>
 
-<!-- ══ MUSIC UPLOAD MODAL ══ -->
+<!-- Music upload modal -->
 <div class="modal-overlay" id="music-upload-modal" onclick="if(event.target===this)closeMusicUpload()">
   <div class="modal-sheet">
-    <div class="modal-title">🎵 Upload Music</div>
+    <div class="modal-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.4rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Upload Music
+    </div>
     <input class="field" id="mu-title" placeholder="Track title">
-    <input class="field" id="mu-artist" placeholder="Artist name (defaults to your nickname)">
-    <input class="field" id="mu-album" placeholder="Album name (optional — groups tracks into an album)">
-    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem">Audio file (required)</div>
+    <input class="field" id="mu-artist" placeholder="Artist name">
+    <input class="field" id="mu-album" placeholder="Album (optional)">
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem">Audio file *</div>
     <input type="file" id="mu-audio" accept="audio/*" style="margin-bottom:.85rem">
     <div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem">Music video (optional)</div>
     <input type="file" id="mu-video" accept="video/*" style="margin-bottom:.85rem">
@@ -169,6 +475,37 @@
 <script src="js/music.js"></script>
 
 <script>
+// Override tab class for YM style
+var _origSwitchMusicTab = window.switchMusicTab;
+window.switchMusicTab = function(btn, tab) {
+  document.querySelectorAll('.ym-tab').forEach(function(t){ t.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  if (typeof _origSwitchMusicTab === 'function') _origSwitchMusicTab(btn, tab);
+};
+
+// Override mini player to use YM classes
+window._updateMiniPlayer = function(track, isPlaying) {
+  var mp = document.getElementById('mini-player');
+  if (!track) { if(mp) mp.classList.remove('active'); return; }
+  if(mp) mp.classList.add('active');
+  var thumb = document.getElementById('mini-thumb');
+  var name  = document.getElementById('mini-name');
+  var artist = document.getElementById('mini-artist');
+  if (thumb) {
+    if (track.cover_url) {
+      thumb.innerHTML = '<img src="' + track.cover_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:6px">';
+    } else {
+      thumb.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+    }
+  }
+  if (name) name.textContent = track.title || 'Unknown';
+  if (artist) artist.textContent = track.artist || '';
+  var icon = document.getElementById('mini-play-icon');
+  if (icon) icon.innerHTML = isPlaying
+    ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'
+    : '<path d="M8 5v14l11-7z"/>';
+};
+
 document.addEventListener('DOMContentLoaded', function () {
   AUTH.restore().then(function (user) {
     if (!user) return new Promise(function(r){setTimeout(r,300)}).then(function(){return AUTH.restore();});
@@ -181,5 +518,6 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");</script>
+</body>
   </html>
