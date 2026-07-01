@@ -17,6 +17,8 @@ window.init_shorts = function () {
 function loadShortsFeed() {
   var cont = document.getElementById('swipe-cont');
   if (!cont) return;
+  // Lock scroll to snap exactly one slide at a time
+  cont.style.cssText = 'height:100vh;width:100%;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:none';
   cont.innerHTML = '<div class="feed-state" style="height:100vh;color:#fff"><div class="spinner"></div><div>Loading shorts...</div></div>';
 
   api.get('/shorts')
@@ -72,7 +74,7 @@ function renderShorts() {
     var likedClass = s.liked ? ' liked' : '';
 
     slide.innerHTML =
-      '<video class="slide-video" src="' + s.media_url + '" playsinline preload="' + (i < 2 ? 'auto' : 'none') + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000"></video>' +
+      '<video class="slide-video" src="' + s.media_url + '" playsinline preload="none" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000"></video>' +
       '<div class="slide-grad"></div>' +
       '<div class="center-flash" id="flash-' + i + '"></div>' +
       '<div class="scrub-wrap" id="scrub-' + i + '">' +
@@ -221,8 +223,10 @@ function setupShortsObserver() {
       var video = entry.target.querySelector('.slide-video');
       var idx = parseInt(entry.target.dataset.idx, 10);
 
-      if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+      if (entry.isIntersecting && entry.intersectionRatio > 0.85) {
         SHORTS_curIdx = idx;
+        // Preload this video immediately when it becomes active
+        if (video.preload === 'none') video.preload = 'auto';
 
         // Track a view exactly once per short per page load.
         var s = SHORTS_data[idx];
@@ -255,7 +259,7 @@ function setupShortsObserver() {
         video.pause();
       }
     });
-  }, { threshold: 0.6 });
+  }, { threshold: 0.85 });
 
   document.querySelectorAll('.short-slide').forEach(function (s) { SHORTS_observer.observe(s); });
 }
