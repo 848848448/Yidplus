@@ -1354,4 +1354,17 @@ img { opacity: 1; }
 .chat-av.has-status-ring {
   box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 5px var(--blue);
   cursor: pointer;
-     }
+}
+
+/* ══ CHAT PAGE SCREEN SYSTEM ══ */
+.chat-page {
+  position: fixed !important;
+  inset: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: var(--bg) !important;
+  overflow: hidden !important;
+}
+.chat-page.hidden {
+  display: none !important;
+   }
