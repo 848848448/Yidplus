@@ -1528,12 +1528,12 @@ function buildMaintenancePanel(content) {
       // ── Maintenance Mode ──
       '<div class="admin-card">' +
         '<div class="admin-card-title">🔧 Maintenance Mode</div>' +
-        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">When ON — nobody can log in or register. You (Owner/Super Admin) are always exempt.</div>' +
-        '<div id="maint-status" style="font-size:.88rem;font-weight:700;margin-bottom:1rem;padding:.6rem;border-radius:8px;text-align:center">Loading...</div>' +
-        '<textarea id="maint-msg" rows="3" placeholder="Message shown to users..." style="width:100%;box-sizing:border-box;padding:.6rem;background:var(--bg3);border:.5px solid var(--border);border-radius:8px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none;resize:none;margin-bottom:.75rem"></textarea>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">When ON — <strong>nobody</strong> can log in or register. Only you (Owner) are exempt.</div>' +
+        '<div id="maint-status" style="font-size:1rem;font-weight:800;margin-bottom:1rem;padding:.85rem;border-radius:10px;text-align:center;letter-spacing:.02em">Loading...</div>' +
+        '<textarea id="maint-msg" rows="2" placeholder="Message shown to users (e.g. Back in 10 minutes!)" style="width:100%;box-sizing:border-box;padding:.6rem;background:var(--bg3);border:.5px solid var(--border);border-radius:8px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none;resize:none;margin-bottom:.75rem"></textarea>' +
         '<div style="display:flex;gap:.5rem">' +
-          '<button class="save-pill" style="flex:1;background:var(--red)" onclick="setMaintenance(true)">🔴 Turn ON</button>' +
-          '<button class="save-pill" style="flex:1;background:var(--green)" onclick="setMaintenance(false)">🟢 Turn OFF</button>' +
+          '<button class="save-pill" style="flex:1;background:#DC2626;font-size:.88rem;font-weight:800" onclick="setMaintenance(true)">🔴 TURN ON</button>' +
+          '<button class="save-pill" style="flex:1;background:#16A34A;font-size:.88rem;font-weight:800" onclick="setMaintenance(false)">🟢 TURN OFF</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -1566,9 +1566,9 @@ function buildMaintenancePanel(content) {
       var el = document.getElementById('maint-status');
       var msgEl = document.getElementById('maint-msg');
       if (!el) return;
-      el.style.background = res.maintenance_mode ? 'rgba(226,75,74,.15)' : 'rgba(63,185,80,.1)';
-      el.style.color = res.maintenance_mode ? 'var(--red)' : 'var(--green)';
-      el.textContent = res.maintenance_mode ? '🔴 MAINTENANCE MODE IS ON' : '🟢 Site is running normally';
+      el.style.background = res.maintenance_mode ? 'rgba(220,38,38,.2)' : 'rgba(22,163,74,.15)';
+      el.style.color = res.maintenance_mode ? '#DC2626' : '#16A34A';
+      el.textContent = res.maintenance_mode ? '🔴 ON — Nobody can log in right now' : '🟢 OFF — Site is open normally';
       if (msgEl) msgEl.value = res.message || '';
     })
     .catch(function () {});
