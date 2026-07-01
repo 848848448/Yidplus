@@ -5,15 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#1565C0">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<!-- Open Graph -->
 <meta property="og:title" content="YID PLUS — Chats">
 <meta property="og:description" content="Chat with the Jewish community on YID PLUS">
 <meta property="og:image" content="https://yidplus.pages.dev/images/logo.png">
-<meta property="og:url" content="https://yidplus.pages.dev">
+<meta property="og:url" content="https://yidplus.com">
 <meta property="og:type" content="website">
-<meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="YID PLUS — Chats">
-<meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>YID PLUS — Chats</title>
 <link rel="stylesheet" href="css/style.css">
 <script>
@@ -23,73 +19,102 @@
     if (!raw) return;
     var t = JSON.parse(raw);
     var r = document.documentElement.style;
-    r.setProperty('--gold', t.gold);
-    r.setProperty('--gold-l', t.goldL);
-    r.setProperty('--gold-d', t.gold);
-    r.setProperty('--bg', t.bg);
-    r.setProperty('--bg2', t.bg2);
-    r.setProperty('--text', t.text);
+    r.setProperty('--gold', t.gold); r.setProperty('--bg', t.bg);
+    r.setProperty('--bg2', t.bg2); r.setProperty('--text', t.text);
   } catch (e) {}
-  try {
-    if (localStorage.getItem('yp_dark_mode') === '1') document.documentElement.classList.add('dark-mode');
-  } catch (e) {}
+  try { if (localStorage.getItem('yp_dark_mode') === '1') document.documentElement.classList.add('dark-mode'); } catch (e) {}
 })();
 </script>
-<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#1565C0"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"></head>
+<link rel="manifest" href="/manifest.json">
+
+<style>
+/* ── CHAT PAGE SCREEN SYSTEM — simple, no conflicts ── */
+.chat-page { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); }
+.chat-page.hidden { display: none !important; }
+</style>
+</head>
 <body>
 
-<!-- ══ CHAT LIST SCREEN ══ -->
-<div class="screen active" id="screen-chats">
-  <div class="topbar" style="background:#fff;border-bottom:1px solid var(--border)">
+<!-- ══════════════════════════════════════════
+     SCREEN 1: CHAT LIST
+══════════════════════════════════════════ -->
+<div class="chat-page" id="screen-chats">
+
+  <!-- Topbar -->
+  <div class="topbar" style="background:var(--surface);border-bottom:1px solid var(--border)">
     <div style="display:flex;align-items:center;gap:.75rem;flex:1">
-      <div class="icon-btn" style="background:none;border:none;font-size:1.3rem" onclick="openHamburgerMenu()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
-      <div class="tg-search-pill" onclick="openGlobalSearch()">
+      <div class="icon-btn" onclick="openHamburgerMenu()" style="background:none;border:none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </div>
+      <div class="tg-search-pill" onclick="openGlobalSearch()" style="flex:1">
         <span style="opacity:.5"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
         <span style="color:var(--muted);font-size:.9rem">Search...</span>
       </div>
     </div>
-    </div>
   </div>
+
+  <!-- Tabs -->
   <div class="tg-tabs-row">
     <button class="tg-tab active" onclick="switchChatTab(this,'all')">All</button>
     <button class="tg-tab" onclick="switchChatTab(this,'private')">Private Chats</button>
     <button class="tg-tab" onclick="switchChatTab(this,'groups')">Groups</button>
     <button class="tg-tab" onclick="switchChatTab(this,'channels')">Channels</button>
   </div>
-  <!-- Chat Folders Row (Telegram-style) -->
-  <div id="chat-folders-row" style="display:none;overflow-x:auto;scrollbar-width:none;background:var(--surface);border-bottom:1px solid var(--border);padding:.4rem .6rem;gap:.4rem;flex-shrink:0"></div>
-  <div class="scroll-area" id="chat-list-area" style="padding-bottom:160px"></div>
 
-  <!-- WhatsApp-style floating action buttons -->
-  <div style="position:fixed;right:1rem;bottom:80px;display:flex;flex-direction:column;gap:.85rem;z-index:200;pointer-events:none">
-    <button onclick="_handleStatusButtonTap()" title="My Status" style="width:48px;height:48px;border-radius:50%;background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 14px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);pointer-events:all">
+  <!-- Folder row -->
+  <div id="chat-folders-row" style="display:none;overflow-x:auto;scrollbar-width:none;background:var(--surface);border-bottom:1px solid var(--border);padding:.4rem .6rem;gap:.4rem;flex-shrink:0"></div>
+
+  <!-- Chat list -->
+  <div class="scroll-area" id="chat-list-area" style="padding-bottom:150px;flex:1"></div>
+
+  <!-- 2 floating buttons: 📷 status (small) + ✏️ new chat (big, blue) -->
+  <div style="position:fixed;right:1rem;bottom:80px;display:flex;flex-direction:column;align-items:center;gap:.75rem;pointer-events:none;z-index:100">
+    <button id="status-fab-btn" onclick="_handleStatusButtonTap()" style="pointer-events:all;width:48px;height:48px;border-radius:50%;background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 12px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer">
       <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
     </button>
-    <button onclick="toggleChatFab()" title="New chat" style="width:58px;height:58px;border-radius:50%;background:var(--blue);box-shadow:0 4px 14px rgba(21,101,192,.4);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;border:none;pointer-events:all">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <button onclick="toggleChatFab()" style="pointer-events:all;width:56px;height:56px;border-radius:50%;background:var(--blue);box-shadow:0 4px 14px rgba(21,101,192,.4);display:flex;align-items:center;justify-content:center;color:#fff;border:none;cursor:pointer">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     </button>
   </div>
 
+  <!-- New chat FAB menu -->
+  <div class="ctx-menu" id="chat-fab-menu" style="position:fixed;bottom:148px;right:1rem;z-index:200">
+    <div class="ctx-item" onclick="document.getElementById('chat-fab-menu').classList.remove('open');openNewChatModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> New Message
+    </div>
+    <div class="ctx-item" onclick="document.getElementById('chat-fab-menu').classList.remove('open');openNewGroupModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> New Group
+    </div>
+    <div class="ctx-item" onclick="document.getElementById('chat-fab-menu').classList.remove('open');openNewChannelModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12"/></svg> New Channel
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
   <nav class="bottom-nav">
-    <button class="nav-item"        onclick="goPage('/')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-label">Home</span></button>
-    <button class="nav-item"        onclick="goPage('/shorts')">  <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button>
-    <button class="nav-item"        onclick="goPage('/music')">   <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button>
-    <button class="nav-item active" onclick="navTo('chats')">              <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button>
-    <button class="nav-item"        onclick="goPage('/')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="nav-label">Settings</span></button>
+    <button class="nav-item" onclick="goPage('/')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-label">Home</span></button>
+    <button class="nav-item" onclick="goPage('/shorts')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button>
+    <button class="nav-item" onclick="goPage('/music')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button>
+    <button class="nav-item active" onclick="showChatList()"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button>
+    <button class="nav-item" onclick="goPage('/')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="nav-label">Settings</span></button>
   </nav>
 </div>
 
-<!-- ══ CHAT ROOM SCREEN ══ -->
-<div class="screen" id="screen-chatroom">
+<!-- ══════════════════════════════════════════
+     SCREEN 2: CHAT ROOM
+══════════════════════════════════════════ -->
+<div class="chat-page hidden" id="screen-chatroom">
   <div class="chatroom-topbar">
-    <div class="icon-btn" onclick="closeChatRoom()" style="margin-right:.2rem"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+    <div class="icon-btn" onclick="showChatList()" style="margin-right:.2rem">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </div>
     <div class="chatroom-avatar" id="cr-avatar"></div>
     <div style="flex:1;min-width:0" id="cr-name-wrap">
       <div style="font-size:.96rem;font-weight:700;unicode-bidi:plaintext;text-align:start" id="cr-name"></div>
       <div style="font-size:.7rem;opacity:.75;unicode-bidi:plaintext;text-align:start" id="cr-status"></div>
     </div>
-    <div style="display:flex;gap:.3rem">
-      <div class="icon-btn" onclick="openChatOptionsMenu()"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></div>
+    <div class="icon-btn" onclick="openChatOptionsMenu()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
     </div>
   </div>
 
@@ -98,14 +123,12 @@
     <button class="join-group-btn" style="background:var(--blue)" onclick="joinGroup()">Join Group</button>
   </div>
 
-  <!-- Pinned message bar — shown when group has a pinned message -->
   <div id="pinned-bar" style="display:none;background:var(--surface);border-bottom:1px solid var(--border);padding:.4rem .85rem;flex-shrink:0;cursor:pointer;align-items:center;gap:.6rem" onclick="scrollToMsg(CHAT_pinnedMsgId)">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
     <div style="flex:1;min-width:0">
       <div style="font-size:.65rem;color:var(--blue);font-weight:700">Pinned Message</div>
       <div id="pinned-bar-text" style="font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)"></div>
     </div>
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
   </div>
 
   <div id="reply-bar" style="display:none" onclick="scrollToMsg((CHAT_replyTo||{}).id)">
@@ -125,45 +148,33 @@
     <div style="font-size:.72rem;color:var(--muted)" id="typing-label">typing...</div>
   </div>
 
-  <!-- Full emoji panel with categories -->
+  <!-- Emoji/sticker panel -->
   <div id="emoji-panel" style="display:none;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0">
-    <!-- Category tabs -->
     <div style="display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border);padding:0 .5rem">
       <button class="emoji-cat-btn active" data-cat="recent" onclick="_emojiCat(this,'recent')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
-      <button class="emoji-cat-btn" data-cat="stickers" onclick="_emojiCat(this,'stickers')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10"/><path d="M12 12c0 5.52-4.48 10-10 10a10 10 0 0 1 0-20"/></svg></button>
-      <button class="emoji-cat-btn" data-cat="smileys" onclick="_emojiCat(this,'smileys')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
-      <button class="emoji-cat-btn" data-cat="people" onclick="_emojiCat(this,'people')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></button>
+      <button class="emoji-cat-btn" data-cat="stickers" onclick="_emojiCat(this,'stickers')">🎭</button>
+      <button class="emoji-cat-btn" data-cat="smileys" onclick="_emojiCat(this,'smileys')">😊</button>
+      <button class="emoji-cat-btn" data-cat="people" onclick="_emojiCat(this,'people')">👋</button>
       <button class="emoji-cat-btn" data-cat="animals" onclick="_emojiCat(this,'animals')">🐶</button>
       <button class="emoji-cat-btn" data-cat="food" onclick="_emojiCat(this,'food')">🍎</button>
-      <button class="emoji-cat-btn" data-cat="travel" onclick="_emojiCat(this,'travel')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 2c-2-2-4-2-5.5-.5L10 5 1.8 6.2c-.5.1-.9.5-.8 1l1 4c.1.5.5.8 1 .8l2 .1 1.5 1.5.1 2c0 .5.3.9.8 1l4 1c.5.1 1-.3 1-.8z"/></svg></button>
       <button class="emoji-cat-btn" data-cat="symbols" onclick="_emojiCat(this,'symbols')">❤️</button>
       <button class="emoji-cat-btn" data-cat="jewish" onclick="_emojiCat(this,'jewish')">✡️</button>
     </div>
     <div id="emoji-grid" style="display:flex;flex-wrap:wrap;padding:.4rem .3rem;max-height:160px;overflow-y:auto;scrollbar-width:none"></div>
   </div>
 
-  <!-- Lock indicator (slide up to lock) -->
+  <!-- Voice recording -->
   <div class="rec-lock-col" id="rec-lock-indicator">
-    <div class="rec-lock-icon" id="rec-lock-icon">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-    </div>
+    <div class="rec-lock-icon" id="rec-lock-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
     <div class="rec-lock-label">↑ lock</div>
   </div>
-
-  <!-- Recording bar (Telegram style) -->
   <div class="rec-bar-wrap" id="rec-live-bar">
     <div class="rec-dot"></div>
-    <div class="rec-waveform" id="rec-live-meter">
-      <div class="rec-waveform-bar" id="rec-live-level" style="height:4px"></div>
-    </div>
+    <div class="rec-waveform" id="rec-live-meter"><div class="rec-waveform-bar" id="rec-live-level" style="height:4px"></div></div>
     <div class="rec-time" id="rec-live-time">0:00</div>
     <div class="rec-hint" id="rec-live-hint">← slide to cancel</div>
-    <button class="rec-action-btn" id="rec-locked-send-btn" style="display:none;background:linear-gradient(135deg,#1565C0,#1976D2);color:#fff;box-shadow:0 2px 8px rgba(21,101,192,.3)" onclick="stopVoiceRecAndSend()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
-    </button>
-    <button class="rec-action-btn" id="rec-locked-cancel-btn" style="display:none;background:#FEE2E2;color:#E11D48" onclick="cancelVoiceRec()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
+    <button class="rec-action-btn" id="rec-locked-send-btn" style="display:none;background:linear-gradient(135deg,#1565C0,#1976D2);color:#fff" onclick="stopVoiceRecAndSend()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+    <button class="rec-action-btn" id="rec-locked-cancel-btn" style="display:none;background:#FEE2E2;color:#E11D48" onclick="cancelVoiceRec()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
 
   <!-- Input bar -->
@@ -179,9 +190,7 @@
       </button>
       <textarea class="chat-input" id="chat-input" placeholder="Message..." rows="1" oninput="onChatType()" onkeydown="onChatKey(event)" style="unicode-bidi:plaintext"></textarea>
     </div>
-    <button class="voice-rec-btn" id="voice-rec-btn"
-      ontouchstart="_micTouchStart(event)" ontouchmove="_micTouchMove(event)" ontouchend="_micTouchEnd(event)"
-      onclick="toggleVoiceRec()">
+    <button class="voice-rec-btn" id="voice-rec-btn" ontouchstart="_micTouchStart(event)" ontouchmove="_micTouchMove(event)" ontouchend="_micTouchEnd(event)" onclick="toggleVoiceRec()">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
     </button>
     <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMsg()" style="display:none">
@@ -199,47 +208,39 @@
     <span class="qr-emoji" onclick="document.getElementById('quick-react-bar').style.display='none';showCtx(event,document.getElementById('quick-react-bar').dataset.msgId)">⋯</span>
   </div>
 
-  <div class="ctx-menu" id="ctx-menu">
-    <div id="ctx-menu-items"></div>
-  </div>
+  <div class="ctx-menu" id="ctx-menu"><div id="ctx-menu-items"></div></div>
 </div>
 
-<!-- ══ MEMBERS LIST MODAL ══ -->
-<!-- ══ INFO SCREEN (User Info / Group Info — Telegram style) ══ -->
-<div class="screen" id="screen-chatinfo">
-  <div class="topbar" style="background:#fff;border-bottom:1px solid var(--border)">
-    <div class="icon-btn" style="background:none;border:none" onclick="navTo('chatroom')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+<!-- ══════════════════════════════════════════
+     SCREEN 3: CHAT INFO
+══════════════════════════════════════════ -->
+<div class="chat-page hidden" id="screen-chatinfo">
+  <div class="topbar" style="background:var(--surface);border-bottom:1px solid var(--border)">
+    <div class="icon-btn" onclick="showChatRoom()" style="background:none;border:none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
     <div style="font-size:.95rem;font-weight:700;flex:1">Info</div>
-    <div class="icon-btn" style="background:none;border:none;color:var(--blue)" id="info-edit-btn" onclick="toast('Edit not available yet')"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></div>
   </div>
-  <div class="scroll-area" style="padding-bottom:20px">
+  <div class="scroll-area" style="padding-bottom:20px;flex:1">
     <div class="userinfo-hero">
-      <div class="userinfo-avatar-big" id="info-avatar-big" onclick="document.getElementById('group-photo-input').click()">👤</div>
-      <div class="userinfo-name" id="info-name" style="direction:rtl">Name</div>
+      <div class="userinfo-avatar-big" id="info-avatar-big" onclick="_viewChatPartnerStatus()">👤</div>
+      <div class="userinfo-name" id="info-name">Name</div>
       <div class="userinfo-sub" id="info-sub">last seen recently</div>
       <input type="file" id="group-photo-input" accept="image/*" style="display:none" onchange="handleGroupPhoto(event)">
     </div>
     <div class="userinfo-action-row">
       <div class="uinfo-action-btn" onclick="toast('Notifications toggled')">
-        <div class="uinfo-action-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        </div>
+        <div class="uinfo-action-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
         <span class="uinfo-action-lbl">Mute</span>
       </div>
       <div class="uinfo-action-btn" id="info-leave-btn" onclick="confirmLeaveGroup()">
-        <div class="uinfo-action-icon" style="color:#E11D48">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        </div>
+        <div class="uinfo-action-icon" style="color:#E11D48"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
         <span class="uinfo-action-lbl" style="color:#E11D48">Leave</span>
       </div>
       <div class="uinfo-action-btn" onclick="openReportModal()">
-        <div class="uinfo-action-icon" style="color:#F59E0B">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        </div>
+        <div class="uinfo-action-icon" style="color:#F59E0B"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
         <span class="uinfo-action-lbl">Report</span>
       </div>
     </div>
-    <div id="info-bio-card" style="display:none;background:#fff;border-bottom:1px solid var(--border);padding:.85rem 1.25rem">
+    <div id="info-bio-card" style="display:none;background:var(--surface);border-bottom:1px solid var(--border);padding:.85rem 1.25rem">
       <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem">Bio</div>
       <div style="font-size:.85rem" id="info-bio-text"></div>
     </div>
@@ -254,37 +255,22 @@
       <div style="padding:.85rem 1.25rem .5rem;font-size:.68rem;color:#637087;letter-spacing:.1em;text-transform:uppercase;font-weight:700">Group Settings</div>
       <div class="setting-row" style="cursor:pointer;padding:.85rem 1.25rem" onclick="toggleGroupReadOnly()">
         <div style="display:flex;align-items:center;gap:.75rem;flex:1">
-          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1565C0;flex-shrink:0">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-          </div>
-          <div>
-            <div style="font-size:.85rem;font-weight:600">Everyone Can Write</div>
-            <div style="font-size:.7rem;color:#637087;margin-top:.1rem">Turn off = only admins can post</div>
-          </div>
+          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1565C0;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+          <div><div style="font-size:.85rem;font-weight:600">Everyone Can Write</div><div style="font-size:.7rem;color:#637087;margin-top:.1rem">Turn off = only admins can post</div></div>
         </div>
         <div class="toggle-sw" id="group-readonly-toggle"></div>
       </div>
       <div class="setting-row" style="cursor:pointer;padding:.85rem 1.25rem" onclick="toggleGroupVisibility()">
         <div style="display:flex;align-items:center;gap:.75rem;flex:1">
-          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1565C0;flex-shrink:0">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-          </div>
-          <div>
-            <div style="font-size:.85rem;font-weight:600">Public Group</div>
-            <div style="font-size:.7rem;color:#637087;margin-top:.1rem">Anyone can discover and join</div>
-          </div>
+          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1565C0;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+          <div><div style="font-size:.85rem;font-weight:600">Public Group</div><div style="font-size:.7rem;color:#637087;margin-top:.1rem">Anyone can discover and join</div></div>
         </div>
         <div class="toggle-sw" id="group-visibility-toggle"></div>
       </div>
       <div class="setting-row" style="cursor:pointer;padding:.85rem 1.25rem" onclick="openAutoDeleteModal()">
         <div style="display:flex;align-items:center;gap:.75rem;flex:1">
-          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1565C0;flex-shrink:0">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </div>
-          <div>
-            <div style="font-size:.85rem;font-weight:600">Auto-Delete Messages</div>
-            <div style="font-size:.7rem;color:#637087;margin-top:.1rem" id="auto-delete-label">Off</div>
-          </div>
+          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1565C0;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <div><div style="font-size:.85rem;font-weight:600">Auto-Delete Messages</div><div style="font-size:.7rem;color:#637087;margin-top:.1rem" id="auto-delete-label">Off</div></div>
         </div>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#637087" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
@@ -299,15 +285,98 @@
   </div>
 </div>
 
-<!-- ══ NEW CHAT MODAL ══ -->
-<div class="ctx-menu" id="chat-fab-menu" style="position:fixed;bottom:145px;right:.75rem;z-index:300">
-  <div class="ctx-item" onclick="document.getElementById('chat-fab-menu').classList.remove('open');toast('New Channel: coming soon')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> New Channel</div>
-  <div class="ctx-item" onclick="document.getElementById('chat-fab-menu').classList.remove('open');openNewGroupModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> New Group</div>
-  <div class="ctx-item" onclick="document.getElementById('chat-fab-menu').classList.remove('open');openNewChatModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> New Message</div>
+<!-- ══════════════════════════════════════════
+     MODALS (shared, always in DOM)
+══════════════════════════════════════════ -->
+
+<!-- Status upload modal (only accessible from private chat FAB) -->
+<div class="modal-overlay" id="status-modal" onclick="if(event.target===this)closeStatusModal()">
+  <div class="modal-sheet" style="padding:0;overflow:hidden;border-radius:20px 20px 0 0">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.1rem .75rem">
+      <div style="font-size:1rem;font-weight:700">New Status</div>
+      <div onclick="closeStatusModal()" style="cursor:pointer;width:30px;height:30px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div style="display:flex;gap:.5rem;padding:0 1.1rem .85rem">
+      <button id="st-btn-text" onclick="switchStatusType('text')" style="flex:1;padding:.65rem;border-radius:12px;background:var(--blue);color:#fff;border:none;font-size:.82rem;font-weight:700;cursor:pointer">Text</button>
+      <button id="st-btn-media" onclick="document.getElementById('status-file-input').click()" style="flex:1;padding:.65rem;border-radius:12px;background:var(--bg3);color:var(--text);border:1px solid var(--border);font-size:.82rem;font-weight:700;cursor:pointer">Photo / Video</button>
+    </div>
+    <div id="status-text-panel" style="display:none;padding:0 1.1rem .85rem">
+      <div id="status-preview-box" style="width:100%;height:140px;border-radius:14px;background:#1a1a2e;display:flex;align-items:center;justify-content:center;margin-bottom:.75rem;cursor:text" onclick="document.getElementById('status-text-content').focus()">
+        <div id="status-preview-text" style="color:#fff;font-size:1rem;font-weight:700;text-align:center;padding:1rem;word-break:break-word;max-width:90%;white-space:pre-wrap"></div>
+      </div>
+      <textarea id="status-text-content" placeholder="Type your status..." rows="2" oninput="updateStatusPreview()" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:.7rem .85rem;font-size:.92rem;color:var(--text);font-family:inherit;resize:none;outline:none;box-sizing:border-box;margin-bottom:.6rem"></textarea>
+      <div style="font-size:.7rem;color:var(--muted);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.06em">Background</div>
+      <div id="status-bg-row" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem"></div>
+    </div>
+    <div id="status-media-panel" style="display:none;padding:0 1.1rem .85rem">
+      <div id="status-media-preview" style="width:100%;border-radius:14px;overflow:hidden;background:var(--bg3);margin-bottom:.6rem;max-height:220px;display:flex;align-items:center;justify-content:center"></div>
+      <textarea id="status-media-caption" placeholder="Add a caption... (optional)" rows="2" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:.7rem .85rem;font-size:.88rem;color:var(--text);font-family:inherit;resize:none;outline:none;box-sizing:border-box"></textarea>
+    </div>
+    <div style="padding:0 1.1rem .85rem">
+      <select id="status-privacy" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:.6rem .85rem;font-size:.85rem;color:var(--text);outline:none;cursor:pointer">
+        <option value="followers">Followers only</option>
+        <option value="public">Everyone</option>
+        <option value="private">Only me</option>
+      </select>
+    </div>
+    <div style="padding:0 1.1rem 1.1rem">
+      <button onclick="submitStatus()" style="width:100%;padding:.8rem;border-radius:14px;background:var(--blue);border:none;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer">Post Status</button>
+    </div>
+    <input type="file" id="status-file-input" accept="image/*,video/*" style="display:none" onchange="onStatusFileSelected(event)">
+  </div>
 </div>
+
+<!-- Status viewer overlay -->
+<div class="sv-overlay" id="sv-overlay">
+  <div class="sv-header">
+    <div class="sv-bars" id="sv-bars"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.5rem">
+      <div style="display:flex;align-items:center;gap:.55rem">
+        <button class="sv-ctrl" onclick="closeSV()" style="font-size:1.2rem;padding:.2rem .4rem">‹</button>
+        <div id="sv-avatar" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;overflow:hidden;flex-shrink:0;background-size:cover;background-position:center"></div>
+        <div>
+          <div style="font-size:.86rem;font-weight:700;color:#fff;line-height:1.2" id="sv-nick"></div>
+          <div style="font-size:.63rem;color:rgba(255,255,255,.65)" id="sv-time"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:.35rem;align-items:center">
+        <button class="sv-ctrl" id="sv-mute" onclick="svToggleMute()">🔊</button>
+        <button class="sv-ctrl" onclick="svShowMore()">⋮</button>
+      </div>
+    </div>
+  </div>
+  <div style="flex:1;position:relative;overflow:hidden" id="sv-touch-area" ontouchstart="svTouchStart(event)" ontouchend="svTouchEnd(event);event.preventDefault()" onmousedown="svMouseDown(event)" onmouseup="svMouseUp(event)">
+    <div id="sv-slide" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden"></div>
+  </div>
+  <div id="sv-reaction-bar" style="position:absolute;bottom:80px;left:0;right:0;display:none;flex-direction:row;justify-content:center;gap:.5rem;padding:.5rem;z-index:30">
+    <div style="background:rgba(0,0,0,.6);border-radius:30px;display:flex;gap:.25rem;padding:.4rem .7rem">
+      <span class="sv-emoji-btn" onclick="svReact('❤️')">❤️</span>
+      <span class="sv-emoji-btn" onclick="svReact('😂')">😂</span>
+      <span class="sv-emoji-btn" onclick="svReact('😮')">😮</span>
+      <span class="sv-emoji-btn" onclick="svReact('🙏')">🙏</span>
+      <span class="sv-emoji-btn" onclick="svReact('👏')">👏</span>
+      <span class="sv-emoji-btn" onclick="svReact('🔥')">🔥</span>
+    </div>
+  </div>
+  <div style="position:absolute;bottom:0;left:0;right:0;padding:.75rem 1rem max(.75rem,env(safe-area-inset-bottom));display:flex;align-items:center;gap:.6rem;background:linear-gradient(to top,rgba(0,0,0,.85),transparent);z-index:10">
+    <div id="sv-views-row" style="display:none;align-items:center;gap:.35rem;color:rgba(255,255,255,.8);font-size:.8rem">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span id="sv-views-count">0</span>
+    </div>
+    <input id="sv-reply-input" style="flex:1;padding:.6rem 1rem;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:22px;color:#fff;font-size:.83rem;font-family:inherit;outline:none" placeholder="Reply..." onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter'){svSendReply();event.stopPropagation();}">
+    <button id="sv-like-btn" style="background:none;border:none;font-size:1.5rem;cursor:pointer;flex-shrink:0" onclick="event.stopPropagation();svReact('❤️')">🤍</button>
+  </div>
+  <div id="sv-more-menu" style="display:none;position:absolute;top:72px;right:.75rem;background:rgba(20,20,30,.92);border-radius:12px;padding:.4rem 0;z-index:50;min-width:160px;box-shadow:0 4px 20px rgba(0,0,0,.4)">
+    <div class="sv-menu-item" id="sv-menu-privacy" onclick="svEditPrivacy()">Privacy Settings</div>
+    <div class="sv-menu-item" id="sv-menu-delete" onclick="svDeleteCurrent()" style="color:#ff6b6b">🗑 Delete Status</div>
+    <div class="sv-menu-item" onclick="document.getElementById('sv-more-menu').style.display='none'">✕ Close</div>
+  </div>
+</div>
+
+<!-- Other modals -->
 <div class="modal-overlay" id="new-chat-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal-sheet">
-    <div class="modal-title"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg> New Chat</div>
+    <div class="modal-title">New Chat</div>
     <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--border);margin-bottom:.5rem;cursor:pointer;color:var(--blue)" onclick="document.getElementById('new-chat-modal').classList.remove('open');openNewGroupModal()">
       <div style="width:38px;height:38px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem">👥</div>
       <div style="font-size:.88rem;font-weight:600">New Group</div>
@@ -318,7 +387,6 @@
   </div>
 </div>
 
-<!-- ══ ADD MEMBER MODAL ══ -->
 <div class="modal-overlay" id="add-member-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal-sheet">
     <div class="modal-title">➕ Add Member</div>
@@ -328,43 +396,27 @@
   </div>
 </div>
 
-<!-- ══ NEW GROUP MODAL ══ -->
 <div class="modal-overlay" id="new-group-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal-sheet">
-    <div class="modal-title" style="font-size:1rem;font-weight:700;display:flex;align-items:center;gap:.5rem">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      New Group
-    </div>
-    <!-- Photo upload -->
+    <div class="modal-title">👥 New Group</div>
     <div style="display:flex;justify-content:center;margin-bottom:1rem">
-      <div id="new-group-photo-preview" onclick="document.getElementById('new-group-photo-inp').click()" style="width:72px;height:72px;border-radius:50%;background:#EFF6FF;border:2px dashed #1565C0;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative">
+      <div id="new-group-photo-preview" onclick="document.getElementById('new-group-photo-inp').click()" style="width:72px;height:72px;border-radius:50%;background:#EFF6FF;border:2px dashed #1565C0;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1565C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         <div style="font-size:.55rem;color:#1565C0;margin-top:.2rem">Add Photo</div>
       </div>
       <input type="file" id="new-group-photo-inp" accept="image/*" style="display:none" onchange="previewNewGroupPhoto(event)">
     </div>
     <input class="field" id="new-group-name" placeholder="Group name" maxlength="50" style="margin-bottom:.75rem">
-    <div class="poll-setting-row">
-      <div><div class="poll-setting-label">Public Group</div><div class="poll-setting-sub">Anyone can discover and join</div></div>
-      <div class="toggle-sw" id="new-group-public-toggle" onclick="this.classList.toggle('on')"></div>
-    </div>
-    <div class="poll-setting-row" style="margin-bottom:1rem">
-      <div><div class="poll-setting-label">Everyone Can Write</div><div class="poll-setting-sub">Off = only admins can post</div></div>
-      <div class="toggle-sw on" id="new-group-writeall-toggle" onclick="this.classList.toggle('on')"></div>
-    </div>
+    <div class="poll-setting-row"><div><div class="poll-setting-label">Public Group</div><div class="poll-setting-sub">Anyone can discover and join</div></div><div class="toggle-sw" id="new-group-public-toggle" onclick="this.classList.toggle('on')"></div></div>
+    <div class="poll-setting-row" style="margin-bottom:1rem"><div><div class="poll-setting-label">Everyone Can Write</div><div class="poll-setting-sub">Off = only admins can post</div></div><div class="toggle-sw on" id="new-group-writeall-toggle" onclick="this.classList.toggle('on')"></div></div>
     <button class="btn-primary" onclick="createNewGroup()" style="margin-bottom:.5rem">Create Group</button>
     <button class="modal-cancel" onclick="document.getElementById('new-group-modal').classList.remove('open')">Cancel</button>
   </div>
 </div>
 
-<!-- ══ NEW CHANNEL MODAL ══ -->
 <div class="modal-overlay" id="new-channel-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal-sheet">
-    <div class="modal-title" style="font-size:1rem;font-weight:700;display:flex;align-items:center;gap:.5rem">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.56 2 2 0 0 1 3.6 1.36h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-      New Channel
-    </div>
-    <div style="font-size:.78rem;color:#637087;margin-bottom:.85rem;line-height:1.5">A channel is public — only you (and admins you choose) can post. Everyone can join and read.</div>
+    <div class="modal-title">📡 New Channel</div>
     <div style="display:flex;justify-content:center;margin-bottom:1rem">
       <div id="new-channel-photo-preview" onclick="document.getElementById('new-channel-photo-inp').click()" style="width:72px;height:72px;border-radius:50%;background:#EFF6FF;border:2px dashed #1565C0;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1565C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -379,419 +431,110 @@
   </div>
 </div>
 
-<!-- ══ CHAT SETTINGS MODAL ══ -->
-<div class="modal-overlay" id="chat-settings-modal" onclick="if(event.target===this)this.classList.remove('open')">
-  <div class="modal-sheet" style="max-height:85vh;overflow-y:auto">
-    <div class="modal-title" style="font-size:1rem;font-weight:700;display:flex;align-items:center;gap:.5rem">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      Chat Settings
-    </div>
-    <!-- Dark Mode -->
-    <div class="poll-setting-row">
-      <div><div class="poll-setting-label">Dark Mode</div><div class="poll-setting-sub">Switch between light and dark</div></div>
-      <div class="toggle-sw" id="cs-dark-toggle" onclick="toggleDarkMode(this)"></div>
-    </div>
-    <!-- Font size -->
-    <div class="poll-setting-row" style="flex-direction:column;align-items:flex-start;gap:.5rem">
-      <div class="poll-setting-label">Font Size</div>
-      <div style="display:flex;gap:.5rem;width:100%">
-        <button class="cs-font-btn active" id="cs-font-sm" onclick="setChatFont('sm',this)">Small</button>
-        <button class="cs-font-btn" id="cs-font-md" onclick="setChatFont('md',this)">Normal</button>
-        <button class="cs-font-btn" id="cs-font-lg" onclick="setChatFont('lg',this)">Large</button>
-      </div>
-    </div>
-    <!-- Enter to send -->
-    <div class="poll-setting-row">
-      <div><div class="poll-setting-label">Shift+Enter to Send</div><div class="poll-setting-sub">Enter = new line, Shift+Enter = send</div></div>
-      <div class="toggle-sw on" id="cs-enter-toggle"></div>
-    </div>
-    <!-- Read receipts -->
-    <div class="poll-setting-row">
-      <div><div class="poll-setting-label">Read Receipts</div><div class="poll-setting-sub">Show ✓✓ when message is read</div></div>
-      <div class="toggle-sw on" id="cs-receipts-toggle" onclick="this.classList.toggle('on')"></div>
-    </div>
-    <!-- Language -->
-    <div class="poll-setting-row">
-      <div><div class="poll-setting-label">Language</div></div>
-      <select style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.35rem .6rem;color:var(--text);font-family:inherit;font-size:.82rem;outline:none">
-        <option>ייִדיש</option>
-        <option>English</option>
-        <option>עברית</option>
-      </select>
-    </div>
-    <!-- Auto-download -->
-    <div class="poll-setting-row">
-      <div><div class="poll-setting-label">Auto-Download Media</div><div class="poll-setting-sub">Automatically load images</div></div>
-      <div class="toggle-sw on" id="cs-autodownload-toggle" onclick="this.classList.toggle('on')"></div>
-    </div>
-    <button class="modal-cancel" onclick="document.getElementById('chat-settings-modal').classList.remove('open')" style="margin-top:.5rem">Close</button>
-  </div>
-</div>
-
-<!-- ══ REPORT MODAL ══ -->
 <div class="modal-overlay" id="report-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal-sheet">
     <div class="modal-title">🚩 Report</div>
-    <div id="report-reasons">
-      <label class="report-reason-opt"><input type="radio" name="report-reason" value="spam" checked> Spam</label>
-      <label class="report-reason-opt"><input type="radio" name="report-reason" value="harassment"> Harassment / Bullying</label>
-      <label class="report-reason-opt"><input type="radio" name="report-reason" value="inappropriate"> Inappropriate Content</label>
-      <label class="report-reason-opt"><input type="radio" name="report-reason" value="impersonation"> Impersonation</label>
-      <label class="report-reason-opt"><input type="radio" name="report-reason" value="other"> Other</label>
-    </div>
+    <label class="report-reason-opt"><input type="radio" name="report-reason" value="spam" checked> Spam</label>
+    <label class="report-reason-opt"><input type="radio" name="report-reason" value="harassment"> Harassment</label>
+    <label class="report-reason-opt"><input type="radio" name="report-reason" value="inappropriate"> Inappropriate Content</label>
+    <label class="report-reason-opt"><input type="radio" name="report-reason" value="other"> Other</label>
     <textarea class="field" id="report-details" placeholder="Additional details (optional)" rows="3" style="resize:none;height:auto;margin-top:.75rem"></textarea>
     <button class="btn-primary" onclick="submitReport()" style="margin-bottom:.5rem;margin-top:.5rem">Submit Report</button>
     <button class="modal-cancel" onclick="document.getElementById('report-modal').classList.remove('open')">Cancel</button>
   </div>
 </div>
 
-<!-- ══ NEW POLL MODAL ══ -->
 <div class="modal-overlay" id="poll-modal" onclick="if(event.target===this)closePollModal()">
   <div class="modal-sheet" style="max-height:85vh;overflow-y:auto">
     <div class="modal-title">📊 New Poll</div>
-
     <input class="field" id="poll-question" placeholder="Ask a question" maxlength="200">
-    <textarea class="field" id="poll-description" placeholder="Description (optional)" rows="2" style="resize:none;height:auto"></textarea>
-
-    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem;letter-spacing:.05em;text-transform:uppercase">Options</div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.05em">Options</div>
     <div id="poll-options-list"></div>
     <button class="poll-add-option-btn" onclick="addPollOptionRow()">+ Add Option</button>
-
-    <div style="font-size:.72rem;color:var(--muted);margin:.5rem 0;letter-spacing:.05em;text-transform:uppercase">Settings</div>
-
-    <div class="poll-setting-row">
-      <div><div class="poll-setting-label">Show Who Voted</div><div class="poll-setting-sub">Display voter names per option</div></div>
-      <div class="toggle-sw" id="poll-toggle-show-who-voted" onclick="this.classList.toggle('on')"></div>
-    </div>
-    <div class="poll-setting-row">
-      <div><div class="poll-setting-label">Allow Multiple Answers</div><div class="poll-setting-sub">Voters can select more than one option</div></div>
-      <div class="toggle-sw" id="poll-toggle-allow-multiple" onclick="this.classList.toggle('on')"></div>
-    </div>
-    <div class="poll-setting-row">
-      <div><div class="poll-setting-label">Allow Adding Options</div><div class="poll-setting-sub">Participants can suggest new options</div></div>
-      <div class="toggle-sw" id="poll-toggle-allow-add-options" onclick="this.classList.toggle('on')"></div>
-    </div>
-    <div class="poll-setting-row">
-      <div><div class="poll-setting-label">Allow Revoting</div><div class="poll-setting-sub">Voters can change their previous vote</div></div>
-      <div class="toggle-sw on" id="poll-toggle-allow-revote" onclick="this.classList.toggle('on')"></div>
-    </div>
-    <div class="poll-setting-row">
-      <div><div class="poll-setting-label">Shuffle Options</div><div class="poll-setting-sub">Randomize option order per voter</div></div>
-      <div class="toggle-sw" id="poll-toggle-shuffle" onclick="this.classList.toggle('on')"></div>
-    </div>
-    <div class="poll-setting-row">
-      <div><div class="poll-setting-label">Set Correct Answer (Quiz Mode)</div><div class="poll-setting-sub">Mark which option(s) are correct</div></div>
-      <div class="toggle-sw" id="poll-toggle-quiz-mode" onclick="togglePollQuizMode(this)"></div>
-    </div>
-    <div class="poll-setting-row" id="poll-duration-row">
-      <div><div class="poll-setting-label">Limited Duration</div><div class="poll-setting-sub">Poll closes automatically after a set time</div></div>
-      <div class="toggle-sw" id="poll-toggle-duration" onclick="togglePollDuration(this)"></div>
-    </div>
-    <div id="poll-duration-input-row" style="display:none;padding:.5rem 0">
-      <select class="field" id="poll-duration-minutes" style="margin-bottom:0">
-        <option value="5">5 minutes</option>
-        <option value="30">30 minutes</option>
-        <option value="60">1 hour</option>
-        <option value="360">6 hours</option>
-        <option value="1440" selected>1 day</option>
-        <option value="10080">1 week</option>
-      </select>
-    </div>
-
+    <div class="poll-setting-row"><div><div class="poll-setting-label">Allow Multiple Answers</div></div><div class="toggle-sw" id="poll-toggle-allow-multiple" onclick="this.classList.toggle('on')"></div></div>
+    <div class="poll-setting-row"><div><div class="poll-setting-label">Allow Revoting</div></div><div class="toggle-sw on" id="poll-toggle-allow-revote" onclick="this.classList.toggle('on')"></div></div>
     <button class="btn-primary" onclick="submitNewPoll()" style="margin-top:1rem;margin-bottom:.5rem">Create Poll</button>
     <button class="modal-cancel" onclick="closePollModal()">Cancel</button>
   </div>
 </div>
 
-<!-- ══ AUTO-DELETE MODAL ══ -->
 <div class="modal-overlay" id="auto-delete-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal-sheet">
     <div class="modal-title">⏱️ Auto-Delete Messages</div>
-    <div style="font-size:.8rem;color:var(--muted);margin-bottom:1rem">Messages older than the selected time will be automatically deleted from this group.</div>
     <select class="field" id="auto-delete-select">
       <option value="">Off</option>
       <option value="60">1 hour</option>
       <option value="1440">24 hours</option>
       <option value="10080">7 days</option>
-      <option value="43200">30 days</option>
     </select>
     <button class="btn-primary" onclick="saveAutoDelete()" style="margin-bottom:.5rem">Save</button>
     <button class="modal-cancel" onclick="document.getElementById('auto-delete-modal').classList.remove('open')">Cancel</button>
   </div>
 </div>
 
-<!-- ══ CHAT OPTIONS MENU ══ -->
+<!-- Chat options kebab menu -->
 <div class="ctx-menu" id="chat-options-menu" style="right:1rem;top:3.2rem">
-  <div class="ctx-item" id="opt-view-members" onclick="openMembersList();closeOptMenu()">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-    View Members
-  </div>
-  <div class="ctx-item" onclick="copyInviteLink();closeOptMenu()">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-    Copy Invite Link
-  </div>
-  <div class="ctx-item" onclick="openJumpToDate();closeOptMenu()">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-    Jump to Date
-  </div>
-  <div class="ctx-item" onclick="openDisappearingMessages();closeOptMenu()">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-    Disappearing Messages
-  </div>
-  <div class="ctx-item" onclick="toast('Muted notifications for this chat');closeOptMenu()">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
-    Mute
-  </div>
-  <div class="ctx-item" style="color:var(--red)" onclick="closeOptMenu();confirmDeleteCurrentChat()">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="23" y2="14"/><line x1="23" y1="8" x2="17" y2="14"/></svg>
-    Leave / Delete Chat
-  </div>
-  <div class="ctx-item" onclick="closeOptMenu()">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    Cancel
-  </div>
+  <div class="ctx-item" id="opt-view-members" onclick="openChatInfo();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> View Members</div>
+  <div class="ctx-item" onclick="copyInviteLink();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Copy Invite Link</div>
+  <div class="ctx-item" onclick="openJumpToDate();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Jump to Date</div>
+  <div class="ctx-item" onclick="toast('Muted');closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg> Mute</div>
+  <div class="ctx-item" style="color:var(--red)" onclick="closeOptMenu();confirmDeleteCurrentChat()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="23" y2="14"/><line x1="23" y1="8" x2="17" y2="14"/></svg> Leave / Delete Chat</div>
+  <div class="ctx-item" onclick="closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Cancel</div>
 </div>
 
-<!-- ══ HAMBURGER SIDE MENU ══ -->
+<!-- Hamburger side panel -->
 <div class="hamburger-overlay" id="hamburger-overlay" onclick="if(event.target===this)closeHamburgerMenu()">
   <div class="hamburger-panel">
     <div class="hamburger-profile-hdr" onclick="goPage('/')" style="cursor:pointer">
-      <div class="hamburger-avatar" id="hb-avatar" style="font-size:1.4rem;color:#fff">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      </div>
+      <div class="hamburger-avatar" id="hb-avatar" style="font-size:1.4rem;color:#fff"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
       <div style="font-weight:700;font-size:1rem;margin-top:.25rem" id="hb-name">User</div>
       <div style="font-size:.75rem;opacity:.8;margin-top:.1rem" id="hb-handle">@user</div>
     </div>
-    <div class="hamburger-item" onclick="goPage('/')">
-      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>My Profile
-    </div>
-    <div class="hamburger-item" onclick="openBookmarks();closeHamburgerMenu()">
-      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>Saved Messages
-    </div>
-    <div class="hamburger-item" onclick="openFolderManager();closeHamburgerMenu()">
-      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>Chat Folders
-    </div>
-    <div class="hamburger-item" onclick="openNewChatModal();closeHamburgerMenu()">
-      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Contacts
-    </div>
-    <div class="hamburger-item" onclick="openNewGroupModal();closeHamburgerMenu()">
-      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="9.5" y1="10.5" x2="14.5" y2="10.5"/></svg></span>New Group
-    </div>
-    <div class="hamburger-item" onclick="openNewChannelModal();closeHamburgerMenu()">
-      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.56 2 2 0 0 1 3.6 1.36h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>New Channel
-    </div>
+    <div class="hamburger-item" onclick="goPage('/')"><span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>My Profile</div>
+    <div class="hamburger-item" onclick="openBookmarks();closeHamburgerMenu()"><span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>Saved Messages</div>
+    <div class="hamburger-item" onclick="openFolderManager();closeHamburgerMenu()"><span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>Chat Folders</div>
+    <div class="hamburger-item" onclick="openNewGroupModal();closeHamburgerMenu()"><span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="9.5" y1="10.5" x2="14.5" y2="10.5"/></svg></span>New Group</div>
     <div style="border-top:1px solid var(--border);margin:.4rem 0"></div>
-    <div class="hamburger-item" onclick="openChatSettings();closeHamburgerMenu()">
-      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>Settings
-    </div>
+    <div class="hamburger-item" onclick="openChatSettings();closeHamburgerMenu()"><span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>Settings</div>
     <div style="border-top:1px solid var(--border);margin:.4rem 0" id="hb-admin-sep" style="display:none"></div>
-    <div class="hamburger-item" id="hb-admin-btn" onclick="goPage('/admin')" style="display:none">
-      <span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Admin Panel
-    </div>
+    <div class="hamburger-item" id="hb-admin-btn" onclick="goPage('/admin')" style="display:none"><span class="hi-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Admin Panel</div>
   </div>
 </div>
 
+<!-- Attach sheet -->
 <div class="attach-sheet" id="attach-sheet" onclick="event.stopPropagation()">
   <div class="attach-opt" onclick="triggerMediaPick('image/*',false)"><div class="attach-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div><div class="attach-lbl">Photo</div></div>
   <div class="attach-opt" onclick="triggerMediaPick('video/*',false)"><div class="attach-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div><div class="attach-lbl">Video</div></div>
-  <div class="attach-opt" onclick="triggerMediaPick('image/*,video/*',true)"><div class="attach-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="attach-lbl">View Once</div></div>
   <div class="attach-opt" onclick="triggerMediaPick('*/*',false)"><div class="attach-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div><div class="attach-lbl">File</div></div>
   <div class="attach-opt" onclick="document.getElementById('attach-sheet').classList.remove('open');openPollModal()"><div class="attach-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div><div class="attach-lbl">Poll</div></div>
 </div>
 
 <input type="file" id="chat-media-input" style="position:fixed;top:-9999px;left:-9999px;opacity:0;width:1px;height:1px" multiple onchange="handleChatMedia(event)">
 
-<!-- Unified Media Viewer (images + videos) -->
+<!-- Media viewer -->
 <div id="media-viewer" style="display:none;position:fixed;inset:0;background:#000;z-index:999;flex-direction:column;align-items:center;justify-content:center">
-  <!-- Top bar -->
   <div style="position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;padding:.65rem .85rem;background:linear-gradient(to bottom,rgba(0,0,0,.7),transparent)">
-    <div onclick="_mediaViewerClose()" style="cursor:pointer;color:#fff;padding:.3rem;margin-right:.5rem">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </div>
-    <div style="flex:1">
-      <div id="mv-sender" style="color:#fff;font-size:.9rem;font-weight:700"></div>
-      <div id="mv-time" style="color:rgba(255,255,255,.6);font-size:.72rem"></div>
-    </div>
-    <div onclick="_mvOptions()" style="cursor:pointer;color:#fff;padding:.3rem;position:relative">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
-      <div class="ctx-menu" id="mv-options-menu" style="position:absolute;top:2rem;right:0;min-width:150px">
-        <div class="ctx-item" onclick="_mvForward()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
-          Forward
-        </div>
-        <div class="ctx-item" onclick="_mvDownload()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download
-        </div>
-      </div>
-    </div>
+    <div onclick="_mediaViewerClose()" style="cursor:pointer;color:#fff;padding:.3rem;margin-right:.5rem"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    <div style="flex:1"><div id="mv-sender" style="color:#fff;font-size:.9rem;font-weight:700"></div><div id="mv-time" style="color:rgba(255,255,255,.6);font-size:.72rem"></div></div>
   </div>
-
-  <!-- Prev/Next arrows -->
-  <div id="mv-prev" onclick="_mvPrev()" style="position:absolute;left:.5rem;top:50%;transform:translateY(-50%);z-index:3;cursor:pointer;color:#fff;background:rgba(0,0,0,.35);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-  </div>
-  <div id="mv-next" onclick="_mvNext()" style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);z-index:3;cursor:pointer;color:#fff;background:rgba(0,0,0,.35);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-  </div>
-
-  <!-- Media body -->
+  <div id="mv-prev" onclick="_mvPrev()" style="position:absolute;left:.5rem;top:50%;transform:translateY(-50%);z-index:3;cursor:pointer;color:#fff;background:rgba(0,0,0,.35);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+  <div id="mv-next" onclick="_mvNext()" style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);z-index:3;cursor:pointer;color:#fff;background:rgba(0,0,0,.35);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></div>
   <div id="mv-body" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:3.5rem 0 5rem"></div>
-
-  <!-- Caption -->
   <div id="mv-caption" style="display:none;position:absolute;bottom:0;left:0;right:0;padding:.85rem 1rem;background:linear-gradient(to top,rgba(0,0,0,.75),transparent);color:#fff;font-size:.88rem;line-height:1.5"></div>
 </div>
 
-<!-- ══ MULTI-SELECT ACTION BAR ══ -->
+<!-- Multi-select action bar -->
 <div id="select-action-bar">
-  <button class="sel-bar-btn" onclick="_exitSelectMode()">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-  </button>
+  <button class="sel-bar-btn" onclick="_exitSelectMode()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   <span class="sel-bar-count" id="select-count-label">0 selected</span>
-  <button class="sel-bar-btn" onclick="_selectForwardAll()" title="Forward">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
-  </button>
-  <button class="sel-bar-btn" onclick="_selectCopyAll()" title="Copy">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-  </button>
-  <button class="sel-bar-btn danger" onclick="_selectDeleteAll()" title="Delete">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-  </button>
-</div>
-
-<div class="modal-overlay" id="status-modal" onclick="if(event.target===this)closeStatusModal()">
-  <div class="modal-sheet" style="padding:0;overflow:hidden;border-radius:20px 20px 0 0">
-
-    <!-- Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.1rem .75rem">
-      <div style="font-size:1rem;font-weight:700">New Status</div>
-      <div onclick="closeStatusModal()" style="cursor:pointer;width:30px;height:30px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </div>
-    </div>
-
-    <!-- Type selector -->
-    <div style="display:flex;gap:.5rem;padding:0 1.1rem .85rem">
-      <button id="st-btn-text" onclick="switchStatusType('text')" style="flex:1;padding:.65rem;border-radius:12px;background:var(--blue);color:#fff;border:none;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg>
-        Text
-      </button>
-      <button id="st-btn-media" onclick="document.getElementById('status-file-input').click()" style="flex:1;padding:.65rem;border-radius:12px;background:var(--bg3);color:var(--text);border:1px solid var(--border);font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-        Photo / Video
-      </button>
-    </div>
-
-    <!-- Text panel -->
-    <div id="status-text-panel" style="display:none;padding:0 1.1rem .85rem">
-      <!-- Preview box -->
-      <div id="status-preview-box" style="width:100%;height:140px;border-radius:14px;background:#1a1a2e;display:flex;align-items:center;justify-content:center;margin-bottom:.75rem;position:relative;overflow:hidden;cursor:text" onclick="document.getElementById('status-text-content').focus()">
-        <div id="status-preview-text" style="color:#fff;font-size:1rem;font-weight:700;text-align:center;padding:1rem;word-break:break-word;max-width:90%;white-space:pre-wrap"></div>
-      </div>
-      <!-- Text input -->
-      <textarea id="status-text-content" placeholder="Type your status..." rows="2" oninput="updateStatusPreview()" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:.7rem .85rem;font-size:.92rem;color:var(--text);font-family:inherit;resize:none;outline:none;box-sizing:border-box;margin-bottom:.6rem"></textarea>
-      <!-- Background color picker -->
-      <div style="font-size:.7rem;color:var(--muted);margin-bottom:.35rem;letter-spacing:.06em;text-transform:uppercase">Background</div>
-      <div id="status-bg-row" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem"></div>
-    </div>
-
-    <!-- Media panel -->
-    <div id="status-media-panel" style="display:none;padding:0 1.1rem .85rem">
-      <div id="status-media-preview" style="width:100%;border-radius:14px;overflow:hidden;background:var(--bg3);margin-bottom:.6rem;max-height:220px;display:flex;align-items:center;justify-content:center"></div>
-      <textarea id="status-media-caption" placeholder="Add a caption... (optional)" rows="2" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:.7rem .85rem;font-size:.88rem;color:var(--text);font-family:inherit;resize:none;outline:none;box-sizing:border-box"></textarea>
-    </div>
-
-    <!-- Privacy -->
-    <div style="padding:0 1.1rem .85rem">
-      <div style="font-size:.7rem;color:var(--muted);margin-bottom:.35rem;letter-spacing:.06em;text-transform:uppercase">Who can see this</div>
-      <select id="status-privacy" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:.6rem .85rem;font-size:.85rem;color:var(--text);outline:none;cursor:pointer">
-        <option value="public">Everyone</option>
-        <option value="followers">Followers only</option>
-        <option value="private">Only me</option>
-      </select>
-    </div>
-
-    <!-- Post button -->
-    <div style="padding:0 1.1rem 1.1rem">
-      <button onclick="submitStatus()" style="width:100%;padding:.8rem;border-radius:14px;background:var(--blue);border:none;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;letter-spacing:.02em">Post Status</button>
-    </div>
-
-    <input type="file" id="status-file-input" accept="image/*,video/*" style="display:none" onchange="onStatusFileSelected(event)">
-  </div>
-</div>
-
-<div class="sv-overlay" id="sv-overlay">
-
-  <!-- Progress bars row -->
-  <div class="sv-header">
-    <div class="sv-bars" id="sv-bars"></div>
-
-    <!-- Top row: back arrow + avatar + nick + time + controls -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.5rem">
-      <div style="display:flex;align-items:center;gap:.55rem">
-        <button class="sv-ctrl" onclick="closeSV()" style="font-size:1.2rem;padding:.2rem .4rem">‹</button>
-        <div id="sv-avatar" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;overflow:hidden;flex-shrink:0;background-size:cover;background-position:center"></div>
-        <div>
-          <div style="font-size:.86rem;font-weight:700;color:#fff;line-height:1.2" id="sv-nick"></div>
-          <div style="font-size:.63rem;color:rgba(255,255,255,.65)" id="sv-time"></div>
-        </div>
-      </div>
-      <div style="display:flex;gap:.35rem;align-items:center">
-        <button class="sv-ctrl" id="sv-archive-btn" onclick="svArchiveCurrent()" title="Save to Highlights">🔖</button>
-        <button class="sv-ctrl" id="sv-mute" onclick="svToggleMute()">🔊</button>
-        <button class="sv-ctrl" onclick="svShowMore()">⋮</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Slide content — long-press pauses, left/right tap navigates -->
-  <div style="flex:1;position:relative;overflow:hidden"
-       id="sv-touch-area"
-       ontouchstart="svTouchStart(event)"
-       ontouchend="svTouchEnd(event);event.preventDefault()"
-       onmousedown="svMouseDown(event)"
-       onmouseup="svMouseUp(event)">
-    <div id="sv-slide" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden"></div>
-    <!-- Swipe down to close is handled in svTouchEnd -->
-  </div>
-
-  <!-- Reaction bar -->
-  <div id="sv-reaction-bar" style="position:absolute;bottom:80px;left:0;right:0;display:none;flex-direction:row;justify-content:center;gap:.5rem;padding:.5rem;z-index:30">
-    <div style="background:rgba(0,0,0,.6);border-radius:30px;display:flex;gap:.25rem;padding:.4rem .7rem">
-      <span class="sv-emoji-btn" onclick="svReact('❤️')">❤️</span>
-      <span class="sv-emoji-btn" onclick="svReact('😂')">😂</span>
-      <span class="sv-emoji-btn" onclick="svReact('😮')">😮</span>
-      <span class="sv-emoji-btn" onclick="svReact('😢')">😢</span>
-      <span class="sv-emoji-btn" onclick="svReact('👏')">👏</span>
-      <span class="sv-emoji-btn" onclick="svReact('🔥')">🔥</span>
-      <span class="sv-emoji-btn" onclick="svReact('🙏')">🙏</span>
-    </div>
-  </div>
-
-  <!-- Bottom: reply input + views count (for owner) -->
-  <div style="position:absolute;bottom:0;left:0;right:0;padding:.75rem 1rem max(.75rem,env(safe-area-inset-bottom));display:flex;align-items:center;gap:.6rem;background:linear-gradient(to top,rgba(0,0,0,.85),transparent);z-index:10">
-    <div id="sv-views-row" style="display:none;align-items:center;gap:.35rem;color:rgba(255,255,255,.8);font-size:.8rem">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-      <span id="sv-views-count">0</span>
-    </div>
-    <input id="sv-reply-input" style="flex:1;padding:.6rem 1rem;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:22px;color:#fff;font-size:.83rem;font-family:inherit;outline:none" placeholder="Reply to status..." onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter'){svSendReply();event.stopPropagation();}">
-    <button id="sv-like-btn" style="background:none;border:none;font-size:1.5rem;cursor:pointer;flex-shrink:0" onclick="event.stopPropagation();svReact('❤️')">🤍</button>
-  </div>
-
-  <!-- More options menu for THIS status -->
-  <div id="sv-more-menu" style="display:none;position:absolute;top:72px;right:.75rem;background:rgba(20,20,30,.92);border-radius:12px;padding:.4rem 0;z-index:50;min-width:160px;box-shadow:0 4px 20px rgba(0,0,0,.4)">
-    <div class="sv-menu-item" onclick="svArchiveCurrent()">🔖 Save to Highlights</div>
-    <div class="sv-menu-item" id="sv-menu-privacy" onclick="svEditPrivacy()">Privacy Settings</div>
-    <div class="sv-menu-item" id="sv-menu-delete" onclick="svDeleteCurrent()" style="color:#ff6b6b">🗑 Delete Status</div>
-    <div class="sv-menu-item" onclick="document.getElementById('sv-more-menu').style.display='none'">✕ Close</div>
-  </div>
+  <button class="sel-bar-btn" onclick="_selectForwardAll()" title="Forward"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg></button>
+  <button class="sel-bar-btn" onclick="_selectCopyAll()" title="Copy"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+  <button class="sel-bar-btn danger" onclick="_selectDeleteAll()" title="Delete"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
 </div>
 
 <div id="app-toast"></div>
 
 <style>
-.group-emoji-opt { width: 44px; height: 44px; border-radius: 12px; background: var(--bg3); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; transition: all .15s; }
-input[name="group-emoji"]:checked + .group-emoji-opt { border-color: var(--blue); background: #EAF4FF; transform: scale(1.08); }
 #chat-options-menu { position: fixed; }
 </style>
 
@@ -801,85 +544,37 @@ input[name="group-emoji"]:checked + .group-emoji-opt { border-color: var(--blue)
 <script src="js/chat.js"></script>
 
 <script>
-window.openChatOptionsMenu = function () {
-  var menu = document.getElementById('chat-options-menu');
-  var viewMembersOpt = document.getElementById('opt-view-members');
-  viewMembersOpt.style.display = (CHAT_curRoom && CHAT_curRoom.type === 'group') ? 'flex' : 'none';
-  menu.classList.add('open');
-};
-window.closeOptMenu = function () {
-  document.getElementById('chat-options-menu').classList.remove('open');
-};
-document.addEventListener('click', function (e) {
-  if (!e.target.closest('#chat-options-menu') && !e.target.closest('[onclick*="openChatOptionsMenu"]')) {
-    closeOptMenu();
-  }
-});
-
-// ── REPORT ──
-window.openReportModal = function () {
-  if (!CHAT_ctxMsg && !CHAT_curRoom) return;
-  document.getElementById('report-modal').classList.add('open');
-};
-window.ctxReport = function () {
-  document.getElementById('ctx-menu').classList.remove('open');
-  openReportModal();
-};
-window.submitReport = function () {
-  var reasonEl = document.querySelector('input[name="report-reason"]:checked');
-  var reason = reasonEl ? reasonEl.value : 'other';
-  var details = document.getElementById('report-details').value || '';
-
-  var reportedId, reportedNick;
-  if (CHAT_ctxMsg) {
-    reportedId = CHAT_ctxMsg.sender_id;
-    reportedNick = CHAT_ctxMsg.sender_nick;
-  } else if (CHAT_curRoom && CHAT_curRoom.type === 'private') {
-    reportedId = CHAT_curRoom.id;
-    reportedNick = CHAT_curRoom.nick;
-  } else {
-    return toast('⚠ Could not identify user to report.');
-  }
-
-  api.post('/reports', {
-    reported_id: reportedId,
-    reported_nick: reportedNick,
-    room_id: CHAT_curRoom ? CHAT_curRoom.id : null,
-    message_id: CHAT_ctxMsg ? CHAT_ctxMsg.id : null,
-    reason: reason,
-    details: details,
-  }).then(function () {
-    document.getElementById('report-modal').classList.remove('open');
-    document.getElementById('report-details').value = '';
-    toast('✅ Report submitted. Our team will review it.');
-  }).catch(function (err) { toast('❌ ' + err.message); });
+// ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
+window.showChatList = function () {
+  _stopTypingPoll();
+  CHAT_curRoom = null;
+  document.getElementById('screen-chatroom').classList.add('hidden');
+  document.getElementById('screen-chatinfo').classList.add('hidden');
+  document.getElementById('screen-chats').classList.remove('hidden');
 };
 
-// ── GROUP PHOTO ──
-window.handleGroupPhoto = function (e) {
-  var file = e.target.files[0];
-  if (!file || !CHAT_curRoom) return;
-  var form = new FormData();
-  form.append('room_id', CHAT_curRoom.id);
-  form.append('photo', file);
-  toast('📤 Uploading group photo...');
-  api.put('/chat/rooms', form, true)
-    .then(function (res) {
-      CHAT_curRoom.photo_url = res.photo_url;
-      var avBig = document.getElementById('info-avatar-big');
-      avBig.style.backgroundImage = "url('" + res.photo_url + "')";
-      avBig.textContent = '';
-      var avTop = document.getElementById('cr-avatar');
-      avTop.style.backgroundImage = "url('" + res.photo_url + "')";
-      avTop.textContent = '';
-      toast('✅ Group photo updated!');
-      loadChatRooms();
-    })
-    .catch(function (err) { toast('❌ ' + err.message); });
-  e.target.value = '';
+window.showChatRoom = function () {
+  document.getElementById('screen-chats').classList.add('hidden');
+  document.getElementById('screen-chatinfo').classList.add('hidden');
+  document.getElementById('screen-chatroom').classList.remove('hidden');
 };
 
-// ── HAMBURGER MENU ──
+window.showChatInfo = function () {
+  document.getElementById('screen-chats').classList.add('hidden');
+  document.getElementById('screen-chatroom').classList.add('hidden');
+  document.getElementById('screen-chatinfo').classList.remove('hidden');
+};
+
+// Override navTo for chat page internal navigation
+var _origNavTo = window.navTo;
+window.navTo = function (id) {
+  if (id === 'chats')    { showChatList(); return; }
+  if (id === 'chatroom') { showChatRoom(); return; }
+  if (id === 'chatinfo') { showChatInfo(); return; }
+  if (typeof _origNavTo === 'function') _origNavTo(id);
+};
+
+// ── HAMBURGER ──
 window.openHamburgerMenu = function () {
   var nick = (STATE.user && STATE.user.nickname) || 'User';
   document.getElementById('hb-name').textContent = nick;
@@ -891,6 +586,71 @@ window.closeHamburgerMenu = function () {
   document.getElementById('hamburger-overlay').classList.remove('open');
 };
 
+// ── CHAT OPTIONS MENU ──
+window.openChatOptionsMenu = function () {
+  var menu = document.getElementById('chat-options-menu');
+  var viewMembersOpt = document.getElementById('opt-view-members');
+  if (viewMembersOpt) viewMembersOpt.style.display = (CHAT_curRoom && CHAT_curRoom.type === 'group') ? 'flex' : 'none';
+  menu.classList.add('open');
+};
+window.closeOptMenu = function () {
+  document.getElementById('chat-options-menu').classList.remove('open');
+};
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('#chat-options-menu') && !e.target.closest('[onclick*="openChatOptionsMenu"]')) closeOptMenu();
+});
+
+// ── REPORT ──
+window.openReportModal = function () {
+  document.getElementById('report-modal').classList.add('open');
+};
+window.ctxReport = function () {
+  document.getElementById('ctx-menu').classList.remove('open');
+  openReportModal();
+};
+window.submitReport = function () {
+  var reasonEl = document.querySelector('input[name="report-reason"]:checked');
+  var reason = reasonEl ? reasonEl.value : 'other';
+  var details = document.getElementById('report-details').value || '';
+  var reportedId = CHAT_ctxMsg ? CHAT_ctxMsg.sender_id : (CHAT_curRoom ? CHAT_curRoom.id : null);
+  if (!reportedId) return toast('⚠ Could not identify user to report.');
+  api.post('/reports', {
+    reported_id: reportedId,
+    room_id: CHAT_curRoom ? CHAT_curRoom.id : null,
+    message_id: CHAT_ctxMsg ? CHAT_ctxMsg.id : null,
+    reason: reason, details: details,
+  }).then(function () {
+    document.getElementById('report-modal').classList.remove('open');
+    document.getElementById('report-details').value = '';
+    toast('✅ Report submitted.');
+  }).catch(function (err) { toast('❌ ' + err.message); });
+};
+
+// ── GROUP PHOTO ──
+window.handleGroupPhoto = function (e) {
+  var file = e.target.files[0];
+  if (!file || !CHAT_curRoom) return;
+  var form = new FormData();
+  form.append('room_id', CHAT_curRoom.id);
+  form.append('photo', file);
+  toast('📤 Uploading...');
+  api.put('/chat/rooms', form, true)
+    .then(function (res) {
+      CHAT_curRoom.photo_url = res.photo_url;
+      toast('✅ Group photo updated!');
+      loadChatRooms();
+    }).catch(function (err) { toast('❌ ' + err.message); });
+  e.target.value = '';
+};
+
+// ── CHAT INFO (override openChatInfo to use our nav) ──
+var _origOpenChatInfo = window.openChatInfo;
+window.openChatInfo = function () {
+  if (typeof _origOpenChatInfo === 'function') _origOpenChatInfo();
+  showChatInfo();
+};
+
+// ── BOOT ──
 document.addEventListener('DOMContentLoaded', function () {
   AUTH.restore().then(function (user) {
     if (!user) {
@@ -900,18 +660,18 @@ document.addEventListener('DOMContentLoaded', function () {
     return user;
   }).then(function (user) {
     if (!user) { goPage('/'); return; }
+
     applyRoleUI();
 
-    // Handle invite link: yidplus-chat.html?join=CODE
+    // Handle ?join=CODE invite link
     var urlParams = new URLSearchParams(window.location.search);
     var joinCode = urlParams.get('join');
     if (joinCode) {
       history.replaceState({}, '', window.location.pathname);
-      _handleInviteJoin(joinCode);
+      loadChatRooms(function () { _handleInviteJoin(joinCode); });
       return;
     }
 
-    navTo('chats');
     loadChatRooms();
     initAds('chat');
   });
@@ -919,5 +679,6 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <script src="js/ads.js"></script>
-<script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
-                                                                                                                 </html>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");</script>
+</body>
+  </html>
