@@ -61,6 +61,17 @@ export async function onRequestGet(context) {
       return Response.redirect(`${origin}/index.html?error=google_email_unverified`, 302);
     }
 
+    // ── Check Maintenance Mode ──
+    const maintRow = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'maintenance_mode'"
+    ).first().catch(() => null);
+    if (maintRow && maintRow.value === 'true') {
+      const OWNER_EMAILS_M = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
+      if (!OWNER_EMAILS_M.includes(email)) {
+        return Response.redirect(`${origin}/?error=maintenance`, 302);
+      }
+    }
+
     // ── Check device bans (same as regular login) ──
     const ip = request.headers.get('CF-Connecting-IP') || '0.0.0.0';
     const isOwnerEmail = email === env.OWNER_EMAIL || email === 'Jmittelman2@gmail.com';
@@ -131,4 +142,4 @@ export async function onRequestGet(context) {
   } catch (err) {
     return Response.redirect(`${origin}/index.html?error=google_failed&msg=${encodeURIComponent(err.message)}`, 302);
   }
-        }
+                             }
