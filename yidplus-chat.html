@@ -82,7 +82,7 @@
 <!-- ══ CHAT ROOM SCREEN ══ -->
 <div class="screen" id="screen-chatroom">
   <div class="chatroom-topbar">
-    <div class="icon-btn" onclick="_stopTypingPoll();navTo('chats')" style="margin-right:.2rem"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+    <div class="icon-btn" onclick="closeChatRoom()" style="margin-right:.2rem"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
     <div class="chatroom-avatar" id="cr-avatar"></div>
     <div style="flex:1;min-width:0" id="cr-name-wrap">
       <div style="font-size:.96rem;font-weight:700;unicode-bidi:plaintext;text-align:start" id="cr-name"></div>
@@ -920,4 +920,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <script src="js/ads.js"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
-                                                                                        </html>
+                                                                                                                 </html>
