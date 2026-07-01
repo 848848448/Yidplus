@@ -3642,7 +3642,10 @@ window._viewChatPartnerStatus = function () {
 
 window._handleStatusButtonTap = function () {
   if (!STATE.user) { toast('⚠ Please sign in first.'); return; }
-  api.get('/statuses?user_id=' + encodeURIComponent(STATE.user.id), true)
+  // Always bypass cache so we see the latest status
+  var url = CONFIG.API_BASE + '/statuses?user_id=' + encodeURIComponent(STATE.user.id);
+  fetch(url, { credentials: 'include' })
+    .then(function (r) { return r.json(); })
     .then(function (res) {
       var data = (res.statuses || [])[0];
       if (data && data.slides && data.slides.length) {
@@ -4333,7 +4336,7 @@ window.submitStatus = function () {
     if (!txt) return toast('⚠ Type something first.');
     var privacy = (document.getElementById('status-privacy') || {}).value || 'public';
     api.post('/statuses', { type: 'text', text: txt, bg: STATUS_selectedBg, privacy: privacy })
-      .then(function () { closeStatusModal(); toast('✅ Status posted!'); loadStatuses(); })
+      .then(function () { closeStatusModal(); toast('✅ Status posted!'); try { delete _apiCache; } catch(e) {} loadStatuses(); })
       .catch(function (err) { toast('❌ ' + err.message); });
 
   } else if (STATUS_selectedFile) {
@@ -4345,7 +4348,7 @@ window.submitStatus = function () {
     form.append('caption', caption);
     form.append('privacy', privacy2);
     api.post('/statuses', form, true)
-      .then(function () { closeStatusModal(); toast('✅ Status posted!'); loadStatuses(); })
+      .then(function () { closeStatusModal(); toast('✅ Status posted!'); try { delete _apiCache; } catch(e) {} loadStatuses(); })
       .catch(function (err) { toast('❌ ' + err.message); });
   } else {
     toast('⚠ Choose Text or Photo/Video first.');
