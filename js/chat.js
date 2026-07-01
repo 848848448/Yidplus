@@ -41,6 +41,15 @@ var CHAT_drafts      = {};  // roomId -> draft text
 // ============================================================
 // BOOT
 // ============================================================
+window.closeChatRoom = function () {
+  _stopTypingPoll();
+  CHAT_curRoom = null;
+  var screenChats    = document.getElementById('screen-chats');
+  var screenChatroom = document.getElementById('screen-chatroom');
+  if (screenChatroom) { screenChatroom.classList.remove('active'); screenChatroom.style.display = 'none'; }
+  if (screenChats)    { screenChats.classList.add('active');       screenChats.style.display    = 'flex'; }
+};
+
 window.init_chats = function () {
   loadChatRooms();
 };
@@ -354,7 +363,7 @@ window._handleInviteJoin = function (code) {
         ? '🔒 "' + (room.name || 'Group') + '" is a private group.\n\nSend a join request?'
         : 'Join "' + (room.name || 'Group') + '"?\n(' + (room.members || 0) + ' members)';
 
-      if (!confirm(msg)) { navTo('chats'); return; }
+      if (!confirm(msg)) { closeChatRoom(); return; }
 
       api.post('/invite', { code: code })
         .then(function (joinRes) {
@@ -420,7 +429,7 @@ window.deleteChatRoom = function (roomId, nick) {
   api.del('/chat/rooms?room_id=' + encodeURIComponent(roomId))
     .then(function () {
       toast('🗑 Chat removed');
-      if (CHAT_curRoom && CHAT_curRoom.id === roomId) { CHAT_curRoom = null; navTo('chats'); }
+      if (CHAT_curRoom && CHAT_curRoom.id === roomId) { CHAT_curRoom = null; closeChatRoom(); }
       loadChatRooms();
     })
     .catch(function (err) { toast('❌ ' + err.message); });
@@ -452,6 +461,12 @@ window.openChatRoom = function (roomId) {
     });
     return;
   }
+
+  // Explicitly switch screens — don't rely only on CSS class toggling
+  var screenChats    = document.getElementById('screen-chats');
+  var screenChatroom = document.getElementById('screen-chatroom');
+  if (screenChats)    { screenChats.classList.remove('active');    screenChats.style.display    = 'none'; }
+  if (screenChatroom) { screenChatroom.classList.add('active');    screenChatroom.style.display = 'flex'; }
 
   CHAT_curRoom   = room;
   CHAT_replyTo   = null;
