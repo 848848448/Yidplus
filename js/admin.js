@@ -696,7 +696,8 @@ function renderUsersList(users) {
   }
 
   el.innerHTML = users.map(function (u) {
-    var isOwnerRow = u.email === CONFIG.OWNER_EMAIL;
+    var OWNER_EMAILS_ADMIN = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
+    var isOwnerRow = OWNER_EMAILS_ADMIN.includes(u.email);
     var canBlock   = userCan('block_users') && !isOwnerRow;
     var canManage  = userCan('manage_users') && !isOwnerRow;
     var roleClass  = (u.role === 'admin_super' || u.role === 'admin_limited') ? 'admin' : 'user';
@@ -710,8 +711,9 @@ function renderUsersList(users) {
     var SVG_DEMOTE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
     var SVG_ADS    = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
 
+    var isViewingAsOwner = userCan('view_pii') && OWNER_EMAILS_ADMIN.includes(ADMIN_gateEmail || CONFIG.OWNER_EMAIL);
     var actions = '';
-    if (isOwner && !isOwnerRow) {
+    if (isViewingAsOwner && !isOwnerRow) {
       actions += '<button class="act-btn" style="background:#1565C0;color:#fff;border-color:#1565C0" onclick="adminEditUser(\'' + u.id + '\')">' + SVG_EDIT + ' Edit</button>';
       actions += '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + SVG_VERIFY + ' ' + (u.verified ? 'Unverify' : 'Verify') + '</button>';
       actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? SVG_DEMOTE + ' Demote' : SVG_PROMO + ' Promote') + '</button>';
@@ -1497,6 +1499,17 @@ function buildMaintenancePanel(content) {
   content.innerHTML =
     '<div class="admin-panel">' +
 
+      // ── Email Verification (Owner only) ──
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">📧 Email Verification</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">When ON — new users must click a confirmation link sent to their email before they can fully use their account. When OFF — accounts are activated immediately, no email sent.</div>' +
+        '<div id="email-verify-status" style="font-size:.88rem;font-weight:700;margin-bottom:1rem;padding:.6rem;border-radius:8px;text-align:center">Loading...</div>' +
+        '<div style="display:flex;gap:.5rem">' +
+          '<button class="save-pill" style="flex:1;background:var(--green)" onclick="setEmailVerify(true)">✅ Require Verification</button>' +
+          '<button class="save-pill" style="flex:1;background:var(--bg3);color:var(--text);border:1px solid var(--border)" onclick="setEmailVerify(false)">⚡ Skip Verification</button>' +
+        '</div>' +
+      '</div>' +
+
       // ── Guest Mode (Owner only) ──
       '<div class="admin-card">' +
         '<div class="admin-card-title">👁️ Guest Mode</div>' +
@@ -1520,6 +1533,17 @@ function buildMaintenancePanel(content) {
         '</div>' +
       '</div>' +
     '</div>';
+
+  // Load email verification status
+  api.get('/admin/email-verify-toggle')
+    .then(function (res) {
+      var el = document.getElementById('email-verify-status');
+      if (!el) return;
+      el.style.background = res.enabled ? 'rgba(34,197,94,.12)' : 'rgba(148,148,148,.12)';
+      el.style.color = res.enabled ? 'var(--green)' : 'var(--muted)';
+      el.textContent = res.enabled ? '✅ VERIFICATION REQUIRED — Email links sent' : '⚡ NO VERIFICATION — Instant signup';
+    })
+    .catch(function () {});
 
   // Load guest mode status
   api.get('/admin/guest-mode')
@@ -1545,6 +1569,15 @@ function buildMaintenancePanel(content) {
     })
     .catch(function () {});
 }
+
+window.setEmailVerify = function (enabled) {
+  api.post('/admin/email-verify-toggle', { enabled: enabled })
+    .then(function () {
+      toast(enabled ? '✅ Email Verification Required' : '⚡ Verification Skipped');
+      buildMaintenancePanel(document.getElementById('admin-content'));
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 window.setGuestMode = function (enabled) {
   api.post('/admin/guest-mode', { enabled: enabled })
