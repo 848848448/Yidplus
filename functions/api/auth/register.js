@@ -15,6 +15,18 @@ export async function onRequestPost(context) {
 
     if (!email || !nickname || !password) return json({ ok: false, error: 'email, nickname and password are required' }, 400);
 
+    // ── Check Maintenance Mode ──
+    const maintRow = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'maintenance_mode'"
+    ).first().catch(() => null);
+    if (maintRow && maintRow.value === 'true') {
+      const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
+      if (!OWNER_EMAILS.includes(email)) {
+        return json({ ok: false, error: 'Site is under maintenance. Registration is temporarily disabled.' }, 503);
+      }
+    }
+
+
     // ── Validate email format
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       return json({ ok: false, error: 'Invalid email address' }, 400);
@@ -129,4 +141,4 @@ export async function onRequestPost(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-                               }
+          }
