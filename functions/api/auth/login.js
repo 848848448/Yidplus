@@ -47,6 +47,17 @@ export async function onRequestPost(context) {
       }
     }
 
+
+    // ── Check Maintenance Mode ──
+    const maintRow = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'maintenance_mode'"
+    ).first().catch(() => null);
+    if (maintRow && maintRow.value === 'true') {
+      const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
+      if (!OWNER_EMAILS.includes(email)) {
+        return json({ ok: false, error: 'Site is under maintenance. Please try again later.' }, 503);
+      }
+    }
     // ── Brute-force protection ──
     // Count failed attempts from this IP in last 15 minutes
     const failKey = 'login_fail_' + ip.replace(/[^0-9a-f:.]/gi, '');
@@ -90,4 +101,4 @@ export async function onRequestPost(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-      }
+          }
