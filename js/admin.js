@@ -196,6 +196,7 @@ var ADMIN_PANELS = [
   { id:'nuclear',        label:'Nuclear',         roles:['owner'] },
   { id:'bad-words',      label:'Word Filter',     roles:['owner','admin_super'] },
   { id:'export',         label:'Export',          roles:['owner'] },
+  { id:'telegram',       label:'Telegram',        roles:['owner'] },
   { id:'admin-settings', label:'Admin Settings',  roles:['owner'] },
 ];
 
@@ -2343,4 +2344,110 @@ window.removeBadPhrase = function (id) {
       if (typeof loadContentFilter === 'function') loadContentFilter();
     })
     .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+// ══════════════════════════════════
+// TELEGRAM BRIDGE PANEL
+// ══════════════════════════════════
+function buildTelegramPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🤖 Telegram Bridge</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">' +
+          'Link a Telegram group to a YID PLUS room. Every message sent in the Telegram group will automatically appear in the linked YID PLUS room.' +
+        '</div>' +
+        '<div style="background:var(--bg3);border-radius:10px;padding:.75rem;margin-bottom:1rem;font-size:.75rem;color:var(--muted)">' +
+          '<strong style="color:var(--text)">Setup:</strong><br>' +
+          '1. Add <strong>@yidplus_bot</strong> to your Telegram group as admin<br>' +
+          '2. Find your Group Chat ID (see below)<br>' +
+          '3. Link it to a YID PLUS room below' +
+        '</div>' +
+
+        '<div style="font-size:.8rem;font-weight:700;margin-bottom:.5rem">Link New Group</div>' +
+        '<input class="field" id="tg-chat-id" placeholder="Telegram Chat ID (e.g. -1001234567890)" style="margin-bottom:.5rem">' +
+        '<input class="field" id="tg-room-id" placeholder="YID PLUS Room ID" style="margin-bottom:.5rem">' +
+        '<input class="field" id="tg-label" placeholder="Label (e.g. Main Group)" style="margin-bottom:.75rem">' +
+        '<button class="save-pill" onclick="addTelegramBridge()">Link Group</button>' +
+      '</div>' +
+
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🔍 Find Group ID</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">Add @yidplus_bot to your group and send a message, then click below to see the Chat ID.</div>' +
+        '<button class="save-pill" style="background:var(--bg3);color:var(--text);border:1px solid var(--border)" onclick="getTelegramUpdates()">Get Updates (find Chat ID)</button>' +
+        '<div id="tg-updates-result" style="margin-top:.75rem;font-size:.72rem;font-family:monospace;background:var(--bg3);border-radius:8px;padding:.5rem;display:none;word-break:break-all"></div>' +
+      '</div>' +
+
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🔗 Active Bridges</div>' +
+        '<div id="tg-bridges-list"><div style="text-align:center;padding:1rem"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+
+  loadTelegramBridges();
+}
+
+window.loadTelegramBridges = function () {
+  api.get('/admin/telegram-bridges', true)
+    .then(function (res) {
+      var el = document.getElementById('tg-bridges-list');
+      if (!el) return;
+      var bridges = res.bridges || [];
+      if (!bridges.length) {
+        el.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--muted);font-size:.8rem">No bridges yet</div>';
+        return;
+      }
+      el.innerHTML = bridges.map(function (b) {
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border)">' +
+          '<div>' +
+            '<div style="font-size:.82rem;font-weight:700">' + escHtml(b.label || b.telegram_chat_id) + '</div>' +
+            '<div style="font-size:.68rem;color:var(--muted)">Chat: <code>' + b.telegram_chat_id + '</code> → ' + escHtml(b.room_name || b.room_id) + '</div>' +
+            '<div style="font-size:.65rem;color:' + (b.active ? 'var(--green)' : 'var(--muted)') + '">' + (b.active ? '● Active' : '○ Inactive') + '</div>' +
+          '</div>' +
+          '<button onclick="removeTelegramBridge(\'' + b.id + '\')" style="background:none;border:1px solid var(--border);border-radius:8px;padding:.3rem .6rem;color:var(--red);cursor:pointer;font-size:.72rem">Remove</button>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function () {});
+};
+
+window.addTelegramBridge = function () {
+  var chatId  = (document.getElementById('tg-chat-id').value || '').trim();
+  var roomId  = (document.getElementById('tg-room-id').value || '').trim();
+  var label   = (document.getElementById('tg-label').value || '').trim();
+  if (!chatId || !roomId) { toast('⚠ Enter Chat ID and Room ID'); return; }
+  api.post('/admin/telegram-bridges', { telegram_chat_id: chatId, room_id: roomId, label: label })
+    .then(function () {
+      toast('✅ Bridge added!');
+      document.getElementById('tg-chat-id').value = '';
+      document.getElementById('tg-room-id').value = '';
+      document.getElementById('tg-label').value = '';
+      loadTelegramBridges();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.removeTelegramBridge = function (id) {
+  if (!confirm('Remove this bridge?')) return;
+  api.del('/admin/telegram-bridges?id=' + encodeURIComponent(id))
+    .then(function () { toast('Removed'); loadTelegramBridges(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.getTelegramUpdates = function () {
+  var el = document.getElementById('tg-updates-result');
+  if (el) { el.style.display = 'block'; el.textContent = 'Loading...'; }
+  fetch('/api/telegram/get-updates')
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (!el) return;
+      var chats = (res.updates || [])
+        .map(function (u) {
+          var chat = (u.message || u.channel_post || {}).chat;
+          return chat ? (chat.title || chat.username || 'Unknown') + ': ' + chat.id : null;
+        })
+        .filter(Boolean);
+      el.textContent = chats.length ? chats.join('\n') : 'No recent messages found.\nSend a message in your Telegram group first.';
+    })
+    .catch(function () { if (el) el.textContent = 'Error fetching updates'; });
 };
