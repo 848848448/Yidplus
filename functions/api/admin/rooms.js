@@ -19,15 +19,37 @@ export async function onRequestGet(context) {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
 
-    const CO_OWNER = 'Jmittelman2@gmail.com';
-    const isOwnerOrSuper = user.email === env.OWNER_EMAIL ||
-                           user.email === CO_OWNER ||
-                           user.role === 'admin_super';
+    const url = new URL(request.url);
+
+    // ── Invite code lookup (for join link preview) ──
+    const inviteCode = url.searchParams.get('invite');
+    if (inviteCode) {
+      const room = await env.DB.prepare(
+        `SELECT r.id, r.type, r.name, r.emoji, r.photo_key,
+                COUNT(rm.user_id) as members
+         FROM rooms r
+         LEFT JOIN room_members rm ON rm.room_id = r.id
+         WHERE r.invite_code = ?
+         GROUP BY r.id`
+      ).bind(inviteCode).first().catch(() => null);
+      if (!room) return json({ ok: false, error: 'Invalid invite link' }, 404);
+      return json({ ok: true, room: {
+        id: room.id,
+        type: room.type,
+        name: room.name,
+        emoji: room.emoji,
+        members: room.members || 0,
+        photo_url: room.photo_key ? `/api/media/${encodeURIComponent(room.photo_key)}` : null,
+      }});
+    }
+
     const isAdmin = isAdminRole(user, env.OWNER_EMAIL);
 
     // Rooms the user is a member of
     const { results: myRooms } = await env.DB.prepare(
-      `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code, r.pinned_message_id, r.photo_key
+      `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at,
+              r.invite_code, r.pinned_message_id, r.photo_key,
+              r.channel_admins, r.description, r.created_by
        FROM rooms r
        JOIN room_members m ON m.room_id = r.id
        WHERE m.user_id = ?`
@@ -43,17 +65,29 @@ export async function onRequestGet(context) {
          AND r.id NOT IN (SELECT room_id FROM room_members WHERE user_id = ?)`
     ).bind(user.id).all();
 
-    // Super Admin god-mode: also see every group (including private ones they haven't
-    // joined) and every private DM, for moderation purposes. Listed separately so the
-    // UI can visually distinguish "rooms I'm in" from "rooms I'm spectating."
+    // Owner-only god-mode: see ALL rooms including private DMs (moderation).
+    // Regular admins can only see public/group rooms they belong to.
+    const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
+    const isOwner = OWNER_EMAILS.includes(user.email);
+
     let adminVisibleRooms = [];
-    if (isAdmin) {
+    if (isOwner) {
+      // Owners see EVERY room (including private DMs)
       const { results: allRooms } = await env.DB.prepare(
         `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code, r.pinned_message_id, r.photo_key
          FROM rooms r
          WHERE r.id NOT IN (SELECT room_id FROM room_members WHERE user_id = ?)`
       ).bind(user.id).all();
       adminVisibleRooms = allRooms;
+    } else if (isAdmin) {
+      // Regular admins only see non-private groups they haven't joined yet
+      const { results: adminRooms } = await env.DB.prepare(
+        `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code, r.pinned_message_id, r.photo_key
+         FROM rooms r
+         WHERE r.type != 'private'
+           AND r.id NOT IN (SELECT room_id FROM room_members WHERE user_id = ?)`
+      ).bind(user.id).all();
+      adminVisibleRooms = adminRooms;
     }
 
     const rooms = [];
@@ -65,9 +99,6 @@ export async function onRequestGet(context) {
 
       const joined = myRooms.some(m => m.id === r.id);
       const isAdminSpectating = !joined && isAdmin;
-
-      // admin_limited cannot see private 1-on-1 DMs — only owners/super-admins can
-      if (isAdminSpectating && r.type === 'private' && !isOwnerOrSuper) continue;
 
       // Last message preview
       const lastMsg = await env.DB.prepare(
@@ -103,13 +134,14 @@ export async function onRequestGet(context) {
       let nick = r.name;
       let online = false;
       let photoUrl = null;
+      let otherUserId = null;
       if (r.type === 'private') {
         const other = await env.DB.prepare(
-          `SELECT u.nickname, u.online, u.photo_url FROM room_members rm
+          `SELECT u.id, u.nickname, u.online, u.photo_url FROM room_members rm
            JOIN users u ON u.id = rm.user_id
            WHERE rm.room_id = ? AND rm.user_id != ?`
         ).bind(r.id, user.id).first();
-        if (other) { nick = other.nickname; online = !!other.online; photoUrl = other.photo_url; }
+        if (other) { nick = other.nickname; online = !!other.online; photoUrl = other.photo_url; otherUserId = other.id; }
       }
 
       // Whether the current user is a sub-admin of this specific group
@@ -120,7 +152,8 @@ export async function onRequestGet(context) {
         id: r.id,
         type: r.type,
         nick,
-        emoji: r.emoji || (r.type === 'group' ? '👥' : '👤'),
+        other_user_id: otherUserId,
+        emoji: r.emoji || (r.type === 'group' ? '👥' : r.type === 'channel' ? '📡' : '👤'),
         photo_url: photoUrl || r.photo_key || null,
         visibility: r.visibility || 'private',
         read_only: !!r.read_only,
@@ -132,6 +165,9 @@ export async function onRequestGet(context) {
         member_list: memberList,
         invite_code: r.invite_code || null,
         pinned_message_id: r.pinned_message_id || null,
+        created_by: r.created_by || null,
+        channel_admins: r.channel_admins || '[]',
+        description: r.description || null,
         preview: lastMsg ? (lastMsg.type === 'text' ? lastMsg.text : '[' + lastMsg.type + ']') : '',
         unread: unreadRow ? unreadRow.c : 0,
         last_time: lastMsg ? lastMsg.created_at : r.created_at,
@@ -186,6 +222,30 @@ export async function onRequestPost(context) {
       return json({ ok: true, room_id: roomId }, 201);
     }
 
+    // Channel room
+    if (body.type === 'channel') {
+      const name = (body.name || '').trim();
+      if (!name) return json({ ok: false, error: 'name is required' }, 400);
+      const roomId = crypto.randomUUID();
+      // Channels are ALWAYS public and read-only for non-admins — cannot be changed
+      await env.DB.prepare(
+        `INSERT INTO rooms (id, type, name, emoji, visibility, read_only, created_by, created_at, description, channel_admins)
+         VALUES (?, 'channel', ?, '📡', 'public', 1, ?, ?, ?, ?)`
+      ).bind(roomId, name, user.id, now, body.description || '', JSON.stringify([user.id])).run();
+
+      // Creator joins as admin
+      await env.DB.prepare(
+        `INSERT INTO room_members (room_id, user_id, is_group_admin, joined_at) VALUES (?, ?, 1, ?)`
+      ).bind(roomId, user.id, now).run();
+
+      await env.DB.prepare(
+        `INSERT INTO messages (id, room_id, sender_id, sender_nick, type, text, created_at, read)
+         VALUES (?, ?, ?, ?, 'system', ?, ?, 1)`
+      ).bind(crypto.randomUUID(), roomId, user.id, user.nickname || '', `Channel "${name}" created`, now).run();
+
+      return json({ ok: true, room_id: roomId }, 201);
+    }
+
     // Group room
     const name  = (body.name || '').trim();
     const emoji = body.emoji || '👥';
@@ -224,7 +284,7 @@ export async function onRequestPost(context) {
 //   json { room_id, member_id, remove: true }           -> remove a member (admin only)
 //   json { room_id, auto_delete_minutes }               -> set/clear auto-delete timer (admin only)
 async function _isGroupAdminOrSuper(env, user, roomId) {
-  if (user.email === env.OWNER_EMAIL || user.email === "Jmittelman2@gmail.com" || user.role === 'admin_super' || user.role === 'admin_limited') return true;
+  if (user.email === env.OWNER_EMAIL || user.role === 'admin_super' || user.role === 'admin_limited') return true;
   const row = await env.DB.prepare(
     `SELECT is_group_admin FROM room_members WHERE room_id = ? AND user_id = ?`
   ).bind(roomId, user.id).first();
@@ -273,7 +333,8 @@ export async function onRequestPut(context) {
       return json({ ok: false, error: 'Only the group admin can change group settings' }, 403);
     }
 
-    if (typeof body.read_only === 'boolean') {
+    // Channels stay public always — only allow read_only toggle
+    if (typeof body.read_only === 'boolean' && room.type !== 'channel') {
       await env.DB.prepare(`UPDATE rooms SET read_only = ? WHERE id = ?`).bind(body.read_only ? 1 : 0, roomId).run();
     }
 
@@ -376,4 +437,4 @@ export async function onRequestDelete(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-      }
+          }
