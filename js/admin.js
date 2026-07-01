@@ -399,6 +399,9 @@ function buildAdminPanel(id) {
   } else if (id === 'warnings') {
     buildWarningsPanel(content);
 
+  } else if (id === 'telegram') {
+    buildTelegramPanel(content);
+
   } else {
     content.innerHTML =
       '<div class="admin-panel"><div class="admin-card" style="text-align:center;padding:2rem">' +
