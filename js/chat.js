@@ -46,8 +46,11 @@ window.closeChatRoom = function () {
   CHAT_curRoom = null;
   var screenChats    = document.getElementById('screen-chats');
   var screenChatroom = document.getElementById('screen-chatroom');
-  if (screenChatroom) { screenChatroom.classList.remove('active'); screenChatroom.style.display = 'none'; }
-  if (screenChats)    { screenChats.classList.add('active');       screenChats.style.display    = 'flex'; }
+  if (screenChatroom) { screenChatroom.classList.add('hidden');    screenChatroom.style.display = ''; }
+  if (screenChats)    { screenChats.classList.remove('hidden');    screenChats.style.display    = ''; }
+  // Reload list if empty
+  var area = document.getElementById('chat-list-area');
+  if (!area || !area.querySelector('.chat-item-wrap')) loadChatRooms();
 };
 
 window.init_chats = function () {
@@ -465,11 +468,11 @@ window.openChatRoom = function (roomId) {
     return;
   }
 
-  // Explicitly switch screens — don't rely only on CSS class toggling
+  // Switch screens using only CSS class (no inline styles that override !important)
   var screenChats    = document.getElementById('screen-chats');
   var screenChatroom = document.getElementById('screen-chatroom');
-  if (screenChats)    { screenChats.classList.remove('active');    screenChats.style.display    = 'none'; }
-  if (screenChatroom) { screenChatroom.classList.add('active');    screenChatroom.style.display = 'flex'; }
+  if (screenChats)    { screenChats.classList.add('hidden');    screenChats.style.display    = ''; }
+  if (screenChatroom) { screenChatroom.classList.remove('hidden'); screenChatroom.style.display = ''; }
 
   CHAT_curRoom   = room;
   CHAT_replyTo   = null;
