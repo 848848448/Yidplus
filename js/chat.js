@@ -3758,7 +3758,10 @@ window._viewChatListAvatarStatus = function (userId) {
       HOME_svStatuses = [data];
       openSV(0);
     })
-    .catch(function () { toast('קען נישט לאדן דעם סטאטוס'); });
+    .catch(function (err) {
+      console.error('status open failed:', err);
+      toast('קען נישט לאדן: ' + (err && err.message ? err.message : 'unknown error'));
+    });
 };
 
 // ══════════════════════════════════
@@ -3909,8 +3912,10 @@ function _svShowSlide() {
     }
   }
 
-  document.getElementById('sv-nick').textContent = '@' + (s.nickname || 'User');
-  document.getElementById('sv-time').textContent = slide.created_at ? timeAgo(slide.created_at) : 'now';
+  var nickEl = document.getElementById('sv-nick');
+  var timeEl = document.getElementById('sv-time');
+  if (nickEl) nickEl.textContent = '@' + (s.nickname || 'User');
+  if (timeEl) timeEl.textContent = slide.created_at ? timeAgo(slide.created_at) : 'now';
 
   // Track view — send to server (only for other people's statuses)
   var myId = STATE.user && STATE.user.id;
@@ -3927,7 +3932,7 @@ function _svShowSlide() {
 
   // ── Progress bars ──
   var barsEl = document.getElementById('sv-bars');
-  barsEl.innerHTML = s.slides.map(function (_, j) {
+  if (barsEl) barsEl.innerHTML = s.slides.map(function (_, j) {
     return '<div class="sv-bar"><div class="sv-bar-fill' + (j < HOME_svSlideIdx ? ' done' : '') + '" id="svbar-' + j + '"></div></div>';
   }).join('');
 
@@ -3937,6 +3942,7 @@ function _svShowSlide() {
 
   // ── Slide content ──
   var el = document.getElementById('sv-slide');
+  if (!el) return;
   el.innerHTML = '';
   el.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden';
 
@@ -3985,8 +3991,10 @@ function _svShowSlide() {
   }
 
   // Hide more menu if open
-  document.getElementById('sv-more-menu').style.display = 'none';
-  document.getElementById('sv-reaction-bar').style.display = 'none';
+  var moreMenu = document.getElementById('sv-more-menu');
+  var reactBar = document.getElementById('sv-reaction-bar');
+  if (moreMenu) moreMenu.style.display = 'none';
+  if (reactBar) reactBar.style.display = 'none';
 }
 
 // ── Progress bar animation ─────────────────────────────────
