@@ -588,6 +588,8 @@ window.openChatRoom = function (roomId) {
       if (pinnedText) {
         pinnedText.textContent = pinnedMsg ? (pinnedMsg.text || '[Media]') : 'Tap to see pinned message';
       }
+      var unpinBtn = document.getElementById('pinned-bar-unpin');
+      if (unpinBtn) unpinBtn.style.display = (isAnyAdmin() || room.is_group_admin) ? 'flex' : 'none';
     } else {
       pinnedBar.style.display = 'none';
     }
@@ -2363,6 +2365,18 @@ window.ctxPin = function () {
       if (bar) bar.style.display = 'flex';
       if (txt) txt.textContent = CHAT_ctxMsg.text || '[Media]';
       toast('📌 Message pinned!');
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+window.unpinMessage = function () {
+  if (!CHAT_curRoom) return;
+  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, pinned_message_id: null })
+    .then(function () {
+      CHAT_pinnedMsgId = null;
+      CHAT_curRoom.pinned_message_id = null;
+      var bar = document.getElementById('pinned-bar');
+      if (bar) bar.style.display = 'none';
+      toast('Message unpinned');
     })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
