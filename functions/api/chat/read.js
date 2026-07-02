@@ -31,6 +31,13 @@ export async function onRequestPost(context) {
       `UPDATE messages SET read = 1 WHERE room_id = ? AND sender_id != ?`
     ).bind(body.room_id, user.id).run();
 
+    // Per-member read tracking (needed for group "Seen by N" — requires the
+    // last_read_at column on room_members; silently no-ops until that
+    // migration has been run, so this never breaks the basic read marking above).
+    await env.DB.prepare(
+      `UPDATE room_members SET last_read_at = ? WHERE room_id = ? AND user_id = ?`
+    ).bind(new Date().toISOString(), body.room_id, user.id).run().catch(() => {});
+
     return json({ ok: true });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);

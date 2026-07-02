@@ -113,9 +113,22 @@
       <div style="font-size:.96rem;font-weight:700;unicode-bidi:plaintext;text-align:start" id="cr-name"></div>
       <div style="font-size:.7rem;opacity:.75;unicode-bidi:plaintext;text-align:start" id="cr-status"></div>
     </div>
+    <div class="icon-btn" onclick="openInChatSearch()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
     <div class="icon-btn" onclick="openChatOptionsMenu()">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
     </div>
+  </div>
+
+  <!-- In-chat message search bar -->
+  <div id="in-chat-search-bar" style="display:none;align-items:center;gap:.5rem;padding:.5rem .75rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="color:var(--muted);flex-shrink:0"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="in-chat-search-inp" placeholder="Search in this chat..." oninput="doInChatSearch()" onkeydown="if(event.key==='Enter'){event.preventDefault();inChatSearchNav(1);}" style="flex:1;border:none;background:none;outline:none;font-size:.88rem;color:var(--text);font-family:inherit;min-width:0">
+    <span id="in-chat-search-count" style="font-size:.72rem;color:var(--muted);white-space:nowrap"></span>
+    <button onclick="inChatSearchNav(-1)" style="background:none;border:none;cursor:pointer;color:var(--text);padding:.2rem;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></button>
+    <button onclick="inChatSearchNav(1)" style="background:none;border:none;cursor:pointer;color:var(--text);padding:.2rem;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+    <button onclick="closeInChatSearch()" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:.2rem;display:flex"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
 
   <div id="join-banner" style="display:none;background:#EAF4FF;border-top:1px solid var(--border);padding:.75rem 1rem;align-items:center;justify-content:space-between;flex-shrink:0">
@@ -548,6 +561,7 @@
 window.showChatList = function () {
   _stopTypingPoll();
   CHAT_curRoom = null;
+  if (typeof closeInChatSearch === 'function') closeInChatSearch();
   document.getElementById('screen-chatroom').classList.add('hidden');
   document.getElementById('screen-chatinfo').classList.add('hidden');
   document.getElementById('screen-chats').classList.remove('hidden');

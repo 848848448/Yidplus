@@ -57,7 +57,33 @@ export async function onRequestGet(context) {
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
 
     const url = new URL(request.url);
-    const roomId = url.searchParams.get('room_id');
+    const searchQ = url.searchParams.get('search');
+    const roomId  = url.searchParams.get('room_id');
+
+    // ── Search mode: look across every room the user is a member of ──
+    if (searchQ && searchQ.trim()) {
+      const isAdmin = isAdminRole(user, env.OWNER_EMAIL);
+      let rows;
+      if (isAdmin) {
+        rows = await env.DB.prepare(
+          `SELECT m.id, m.room_id, m.sender_nick, m.text, m.created_at, r.name as room_name, r.type as room_type
+           FROM messages m JOIN rooms r ON r.id = m.room_id
+           WHERE m.text LIKE ? AND m.type = 'text'
+           ORDER BY m.created_at DESC LIMIT 50`
+        ).bind('%' + searchQ.trim() + '%').all();
+      } else {
+        rows = await env.DB.prepare(
+          `SELECT m.id, m.room_id, m.sender_nick, m.text, m.created_at, r.name as room_name, r.type as room_type
+           FROM messages m
+           JOIN rooms r ON r.id = m.room_id
+           JOIN room_members rm ON rm.room_id = m.room_id AND rm.user_id = ?
+           WHERE m.text LIKE ? AND m.type = 'text'
+           ORDER BY m.created_at DESC LIMIT 50`
+        ).bind(user.id, '%' + searchQ.trim() + '%').all();
+      }
+      return json({ ok: true, messages: rows.results || [] });
+    }
+
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
 
     // Admins can view ANY room (including private DMs) without joining it.
@@ -83,8 +109,24 @@ export async function onRequestGet(context) {
        LIMIT 200`
     ).bind(roomId).all();
 
+    // Group "Seen by N" — compare each member's last_read_at to each message's
+    // created_at. Requires the last_read_at column on room_members; if that
+    // migration hasn't been run yet, this simply yields no seen counts.
+    let memberReads = [];
+    if (roomInfo && roomInfo.type === 'group') {
+      const memberRes = await env.DB.prepare(
+        `SELECT user_id, last_read_at FROM room_members WHERE room_id = ?`
+      ).bind(roomId).all().catch(() => ({ results: [] }));
+      memberReads = (memberRes.results || []).filter(m => m.last_read_at);
+    }
+
     const out = results.map(row => {
       if (row.media_key) row.media_url = `/api/media/${encodeURIComponent(row.media_key)}`;
+      if (memberReads.length) {
+        row.seen_count = memberReads.filter(
+          m => m.user_id !== row.sender_id && m.last_read_at >= row.created_at
+        ).length;
+      }
       return row;
     });
 

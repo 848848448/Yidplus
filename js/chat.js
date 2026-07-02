@@ -481,6 +481,7 @@ window.openChatRoom = function (roomId) {
   CHAT_unreadNew = 0;
   CHAT_atBottom  = true;
   room.unread    = 0;
+  if (typeof closeInChatSearch === 'function') closeInChatSearch();
   renderChatList();
   _startTypingPoll();
 
@@ -1003,7 +1004,14 @@ function renderMessages(scrollDown) {
     var tickSvg = m.read
       ? '<svg width="16" height="10" viewBox="0 0 16 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-7" stroke="rgba(255,255,255,.7)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5l3 3 5-7" stroke="rgba(255,255,255,.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
       : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-6" stroke="rgba(255,255,255,.6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    var ticks = isMe ? '<span class="read-ticks">' + tickSvg + '</span>' : '';
+    var ticks;
+    if (isMe && isGroup && typeof m.seen_count === 'number') {
+      // Group read receipt: show how many members have seen this message.
+      ticks = '<span class="read-ticks" style="font-size:.62rem;opacity:.85">' +
+        (m.seen_count > 0 ? ('👁 ' + m.seen_count) : tickSvg) + '</span>';
+    } else {
+      ticks = isMe ? '<span class="read-ticks">' + tickSvg + '</span>' : '';
+    }
 
     // System messages (e.g. "X joined the group") — centered, no bubble
     if (m.type === 'system') {
@@ -1344,6 +1352,77 @@ window.scrollToBottom = function () {
 window.scrollToMsg = function (id) {
   var el = document.getElementById('msg-' + id);
   if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.style.background = 'rgba(201,168,76,.15)'; setTimeout(function () { el.style.background = ''; }, 1200); }
+};
+
+// ============================================================
+// SEARCH WITHIN THE CURRENTLY OPEN CHAT
+// ============================================================
+var _inChatSearchResults = [];
+var _inChatSearchIdx = -1;
+
+// Used by global search results: open the room, then once its messages
+// have loaded, scroll to and highlight the specific matched message.
+window._openChatRoomAtMsg = function (roomId, msgId) {
+  openChatRoom(roomId);
+  var tries = 0;
+  var timer = setInterval(function () {
+    tries++;
+    var el = document.getElementById('msg-' + msgId);
+    if (el || tries > 20) {
+      clearInterval(timer);
+      if (el) scrollToMsg(msgId);
+    }
+  }, 150);
+};
+
+window.openInChatSearch = function () {
+  var bar = document.getElementById('in-chat-search-bar');
+  if (!bar) return;
+  bar.style.display = 'flex';
+  var inp = document.getElementById('in-chat-search-inp');
+  inp.value = '';
+  document.getElementById('in-chat-search-count').textContent = '';
+  _inChatSearchResults = [];
+  _inChatSearchIdx = -1;
+  setTimeout(function () { inp.focus(); }, 50);
+};
+
+window.closeInChatSearch = function () {
+  var bar = document.getElementById('in-chat-search-bar');
+  if (bar) bar.style.display = 'none';
+  _inChatSearchResults = [];
+  _inChatSearchIdx = -1;
+};
+
+window.doInChatSearch = function () {
+  var q = (document.getElementById('in-chat-search-inp') || {}).value || '';
+  q = q.trim().toLowerCase();
+  var countEl = document.getElementById('in-chat-search-count');
+  if (q.length < 1) {
+    _inChatSearchResults = [];
+    _inChatSearchIdx = -1;
+    if (countEl) countEl.textContent = '';
+    return;
+  }
+  _inChatSearchResults = CHAT_messages.filter(function (m) {
+    return m.text && m.text.toLowerCase().indexOf(q) !== -1;
+  });
+  _inChatSearchIdx = _inChatSearchResults.length ? _inChatSearchResults.length - 1 : -1;
+  if (countEl) countEl.textContent = _inChatSearchResults.length
+    ? (_inChatSearchIdx + 1) + ' / ' + _inChatSearchResults.length
+    : 'No results';
+  if (_inChatSearchIdx >= 0) scrollToMsg(_inChatSearchResults[_inChatSearchIdx].id);
+};
+
+// dir: -1 = older/previous match, 1 = newer/next match
+window.inChatSearchNav = function (dir) {
+  if (!_inChatSearchResults.length) return;
+  _inChatSearchIdx -= dir; // messages are stored oldest→newest; "next" moves toward newest
+  if (_inChatSearchIdx < 0) _inChatSearchIdx = _inChatSearchResults.length - 1;
+  if (_inChatSearchIdx >= _inChatSearchResults.length) _inChatSearchIdx = 0;
+  var countEl = document.getElementById('in-chat-search-count');
+  if (countEl) countEl.textContent = (_inChatSearchIdx + 1) + ' / ' + _inChatSearchResults.length;
+  scrollToMsg(_inChatSearchResults[_inChatSearchIdx].id);
 };
 
 // ============================================================
@@ -3206,7 +3285,7 @@ window.doGlobalSearch = function () {
         var msgs = res.messages || [];
         if (!msgs.length) { el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">No results found</div>'; return; }
         el.innerHTML = msgs.map(function (m) {
-          return '<div style="padding:.65rem .5rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();openChatRoom(\'' + m.room_id + '\')">' +
+          return '<div style="padding:.65rem .5rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();_openChatRoomAtMsg(\'' + m.room_id + '\',\'' + m.id + '\')">' +
             '<div style="font-size:.7rem;color:var(--muted);margin-bottom:.2rem">@' + escHtml(m.sender_nick||'') + ' in ' + escHtml(m.room_name||'Chat') + ' · ' + timeAgo(m.created_at) + '</div>' +
             '<div style="font-size:.85rem">' + escHtml((m.text||'').slice(0,100)) + '</div>' +
           '</div>';
