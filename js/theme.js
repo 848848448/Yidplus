@@ -173,7 +173,7 @@ window.buildSettingsPage = function () {
         'Add to Home Screen', '<button class="settings-edit-btn" onclick="PWA.install()">Install</button>'),
     ]) +
     _section('More', [
-      _row(_svg_admin(), 'Admin Panel', '›', 'onclick="goPage(\'/admin\')"'),
+      isAnyAdmin() ? _row(_svg_admin(), 'Admin Panel', '›', 'onclick="goPage(\'/admin\')"') : '',
       _row(_svg_feedback(), 'Send Feedback', '›', 'onclick="openFeedbackModal()"'),
     ]) +
     '<div class="settings-danger-section">' +
