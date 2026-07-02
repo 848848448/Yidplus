@@ -1095,9 +1095,7 @@ function renderMessages(scrollDown) {
       var isGif = stickerUrl.startsWith('http');
       return dateSep + '<div class="msg-wrap' + (isMe ? ' me' : '') + '" id="msg-' + m.id + '" data-id="' + m.id + '">' +
         '<div class="bubble sticker" data-msg-id="' + m.id + '" ' +
-          'oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')" ' +
-          'ontouchstart="_ctxTouchStart(event,\'' + m.id + '\')" ' +
-          'ontouchend="_ctxClear()" ontouchmove="_ctxClear()">' +
+          'oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')">' +
           (isGif
             ? '<img src="' + escHtml(stickerUrl) + '" style="width:110px;height:110px;border-radius:12px;object-fit:cover;display:block" loading="lazy">'
             : escHtml(stickerUrl || '😊')) +
@@ -1257,8 +1255,7 @@ function renderMessages(scrollDown) {
     return dateSep +
       '<div class="msg-wrap' + (isMe ? ' me' : '') + selectClass2 + '" id="msg-' + m.id + '" data-id="' + m.id + '"' +
         ' onclick="_toggleSelect(\'' + m.id + '\')"' +
-        ' oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')"' +
-        ' ontouchstart="_ctxTouchStart(event,\'' + m.id + '\')" ontouchend="_ctxClear()" ontouchmove="_ctxClear()">' +
+        ' oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')">' +
         miniAv +
         '<div style="display:flex;flex-direction:column;' + (isMe ? 'align-items:flex-end' : 'align-items:flex-start') + '">' +
           '<div class="' + bubbleClass + '" data-msg-id="' + m.id + '">' +
@@ -2227,6 +2224,7 @@ function _buildCtxMenu(msg) {
   var items = '';
   var SVG_BOOKMARK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>';
   var SVG_TRANSLATE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+  var SVG_SELECT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
 
   items += item(SVG.reply,    'Reply',        'ctxReply()');
   if (msg.type === 'text' || msg.type === 'media') items += item(SVG.copy, 'Copy', 'ctxCopy()');
@@ -2235,6 +2233,7 @@ function _buildCtxMenu(msg) {
   if (canPin)    items += item(SVG.pin,       'Pin',          'ctxPin()');
   items +=        item(SVG_BOOKMARK, 'Save Message', 'bookmarkMessage(CHAT_ctxMsg.id)');
   items +=        item(SVG_TRANSLATE,'Translate',    'translateMessage(CHAT_ctxMsg.id)');
+  items +=        item(SVG_SELECT,   'Select',       '_enterSelectMode(CHAT_ctxMsg.id); renderMessages(false);');
   if (!isMe)     items += item(SVG.report,    'Report',       'ctxReport()');
   if (canDelete) items += item(SVG.trash,     'Delete',       'ctxDelete()', true);
   items +=        item(SVG.close,    'Cancel',       'closeCtxMenu()');
