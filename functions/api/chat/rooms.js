@@ -93,54 +93,93 @@ export async function onRequestGet(context) {
     const rooms = [];
     const seen = new Set();
 
+    // Dedupe rooms across myRooms/publicRooms/adminVisibleRooms up front,
+    // then batch-fetch everything needed for ALL rooms in a handful of
+    // queries instead of looping with sequential per-room awaits.
+    const dedupedRooms = [];
     for (const r of [...myRooms, ...publicRooms, ...adminVisibleRooms]) {
       if (seen.has(r.id)) continue;
       seen.add(r.id);
+      dedupedRooms.push(r);
+    }
 
+    const allRoomIds = dedupedRooms.map(r => r.id);
+    const groupRoomIds = dedupedRooms.filter(r => r.type === 'group').map(r => r.id);
+    const privateRoomIds = dedupedRooms.filter(r => r.type === 'private').map(r => r.id);
+
+    let lastMsgByRoom = {}, unreadByRoom = {}, memberCountByRoom = {}, memberListByRoom = {}, otherUserByRoom = {};
+
+    if (allRoomIds.length) {
+      const placeholders = allRoomIds.map(() => '?').join(',');
+
+      // Last message per room (window function — one query for every room).
+      const { results: lastMsgs } = await env.DB.prepare(
+        `SELECT room_id, text, type, sender_nick, created_at FROM (
+           SELECT room_id, text, type, sender_nick, created_at,
+                  ROW_NUMBER() OVER (PARTITION BY room_id ORDER BY created_at DESC) as rn
+           FROM messages WHERE room_id IN (${placeholders})
+         ) WHERE rn = 1`
+      ).bind(...allRoomIds).all().catch(() => ({ results: [] }));
+      for (const m of lastMsgs) lastMsgByRoom[m.room_id] = m;
+
+      // Unread counts for every room in one query.
+      const { results: unreadRows } = await env.DB.prepare(
+        `SELECT room_id, COUNT(*) AS c FROM messages
+         WHERE room_id IN (${placeholders}) AND sender_id != ? AND read = 0
+         GROUP BY room_id`
+      ).bind(...allRoomIds, user.id).all().catch(() => ({ results: [] }));
+      for (const u of unreadRows) unreadByRoom[u.room_id] = u.c;
+    }
+
+    if (groupRoomIds.length) {
+      const gPlaceholders = groupRoomIds.map(() => '?').join(',');
+
+      const { results: memberCounts } = await env.DB.prepare(
+        `SELECT room_id, COUNT(*) AS c FROM room_members
+         WHERE room_id IN (${gPlaceholders}) GROUP BY room_id`
+      ).bind(...groupRoomIds).all().catch(() => ({ results: [] }));
+      for (const c of memberCounts) memberCountByRoom[c.room_id] = c.c;
+
+      const { results: memRows } = await env.DB.prepare(
+        `SELECT rm.room_id, u.id, u.nickname, u.online, u.role, u.photo_url, rm.is_group_admin
+         FROM room_members rm JOIN users u ON u.id = rm.user_id
+         WHERE rm.room_id IN (${gPlaceholders})`
+      ).bind(...groupRoomIds).all().catch(() => ({ results: [] }));
+      for (const m of memRows) {
+        (memberListByRoom[m.room_id] = memberListByRoom[m.room_id] || []).push(m);
+      }
+    }
+
+    if (privateRoomIds.length) {
+      const pPlaceholders = privateRoomIds.map(() => '?').join(',');
+      const { results: otherRows } = await env.DB.prepare(
+        `SELECT rm.room_id, u.id, u.nickname, u.online, u.photo_url
+         FROM room_members rm JOIN users u ON u.id = rm.user_id
+         WHERE rm.room_id IN (${pPlaceholders}) AND rm.user_id != ?`
+      ).bind(...privateRoomIds, user.id).all().catch(() => ({ results: [] }));
+      for (const o of otherRows) otherUserByRoom[o.room_id] = o;
+    }
+
+    for (const r of dedupedRooms) {
       const joined = myRooms.some(m => m.id === r.id);
       const isAdminSpectating = !joined && isAdmin;
 
-      // Last message preview
-      const lastMsg = await env.DB.prepare(
-        `SELECT text, type, sender_nick, created_at FROM messages
-         WHERE room_id = ? ORDER BY created_at DESC LIMIT 1`
-      ).bind(r.id).first();
+      const lastMsg = lastMsgByRoom[r.id] || null;
+      const unreadCount = unreadByRoom[r.id] || 0;
 
-      // Unread count (messages after user joined, not sent by user, not read)
-      const unreadRow = await env.DB.prepare(
-        `SELECT COUNT(*) AS c FROM messages
-         WHERE room_id = ? AND sender_id != ? AND read = 0`
-      ).bind(r.id, user.id).first();
-
-      // Member count + list for groups
       let members = null;
       let memberList = null;
       if (r.type === 'group') {
-        const mc = await env.DB.prepare(
-          `SELECT COUNT(*) AS c FROM room_members WHERE room_id = ?`
-        ).bind(r.id).first();
-        members = mc ? mc.c : 0;
-
-        const { results: memRows } = await env.DB.prepare(
-          `SELECT u.id, u.nickname, u.online, u.role, u.photo_url, rm.is_group_admin
-           FROM room_members rm
-           JOIN users u ON u.id = rm.user_id
-           WHERE rm.room_id = ?`
-        ).bind(r.id).all();
-        memberList = memRows;
+        members = memberCountByRoom[r.id] || 0;
+        memberList = memberListByRoom[r.id] || [];
       }
 
-      // For DMs, resolve the other user's nickname + online status
       let nick = r.name;
       let online = false;
       let photoUrl = null;
       let otherUserId = null;
       if (r.type === 'private') {
-        const other = await env.DB.prepare(
-          `SELECT u.id, u.nickname, u.online, u.photo_url FROM room_members rm
-           JOIN users u ON u.id = rm.user_id
-           WHERE rm.room_id = ? AND rm.user_id != ?`
-        ).bind(r.id, user.id).first();
+        const other = otherUserByRoom[r.id];
         if (other) { nick = other.nickname; online = !!other.online; photoUrl = other.photo_url; otherUserId = other.id; }
       }
 
@@ -169,7 +208,7 @@ export async function onRequestGet(context) {
         channel_admins: r.channel_admins || '[]',
         description: r.description || null,
         preview: lastMsg ? (lastMsg.type === 'text' ? lastMsg.text : '[' + lastMsg.type + ']') : '',
-        unread: unreadRow ? unreadRow.c : 0,
+        unread: unreadCount,
         last_time: lastMsg ? lastMsg.created_at : r.created_at,
       });
     }
