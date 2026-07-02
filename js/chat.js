@@ -2533,9 +2533,17 @@ window.openUserProfile = function (userId) {
       var bioEl = document.getElementById('mini-profile-bio');
       if (bioEl) bioEl.textContent = p.bio || '';
     })
-    .catch(function () {
+    .catch(function (err) {
       var nickEl = document.getElementById('mini-profile-nick');
-      if (nickEl) nickEl.textContent = 'Could not load profile';
+      var bioEl  = document.getElementById('mini-profile-bio');
+      var notFound = err && err.status === 404;
+      if (nickEl) nickEl.textContent = notFound ? 'User not found' : 'Could not load profile';
+      if (bioEl) bioEl.textContent = notFound ? 'This account may have been deleted.' : (err && err.message ? err.message : '');
+      if (notFound) {
+        var modalEl = document.getElementById('mini-profile-modal');
+        var msgBtn = modalEl && modalEl.querySelector('button[onclick*="startDM"]');
+        if (msgBtn) msgBtn.style.display = 'none';
+      }
     });
 };
 
@@ -3801,7 +3809,15 @@ window._viewChatPartnerStatus = function () {
 
 window._handleStatusButtonTap = function () {
   if (!STATE.user) { toast('⚠ Please sign in first.'); return; }
-  // Always bypass cache so we see the latest status
+  // This button is for writing a new status — always opens the composer.
+  // To see statuses already posted, use the "View mine" link inside it,
+  // or _viewMyOwnStatus() from elsewhere (e.g. the avatar ring).
+  openStatusUpload();
+};
+
+// Explicit, separate action: view the statuses I've already posted.
+window._viewMyOwnStatus = function () {
+  if (!STATE.user) { toast('⚠ Please sign in first.'); return; }
   var url = CONFIG.API_BASE + '/statuses?user_id=' + encodeURIComponent(STATE.user.id);
   fetch(url, { credentials: 'include' })
     .then(function (r) { return r.json(); })
@@ -3811,10 +3827,10 @@ window._handleStatusButtonTap = function () {
         HOME_svStatuses = [data];
         openSV(0);
       } else {
-        openStatusUpload();
+        toast('דו האסט נאך נישט קיין סטאטוס');
       }
     })
-    .catch(function () { openStatusUpload(); });
+    .catch(function () { toast('⚠ Could not load your status.'); });
 };
 
 window._goAddStatus = function () {
@@ -4413,7 +4429,7 @@ window.svDeleteCurrent = function () {
   }
 
   // Delete on server
-  api.del('/statuses?id=' + encodeURIComponent(slideId))
+  api.put('/statuses', { action: 'delete', id: slideId })
     .catch(function (err) { toast('⚠ Could not delete: ' + err.message); });
 };
 
@@ -4478,6 +4494,18 @@ window.openStatusUpload = function () {
   if (previewBox) previewBox.style.background = STATUS_BGS[0];
 
   document.getElementById('status-modal').classList.add('open');
+
+  // Show a quick link to view the status they already posted, if any —
+  // keeps this modal purely for writing while still giving one-tap access.
+  var viewLink = document.getElementById('st-view-mine-link');
+  if (viewLink && STATE.user) {
+    api.get('/statuses?user_id=' + encodeURIComponent(STATE.user.id), true)
+      .then(function (res) {
+        var data = (res.statuses || [])[0];
+        viewLink.style.display = (data && data.slides && data.slides.length) ? 'flex' : 'none';
+      })
+      .catch(function () { viewLink.style.display = 'none'; });
+  }
 };
 
 window.closeStatusModal = function () {

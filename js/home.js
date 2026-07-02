@@ -970,7 +970,7 @@ window.svDeleteCurrent = function () {
   var slide = s.slides[HOME_svSlideIdx];
   if (!slide || !slide.id) return;
   if (!confirm('Delete this status?')) return;
-  api.del ? api.del('/statuses?id=' + encodeURIComponent(slide.id)).catch(function(){}) : null;
+  api.put('/statuses', { action: 'delete', id: slide.id }).catch(function(){});
   s.slides.splice(HOME_svSlideIdx, 1);
   if (!s.slides.length) {
     HOME_svStatuses.splice(HOME_svUserIdx, 1);
