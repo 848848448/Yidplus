@@ -7,7 +7,6 @@
 // NO ES module imports — plain script, attaches to window.
 // ============================================================
 
-var ADMIN_pinLocal  = CONFIG.ADMIN_PIN;
 var ADMIN_gateEmail = '';
 var ADMIN_gateRole  = '';
 var ADMIN_allUsers  = [];
@@ -101,43 +100,43 @@ window.checkPin = function () {
 
   if (pin.length < 4) return showGateMsg('err', 'Enter all 4 digits.');
 
-  if (pin !== ADMIN_pinLocal) {
-    showGateMsg('err', 'Incorrect PIN. Access denied.');
-    [0,1,2,3].forEach(function (i) {
-      var el = document.getElementById('p'+i);
-      if (el) el.value = '';
-    });
-    var p0 = document.getElementById('p0');
-    if (p0) p0.focus();
-    return;
-  }
-
   setLoad('gate-pin', true);
 
-  delay(800).then(function () {
-    setLoad('gate-pin', false);
-    document.getElementById('admin-gate').classList.remove('open');
+  api.post('/admin/verify-pin', { pin: pin })
+    .then(function () {
+      setLoad('gate-pin', false);
+      document.getElementById('admin-gate').classList.remove('open');
 
-    const CO_OWNER = 'Jmittelman2@gmail.com';
-    var role = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL || ADMIN_gateEmail === CO_OWNER)
-                 ? 'owner'
-                 : (ADMIN_gateRole || 'member');
+      const CO_OWNER = 'Jmittelman2@gmail.com';
+      var role = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL || ADMIN_gateEmail === CO_OWNER)
+                   ? 'owner'
+                   : (ADMIN_gateRole || 'member');
 
-    // Publish the verified gate identity so userCan()/isOwner()/isSuperAdmin()/isAnyAdmin()
-    // in state.js use THIS identity for the rest of the admin panel session, not whichever
-    // account the browser happens to be logged into.
-    window.ADMIN_GATE_SESSION = { email: ADMIN_gateEmail, role: role };
+      // Publish the verified gate identity so userCan()/isOwner()/isSuperAdmin()/isAnyAdmin()
+      // in state.js use THIS identity for the rest of the admin panel session, not whichever
+      // account the browser happens to be logged into.
+      window.ADMIN_GATE_SESSION = { email: ADMIN_gateEmail, role: role };
 
-    var badge = document.getElementById('admin-role-badge');
-    if (badge) {
-      badge.textContent = role === 'owner'        ? '👑 OWNER'
-                         : role === 'admin_super'  ? '🛡 SUPER ADMIN'
-                         :                           '🔒 MODERATOR';
+      var badge = document.getElementById('admin-role-badge');
+      if (badge) {
+        badge.textContent = role === 'owner'        ? '👑 OWNER'
+                           : role === 'admin_super'  ? '🛡 SUPER ADMIN'
+                           :                           '🔒 MODERATOR';
     }
 
-    buildAdminNav();
-    navTo('admin');
-  });
+      buildAdminNav();
+      navTo('admin');
+    })
+    .catch(function (err) {
+      setLoad('gate-pin', false);
+      showGateMsg('err', err && err.message ? err.message : 'Incorrect PIN. Access denied.');
+      [0,1,2,3].forEach(function (i) {
+        var el = document.getElementById('p'+i);
+        if (el) el.value = '';
+      });
+      var p0 = document.getElementById('p0');
+      if (p0) p0.focus();
+    });
 };
 
 /* ══════════════════════════════════
@@ -314,10 +313,8 @@ function buildAdminPanel(id) {
         '</div>' +
         '<div class="admin-card">' +
           '<div class="admin-card-title">🔒 Admin PIN</div>' +
-          '<div style="display:flex;align-items:center;gap:.5rem;padding:.75rem 0">' +
-            '<input type="password" maxlength="4" id="new-pin-input" placeholder="New 4-digit PIN" style="flex:1;padding:.6rem;background:var(--bg3);border:.5px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;outline:none">' +
-            '<button class="save-pill" onclick="updateAdminPin()">Update</button>' +
-          '</div>' +
+          '<div style="font-size:.78rem;color:var(--text);line-height:1.5;padding:.5rem 0">The PIN is now verified on the server (not stored or checked in the browser). To set or change it:</div>' +
+          '<div style="font-size:.72rem;color:var(--muted);line-height:1.6">1. Cloudflare Dashboard → Workers &amp; Pages → your project → Settings → Environment Variables<br>2. Add/edit the secret <code style="background:var(--bg3);padding:1px 5px;border-radius:4px">ADMIN_PIN</code> (4 digits)<br>3. Redeploy for the change to take effect</div>' +
         '</div>' +
         (userRole === 'owner' ?
           '<div class="admin-card">' +
@@ -961,14 +958,6 @@ window.adminUploadLogo = function (e) {
       buildAdminNav(); // re-render the app-settings panel to show the new preview
     })
     .catch(function (err) { toast('❌ ' + err.message); });
-};
-
-window.updateAdminPin = function () {
-  var p = (document.getElementById('new-pin-input') || {}).value;
-  if (!p || p.length !== 4 || isNaN(p)) return toast('⚠ Enter exactly 4 digits.');
-  ADMIN_pinLocal = p;
-  document.getElementById('new-pin-input').value = '';
-  toast('✅ Admin PIN updated! (this session only — set ADMIN_PIN in wrangler.toml for persistence)');
 };
 
 console.log('[YID PLUS] admin.js loaded ✓ (Cloudflare D1 mode)');

@@ -9,7 +9,6 @@
 // ── CONFIG ──────────────────────────────────────────────
 window.CONFIG = {
   OWNER_EMAIL: 'avrumy5872877@gmail.com',
-  ADMIN_PIN:   '1234',
   API_BASE:    '/api',
   POLL_MS:     4000,        // chat/online polling interval
   PRESENCE_MS: 20000,       // how often we ping "I'm online"
