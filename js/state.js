@@ -353,7 +353,9 @@ window.watermarkVideo = function (file) {
 window.watermarkFile = function (file) {
   if (!file || !file.type) return Promise.resolve(file);
   if (file.type.startsWith('image/')) return watermarkImage(file);
-  if (file.type.startsWith('video/')) return watermarkVideo(file);
+  // Video watermarking (canvas + MediaRecorder re-encode) broke video uploads
+  // entirely on-device — disabled until it can be properly tested. Videos
+  // upload unwatermarked for now rather than failing outright.
   return Promise.resolve(file);
 };
 
