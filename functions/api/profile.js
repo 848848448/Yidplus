@@ -3,7 +3,7 @@
 // PUT  /api/profile             -> update own profile
 // DELETE /api/profile           -> delete own account
 
-import { json, corsHeaders, requireUser } from './_helpers.js';
+import { json, corsHeaders, requireUser, hashPassword } from './_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -119,8 +119,7 @@ export async function onRequestPut(context) {
     // Handle password change separately
     if (body.password) {
       if (body.password.length < 6) return json({ ok: false, error: 'Password must be at least 6 characters' }, 400);
-      const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body.password));
-      const hash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+      const hash = await hashPassword(body.password);
       updates.push('password_hash = ?');
       params.push(hash);
     }

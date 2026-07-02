@@ -3,7 +3,7 @@
 // PUT /api/admin/users  -> update a user (verified / blocked / role / no_ads / profile fields)
 // Body for PUT: { id, verified?, blocked?, role?, no_ads?, nickname?, email?, phone?, password? }
 
-import { json, corsHeaders, requireUser, isAdminRole, isSuperOrOwner, logAudit } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, isSuperOrOwner, logAudit, hashPassword } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -19,12 +19,12 @@ export async function onRequestGet(context) {
 
     const isOwner = isSuperOrOwner(user, env.OWNER_EMAIL);
 
-    // Owner/Co-Owner see EVERYTHING including password_hash
-    // Super Admins see PII but not password
-    // Moderators see only public fields
+    // Owner/Co-Owner see full PII (email, phone). Everyone else sees only
+    // public fields. password_hash is NEVER returned to anyone via the API —
+    // there is no legitimate reason to read it back; resets are write-only.
     let fields;
     if (isOwner) {
-      fields = 'id, email, nickname, phone, role, verified, blocked, online, no_ads, password_hash, created_at';
+      fields = 'id, email, nickname, phone, role, verified, blocked, online, no_ads, created_at';
     } else {
       fields = 'id, nickname, role, verified, blocked, online';
     }
@@ -124,8 +124,7 @@ export async function onRequestPut(context) {
       }
       if (body.password) {
         if (body.password.length < 6) return json({ ok: false, error: 'Password must be at least 6 characters' }, 400);
-        const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body.password));
-        const hash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+        const hash = await hashPassword(body.password);
         profileUpdates.push('password_hash = ?'); profileParams.push(hash);
       }
 

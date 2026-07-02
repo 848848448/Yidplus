@@ -1,4 +1,4 @@
-import { json, corsHeaders } from '../_helpers.js';
+import { json, corsHeaders, hashPassword } from '../_helpers.js';
 import { sendVerificationEmail } from './send-verification.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
@@ -98,8 +98,7 @@ export async function onRequestPost(context) {
     const nickExists = await env.DB.prepare('SELECT id FROM users WHERE nickname = ?').bind(nickname).first();
     if (nickExists) return json({ ok: false, error: 'Nickname already taken' }, 409);
 
-    const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
-    const hash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+    const hash = await hashPassword(password);
 
     const userId = crypto.randomUUID();
     const now = new Date().toISOString();

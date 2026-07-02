@@ -1,4 +1,4 @@
-import { json, corsHeaders } from '../_helpers.js';
+import { json, corsHeaders, verifyPassword, hashPassword } from '../_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -70,14 +70,23 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: 'Too many failed attempts. Please wait 15 minutes.' }, 429);
     }
 
-    const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
-    const hash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
-
     const user = await env.DB.prepare(
-      'SELECT id, email, nickname, role, verified, blocked FROM users WHERE email = ? AND password_hash = ?'
-    ).bind(email, hash).first();
+      'SELECT id, email, nickname, role, verified, blocked, password_hash FROM users WHERE email = ?'
+    ).bind(email).first();
 
-    if (!user) {
+    let loginOk = false;
+    if (user) {
+      const check = await verifyPassword(password, user.password_hash);
+      loginOk = check.valid;
+      if (check.valid && check.needsUpgrade) {
+        // Legacy unsalted-SHA256 hash matched — quietly upgrade to salted PBKDF2.
+        const upgraded = await hashPassword(password);
+        await env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+          .bind(upgraded, user.id).run().catch(() => {});
+      }
+    }
+
+    if (!loginOk) {
       // Log failed attempt for brute-force tracking
       await env.DB.prepare(
         `INSERT INTO login_logs (id, user_id, ip, fingerprint, action, created_at) VALUES (?, NULL, ?, ?, 'fail', ?)`
@@ -97,7 +106,8 @@ export async function onRequestPost(context) {
     ).bind(crypto.randomUUID(), user.id, ip, fingerprint || null, now).run().catch(() => {});
 
     const headers = { ...corsHeaders, 'Set-Cookie': `yp_session=${sessionId}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000` };
-    return new Response(JSON.stringify({ ok: true, user }), { status: 200, headers: { 'Content-Type': 'application/json', ...headers } });
+    const { password_hash, ...safeUser } = user;
+    return new Response(JSON.stringify({ ok: true, user: safeUser }), { status: 200, headers: { 'Content-Type': 'application/json', ...headers } });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }

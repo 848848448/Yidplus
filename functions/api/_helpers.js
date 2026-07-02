@@ -20,6 +20,64 @@ export function json(obj, status = 200, cacheSeconds = 0) {
   return new Response(JSON.stringify(obj), { status, headers });
 }
 
+// ── PASSWORD HASHING ────────────────────────────────────────
+// New accounts / password changes use salted PBKDF2 (100k iterations,
+// SHA-256), which is far more resistant to offline cracking than a bare
+// SHA-256 hash. Format: "pbkdf2$<iterations>$<saltHex>$<hashHex>".
+//
+// Old accounts created before this change have a bare 64-char hex SHA-256
+// hash with no salt. verifyPassword() understands both formats so existing
+// users keep working, and silently upgrades their hash to PBKDF2 the next
+// time they log in successfully (see login.js).
+export async function hashPassword(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iterations = 100000;
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']
+  );
+  const derived = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
+    keyMaterial, 256
+  );
+  const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
+  const hashHex = Array.from(new Uint8Array(derived)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return `pbkdf2$${iterations}$${saltHex}$${hashHex}`;
+}
+
+async function _legacySha256(password) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function _pbkdf2Verify(password, iterations, saltHex, expectedHashHex) {
+  const salt = new Uint8Array(saltHex.match(/.{2}/g).map(h => parseInt(h, 16)));
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']
+  );
+  const derived = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
+    keyMaterial, 256
+  );
+  const hashHex = Array.from(new Uint8Array(derived)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex === expectedHashHex;
+}
+
+// Returns { valid, needsUpgrade } — needsUpgrade is true when the password
+// matched a legacy plain-SHA256 hash, signalling the caller (login.js)
+// should re-save the password through hashPassword() to upgrade it.
+export async function verifyPassword(password, storedHash) {
+  if (!storedHash) return { valid: false, needsUpgrade: false };
+  if (storedHash.startsWith('pbkdf2$')) {
+    const [, iterStr, saltHex, hashHex] = storedHash.split('$');
+    const valid = await _pbkdf2Verify(password, parseInt(iterStr, 10), saltHex, hashHex);
+    return { valid, needsUpgrade: false };
+  }
+  // Legacy bare-SHA256 hash
+  const legacy = await _legacySha256(password);
+  const valid = legacy === storedHash;
+  return { valid, needsUpgrade: valid };
+}
+
 export function getCookie(request, name) {
   const cookie = request.headers.get('Cookie') || '';
   const match = cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)'));
