@@ -106,6 +106,10 @@ function buildTracks(elId, list) {
     var isPlaying = MUSIC_curTrack && MUSIC_curTrack.id === t.id && MUSIC_playing;
     var liked = !!t.liked;
     var emoji = t.video_url ? '🎬' : '🎵';
+    var canDelete = STATE.user && (STATE.user.id === t.owner_id || isAnyAdmin());
+    var deleteBtn = canDelete
+      ? '<div class="track-more" onclick="event.stopPropagation();deleteTrack(\'' + t.id + '\')" title="Delete"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></div>'
+      : '';
     return '<div class="track-item" onclick="playTrack(\'' + t.id + '\')">' +
       '<div class="track-thumb" style="background:var(--bg3)">' +
         (t.cover_url ? '<img src="' + t.cover_url + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">' : '<div class="track-thumb-emoji">' + emoji + '</div>') +
@@ -118,6 +122,7 @@ function buildTracks(elId, list) {
       '<div class="track-dur">' + _durationLabel(t.duration_sec) + '</div>' +
       '<div class="track-heart" onclick="event.stopPropagation();heartTrack(\'' + t.id + '\')">' + (liked ? '❤️' : '🤍') + '</div>' +
       '<div class="track-more" onclick="event.stopPropagation();shareTrackById(\'' + t.id + '\')">📤</div>' +
+      deleteBtn +
     '</div>';
   }).join('');
 }
@@ -214,6 +219,22 @@ window.doMusicSearch = function () {
       '</div>' +
     '</div>';
   }).join('');
+};
+
+window.deleteTrack = function (trackId) {
+  if (!confirm('Delete this track? This cannot be undone.')) return;
+  api.del('/music?id=' + encodeURIComponent(trackId))
+    .then(function () {
+      toast('🗑 Track deleted');
+      MUSIC_allTracks = MUSIC_allTracks.filter(function (t) { return t.id !== trackId; });
+      MUSIC_albums = MUSIC_albums.filter(function (t) { return t.id !== trackId; });
+      MUSIC_singles = MUSIC_singles.filter(function (t) { return t.id !== trackId; });
+      MUSIC_mvs = MUSIC_mvs.filter(function (t) { return t.id !== trackId; });
+      buildAlbums();
+      buildTracks('singles-list', MUSIC_singles);
+      buildMVs();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
 };
 
 window.switchMusicTab = function (btn, tab) {
