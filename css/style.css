@@ -257,7 +257,7 @@ body.night {
 
 /* ---------- MODAL ---------- */
 .modal-overlay {
-  position: fixed; inset: 0; z-index: 150;
+  position: fixed; inset: 0; z-index: 550;
   background: rgba(0,0,0,.4);
   display: none; align-items: flex-end; justify-content: center;
 }
@@ -448,7 +448,7 @@ body.night {
 .post-action.liked { color: var(--red); }
 
 /* Status viewer */
-.sv-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.85); display: none; flex-direction: column; }
+.sv-overlay { position: fixed; inset: 0; z-index: 600; background: rgba(0,0,0,.85); display: none; flex-direction: column; }
 .sv-overlay.open { display: flex; }
 .sv-header { position: absolute; top: 0; left: 0; right: 0; z-index: 10; padding: 1rem 1rem 0; }
 .sv-bars   { display: flex; gap: 3px; margin-bottom: .75rem; }
