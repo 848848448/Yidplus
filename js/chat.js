@@ -4339,7 +4339,7 @@ window.submitStatus = function () {
     if (!txt) return toast('⚠ Type something first.');
     var privacy = (document.getElementById('status-privacy') || {}).value || 'public';
     api.post('/statuses', { type: 'text', text: txt, bg: STATUS_selectedBg, privacy: privacy })
-      .then(function () { closeStatusModal(); toast('✅ Status posted!'); try { delete _apiCache; } catch(e) {} loadStatuses(); })
+      .then(function () { closeStatusModal(); toast('✅ Status posted!'); try { delete _apiCache; } catch(e) {} })
       .catch(function (err) { toast('❌ ' + err.message); });
 
   } else if (STATUS_selectedFile) {
@@ -4351,9 +4351,20 @@ window.submitStatus = function () {
     form.append('caption', caption);
     form.append('privacy', privacy2);
     api.post('/statuses', form, true)
-      .then(function () { closeStatusModal(); toast('✅ Status posted!'); try { delete _apiCache; } catch(e) {} loadStatuses(); })
+      .then(function () { closeStatusModal(); toast('✅ Status posted!'); try { delete _apiCache; } catch(e) {} })
       .catch(function (err) { toast('❌ ' + err.message); });
   } else {
     toast('⚠ Choose Text or Photo/Video first.');
+  }
+};
+
+// Alias for status reload after posting
+window.loadStatuses = function () {
+  // Refresh status FAB ring if on private tab
+  var fab = document.getElementById('status-fab-btn');
+  if (fab) {
+    // Brief flash to indicate success
+    fab.style.boxShadow = '0 0 0 3px var(--blue)';
+    setTimeout(function () { fab.style.boxShadow = ''; }, 1500);
   }
 };
