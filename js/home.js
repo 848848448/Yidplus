@@ -1099,12 +1099,15 @@ window.submitStatus = function () {
   } else if (STATUS_selectedFile) {
     var caption = (document.getElementById('status-media-caption') || {}).value || '';
     var privacy2 = (document.getElementById('status-privacy') || {}).value || 'public';
-    var form = new FormData();
-    form.append('type', 'media');
-    form.append('media', STATUS_selectedFile);
-    form.append('caption', caption);
-    form.append('privacy', privacy2);
-    api.post('/statuses', form, true)
+    toast('📤 Preparing...');
+    watermarkFile(STATUS_selectedFile).then(function (watermarked) {
+      var form = new FormData();
+      form.append('type', 'media');
+      form.append('media', watermarked);
+      form.append('caption', caption);
+      form.append('privacy', privacy2);
+      return api.post('/statuses', form, true);
+    })
       .then(function () { closeStatusModal(); toast('✅ Status posted!'); loadStatuses(); })
       .catch(function (err) { toast('❌ ' + err.message); });
   } else {

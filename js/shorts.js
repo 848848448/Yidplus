@@ -449,11 +449,12 @@ window.confirmShortUpload = function () {
   document.getElementById('caption-modal').classList.remove('open');
   toast('📤 Uploading short...');
 
-  var form = new FormData();
-  form.append('file', file);
-  form.append('caption', caption);
-
-  api.post('/shorts', form, true)
+  watermarkFile(file).then(function (watermarked) {
+    var form = new FormData();
+    form.append('file', watermarked);
+    form.append('caption', caption);
+    return api.post('/shorts', form, true);
+  })
     .then(function (res) {
       toast('✅ Uploaded!');
       SHORTS_data.unshift(res.short);

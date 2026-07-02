@@ -232,6 +232,131 @@ if (typeof window.setChatFont !== 'function') {
   };
 }
 
+// ============================================================
+// WATERMARK — every photo/video uploaded anywhere in the app gets a
+// small "Yidplus.com" mark burned into the file itself (not just an
+// on-screen overlay), so it travels with the file if someone saves or
+// reshares it outside the app.
+// ============================================================
+function _drawWatermarkText(ctx, canvasW, canvasH) {
+  var fontSize = Math.max(14, Math.round(canvasW * 0.028));
+  ctx.font = 'bold ' + fontSize + 'px sans-serif';
+  ctx.textBaseline = 'alphabetic';
+  var text = 'Yidplus.com';
+  var padding = fontSize * 0.55;
+  var textWidth = ctx.measureText(text).width;
+  var x = canvasW - textWidth - padding * 1.5;
+  var y = canvasH - padding;
+  ctx.fillStyle = 'rgba(0,0,0,0.38)';
+  ctx.fillRect(x - padding / 2, y - fontSize, textWidth + padding, fontSize + padding * 0.7);
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fillText(text, x, y);
+}
+
+window.watermarkImage = function (file) {
+  return new Promise(function (resolve) {
+    try {
+      if (!file || !file.type || !file.type.startsWith('image/') || file.type === 'image/gif') {
+        return resolve(file); // GIFs would lose animation if redrawn to canvas — leave as-is
+      }
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function () {
+        var canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        _drawWatermarkText(ctx, canvas.width, canvas.height);
+        var outType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        canvas.toBlob(function (blob) {
+          URL.revokeObjectURL(url);
+          if (!blob) return resolve(file);
+          resolve(new File([blob], file.name, { type: outType }));
+        }, outType, 0.92);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    } catch (e) { resolve(file); }
+  });
+};
+
+window.watermarkVideo = function (file) {
+  return new Promise(function (resolve) {
+    try {
+      if (!file || !file.type || !file.type.startsWith('video/')) return resolve(file);
+      if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) {
+        return resolve(file); // unsupported browser — upload original rather than fail
+      }
+      var video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      var url = URL.createObjectURL(file);
+      video.src = url;
+
+      var settled = false;
+      function finish(result) {
+        if (settled) return;
+        settled = true;
+        URL.revokeObjectURL(url);
+        resolve(result);
+      }
+
+      video.onloadedmetadata = function () {
+        var canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 360;
+        var ctx = canvas.getContext('2d');
+        var canvasStream = canvas.captureStream(30);
+
+        try {
+          if (video.captureStream) {
+            video.captureStream().getAudioTracks().forEach(function (t) { canvasStream.addTrack(t); });
+          }
+        } catch (e) { /* no audio track available — video-only watermark still works */ }
+
+        var mimeType = 'video/webm';
+        if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) mimeType = 'video/webm;codecs=vp9,opus';
+        else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) mimeType = 'video/webm;codecs=vp8,opus';
+
+        var recorder;
+        try { recorder = new MediaRecorder(canvasStream, { mimeType: mimeType }); }
+        catch (e) { return finish(file); }
+
+        var chunks = [];
+        recorder.ondataavailable = function (e) { if (e.data.size > 0) chunks.push(e.data); };
+        recorder.onstop = function () {
+          var blob = new Blob(chunks, { type: mimeType });
+          if (!blob.size) return finish(file);
+          finish(new File([blob], file.name.replace(/\.[^.]+$/, '') + '.webm', { type: mimeType }));
+        };
+
+        function drawFrame() {
+          if (video.paused || video.ended || settled) return;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          _drawWatermarkText(ctx, canvas.width, canvas.height);
+          requestAnimationFrame(drawFrame);
+        }
+
+        recorder.start(250);
+        video.play().then(drawFrame).catch(function () { recorder.stop(); });
+        video.onended = function () { if (recorder.state !== 'inactive') recorder.stop(); };
+        // Safety cap so a very long video can't hang forever
+        setTimeout(function () { if (recorder.state !== 'inactive') recorder.stop(); }, 90000);
+      };
+      video.onerror = function () { finish(file); };
+    } catch (e) { resolve(file); }
+  });
+};
+
+// Convenience: watermark whichever type the file is; pass through anything else untouched.
+window.watermarkFile = function (file) {
+  if (!file || !file.type) return Promise.resolve(file);
+  if (file.type.startsWith('image/')) return watermarkImage(file);
+  if (file.type.startsWith('video/')) return watermarkVideo(file);
+  return Promise.resolve(file);
+};
+
 window.toast = function (msg, ms) {
   var el = document.getElementById('app-toast');
   if (!el) return;

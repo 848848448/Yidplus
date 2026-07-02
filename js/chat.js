@@ -2127,12 +2127,15 @@ window._sendMultiMedia = function () {
 function _uploadOneFile(file, caption) {
   var isVideo = file.type.startsWith('video/');
   var type = (isVideo || file.type.startsWith('image/')) ? 'media' : 'file';
-  var form = new FormData();
-  form.append('room_id', CHAT_curRoom.id);
-  form.append('type', type);
-  form.append('text', caption || '');
-  form.append('file', file);
-  api.post('/chat', form, true)
+  if (type === 'media') toast('📤 Preparing...');
+  watermarkFile(file).then(function (watermarked) {
+    var form = new FormData();
+    form.append('room_id', CHAT_curRoom.id);
+    form.append('type', type);
+    form.append('text', caption || '');
+    form.append('file', watermarked);
+    return api.post('/chat', form, true);
+  })
     .then(function () { loadMessages(true); loadChatRooms(); })
     .catch(function (err) { toast('❌ ' + err.message); });
 }
@@ -4602,12 +4605,15 @@ window.submitStatus = function () {
   } else if (STATUS_selectedFile) {
     var caption = (document.getElementById('status-media-caption') || {}).value || '';
     var privacy2 = (document.getElementById('status-privacy') || {}).value || 'public';
-    var form = new FormData();
-    form.append('type', 'media');
-    form.append('media', STATUS_selectedFile);
-    form.append('caption', caption);
-    form.append('privacy', privacy2);
-    api.post('/statuses', form, true)
+    toast('📤 Preparing...');
+    watermarkFile(STATUS_selectedFile).then(function (watermarked) {
+      var form = new FormData();
+      form.append('type', 'media');
+      form.append('media', watermarked);
+      form.append('caption', caption);
+      form.append('privacy', privacy2);
+      return api.post('/statuses', form, true);
+    })
       .then(function () { closeStatusModal(); toast('✅ Status posted!'); try { delete _apiCache; } catch(e) {} })
       .catch(function (err) { toast('❌ ' + err.message); });
   } else {
