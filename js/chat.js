@@ -422,12 +422,23 @@ window.copyInviteLink = function () {
     .then(function (res) {
       var room = (res.rooms || []).find(function (r) { return r.id === CHAT_curRoom.id; });
       code = room && room.invite_code;
-      if (!code) return toast('⚠ Run the SQL migration first to generate invite codes.');
-      CHAT_curRoom.invite_code = code;
-      var url = window.location.origin + '/chat?join=' + code;
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(url).then(function () { toast('✅ Invite link copied!'); });
-      } else { toast('🔗 ' + url); }
+      if (code) {
+        CHAT_curRoom.invite_code = code;
+        var url1 = window.location.origin + '/chat?join=' + code;
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(url1).then(function () { toast('✅ Invite link copied!'); });
+        } else { toast('🔗 ' + url1); }
+        return;
+      }
+      // Still missing (older room from before invite codes existed) — generate one now.
+      return api.put('/chat/rooms', { room_id: CHAT_curRoom.id, generate_invite: true })
+        .then(function (res2) {
+          CHAT_curRoom.invite_code = res2.invite_code;
+          var url2 = window.location.origin + '/chat?join=' + res2.invite_code;
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(url2).then(function () { toast('✅ Invite link copied!'); });
+          } else { toast('🔗 ' + url2); }
+        });
     })
     .catch(function (err) { toast('❌ ' + err.message); });
 };

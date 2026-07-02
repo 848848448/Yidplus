@@ -227,10 +227,11 @@ export async function onRequestPost(context) {
       const name = (body.name || '').trim();
       if (!name) return json({ ok: false, error: 'name is required' }, 400);
       const roomId = crypto.randomUUID();
+      const inviteCode = crypto.randomUUID().replace(/-/g, '').slice(0, 10);
       await env.DB.prepare(
-        `INSERT INTO rooms (id, type, name, emoji, visibility, read_only, created_by, created_at, description, channel_admins)
-         VALUES (?, 'channel', ?, '📡', 'public', 1, ?, ?, ?, ?)`
-      ).bind(roomId, name, user.id, now, body.description || '', JSON.stringify([user.id])).run();
+        `INSERT INTO rooms (id, type, name, emoji, visibility, read_only, created_by, created_at, description, channel_admins, invite_code)
+         VALUES (?, 'channel', ?, '📡', 'public', 1, ?, ?, ?, ?, ?)`
+      ).bind(roomId, name, user.id, now, body.description || '', JSON.stringify([user.id]), inviteCode).run();
 
       // Creator joins as admin
       await env.DB.prepare(
@@ -253,10 +254,11 @@ export async function onRequestPost(context) {
     if (!name) return json({ ok: false, error: 'name is required' }, 400);
 
     const roomId = crypto.randomUUID();
+    const inviteCode = crypto.randomUUID().replace(/-/g, '').slice(0, 10);
     await env.DB.prepare(
-      `INSERT INTO rooms (id, type, name, emoji, visibility, read_only, created_by, created_at)
-       VALUES (?, 'group', ?, ?, ?, ?, ?, ?)`
-    ).bind(roomId, name, emoji, visibility, readOnly, user.id, now).run();
+      `INSERT INTO rooms (id, type, name, emoji, visibility, read_only, created_by, created_at, invite_code)
+       VALUES (?, 'group', ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(roomId, name, emoji, visibility, readOnly, user.id, now, inviteCode).run();
 
     // Creator is automatically the group's admin (sub-admin within this group).
     await env.DB.prepare(
@@ -343,6 +345,16 @@ export async function onRequestPut(context) {
     if (typeof body.auto_delete_minutes !== 'undefined') {
       const minutes = body.auto_delete_minutes === null ? null : Number(body.auto_delete_minutes) || null;
       await env.DB.prepare(`UPDATE rooms SET auto_delete_minutes = ? WHERE id = ?`).bind(minutes, roomId).run();
+    }
+
+    if (body.generate_invite === true) {
+      const existing = await env.DB.prepare(`SELECT invite_code FROM rooms WHERE id = ?`).bind(roomId).first();
+      if (existing && existing.invite_code) {
+        return json({ ok: true, invite_code: existing.invite_code });
+      }
+      const inviteCode = crypto.randomUUID().replace(/-/g, '').slice(0, 10);
+      await env.DB.prepare(`UPDATE rooms SET invite_code = ? WHERE id = ?`).bind(inviteCode, roomId).run();
+      return json({ ok: true, invite_code: inviteCode });
     }
 
     if (body.pinned_message_id !== undefined) {
