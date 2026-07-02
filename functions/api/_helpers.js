@@ -78,6 +78,44 @@ export async function verifyPassword(password, storedHash) {
   return { valid, needsUpgrade: valid };
 }
 
+export async function cleanupUserReferences(env, userId, nickname) {
+  // Discover every table with a column that plausibly references a user id,
+  // and delete matching rows from ALL of them before removing the user row
+  // itself. This is more robust than a hand-maintained table list, which
+  // caused real "FOREIGN KEY constraint failed" errors when a table was
+  // missed.
+  const USER_ID_COLUMNS = [
+    'user_id', 'sender_id', 'owner_id', 'follower_id', 'following_id',
+    'target_user_id', 'requester_id', 'author_id', 'uploader_id',
+    'channel_owner_id', 'created_by', 'liked_by', 'reported_by',
+    'blocked_by', 'muted_by', 'granted_by',
+  ];
+
+  try {
+    const { results: tables } = await env.DB.prepare(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name != 'users' AND name NOT LIKE 'sqlite_%'`
+    ).all();
+
+    for (const t of tables) {
+      let columns;
+      try {
+        const { results } = await env.DB.prepare(`PRAGMA table_info(${t.name})`).all();
+        columns = results.map(c => c.name);
+      } catch (e) { continue; }
+
+      for (const col of columns) {
+        if (!USER_ID_COLUMNS.includes(col)) continue;
+        await env.DB.prepare(`DELETE FROM "${t.name}" WHERE "${col}" = ?`).bind(userId).run().catch(() => {});
+      }
+    }
+  } catch (e) { /* best-effort — fall through to the final delete attempt regardless */ }
+
+  // Nickname-keyed reference (device_bans.banned_by stores a nickname, not an id)
+  if (nickname) {
+    await env.DB.prepare('DELETE FROM device_bans WHERE banned_by = ?').bind(nickname).run().catch(() => {});
+  }
+}
+
 export function getCookie(request, name) {
   const cookie = request.headers.get('Cookie') || '';
   const match = cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)'));

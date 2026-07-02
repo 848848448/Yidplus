@@ -3,7 +3,7 @@
 // PUT /api/admin/users  -> update a user (verified / blocked / role / no_ads / profile fields)
 // Body for PUT: { id, verified?, blocked?, role?, no_ads?, nickname?, email?, phone?, password? }
 
-import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner, logAudit, hashPassword } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner, logAudit, hashPassword, cleanupUserReferences } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -159,19 +159,7 @@ export async function onRequestDelete(context) {
     if (target.email === env.OWNER_EMAIL || target.email === CO_OWNER)
       return json({ ok: false, error: 'Cannot delete owner or co-owner' }, 403);
 
-    // Delete user and all related data
-    await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id).run();
-    await env.DB.prepare('DELETE FROM login_logs WHERE user_id = ?').bind(id).run().catch(() => {});
-    await env.DB.prepare('DELETE FROM device_bans WHERE banned_by = ?').bind(target.nickname).run().catch(() => {});
-    await env.DB.prepare('DELETE FROM user_badges WHERE user_id = ?').bind(id).run().catch(() => {});
-    await env.DB.prepare('DELETE FROM admin_notes WHERE target_user_id = ?').bind(id).run().catch(() => {});
-    await env.DB.prepare('DELETE FROM user_warnings WHERE user_id = ?').bind(id).run().catch(() => {});
-    await env.DB.prepare('DELETE FROM nuclear_permissions WHERE user_id = ?').bind(id).run().catch(() => {});
-    await env.DB.prepare('DELETE FROM room_members WHERE user_id = ?').bind(id).run().catch(() => {});
-    await env.DB.prepare('DELETE FROM follows WHERE follower_id = ? OR following_id = ?').bind(id, id).run().catch(() => {});
-    await env.DB.prepare('DELETE FROM channel_followers WHERE follower_id = ? OR channel_owner_id = ?').bind(id, id).run().catch(() => {});
-    await env.DB.prepare('DELETE FROM push_subscriptions WHERE user_id = ?').bind(id).run().catch(() => {});
-    await env.DB.prepare('DELETE FROM email_verifications WHERE user_id = ?').bind(id).run().catch(() => {});
+    await cleanupUserReferences(env, id, target.nickname);
 
     try {
       await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id).run();

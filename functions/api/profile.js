@@ -3,7 +3,7 @@
 // PUT  /api/profile             -> update own profile
 // DELETE /api/profile           -> delete own account
 
-import { json, corsHeaders, requireUser, hashPassword } from './_helpers.js';
+import { json, corsHeaders, requireUser, hashPassword, cleanupUserReferences } from './_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -144,23 +144,7 @@ export async function onRequestDelete(context) {
       return json({ ok: false, error: 'Cannot delete owner account' }, 403);
     }
 
-    // Clean up related records first — some of these may not exist depending
-    // on what the account has used, so each is best-effort and won't block
-    // the others from running.
-    const cleanupQueries = [
-      `DELETE FROM sessions WHERE user_id = ?`,
-      `DELETE FROM room_members WHERE user_id = ?`,
-      `DELETE FROM nuclear_permissions WHERE user_id = ?`,
-      `DELETE FROM channel_followers WHERE follower_id = ? OR channel_owner_id = ?`,
-      `DELETE FROM follows WHERE follower_id = ? OR following_id = ?`,
-      `DELETE FROM push_subscriptions WHERE user_id = ?`,
-      `DELETE FROM email_verifications WHERE user_id = ?`,
-    ];
-    for (const q of cleanupQueries) {
-      const paramCount = (q.match(/\?/g) || []).length;
-      const params = paramCount === 2 ? [user.id, user.id] : [user.id];
-      await env.DB.prepare(q).bind(...params).run().catch(() => {});
-    }
+    await cleanupUserReferences(env, user.id, user.nickname);
 
     try {
       await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id).run();
