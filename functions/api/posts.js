@@ -15,11 +15,18 @@ export async function onRequestGet(context) {
 
   try {
     const user = await requireUser(request, env).catch(() => null);
+    const url = new URL(request.url);
+    const filterUserId = url.searchParams.get('user_id');
 
-    const { results } = await env.DB.prepare(
-      `SELECT id, username, user_id, caption, content, likes, comments, created_at
-       FROM posts ORDER BY created_at DESC LIMIT 30`
-    ).all();
+    const { results } = filterUserId
+      ? await env.DB.prepare(
+          `SELECT id, username, user_id, caption, content, likes, comments, created_at
+           FROM posts WHERE user_id = ? ORDER BY created_at DESC LIMIT 30`
+        ).bind(filterUserId).all()
+      : await env.DB.prepare(
+          `SELECT id, username, user_id, caption, content, likes, comments, created_at
+           FROM posts ORDER BY created_at DESC LIMIT 30`
+        ).all();
 
     let likedIds = new Set();
     if (user) {

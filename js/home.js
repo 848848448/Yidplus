@@ -1546,7 +1546,7 @@ window.openChannelPostComposer = function () {
   if (!CHANNEL_current) return;
   var text = prompt('Write a post:');
   if (!text || !text.trim()) return;
-  api.post('/posts', { content: text.trim(), user_id: CHANNEL_current.owner_id })
+  api.post('/posts', { caption: text.trim() })
     .then(function () { toast('✅ Posted!'); _loadChannelPosts(); })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
