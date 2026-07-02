@@ -237,6 +237,10 @@ function _attachChatSwipeGestures() {
         item.classList.remove('swiped');
       }
     });
+
+    item.addEventListener('touchcancel', function () {
+      dragging = false;
+    });
   });
 
   // Tapping anywhere else closes any open swipe-delete row.
@@ -1328,6 +1332,20 @@ function _attachMessageGestures(cont) {
         var msg = CHAT_messages.find(function (m) { return m.id === msgId; });
         if (msg) _setReply(msg);
       }
+    });
+
+    // A touch can be cancelled mid-swipe (scroll takeover, incoming call,
+    // notification, etc.) — without this, touchend never fires and the
+    // bubble is left stuck shifted sideways, which reads as "shaking" or
+    // flickering the next time the list re-renders.
+    bubble.addEventListener('touchcancel', function () {
+      clearTimeout(longPressTimer);
+      dragging = false;
+      bubble.style.transition = 'transform .2s ease';
+      bubble.style.transform = 'translateX(0)';
+      setTimeout(function () { bubble.style.transition = ''; }, 220);
+      var icon = bubble.querySelector('.swipe-reply-icon');
+      if (icon) icon.style.opacity = '0';
     });
   });
 }
