@@ -157,6 +157,65 @@ window.openLikedSongs = function () {
   switchMusicTab(tabs[tabs.length - 1] || null, 'liked');
 };
 
+// ============================================================
+// SEARCH — the header search icon called this but it was never
+// implemented, so it silently did nothing on every tap.
+// ============================================================
+window.openMusicSearch = function () {
+  var existing = document.getElementById('music-search-modal');
+  if (existing) existing.remove();
+
+  var modal = document.createElement('div');
+  modal.id = 'music-search-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:var(--surface);display:flex;flex-direction:column';
+  modal.innerHTML =
+    '<div style="display:flex;align-items:center;gap:.5rem;padding:.6rem .75rem;border-bottom:1px solid var(--border);flex-shrink:0">' +
+      '<button onclick="document.getElementById(\'music-search-modal\').remove()" style="background:none;border:none;cursor:pointer;color:var(--text);padding:.3rem;display:flex">' +
+        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>' +
+      '</button>' +
+      '<div style="flex:1;background:var(--bg3);border-radius:10px;display:flex;align-items:center;gap:.4rem;padding:.4rem .75rem">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+        '<input id="music-search-inp" placeholder="Search songs, artists..." oninput="doMusicSearch()" style="flex:1;background:none;border:none;outline:none;font-size:.9rem;color:var(--text);font-family:inherit">' +
+      '</div>' +
+    '</div>' +
+    '<div id="music-search-results" style="flex:1;overflow-y:auto;padding:.5rem">' +
+      '<div style="text-align:center;padding:3rem 1rem;color:var(--muted);font-size:.85rem">Type to search your music library</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  setTimeout(function () { var i = document.getElementById('music-search-inp'); if (i) i.focus(); }, 100);
+};
+
+window.doMusicSearch = function () {
+  var q = (document.getElementById('music-search-inp') || {}).value || '';
+  q = q.trim().toLowerCase();
+  var el = document.getElementById('music-search-results');
+  if (!el) return;
+  if (q.length < 1) {
+    el.innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:var(--muted);font-size:.85rem">Type to search your music library</div>';
+    return;
+  }
+  var matches = MUSIC_allTracks.filter(function (t) {
+    return (t.title && t.title.toLowerCase().indexOf(q) !== -1) ||
+           (t.artist && t.artist.toLowerCase().indexOf(q) !== -1);
+  });
+  if (!matches.length) {
+    el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">No results found</div>';
+    return;
+  }
+  el.innerHTML = matches.map(function (t) {
+    var cover = t.cover_url
+      ? 'background-image:url(\'' + t.cover_url + '\');background-size:cover;background-position:center'
+      : 'background:var(--bg3)';
+    return '<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;cursor:pointer" onclick="document.getElementById(\'music-search-modal\').remove();playTrack(\'' + t.id + '\')">' +
+      '<div style="width:42px;height:42px;border-radius:8px;flex-shrink:0;' + cover + '"></div>' +
+      '<div style="min-width:0">' +
+        '<div style="font-size:.86rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(t.title || 'Untitled') + '</div>' +
+        '<div style="font-size:.74rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(t.artist || '') + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+};
+
 window.switchMusicTab = function (btn, tab) {
   document.querySelectorAll('.mtab').forEach(function (t) { t.classList.remove('active'); });
   if (btn) btn.classList.add('active');

@@ -304,7 +304,7 @@ window.triggerAvatarUpload = function () {
     var form = new FormData();
     form.append('photo', file);
     toast('Uploading...');
-    api.post('/profile', form, true)
+    api.put('/profile', form, true)
       .then(function () { toast('✅ Photo updated!'); buildSettingsPage(); })
       .catch(function (err) { toast('❌ ' + err.message); });
   };

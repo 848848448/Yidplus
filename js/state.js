@@ -156,6 +156,82 @@ window.hideSplash = function () {
   if (el) el.classList.remove('show');
 };
 
+// Works on every page. index.html defines a fuller version in auth.js
+// (which also updates the in-page auth screen) — this one is the fallback
+// for the standalone admin/chat/music/shorts pages, which have no SPA
+// auth screen to switch to and must do a real page navigation instead.
+if (typeof window.doLogout !== 'function') {
+  window.doLogout = function () {
+    if (!confirm('Sign out of YID PLUS?')) return;
+    AUTH.logout().then(function () {
+      localStorage.removeItem('yp_page');
+      toast('👋 Signed out successfully.');
+      goPage('/');
+    }).catch(function (err) {
+      toast('❌ ' + err.message);
+    });
+  };
+}
+
+// Shared here (not just home.js) so Settings -> Send Feedback works from
+// every page — admin/chat/music/shorts all load state.js but not home.js.
+if (typeof window.openFeedbackModal !== 'function') {
+  window.openFeedbackModal = function () {
+    var modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+    modal.innerHTML =
+      '<div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:500px;padding:1.25rem;padding-bottom:max(1.25rem,env(safe-area-inset-bottom))">' +
+        '<div style="font-size:.95rem;font-weight:700;margin-bottom:.25rem">Send Feedback</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.85rem">Help us improve YID PLUS</div>' +
+        '<div style="display:flex;gap:.5rem;margin-bottom:.75rem">' +
+          '<button class="feedback-type-btn active" id="fb-type-bug" onclick="selectFeedbackType(\'bug\',this)" style="flex:1;padding:.45rem;border-radius:8px;border:1.5px solid #E11D48;background:#FFF1F2;color:#E11D48;cursor:pointer;font-size:.78rem;font-weight:600;font-family:inherit">🐛 Bug</button>' +
+          '<button class="feedback-type-btn" id="fb-type-suggest" onclick="selectFeedbackType(\'suggestion\',this)" style="flex:1;padding:.45rem;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3);color:var(--muted);cursor:pointer;font-size:.78rem;font-weight:600;font-family:inherit">💡 Suggestion</button>' +
+          '<button class="feedback-type-btn" id="fb-type-other" onclick="selectFeedbackType(\'other\',this)" style="flex:1;padding:.45rem;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3);color:var(--muted);cursor:pointer;font-size:.78rem;font-weight:600;font-family:inherit">💬 Other</button>' +
+        '</div>' +
+        '<textarea id="feedback-text" placeholder="Describe the issue or suggestion..." rows="4" style="width:100%;box-sizing:border-box;padding:.65rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.88rem;font-family:inherit;outline:none;resize:none;margin-bottom:.65rem"></textarea>' +
+        '<div style="display:flex;gap:.5rem">' +
+          '<button onclick="submitFeedback()" style="flex:1;padding:.65rem;background:var(--gold);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit">Send Feedback</button>' +
+          '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:.65rem 1rem;background:var(--bg3);border:none;border-radius:10px;cursor:pointer;font-family:inherit">Cancel</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+    modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+  };
+
+  var _feedbackType = 'bug';
+  window.selectFeedbackType = function (type, btn) {
+    _feedbackType = type;
+    document.querySelectorAll('.feedback-type-btn').forEach(function(b){
+      b.style.borderColor = 'var(--border)';
+      b.style.background = 'var(--bg3)';
+      b.style.color = 'var(--muted)';
+    });
+    btn.style.borderColor = 'var(--gold)';
+    btn.style.background = 'rgba(201,168,76,.1)';
+    btn.style.color = 'var(--gold)';
+  };
+
+  window.submitFeedback = function () {
+    var text = (document.getElementById('feedback-text') || {}).value || '';
+    if (!text.trim()) { toast('Please write something first'); return; }
+    api.post('/feedback', { type: _feedbackType, text: text.trim(), device: navigator.userAgent.slice(0, 100) })
+      .then(function () {
+        document.querySelector('div[style*="z-index:8000"]') && document.querySelector('div[style*="z-index:8000"]').remove();
+        toast('✅ Feedback sent! Thank you!');
+      })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  };
+}
+
+if (typeof window.setChatFont !== 'function') {
+  window.setChatFont = function (size, btn) {
+    document.querySelectorAll('.cs-font-btn').forEach(function (b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    try { localStorage.setItem('yp_chat_font', size); } catch (e) {}
+    toast('Font size: ' + size);
+  };
+}
+
 window.toast = function (msg, ms) {
   var el = document.getElementById('app-toast');
   if (!el) return;

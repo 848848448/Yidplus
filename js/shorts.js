@@ -176,6 +176,10 @@ function _wireSlideInteractions(slide, video, i) {
     isScrubbing = false;
     showScrub();
   });
+  scrubTrack.addEventListener('touchcancel', function () {
+    isScrubbing = false;
+    showScrub();
+  });
 
   // Tap anywhere on the video (not on a button/action) toggles play/pause,
   // with a brief icon flash that fades on its own — never stays on screen.
