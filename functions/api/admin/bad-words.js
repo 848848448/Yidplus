@@ -3,7 +3,7 @@
 // DELETE /api/admin/bad-words?id=X   -> remove word
 // GET    /api/admin/bad-words?public=1 -> list words (for frontend filter, no auth needed)
 
-import { json, corsHeaders, requireUser, isAdminRole } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -28,7 +28,7 @@ export async function onRequestGet(context) {
     // Admin only
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-    if (!isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const [wordsRes, phrasesRes] = await Promise.all([
       env.DB.prepare('SELECT id, word, added_by, created_at FROM bad_words ORDER BY created_at DESC').all(),
@@ -43,7 +43,7 @@ export async function onRequestPost(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-    if (!isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const body = await request.json();
     const word = body.word;
@@ -76,7 +76,7 @@ export async function onRequestDelete(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-    if (!isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const url2 = new URL(request.url);
     const id = url2.searchParams.get('id');

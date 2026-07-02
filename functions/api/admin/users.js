@@ -3,7 +3,7 @@
 // PUT /api/admin/users  -> update a user (verified / blocked / role / no_ads / profile fields)
 // Body for PUT: { id, verified?, blocked?, role?, no_ads?, nickname?, email?, phone?, password? }
 
-import { json, corsHeaders, requireUser, isAdminRole, isSuperOrOwner, logAudit, hashPassword } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner, logAudit, hashPassword } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -17,7 +17,7 @@ export async function onRequestGet(context) {
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
     if (!isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
-    const isOwner = isSuperOrOwner(user, env.OWNER_EMAIL);
+    const isOwner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
 
     // Owner/Co-Owner see full PII (email, phone). Everyone else sees only
     // public fields. password_hash is NEVER returned to anyone via the API —
@@ -72,7 +72,7 @@ export async function onRequestPut(context) {
       return json({ ok: false, error: 'Cannot modify owner or co-owner account' }, 403);
     }
 
-    const isOwner = isSuperOrOwner(user, env.OWNER_EMAIL);
+    const isOwner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
     const isModeratorOnly = !isOwner;
 
     if (typeof body.verified === 'boolean') {
@@ -147,7 +147,7 @@ export async function onRequestDelete(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-    if (!isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const url = new URL(request.url);
     const id = url.searchParams.get('id');

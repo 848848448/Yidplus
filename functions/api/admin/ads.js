@@ -1,5 +1,5 @@
 // functions/api/admin/ads.js
-import { json, corsHeaders, requireUser, isSuperOrOwner } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -9,7 +9,7 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const { results } = await env.DB.prepare(
       `SELECT id, title, subtitle, media_key, link_url, email_url, active, sort_order,
@@ -42,7 +42,7 @@ export async function onRequestPost(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const form = await request.formData();
     const title             = form.get('title') || '';
@@ -95,7 +95,7 @@ export async function onRequestPut(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const body = await request.json();
     if (!body.id) return json({ ok: false, error: 'id is required' }, 400);
@@ -126,7 +126,7 @@ export async function onRequestDelete(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const id = new URL(request.url).searchParams.get('id');
     if (!id) return json({ ok: false, error: 'id required' }, 400);

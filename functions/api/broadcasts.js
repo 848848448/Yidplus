@@ -3,7 +3,7 @@
 // POST /api/broadcasts           -> create a broadcast (super admin / owner only)
 // Body: { text, sender_email }
 
-import { json, corsHeaders, requireUser, isSuperOrOwner } from './_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -33,7 +33,7 @@ export async function onRequestPost(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-    if (!isSuperOrOwner(user, env.OWNER_EMAIL)) {
+    if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) {
       return json({ ok: false, error: 'Only super admins can broadcast' }, 403);
     }
 

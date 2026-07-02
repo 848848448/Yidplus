@@ -1,10 +1,10 @@
-import { corsHeaders, requireUser, isSuperOrOwner } from '../_helpers.js';
+import { corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 export async function onRequestGet(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL)) {
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) {
       return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403, headers: corsHeaders });
     }
     const { results } = await env.DB.prepare(

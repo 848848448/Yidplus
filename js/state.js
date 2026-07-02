@@ -521,13 +521,13 @@ window.userCan = function (action) {
   if (!STATE.user && !window.ADMIN_GATE_SESSION) return false;
   switch (action) {
     case 'delete_content': return isAnyAdmin();
-    case 'view_pii':       return isOwner();           // ONLY Owner/Co-Owner see email/phone/password
-    case 'manage_users':   return isSuperAdmin();       // verify / role changes
-    case 'block_users':    return isAnyAdmin();         // Moderators + Super Admins can block
-    case 'broadcast':      return isSuperAdmin();
+    case 'view_pii':       return isOwner();           // ONLY Owner/Co-Owner see email/phone
+    case 'manage_users':   return isOwner();            // verify / role changes — owner only
+    case 'block_users':    return isAnyAdmin();         // Moderators can still block/mute
+    case 'broadcast':      return isOwner();
     case 'promote_users':  return isOwner();            // ONLY Owner/Co-Owner can make admins
-    case 'edit_settings':  return isSuperAdmin();
-    case 'view_audit_logs': return isSuperAdmin();
+    case 'edit_settings':  return isOwner();
+    case 'view_audit_logs': return isOwner();
     case 'view_private_dms': return isOwner();          // ONLY Owner/Co-Owner see private DMs
     case 'nuclear':        return isOwner();
     case 'export_data':    return isOwner();

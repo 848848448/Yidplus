@@ -1,10 +1,10 @@
-import { json, corsHeaders, requireUser, isSuperOrOwner } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 export async function onRequestGet(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
     const { results } = await env.DB.prepare(
       `SELECT s.id, s.created_at, u.id as user_id, u.nickname, u.email, u.online
        FROM sessions s JOIN users u ON u.id = s.user_id
@@ -17,7 +17,7 @@ export async function onRequestDelete(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
     const url = new URL(request.url);
     const sessionId = url.searchParams.get('id');
     const userId = url.searchParams.get('user_id');

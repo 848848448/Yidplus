@@ -4,7 +4,7 @@
 // POST /api/admin/nuclear?permissions=1   -> { user_id } grant permission
 // DELETE /api/admin/nuclear?permissions=1&id=X -> revoke permission
 
-import { json, corsHeaders, requireUser, isSuperOrOwner } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
 
 const VALID_CATEGORIES = ['shorts', 'music', 'channels', 'statuses', 'messages', 'posts'];
 
@@ -13,7 +13,7 @@ export async function onRequestOptions() {
 }
 
 async function hasNuclearAccess(user, env) {
-  if (isSuperOrOwner(user, env.OWNER_EMAIL)) return true;
+  if (isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return true;
   const row = await env.DB.prepare(
     `SELECT 1 FROM nuclear_permissions WHERE user_id = ? LIMIT 1`
   ).bind(user.id).first().catch(() => null);
@@ -24,7 +24,7 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL))
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL))
       return json({ ok: false, error: 'Forbidden' }, 403);
 
     const url = new URL(request.url);
@@ -55,7 +55,7 @@ export async function onRequestPost(context) {
 
     // Grant nuclear permission
     if (url.searchParams.get('permissions')) {
-      if (!isSuperOrOwner(user, env.OWNER_EMAIL))
+      if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL))
         return json({ ok: false, error: 'Forbidden' }, 403);
       const { user_id } = await request.json();
       if (!user_id) return json({ ok: false, error: 'user_id required' }, 400);
@@ -105,7 +105,7 @@ export async function onRequestDelete(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL))
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL))
       return json({ ok: false, error: 'Forbidden' }, 403);
 
     const url = new URL(request.url);

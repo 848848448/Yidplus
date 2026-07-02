@@ -4,7 +4,7 @@
 // DELETE /api/admin/device-bans?id=xxx   -> unban
 // GET    /api/admin/device-bans?logs=1   -> login logs
 
-import { json, corsHeaders, requireUser, isSuperOrOwner } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -15,7 +15,7 @@ export async function onRequestGet(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-    if (!isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const url = new URL(request.url);
     if (url.searchParams.get('logs')) {
@@ -41,7 +41,7 @@ export async function onRequestPost(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-    if (!isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const body = await request.json();
     const { ip, fingerprint, reason } = body;
@@ -64,7 +64,7 @@ export async function onRequestDelete(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-    if (!isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const url = new URL(request.url);
     const id = url.searchParams.get('id');

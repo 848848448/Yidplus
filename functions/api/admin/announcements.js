@@ -1,4 +1,4 @@
-import { json, corsHeaders, requireUser, isAdminRole, isSuperOrOwner } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner } from '../_helpers.js';
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -11,7 +11,7 @@ export async function onRequestPost(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
     const { text } = await request.json();
     if (!text) return json({ ok: false, error: 'text required' }, 400);
     const id = crypto.randomUUID();

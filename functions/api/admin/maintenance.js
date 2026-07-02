@@ -2,7 +2,7 @@
 // GET  /api/admin/maintenance -> { maintenance_mode: bool, message: string }
 // POST /api/admin/maintenance -> { enabled: bool, message?: string }
 
-import { json, corsHeaders, requireUser, isSuperOrOwner } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -32,7 +32,7 @@ export async function onRequestPost(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-    if (!isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const body = await request.json();
     const enabled = !!body.enabled;

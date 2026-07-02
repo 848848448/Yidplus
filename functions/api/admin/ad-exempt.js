@@ -3,7 +3,7 @@
 // POST /api/admin/ad-exempt          -> { user_id } grant no-ads
 // DELETE /api/admin/ad-exempt?id=X   -> revoke no-ads
 
-import { json, corsHeaders, requireUser, isSuperOrOwner } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -13,7 +13,7 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL))
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL))
       return json({ ok: false, error: 'Forbidden' }, 403);
 
     const { results } = await env.DB.prepare(
@@ -29,7 +29,7 @@ export async function onRequestPost(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL))
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL))
       return json({ ok: false, error: 'Forbidden' }, 403);
 
     const { user_id } = await request.json();
@@ -46,7 +46,7 @@ export async function onRequestDelete(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL))
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL))
       return json({ ok: false, error: 'Forbidden' }, 403);
 
     const id = new URL(request.url).searchParams.get('id');

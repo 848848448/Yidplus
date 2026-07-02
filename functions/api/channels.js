@@ -1,5 +1,5 @@
 // functions/api/channels.js
-import { json, corsHeaders, requireUser, isSuperOrOwner, logAudit } from './_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner, logAudit } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -84,7 +84,7 @@ export async function onRequestPut(context) {
     if (!body.owner_id) return json({ ok: false, error: 'owner_id is required' }, 400);
 
     if (body.privacy !== undefined) {
-      if (user.id !== body.owner_id && !isSuperOrOwner(user, env.OWNER_EMAIL)) {
+      if (user.id !== body.owner_id && !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) {
         return json({ ok: false, error: 'You can only change your own channel privacy' }, 403);
       }
       const allowed = ['public', 'followers_only'];
@@ -94,7 +94,7 @@ export async function onRequestPut(context) {
       return json({ ok: true, privacy: body.privacy });
     }
 
-    if (!isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     if (typeof body.verified === 'boolean') {
       await env.DB.prepare(`UPDATE channels SET verified = ? WHERE owner_id = ?`)

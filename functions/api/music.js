@@ -4,7 +4,7 @@
 // PUT    /api/music                -> { id, like: true|false } toggle like, OR { id, trending: true|false } (admin only)
 // DELETE /api/music?id=xxx         -> delete own track, or any if Moderator/Admin
 
-import { json, corsHeaders, requireUser, isAdminRole, canDeleteContent, isSuperOrOwner, logAudit } from './_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, canDeleteContent, isOwnerOrCoOwner, logAudit } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -134,7 +134,7 @@ export async function onRequestPut(context) {
     }
 
     if (typeof body.trending === 'boolean') {
-      if (!isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+      if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
       await env.DB.prepare(`UPDATE music_tracks SET trending = ? WHERE id = ?`).bind(body.trending ? 1 : 0, id).run();
       return json({ ok: true });
     }

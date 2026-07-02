@@ -181,20 +181,22 @@ var ADMIN_PANELS = [
   { id:'shorts-mod',     label:'Shorts',          roles:['admin_limited','admin_super','owner'] },
   { id:'music-mod',      label:'Music',           roles:['admin_limited','admin_super','owner'] },
   { id:'feedback',       label:'Feedback',        roles:['admin_limited','admin_super','owner'] },
-  { id:'channels-mgr',   label:'Channels',        roles:['admin_super','owner'] },
-  { id:'chat-watch',     label:'Chats',           roles:['admin_super','owner'] },
-  { id:'broadcast',      label:'Broadcast',       roles:['admin_super','owner'] },
-  { id:'banned-devices', label:'Banned',          roles:['admin_super','owner'] },
-  { id:'ip-logs',        label:'IP Logs',         roles:['admin_super','owner'] },
-  { id:'sessions',       label:'Sessions',        roles:['admin_super','owner'] },
-  { id:'audit-logs',     label:'Audit Logs',      roles:['admin_super','owner'] },
-  { id:'ads',            label:'Ads',             roles:['admin_super','owner'] },
-  { id:'maintenance',    label:'Maintenance',     roles:['admin_super','owner'] },
-  { id:'app-settings',   label:'App',             roles:['admin_super','owner'] },
+  { id:'chat-watch',     label:'Chats',           roles:['admin_limited','admin_super','owner'] },
+  // Everything below requires actual configuration/creation power, or exposes
+  // extra personal information beyond what's needed to moderate — owner only.
+  { id:'channels-mgr',   label:'Channels',        roles:['owner'] },
+  { id:'broadcast',      label:'Broadcast',       roles:['owner'] },
+  { id:'banned-devices', label:'Banned',          roles:['owner'] },
+  { id:'ip-logs',        label:'IP Logs',         roles:['owner'] },
+  { id:'sessions',       label:'Sessions',        roles:['owner'] },
+  { id:'audit-logs',     label:'Audit Logs',      roles:['owner'] },
+  { id:'ads',            label:'Ads',             roles:['owner'] },
+  { id:'maintenance',    label:'Maintenance',     roles:['owner'] },
+  { id:'app-settings',   label:'App',             roles:['owner'] },
   { id:'badges',         label:'Badges',          roles:['owner'] },
   { id:'ad-exempt',      label:'Ad-Free',         roles:['owner'] },
   { id:'nuclear',        label:'Nuclear',         roles:['owner'] },
-  { id:'bad-words',      label:'Word Filter',     roles:['owner','admin_super'] },
+  { id:'bad-words',      label:'Word Filter',     roles:['owner'] },
   { id:'export',         label:'Export',          roles:['owner'] },
   { id:'telegram',       label:'Telegram',        roles:['owner'] },
   { id:'admin-settings', label:'Admin Settings',  roles:['owner'] },
@@ -742,10 +744,8 @@ function renderUsersList(users) {
     if (isOwner) {
       if (u.email) piiRows += '<div style="font-size:.67rem;color:var(--muted)">📧 <a href="mailto:' + escHtml(u.email) + '" style="color:var(--gold);text-decoration:none">' + escHtml(u.email) + '</a></div>';
       if (u.phone) piiRows += '<div style="font-size:.67rem;color:var(--muted)">📞 <a href="tel:' + escHtml(u.phone) + '" style="color:var(--gold);text-decoration:none">' + escHtml(u.phone) + '</a></div>';
-      if (u.password_hash) {
-        var pw = u.password_hash.slice(0,8) + '••••••••';
-        piiRows += '<div style="font-size:.67rem;color:var(--muted);font-family:monospace">🔑 ' + pw + '</div>';
-      }
+      if (u.created_at) piiRows += '<div style="font-size:.67rem;color:var(--muted)">📅 Joined ' + timeAgo(u.created_at) + '</div>';
+      piiRows += '<div style="font-size:.67rem;color:var(--muted)">' + (u.online ? '🟢 Online now' : '⚪ Offline') + '</div>';
     }
 
     return '<div class="user-row" style="flex-direction:column;align-items:flex-start;gap:.4rem;padding:.75rem 0">' +

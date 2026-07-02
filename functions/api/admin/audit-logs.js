@@ -2,7 +2,7 @@
 // GET /api/admin/audit-logs?limit=50 -> list recent moderator/admin actions
 // Super Admin only.
 
-import { json, corsHeaders, requireUser, isSuperOrOwner } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -14,7 +14,7 @@ export async function onRequestGet(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-    if (!isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const url = new URL(request.url);
     const limit = Math.min(200, parseInt(url.searchParams.get('limit') || '50', 10));
