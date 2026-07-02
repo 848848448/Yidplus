@@ -516,8 +516,7 @@ body.night {
 .chat-item.swiped { transform: translateX(-84px); }
 .chat-item-delete { position: absolute; top: 0; right: 0; bottom: 0; width: 84px; background: var(--red); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; cursor: pointer; z-index: 1; }
 
-.chat-av { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #1565C0, #1976D2); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 700; flex-shrink: 0; position: relative; overflow: hidden; background-size: cover; background-position: center; }
-.chat-av.group { border-radius: 14px; }
+
 .online-dot  { position: absolute; bottom: 1px; right: 1px; width: 13px; height: 13px; border-radius: 50%; background: var(--green); border: 2.5px solid var(--surface); }
 .unread-badge { min-width: 20px; height: 20px; border-radius: 10px; background: var(--blue); color: #fff; font-size: .66rem; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 6px; flex-shrink: 0; box-shadow: 0 1px 3px rgba(21,101,192,.35); }
 
@@ -1066,13 +1065,47 @@ html.dark-mode .chat-messages { background:
 /* =============================================
    TELEGRAM WEB — exact visual match
    ============================================= */
-.tg-search-pill { flex: 1; display: flex; align-items: center; gap: .5rem; background: var(--bg3); border-radius: 20px; padding: .45rem .9rem; cursor: text; }
+.tg-search-pill { flex: 1; display: flex; align-items: center; gap: .55rem; background: var(--bg3); border-radius: 22px; padding: .5rem 1rem; cursor: text; transition: box-shadow .18s; }
+.tg-search-pill:hover { box-shadow: 0 0 0 1.5px var(--border) inset; }
 .tg-search-pill input { flex: 1; border: none; background: none; outline: none; font-size: .88rem; font-family: inherit; color: var(--text); }
 .tg-search-pill input::placeholder { color: var(--muted); }
-.tg-tabs-row { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+
+.tg-tabs-row {
+  display: flex; gap: .3rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto; scrollbar-width: none; flex-shrink: 0;
+  padding: .5rem .65rem;
+}
 .tg-tabs-row::-webkit-scrollbar { display: none; }
-.tg-tab { padding: .65rem 1.1rem; font-size: .82rem; color: var(--muted); border: none; background: none; cursor: pointer; font-family: inherit; border-bottom: 2px solid transparent; white-space: nowrap; }
-.tg-tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+.tg-tab {
+  padding: .42rem 1rem;
+  font-size: .8rem;
+  color: var(--muted);
+  border: none;
+  background: var(--bg3);
+  border-radius: 16px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  font-weight: 600;
+  transition: background .16s, color .16s, transform .1s;
+}
+.tg-tab:active { transform: scale(.96); }
+.tg-tab.active { color: #fff; background: var(--blue); }
+
+/* Chat list rows — soft elevated cards instead of flat dividers */
+.chat-item-wrap { position: relative; overflow: hidden; }
+.chat-item-wrap + .chat-item-wrap { border-top: 1px solid var(--border); }
+.chat-item { display: flex; align-items: center; gap: .85rem; padding: .7rem 1rem; cursor: pointer; background: var(--surface); transition: background .12s; position: relative; z-index: 2; touch-action: pan-y; }
+.chat-item:hover  { background: var(--bg2); }
+.chat-item:active { background: var(--bg3); }
+.chat-item.unread { background: var(--surface); }
+.chat-item.swiped { transform: translateX(-84px); }
+.chat-item-delete { position: absolute; top: 0; right: 0; bottom: 0; width: 84px; background: var(--red); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; cursor: pointer; z-index: 1; }
+
+.chat-av { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #1565C0, #1976D2); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; font-weight: 700; flex-shrink: 0; position: relative; overflow: hidden; background-size: cover; background-position: center; letter-spacing: .02em; }
+.chat-av.group { border-radius: 15px; }
 
 /* Hamburger side menu */
 .hamburger-overlay { position: fixed; inset: 0; z-index: 250; background: rgba(0,0,0,.4); display: none; }

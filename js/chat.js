@@ -135,7 +135,9 @@ function renderChatList() {
     var hasStatus = !isGroup && CHAT_activeStatusUserIds && CHAT_activeStatusUserIds.has(c.other_user_id || c.id);
     if (hasStatus) avClass += ' has-status-ring';
     var avStyle  = photoBg;
-    var avatarContent = hasPhoto ? '' : initial;
+    // Always render the initial as a fallback — if the photo URL 404s, the letter
+    // stays visible underneath instead of leaving a blank white circle.
+    var avatarContent = initial;
     var onlineDot = (!isGroup && c.online && isAnyAdmin()) ? '<div class="online-dot"></div>' : '';
     var previewText = c.preview || '';
     // Filter bad words in preview
