@@ -77,7 +77,11 @@ window.doLogin = function () {
           : 'Signed in! Loading your feed...'
       );
 
-      setTimeout(AUTH_goHome, 600);
+      showSplash();
+      setTimeout(function () {
+        AUTH_goHome();
+        setTimeout(hideSplash, 350);
+      }, 600);
     })
     .catch(function (err) {
       setLoad('l', false);
@@ -119,7 +123,11 @@ window.doRegister = function () {
     .then(function () {
       setLoad('r', false);
       AUTH_showMsg('ok', 'Account created! Your channel is being set up...');
-      setTimeout(AUTH_goHome, 600);
+      showSplash();
+      setTimeout(function () {
+        AUTH_goHome();
+        setTimeout(hideSplash, 350);
+      }, 600);
     })
     .catch(function (err) {
       setLoad('r', false);

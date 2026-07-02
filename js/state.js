@@ -147,6 +147,15 @@ function handleRes(res) {
 // ============================================================
 // UTILITIES
 // ============================================================
+window.showSplash = function () {
+  var el = document.getElementById('splash-overlay');
+  if (el) el.classList.add('show');
+};
+window.hideSplash = function () {
+  var el = document.getElementById('splash-overlay');
+  if (el) el.classList.remove('show');
+};
+
 window.toast = function (msg, ms) {
   var el = document.getElementById('app-toast');
   if (!el) return;

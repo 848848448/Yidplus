@@ -132,10 +132,13 @@ export async function onRequestGet(context) {
 
     const cookie = `yp_session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${30*24*60*60}`;
 
+    const successUrl = new URL(`${origin}${returnTo}`);
+    successUrl.searchParams.set('welcome', '1');
+
     return new Response(null, {
       status: 302,
       headers: {
-        'Location': `${origin}${returnTo}`,
+        'Location': successUrl.toString(),
         'Set-Cookie': cookie,
       },
     });
