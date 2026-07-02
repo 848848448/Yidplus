@@ -46,10 +46,10 @@
 <!-- ══ SPLASH / LOADING OVERLAY (shown briefly after sign-in) ══ -->
 <div id="splash-overlay" class="splash-overlay">
   <div class="splash-mark">
-    <img src="images/logo.png" alt="YID PLUS" class="splash-logo" onerror="this.style.display='none';document.getElementById('splash-logo-text').style.display='block'" loading="lazy">
-    <div id="splash-logo-text" class="splash-logo-text">YID<span style="color:#8FC1FF">+</span></div>
+    <img src="images/logo.png" alt="YIDPLUS" class="splash-logo" onerror="this.style.display='none';document.getElementById('splash-logo-text').style.display='block'" loading="lazy">
+    <div id="splash-logo-text" class="splash-logo-text">YIDPLUS</div>
   </div>
-  <div class="splash-word">YID PLUS</div>
+  <div class="splash-word">YIDPLUS</div>
   <div class="splash-dots"><span></span><span></span><span></span></div>
 </div>
 
@@ -646,7 +646,7 @@ document.addEventListener('DOMContentLoaded', function () {
       applyRoleUI();
       loadAppSettings();
       initAds('home');
-      if (justSignedIn) setTimeout(hideSplash, 1500);
+      if (justSignedIn) setTimeout(hideSplash, 5000);
 
       // If the user tapped "Add status" from the Chats page, open the upload modal now
       try {
