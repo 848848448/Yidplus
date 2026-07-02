@@ -6,7 +6,7 @@
 //   Body for group: { type:'group', name, emoji, visibility:'public'|'private', read_only:bool }
 //   Body for DM:    { type:'private', other_user_id }
 
-import { json, corsHeaders, requireUser, isAdminRole } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -44,6 +44,7 @@ export async function onRequestGet(context) {
     }
 
     const isAdmin = isAdminRole(user, env.OWNER_EMAIL);
+    const isOwner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
 
     // Rooms the user is a member of
     const { results: myRooms } = await env.DB.prepare(
@@ -65,17 +66,28 @@ export async function onRequestGet(context) {
          AND r.id NOT IN (SELECT room_id FROM room_members WHERE user_id = ?)`
     ).bind(user.id).all();
 
-    // Super Admin god-mode: also see every group (including private ones they haven't
-    // joined) and every private DM, for moderation purposes. Listed separately so the
-    // UI can visually distinguish "rooms I'm in" from "rooms I'm spectating."
+    // God-mode visibility for moderation, split by privacy sensitivity:
+    //   - Owners (avrumy + Jmittelman2 only) see EVERYTHING, including
+    //     private 1-on-1 DMs between two other users.
+    //   - Moderators/admin_super see every GROUP (public or private) so they
+    //     can moderate and delete bad content, but NEVER see private DMs —
+    //     those are between two people and stay between the owners' eyes only.
     let adminVisibleRooms = [];
-    if (isAdmin) {
+    if (isOwner) {
       const { results: allRooms } = await env.DB.prepare(
         `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code, r.pinned_message_id, r.photo_key
          FROM rooms r
          WHERE r.id NOT IN (SELECT room_id FROM room_members WHERE user_id = ?)`
       ).bind(user.id).all();
       adminVisibleRooms = allRooms;
+    } else if (isAdmin) {
+      const { results: groupRooms } = await env.DB.prepare(
+        `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code, r.pinned_message_id, r.photo_key
+         FROM rooms r
+         WHERE r.type = 'group'
+           AND r.id NOT IN (SELECT room_id FROM room_members WHERE user_id = ?)`
+      ).bind(user.id).all();
+      adminVisibleRooms = groupRooms;
     }
 
     const rooms = [];

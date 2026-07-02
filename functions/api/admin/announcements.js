@@ -11,7 +11,7 @@ export async function onRequestPost(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+    if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
     const { text } = await request.json();
     if (!text) return json({ ok: false, error: 'text required' }, 400);
     const id = crypto.randomUUID();

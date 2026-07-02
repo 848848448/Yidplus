@@ -5,7 +5,7 @@
 //                                   OR { id, opened: true } mark a view-once message as opened
 // DELETE /api/chat?id=xxx       -> delete a message (own message or admin)
 
-import { json, corsHeaders, requireUser, isAdminRole, canDeleteContent, logAudit } from './_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner, canDeleteContent, logAudit } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -62,9 +62,12 @@ export async function onRequestGet(context) {
 
     // ── Search mode: look across every room the user is a member of ──
     if (searchQ && searchQ.trim()) {
-      const isAdmin = isAdminRole(user, env.OWNER_EMAIL);
+      // Only the two owner accounts can search across EVERY room, including
+      // private DMs between other people. Everyone else — regular members
+      // and moderators alike — only searches rooms they're actually in.
+      const isOwner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
       let rows;
-      if (isAdmin) {
+      if (isOwner) {
         rows = await env.DB.prepare(
           `SELECT m.id, m.room_id, m.sender_nick, m.text, m.created_at, r.name as room_name, r.type as room_type
            FROM messages m JOIN rooms r ON r.id = m.room_id
@@ -86,14 +89,27 @@ export async function onRequestGet(context) {
 
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
 
-    // Admins can view ANY room (including private DMs) without joining it.
-    // Regular users get auto-joined to public rooms they touch.
-    if (!isAdminRole(user, env.OWNER_EMAIL)) {
+    // Fetch room type up front — needed to decide access below.
+    const roomInfo = await env.DB.prepare('SELECT type FROM rooms WHERE id = ?').bind(roomId).first().catch(() => null);
+
+    const isOwner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
+    const isAdmin = isAdminRole(user, env.OWNER_EMAIL);
+    const isMember = await env.DB.prepare(
+      'SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?'
+    ).bind(roomId, user.id).first();
+
+    if (roomInfo && roomInfo.type === 'private' && !isMember) {
+      // Private 1-on-1 DM the caller isn't part of — only the two owner
+      // accounts may spectate it for moderation. Regular moderators
+      // (admin_limited / admin_super) are explicitly excluded, even though
+      // they can god-mode into groups/channels.
+      if (!isOwner) return json({ ok: false, error: 'Forbidden' }, 403);
+    } else if (!isAdmin) {
+      // Regular member touching a group/channel — auto-join as before.
       await ensureMember(env, roomId, user.id);
     }
 
     // Increment view count for channel messages
-    const roomInfo = await env.DB.prepare('SELECT type FROM rooms WHERE id = ?').bind(roomId).first().catch(() => null);
     if (roomInfo && roomInfo.type === 'channel') {
       await env.DB.prepare('UPDATE messages SET view_count = view_count + 1 WHERE room_id = ?').bind(roomId).run().catch(() => {});
     }
