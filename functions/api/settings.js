@@ -3,7 +3,7 @@
 // PUT /api/settings { key, value } -> upsert one setting (Owner / Super Admin only)
 // PUT /api/settings (multipart: key, file) -> upload a file (e.g. logo) to R2 and save its URL as the setting value
 
-import { json, corsHeaders, requireUser, isAdminRole } from './_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -26,12 +26,8 @@ export async function onRequestPut(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-    const CO_OWNER = 'Jmittelman2@gmail.com';
-    const canChangeSettings = user.email === env.OWNER_EMAIL ||
-                              user.email === CO_OWNER ||
-                              user.role === 'admin_super';
-    if (!canChangeSettings) {
-      return json({ ok: false, error: 'Only Super Admins can change app settings' }, 403);
+    if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) {
+      return json({ ok: false, error: 'Only the Owner can change app settings' }, 403);
     }
 
     const contentType = request.headers.get('content-type') || '';

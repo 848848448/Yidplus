@@ -224,7 +224,7 @@ function _toggle(key, isOn) {
 }
 
 function _select(key, val, opts) {
-  return '<select class="settings-select" onchange="saveSetting(\'' + key + '\',this.value)">' +
+  return '<select class="settings-select" onchange="saveProfileSetting(\'' + key + '\',this.value)">' +
     opts.map(function(o) {
       var parts = o.split(':');
       return '<option value="' + parts[0] + '"' + (val===parts[0]?' selected':'') + '>' + parts[1] + '</option>';
@@ -255,7 +255,7 @@ window.toggleSetting = function (key, el) {
   api.put('/profile', { [key]: val }).catch(function () { toast('Error saving'); });
 };
 
-window.saveSetting = function (key, value) {
+window.saveProfileSetting = function (key, value) {
   api.put('/profile', { [key]: value })
     .then(function () { toast('Saved!'); })
     .catch(function (err) { toast('❌ ' + err.message); });
