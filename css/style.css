@@ -534,7 +534,7 @@ body.night {
 
 .msg-wrap    { display: flex; margin-bottom: .4rem; align-items: flex-end; gap: .4rem; }
 .msg-wrap.me { flex-direction: row-reverse; }
-.msg-mini-av { width: 26px; height: 26px; border-radius: 50%; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: .75rem; flex-shrink: 0; border: 1px solid var(--border); }
+.msg-mini-av { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .74rem; font-weight: 700; color: #fff; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,.18); background-size: cover; background-position: center; }
 
 .bubble      { max-width: 82%; min-width: 60px; padding: .65rem 1.05rem; border-radius: 20px; font-size: 1.02rem; line-height: 1.58; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; word-spacing: normal; position: relative; touch-action: pan-y; transition: transform .08s; }
 .swipe-reply-icon { position: absolute; left: -36px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; opacity: 0; transition: opacity .15s; pointer-events: none; }
@@ -1231,6 +1231,20 @@ html.dark-mode .uinfo-action-icon { background: #1C2333; }
 /* Chat avatars — Telegram-style rounded square for groups, circle for DMs */
 .chat-av-round  { border-radius: 50% !important; }
 .chat-av-square { border-radius: 14px !important; }
+
+/* Jump-to-bottom arrow — animates in/out instead of popping */
+.new-arrow-btn {
+  position: absolute; bottom: 76px; right: 12px; z-index: 50; cursor: pointer;
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: 0 3px 12px rgba(0,0,0,.2);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  opacity: 0; transform: translateY(8px) scale(.85);
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.new-arrow-btn.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: all; }
+.new-arrow-btn:active { transform: scale(.92); }
 
 /* ── Chat Settings ── */
 .cs-font-btn { flex:1; padding:.45rem; background:var(--bg3); border:1.5px solid var(--border); border-radius:8px; color:var(--muted); font-size:.78rem; cursor:pointer; font-family:inherit; transition:all .18s; }

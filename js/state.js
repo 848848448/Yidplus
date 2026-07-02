@@ -162,6 +162,21 @@ window.escHtml = function (s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 };
 
+// Telegram-style: every user gets a consistent color derived from their id/name,
+// instead of every avatar being flat gray or identical blue.
+var _AV_PALETTE = [
+  ['#FF6B6B', '#EE5253'], ['#FF9F43', '#EE8B2F'], ['#FECA57', '#E8B23D'],
+  ['#1DD1A1', '#10AC84'], ['#54A0FF', '#2E86DE'], ['#5F72FF', '#4834D4'],
+  ['#A55EEA', '#8854D0'], ['#FD79A8', '#E84393'], ['#26C6DA', '#00ACC1'],
+];
+window.avatarColor = function (seed) {
+  var s = String(seed || '?');
+  var h = 0;
+  for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  var pair = _AV_PALETTE[h % _AV_PALETTE.length];
+  return 'linear-gradient(135deg,' + pair[0] + ',' + pair[1] + ')';
+};
+
 window.fmtN = function (n) {
   n = Number(n) || 0;
   if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';

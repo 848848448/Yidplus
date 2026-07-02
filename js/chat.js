@@ -134,7 +134,7 @@ function renderChatList() {
     var avClass  = 'chat-av' + (isGroup ? ' group chat-av-square' : ' chat-av-round');
     var hasStatus = !isGroup && CHAT_activeStatusUserIds && CHAT_activeStatusUserIds.has(c.other_user_id || c.id);
     if (hasStatus) avClass += ' has-status-ring';
-    var avStyle  = photoBg;
+    var avStyle  = 'background:' + avatarColor(c.other_user_id || c.id) + ';' + photoBg;
     // Always render the initial as a fallback — if the photo URL 404s, the letter
     // stays visible underneath instead of leaving a blank white circle.
     var avatarContent = initial;
@@ -544,7 +544,7 @@ window.openChatRoom = function (roomId) {
   document.getElementById('reply-bar').style.display = 'none';
   var _st = document.getElementById('sticker-tray'); if (_st) _st.classList.remove('open');
   var _ep = document.getElementById('emoji-panel'); if (_ep) _ep.style.display = 'none';
-  document.getElementById('new-arrow').style.display = 'none';
+  document.getElementById('new-arrow').classList.remove('show');
 
   // Pinned message bar
   CHAT_pinnedMsgId = room.pinned_message_id || null;
@@ -889,7 +889,7 @@ function loadMessages(scrollToBottom) {
         CHAT_unreadNew += (msgs.length - prevLen);
         var arrow = document.getElementById('new-arrow');
         if (arrow) {
-          arrow.style.display = 'flex';
+          arrow.classList.add('show');
           var badge = document.getElementById('new-count');
           if (badge) { badge.textContent = CHAT_unreadNew; badge.style.display = 'flex'; }
         }
@@ -1211,7 +1211,7 @@ function renderMessages(scrollDown) {
 
     // ── NORMAL (group/DM) style ──
     var miniAv = (!isMe && isGroup)
-      ? '<div class="msg-mini-av" style="' + (m.sender_photo ? 'background-image:url(' + m.sender_photo + ');background-size:cover;background-position:center' : '') + '">' + (m.sender_photo ? '' : escHtml((m.sender_nick || '?').slice(0, 1).toUpperCase())) + '</div>'
+      ? '<div class="msg-mini-av" style="background:' + avatarColor(m.sender_id || m.sender_nick) + (m.sender_photo ? ';background-image:url(' + m.sender_photo + ');background-size:cover;background-position:center' : '') + '">' + escHtml((m.sender_nick || '?').slice(0, 1).toUpperCase()) + '</div>'
       : '';
 
     var selectClass2 = CHAT_selected[m.id] ? ' msg-selected' : '';
@@ -1242,7 +1242,7 @@ function renderMessages(scrollDown) {
     CHAT_atBottom = true;
     CHAT_unreadNew = 0;
     var arrow = document.getElementById('new-arrow');
-    if (arrow) arrow.style.display = 'none';
+    if (arrow) arrow.classList.remove('show');
   } else {
     cont.scrollTop = prevScroll + (cont.scrollHeight - prevHeight);
   }
@@ -1318,9 +1318,9 @@ function _onMsgsScroll() {
   if (!arrow) return;
   if (CHAT_atBottom) {
     CHAT_unreadNew = 0;
-    arrow.style.display = 'none';
+    arrow.classList.remove('show');
   } else {
-    arrow.style.display = 'flex';
+    arrow.classList.add('show');
     var badge = document.getElementById('new-count');
     if (badge) {
       if (CHAT_unreadNew > 0) {
@@ -1338,7 +1338,7 @@ window.scrollToBottom = function () {
   if (cont) { cont.scrollTop = cont.scrollHeight; CHAT_atBottom = true; }
   CHAT_unreadNew = 0;
   var arrow = document.getElementById('new-arrow');
-  if (arrow) arrow.style.display = 'none';
+  if (arrow) arrow.classList.remove('show');
 };
 
 window.scrollToMsg = function (id) {
