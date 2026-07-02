@@ -38,6 +38,21 @@ var CHAT_atBottom    = true;
 var CHAT_members     = [];  // current room members
 var CHAT_drafts      = {};  // roomId -> draft text
 
+// Status-viewer state (the status viewer overlay is shared markup with the
+// Home page, but this page loads its own copy of the viewer logic below —
+// these must be declared here since js/home.js is not loaded on this page).
+var HOME_svStatuses  = [];
+var HOME_svUserIdx   = 0;
+var HOME_svSlideIdx  = 0;
+var HOME_svMuted     = false;
+var HOME_svPaused    = false;
+var HOME_svBarRaf    = null;
+var HOME_svBarStart  = 0;
+var HOME_svBarDur    = 5000;
+var HOME_svLongTimer = null;
+var HOME_svPrivacy   = 'public';
+var HOME_HIGHLIGHTS  = [];
+
 // ============================================================
 // BOOT
 // ============================================================
@@ -3793,6 +3808,25 @@ function _svSegments(count, isMine) {
   return segs;
 }
 window._svSegments = _svSegments;
+function _buildStatusRing(count, color) {
+  var r = 25, cx = 27, cy = 27;
+  var gap = count > 1 ? 0.12 : 0;
+  var total = 2 * Math.PI;
+  var segAngle = (total - gap * count) / count;
+  var paths = [];
+  for (var i = 0; i < count; i++) {
+    var startAngle = -Math.PI / 2 + i * (segAngle + gap);
+    var endAngle   = startAngle + segAngle;
+    var x1 = cx + r * Math.cos(startAngle);
+    var y1 = cy + r * Math.sin(startAngle);
+    var x2 = cx + r * Math.cos(endAngle);
+    var y2 = cy + r * Math.sin(endAngle);
+    var largeArc = segAngle > Math.PI ? 1 : 0;
+    paths.push('<path d="M' + x1.toFixed(2) + ' ' + y1.toFixed(2) + ' A' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + x2.toFixed(2) + ' ' + y2.toFixed(2) + '" fill="none" stroke="' + color + '" stroke-width="2.8" stroke-linecap="round"/>');
+  }
+  return '<svg width="54" height="54" viewBox="0 0 54 54" style="position:absolute;inset:0">' + paths.join('') + '</svg>';
+}
+
 function buildStatusRow() {
   var row = document.getElementById('status-row');
   if (!row) return;
