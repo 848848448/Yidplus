@@ -3669,11 +3669,15 @@ window._viewChatListAvatarStatus = function (userId) {
   api.get('/statuses?user_id=' + encodeURIComponent(userId), true)
     .then(function (res) {
       var data = (res.statuses || [])[0];
-      if (!data || !data.slides || !data.slides.length) return;
+      if (!data || !data.slides || !data.slides.length) {
+        toast('הסטאטוס איז שוין נישט אקטיוו');
+        loadChatRooms(); // refresh so the stale ring disappears
+        return;
+      }
       HOME_svStatuses = [data];
       openSV(0);
     })
-    .catch(function () {});
+    .catch(function () { toast('קען נישט לאדן דעם סטאטוס'); });
 };
 
 // ══════════════════════════════════
