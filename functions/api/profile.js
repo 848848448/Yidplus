@@ -143,8 +143,33 @@ export async function onRequestDelete(context) {
     if (user.email === env.OWNER_EMAIL || user.email === CO_OWNER) {
       return json({ ok: false, error: 'Cannot delete owner account' }, 403);
     }
-    await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id).run();
-    await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id).run();
+
+    // Clean up related records first — some of these may not exist depending
+    // on what the account has used, so each is best-effort and won't block
+    // the others from running.
+    const cleanupQueries = [
+      `DELETE FROM sessions WHERE user_id = ?`,
+      `DELETE FROM room_members WHERE user_id = ?`,
+      `DELETE FROM nuclear_permissions WHERE user_id = ?`,
+      `DELETE FROM channel_followers WHERE follower_id = ? OR channel_owner_id = ?`,
+      `DELETE FROM follows WHERE follower_id = ? OR following_id = ?`,
+      `DELETE FROM push_subscriptions WHERE user_id = ?`,
+      `DELETE FROM email_verifications WHERE user_id = ?`,
+    ];
+    for (const q of cleanupQueries) {
+      const paramCount = (q.match(/\?/g) || []).length;
+      const params = paramCount === 2 ? [user.id, user.id] : [user.id];
+      await env.DB.prepare(q).bind(...params).run().catch(() => {});
+    }
+
+    try {
+      await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id).run();
+    } catch (deleteErr) {
+      // Surface the real DB error (e.g. a foreign key constraint we didn't
+      // anticipate) instead of a generic failure, so it's actually fixable.
+      return json({ ok: false, error: 'Could not delete account: ' + deleteErr.message }, 500);
+    }
+
     return json({ ok: true });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
-        }
+}

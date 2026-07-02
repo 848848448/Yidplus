@@ -628,40 +628,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (user) {
       sessionStorage.setItem('yp_logged_in', '1');
-      var urlParams = new URLSearchParams(window.location.search);
-      var justSignedIn = urlParams.get('welcome') === '1';
-      if (justSignedIn) {
-        showSplash();
-        window.history.replaceState({}, '', window.location.pathname);
-      }
-      var channelOwnerId = urlParams.get('channel');
-      if (channelOwnerId) {
-        CHANNEL_pendingOwnerId = channelOwnerId;
-        navTo('channel');
-        window.history.replaceState({}, '', window.location.pathname);
-      } else {
-        var page = localStorage.getItem('yp_page');
-        navTo((page && page !== 'auth') ? page : 'home');
-      }
-      applyRoleUI();
-      loadAppSettings();
-      initAds('home');
-      if (justSignedIn) setTimeout(hideSplash, 5000);
 
-      // If the user tapped "Add status" from the Chats page, open the upload modal now
-      try {
-        if (sessionStorage.getItem('yp_open_status_upload')) {
-          sessionStorage.removeItem('yp_open_status_upload');
-          setTimeout(function () { if (typeof openStatusUpload === 'function') openStatusUpload(); }, 400);
-        }
-        var viewStatusUserId = sessionStorage.getItem('yp_view_status_user');
-        if (viewStatusUserId) {
-          sessionStorage.removeItem('yp_view_status_user');
-          setTimeout(function () {
-            if (typeof _viewProfileStatus === 'function') _viewProfileStatus(viewStatusUserId);
-          }, 400);
-        }
-      } catch (e) {}
+      // Enforce email verification if the owner has required it. Only blocks
+      // accounts explicitly marked unverified (email_verified === 0) — older
+      // accounts predating this feature have it as null/undefined and are
+      // left alone, so this can't lock out existing users.
+      if (user.email_verified === 0) {
+        api.get('/admin/email-verify-toggle').then(function (res) {
+          if (res && res.enabled) {
+            showEmailVerifyGate(user.email);
+          } else {
+            _continueBootAfterAuth(user);
+          }
+        }).catch(function () { _continueBootAfterAuth(user); });
+      } else {
+        _continueBootAfterAuth(user);
+      }
     } else {
       // Check if Guest Mode is ON — if yes, allow browsing without login
       fetch('/api/admin/guest-mode')
@@ -691,6 +673,64 @@ document.addEventListener('DOMContentLoaded', function () {
     loadPosts();
   });
 });
+
+function _continueBootAfterAuth(user) {
+  var urlParams = new URLSearchParams(window.location.search);
+  var justSignedIn = urlParams.get('welcome') === '1';
+  if (justSignedIn) {
+    showSplash();
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+  var channelOwnerId = urlParams.get('channel');
+  if (channelOwnerId) {
+    CHANNEL_pendingOwnerId = channelOwnerId;
+    navTo('channel');
+    window.history.replaceState({}, '', window.location.pathname);
+  } else {
+    var page = localStorage.getItem('yp_page');
+    navTo((page && page !== 'auth') ? page : 'home');
+  }
+  applyRoleUI();
+  loadAppSettings();
+  initAds('home');
+  if (justSignedIn) setTimeout(hideSplash, 5000);
+
+  // If the user tapped "Add status" from the Chats page, open the upload modal now
+  try {
+    if (sessionStorage.getItem('yp_open_status_upload')) {
+      sessionStorage.removeItem('yp_open_status_upload');
+      setTimeout(function () { if (typeof openStatusUpload === 'function') openStatusUpload(); }, 400);
+    }
+    var viewStatusUserId = sessionStorage.getItem('yp_view_status_user');
+    if (viewStatusUserId) {
+      sessionStorage.removeItem('yp_view_status_user');
+      setTimeout(function () {
+        if (typeof _viewProfileStatus === 'function') _viewProfileStatus(viewStatusUserId);
+      }, 400);
+    }
+  } catch (e) {}
+}
+
+function showEmailVerifyGate(email) {
+  var fade = document.createElement('div');
+  fade.id = 'email-verify-gate';
+  fade.style.cssText = 'position:fixed;inset:0;z-index:99998;background:var(--bg,#fff);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1.5rem;text-align:center';
+  fade.innerHTML =
+    '<div style="font-size:2.5rem;margin-bottom:1rem">📧</div>' +
+    '<div style="font-size:1.15rem;font-weight:700;margin-bottom:.5rem">Please verify your email</div>' +
+    '<div style="font-size:.85rem;color:var(--muted);max-width:320px;margin-bottom:1.5rem">We sent a confirmation link to <strong>' + email.replace(/[<>&"]/g, '') + '</strong>. Click it to activate your account, then come back here.</div>' +
+    '<button onclick="_resendVerifyEmail(this)" style="padding:.65rem 1.5rem;background:var(--blue);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;margin-bottom:.75rem">Resend email</button>' +
+    '<button onclick="doLogout()" style="padding:.5rem 1rem;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem">Sign out</button>';
+  document.body.appendChild(fade);
+}
+
+window._resendVerifyEmail = function (btn) {
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  api.post('/auth/send-verification', {})
+    .then(function () { btn.textContent = '✅ Sent!'; })
+    .catch(function (err) { btn.textContent = 'Resend email'; btn.disabled = false; toast('❌ ' + err.message); });
+};
 </script>
 
 <script src="js/ads.js"></script>

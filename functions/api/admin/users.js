@@ -167,7 +167,17 @@ export async function onRequestDelete(context) {
     await env.DB.prepare('DELETE FROM admin_notes WHERE target_user_id = ?').bind(id).run().catch(() => {});
     await env.DB.prepare('DELETE FROM user_warnings WHERE user_id = ?').bind(id).run().catch(() => {});
     await env.DB.prepare('DELETE FROM nuclear_permissions WHERE user_id = ?').bind(id).run().catch(() => {});
-    await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
+    await env.DB.prepare('DELETE FROM room_members WHERE user_id = ?').bind(id).run().catch(() => {});
+    await env.DB.prepare('DELETE FROM follows WHERE follower_id = ? OR following_id = ?').bind(id, id).run().catch(() => {});
+    await env.DB.prepare('DELETE FROM channel_followers WHERE follower_id = ? OR channel_owner_id = ?').bind(id, id).run().catch(() => {});
+    await env.DB.prepare('DELETE FROM push_subscriptions WHERE user_id = ?').bind(id).run().catch(() => {});
+    await env.DB.prepare('DELETE FROM email_verifications WHERE user_id = ?').bind(id).run().catch(() => {});
+
+    try {
+      await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
+    } catch (deleteErr) {
+      return json({ ok: false, error: 'Could not delete user: ' + deleteErr.message }, 500);
+    }
 
     await logAudit(env, user, 'delete_user', 'user', id, `@${target.nickname} (${target.email})`);
     return json({ ok: true });
