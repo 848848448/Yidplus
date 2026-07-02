@@ -23,6 +23,14 @@ export async function onRequestGet(context) {
       const isOwner = user && user.id === ownerId;
       const isAdmin = user && (user.role === 'admin_super' || user.role === 'admin_limited');
 
+      let isFollowingForResponse = false;
+      if (user && !isOwner) {
+        const followerRow = await env.DB.prepare(
+          `SELECT 1 FROM channel_followers WHERE channel_owner_id = ? AND follower_id = ?`
+        ).bind(ownerId, user.id).first();
+        isFollowingForResponse = !!followerRow;
+      }
+
       if (channel.privacy === 'followers_only' && !isOwner && !isAdmin) {
         // Check if the user is an approved follower in the DB
         const isFollower = user ? await env.DB.prepare(
@@ -52,7 +60,7 @@ export async function onRequestGet(context) {
         .map(item => item.media_key ? { ...item, media_url: `/api/media/${encodeURIComponent(item.media_key)}` } : item)
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-      return json({ ok: true, channel, wall });
+      return json({ ok: true, channel, wall, is_following: isFollowingForResponse });
     }
 
     const { results } = await env.DB.prepare(

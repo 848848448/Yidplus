@@ -1177,6 +1177,7 @@ function _loadChannel(ownerId) {
     .then(function (res) {
       CHANNEL_current = res.channel;
       CHANNEL_current.owner_id = ownerId;
+      CHANNEL_current.is_following = !!res.is_following;
       _renderChannelHeader(res.channel);
       if (res.locked) {
         _renderLockedWall(res.request_status);
@@ -1259,7 +1260,7 @@ function _renderChannelHeader(ch) {
     followBtn.className = 'ch-follow-btn';
     followBtn.onclick = function () { toggleChannelPrivacy(); };
   } else {
-    var following = _isFollowingChannel(ch.owner_id);
+    var following = !!ch.is_following;
     followBtn.textContent = following ? '✓ Following' : '+ Follow';
     followBtn.classList.toggle('following', following);
     followBtn.onclick = function () { toggleChFollow(); };
@@ -1370,15 +1371,36 @@ window.respondFollowRequest = function (requestId, action) {
   api.put('/channel-follows', { request_id: requestId, action: action })
     .then(function () {
       toast(action === 'approve' ? '✅ Approved!' : '❌ Declined');
-      // Re-render the About tab to refresh the list
-      if (CHANNEL_current) switchChTab(document.querySelector('.chtab:last-child'), 'about');
+      // Refresh just the pending-requests list so the responded-to entry disappears.
+      var el = document.getElementById('ch-follow-requests-list');
+      if (el && CHANNEL_current) {
+        el.innerHTML = '<div class="spinner" style="margin:auto"></div>';
+        api.get('/channel-follows?channel_owner_id=' + encodeURIComponent(CHANNEL_current.owner_id))
+          .then(function (res) {
+            var reqs = res.requests || [];
+            if (!reqs.length) {
+              el.innerHTML = '<div style="font-size:.8rem;color:var(--muted)">No pending requests</div>';
+              return;
+            }
+            el.innerHTML = reqs.map(function (r) {
+              return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border)">' +
+                '<div style="font-size:.85rem;font-weight:600">@' + escHtml(r.requester_nick) + '</div>' +
+                '<div style="display:flex;gap:.4rem">' +
+                  '<button onclick="respondFollowRequest(\'' + r.id + '\',\'approve\')" style="padding:.3rem .75rem;border-radius:12px;background:var(--blue);border:none;color:#fff;font-size:.75rem;cursor:pointer;font-weight:700">✓ Approve</button>' +
+                  '<button onclick="respondFollowRequest(\'' + r.id + '\',\'reject\')" style="padding:.3rem .75rem;border-radius:12px;background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:.75rem;cursor:pointer">✕ Decline</button>' +
+                '</div>' +
+              '</div>';
+            }).join('');
+          })
+          .catch(function () {});
+      }
     })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
 
 window.shareChannel = function () {
   if (!CHANNEL_current) return;
-  var url = window.location.origin + '//?channel=' + encodeURIComponent(CHANNEL_current.owner_id);
+  var url = window.location.origin + '/?channel=' + encodeURIComponent(CHANNEL_current.owner_id);
   if (navigator.share) {
     navigator.share({ title: '@' + CHANNEL_current.nickname + ' on YID PLUS', url: url });
   } else if (navigator.clipboard) {
@@ -1390,7 +1412,7 @@ window.shareChannel = function () {
 
 window.copyChannelLink = function () {
   if (!CHANNEL_current) return;
-  var url = window.location.origin + '//?channel=' + encodeURIComponent(CHANNEL_current.owner_id);
+  var url = window.location.origin + '/?channel=' + encodeURIComponent(CHANNEL_current.owner_id);
   if (navigator.clipboard) {
     navigator.clipboard.writeText(url).then(function () { toast('✅ Link copied!'); });
   } else {
@@ -1415,26 +1437,37 @@ window.toggleChFollow = function () {
   if (!STATE.user) return toast('⚠ Please sign in first.');
   if (!CHANNEL_current) return;
   var ownerId = CHANNEL_current.owner_id;
-
-  var set = [];
-  try { set = JSON.parse(localStorage.getItem('yp_following') || '[]'); } catch (e) {}
-
-  var idx = set.indexOf(ownerId);
-  var nowFollowing;
-  if (idx === -1) { set.push(ownerId); nowFollowing = true; }
-  else { set.splice(idx, 1); nowFollowing = false; }
-
-  localStorage.setItem('yp_following', JSON.stringify(set));
-
   var followBtn = document.getElementById('ch-follow-btn');
-  followBtn.textContent = nowFollowing ? '✓ Following' : '+ Follow';
-  followBtn.classList.toggle('following', nowFollowing);
-
   var countEl = document.getElementById('ch-followers');
-  var current = parseInt((countEl.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
-  countEl.textContent = fmtN(Math.max(0, current + (nowFollowing ? 1 : -1)));
+  var wasFollowing = !!CHANNEL_current.is_following;
 
-  toast(nowFollowing ? '✅ Following @' + CHANNEL_current.nickname : '➖ Unfollowed');
+  if (wasFollowing) {
+    api.del('/channel-follows?channel_owner_id=' + encodeURIComponent(ownerId))
+      .then(function () {
+        CHANNEL_current.is_following = false;
+        followBtn.textContent = '+ Follow';
+        followBtn.classList.remove('following');
+        var current = parseInt((countEl.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
+        countEl.textContent = fmtN(Math.max(0, current - 1));
+        toast('➖ Unfollowed');
+      })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  } else {
+    api.post('/channel-follows', { channel_owner_id: ownerId })
+      .then(function (res) {
+        if (res.status === 'pending') {
+          toast('📨 Follow request sent! Waiting for approval.');
+          return;
+        }
+        CHANNEL_current.is_following = true;
+        followBtn.textContent = '✓ Following';
+        followBtn.classList.add('following');
+        var current = parseInt((countEl.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
+        countEl.textContent = fmtN(current + 1);
+        toast('✅ Following @' + CHANNEL_current.nickname);
+      })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  }
 };
 
 window.switchChTab = function (btn, tab) {
