@@ -80,7 +80,7 @@ window.doLogin = function () {
       showSplash();
       setTimeout(function () {
         AUTH_goHome();
-        setTimeout(hideSplash, 350);
+        setTimeout(hideSplash, 1200);
       }, 600);
     })
     .catch(function (err) {
@@ -126,7 +126,7 @@ window.doRegister = function () {
       showSplash();
       setTimeout(function () {
         AUTH_goHome();
-        setTimeout(hideSplash, 350);
+        setTimeout(hideSplash, 1200);
       }, 600);
     })
     .catch(function (err) {
