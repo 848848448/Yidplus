@@ -623,26 +623,24 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         }, 200);
       }
-      if (verifyParam === 'success') {
-        try { sessionStorage.removeItem('yp_pending_verify'); } catch (e) {}
-      }
       window.history.replaceState({}, '', window.location.pathname);
     }
 
     if (user) {
       sessionStorage.setItem('yp_logged_in', '1');
 
-      // Enforce email verification ONLY for accounts that just registered in
-      // THIS browser session (see auth.js, which sets this flag right after
-      // registration if verification was required). We deliberately do NOT
-      // key this off user.email_verified alone — that column defaults to 0
-      // for any account that was never explicitly touched by the
-      // verification flow, which includes essentially every pre-existing
-      // account (this previously locked the OWNER out of their own site).
-      if (sessionStorage.getItem('yp_pending_verify') === '1' && user.email_verified === 0) {
+      // Enforce email verification persistently for genuinely new accounts,
+      // without ever affecting pre-existing ones: only accounts created
+      // AFTER this safeguard went live are eligible to be gated at all, and
+      // even then only while email_verified is still 0. This survives
+      // closing the browser/switching devices (unlike a session-only flag),
+      // while guaranteeing accounts older than the cutoff — including the
+      // owner's — are never touched no matter what email_verified says.
+      var VERIFY_ENFORCEMENT_CUTOFF = '2026-07-02T21:00:00Z';
+      var isNewEnoughToGate = user.created_at && new Date(user.created_at) > new Date(VERIFY_ENFORCEMENT_CUTOFF);
+      if (isNewEnoughToGate && user.email_verified === 0) {
         showEmailVerifyGate(user.email);
       } else {
-        sessionStorage.removeItem('yp_pending_verify');
         _continueBootAfterAuth(user);
       }
     } else {

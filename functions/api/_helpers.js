@@ -134,7 +134,7 @@ export async function requireUser(request, env) {
   if (!session) return null;
 
   const user = await env.DB.prepare(
-    `SELECT id, email, nickname, role, blocked, verified, photo_url, bio, no_ads, email_verified FROM users WHERE id = ?`
+    `SELECT id, email, nickname, role, blocked, verified, photo_url, bio, no_ads, email_verified, created_at FROM users WHERE id = ?`
   ).bind(session.user_id).first();
 
   if (!user || user.blocked) return null;
