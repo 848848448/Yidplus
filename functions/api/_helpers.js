@@ -86,9 +86,9 @@ export async function cleanupUserReferences(env, userId, nickname) {
   // missed.
   const USER_ID_COLUMNS = [
     'user_id', 'sender_id', 'owner_id', 'follower_id', 'following_id',
-    'target_user_id', 'requester_id', 'author_id', 'uploader_id',
+    'target_user_id', 'target_id', 'requester_id', 'author_id', 'uploader_id',
     'channel_owner_id', 'created_by', 'liked_by', 'reported_by',
-    'blocked_by', 'muted_by', 'granted_by',
+    'blocked_by', 'muted_by', 'granted_by', 'recipient_id', 'reviewer_id',
   ];
 
   try {
