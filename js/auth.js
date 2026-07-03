@@ -46,6 +46,10 @@ window.toggleRemember = function () {
 
 // ── AFTER SUCCESSFUL LOGIN/REGISTER ──────────────
 function AUTH_goHome() {
+  if (typeof _checkEmailVerifyAndContinue === 'function' && STATE.user) {
+    _checkEmailVerifyAndContinue(STATE.user);
+    return;
+  }
   var page = localStorage.getItem('yp_page') || 'home';
   navTo(page);
   applyRoleUI();

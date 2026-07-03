@@ -628,21 +628,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (user) {
       sessionStorage.setItem('yp_logged_in', '1');
-
-      // Enforce email verification persistently for genuinely new accounts,
-      // without ever affecting pre-existing ones: only accounts created
-      // AFTER this safeguard went live are eligible to be gated at all, and
-      // even then only while email_verified is still 0. This survives
-      // closing the browser/switching devices (unlike a session-only flag),
-      // while guaranteeing accounts older than the cutoff — including the
-      // owner's — are never touched no matter what email_verified says.
-      var VERIFY_ENFORCEMENT_CUTOFF = '2026-07-02T21:00:00Z';
-      var isNewEnoughToGate = user.created_at && new Date(user.created_at) > new Date(VERIFY_ENFORCEMENT_CUTOFF);
-      if (isNewEnoughToGate && user.email_verified === 0) {
-        showEmailVerifyGate(user.email);
-      } else {
-        _continueBootAfterAuth(user);
-      }
+      _checkEmailVerifyAndContinue(user);
     } else {
       // Check if Guest Mode is ON — if yes, allow browsing without login
       fetch('/api/admin/guest-mode')
@@ -672,6 +658,26 @@ document.addEventListener('DOMContentLoaded', function () {
     loadPosts();
   });
 });
+
+// Shared verification gate check — called both on page boot (AUTH.restore)
+// and immediately after a fresh login/register (from auth.js's AUTH_goHome),
+// so an unverified new account can't slip through by avoiding a page reload.
+window._checkEmailVerifyAndContinue = function (user) {
+  // Enforce email verification persistently for genuinely new accounts,
+  // without ever affecting pre-existing ones: only accounts created AFTER
+  // this safeguard went live are eligible to be gated at all, and even then
+  // only while email_verified is still 0. This survives closing the
+  // browser/switching devices, while guaranteeing accounts older than the
+  // cutoff — including the owner's — are never touched no matter what
+  // email_verified says.
+  var VERIFY_ENFORCEMENT_CUTOFF = '2026-07-02T21:00:00Z';
+  var isNewEnoughToGate = user.created_at && new Date(user.created_at) > new Date(VERIFY_ENFORCEMENT_CUTOFF);
+  if (isNewEnoughToGate && user.email_verified === 0) {
+    showEmailVerifyGate(user.email);
+  } else {
+    _continueBootAfterAuth(user);
+  }
+};
 
 function _continueBootAfterAuth(user) {
   var urlParams = new URLSearchParams(window.location.search);
