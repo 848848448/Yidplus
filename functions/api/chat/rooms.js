@@ -21,6 +21,24 @@ export async function onRequestGet(context) {
 
     const url = new URL(request.url);
 
+    // ── Search public groups by name (used by Explore) ──
+    const searchQ = url.searchParams.get('search');
+    if (searchQ && searchQ.trim()) {
+      const { results } = await env.DB.prepare(
+        `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.photo_key,
+                COUNT(rm.user_id) as members
+         FROM rooms r
+         LEFT JOIN room_members rm ON rm.room_id = r.id
+         WHERE r.type = 'group' AND r.visibility = 'public' AND r.name LIKE ?
+         GROUP BY r.id
+         ORDER BY members DESC LIMIT 30`
+      ).bind('%' + searchQ.trim() + '%').all();
+      return json({ ok: true, rooms: results.map(r => ({
+        id: r.id, type: r.type, nick: r.name, emoji: r.emoji || '👥',
+        photo_url: r.photo_key || null, visibility: r.visibility, members: r.members,
+      })) });
+    }
+
     // ── Invite code lookup (for join link preview) ──
     const inviteCode = url.searchParams.get('invite');
     if (inviteCode) {

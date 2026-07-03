@@ -124,6 +124,20 @@ export async function onRequestPut(context) {
       params.push(hash);
     }
 
+    // Nickname isn't in ALLOWED (it needs validation, not a blind pass-through)
+    // but was previously silently dropped entirely — "Edit Profile" appeared
+    // to save a new name but it never actually persisted.
+    if (typeof body.nickname === 'string') {
+      const nick = body.nickname.trim();
+      if (nick.length < 3) return json({ ok: false, error: 'Nickname must be at least 3 characters' }, 400);
+      if (nick !== user.nickname) {
+        const clash = await env.DB.prepare('SELECT id FROM users WHERE nickname = ? AND id != ?').bind(nick, user.id).first();
+        if (clash) return json({ ok: false, error: 'That nickname is already taken' }, 409);
+      }
+      updates.push('nickname = ?');
+      params.push(nick);
+    }
+
     for (const [k, v] of Object.entries(body)) {
       if (ALLOWED.includes(k)) { updates.push(`${k} = ?`); params.push(v); }
     }

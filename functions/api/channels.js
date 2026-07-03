@@ -63,10 +63,18 @@ export async function onRequestGet(context) {
       return json({ ok: true, channel, wall, is_following: isFollowingForResponse });
     }
 
-    const { results } = await env.DB.prepare(
-      `SELECT id, owner_id, nickname, followers, verified FROM channels
-       ORDER BY followers DESC, created_at DESC LIMIT 20`
-    ).all();
+    const searchQ = url.searchParams.get('search');
+    const limitParam = Math.min(parseInt(url.searchParams.get('limit'), 10) || 20, 50);
+
+    const { results } = searchQ && searchQ.trim()
+      ? await env.DB.prepare(
+          `SELECT id, owner_id, nickname, followers, verified FROM channels
+           WHERE nickname LIKE ? ORDER BY followers DESC LIMIT ?`
+        ).bind('%' + searchQ.trim() + '%', limitParam).all()
+      : await env.DB.prepare(
+          `SELECT id, owner_id, nickname, followers, verified FROM channels
+           ORDER BY followers DESC, created_at DESC LIMIT ?`
+        ).bind(limitParam).all();
 
     return json({ ok: true, channels: results });
   } catch (err) {
