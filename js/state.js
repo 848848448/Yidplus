@@ -603,6 +603,9 @@ window.AUTH = {
     return api.post('/auth/register', data).then(function (res) {
       STATE.user = res.user;
       Presence.start();
+      if (res.email_verify_required) {
+        try { sessionStorage.setItem('yp_pending_verify', '1'); } catch (e) {}
+      }
       return res.user;
     });
   },
