@@ -21,6 +21,26 @@ export async function onRequestGet(context) {
 
     const url = new URL(request.url);
 
+    // ── List all pinned messages ever pinned in this room (not just the
+    //    current top-bar one) ──
+    const pinnedHistoryRoomId = url.searchParams.get('pinned_history');
+    if (pinnedHistoryRoomId) {
+      try {
+        const { results } = await env.DB.prepare(
+          `SELECT pm.message_id, pm.pinned_at, pm.pinned_by, u.nickname as pinned_by_nick,
+                  m.text, m.type, m.sender_nick, m.created_at
+           FROM pinned_messages pm
+           LEFT JOIN messages m ON m.id = pm.message_id
+           LEFT JOIN users u ON u.id = pm.pinned_by
+           WHERE pm.room_id = ?
+           ORDER BY pm.pinned_at DESC`
+        ).bind(pinnedHistoryRoomId).all();
+        return json({ ok: true, pinned: results });
+      } catch (e) {
+        return json({ ok: true, pinned: [] }); // table not migrated yet
+      }
+    }
+
     // ── Search public groups by name (used by Explore) ──
     const searchQ = url.searchParams.get('search');
     if (searchQ && searchQ.trim()) {
@@ -65,14 +85,29 @@ export async function onRequestGet(context) {
     const isOwner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
 
     // Rooms the user is a member of
-    const { results: myRooms } = await env.DB.prepare(
-      `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at,
-              r.invite_code, r.pinned_message_id, r.photo_key,
-              r.channel_admins, r.description, r.created_by
-       FROM rooms r
-       JOIN room_members m ON m.room_id = r.id
-       WHERE m.user_id = ?`
-    ).bind(user.id).all();
+    let myRooms;
+    try {
+      const res = await env.DB.prepare(
+        `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at,
+                r.invite_code, r.pinned_message_id, r.photo_key,
+                r.channel_admins, r.description, r.created_by, m.muted
+         FROM rooms r
+         JOIN room_members m ON m.room_id = r.id
+         WHERE m.user_id = ?`
+      ).bind(user.id).all();
+      myRooms = res.results;
+    } catch (e) {
+      // muted column not migrated yet — fall back without it
+      const res = await env.DB.prepare(
+        `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at,
+                r.invite_code, r.pinned_message_id, r.photo_key,
+                r.channel_admins, r.description, r.created_by
+         FROM rooms r
+         JOIN room_members m ON m.room_id = r.id
+         WHERE m.user_id = ?`
+      ).bind(user.id).all();
+      myRooms = res.results;
+    }
 
     // PUBLIC group rooms not yet joined ("Tap to Join" — discoverable).
     // Private groups never appear here unless you're already a member.
@@ -158,11 +193,22 @@ export async function onRequestGet(context) {
       ).bind(...groupRoomIds).all().catch(() => ({ results: [] }));
       for (const c of memberCounts) memberCountByRoom[c.room_id] = c.c;
 
-      const { results: memRows } = await env.DB.prepare(
-        `SELECT rm.room_id, u.id, u.nickname, u.online, u.role, u.photo_url, rm.is_group_admin
-         FROM room_members rm JOIN users u ON u.id = rm.user_id
-         WHERE rm.room_id IN (${gPlaceholders})`
-      ).bind(...groupRoomIds).all().catch(() => ({ results: [] }));
+      let memRows;
+      try {
+        const res = await env.DB.prepare(
+          `SELECT rm.room_id, u.id, u.nickname, u.online, u.role, u.photo_url, rm.is_group_admin, rm.title
+           FROM room_members rm JOIN users u ON u.id = rm.user_id
+           WHERE rm.room_id IN (${gPlaceholders})`
+        ).bind(...groupRoomIds).all();
+        memRows = res.results;
+      } catch (e) {
+        const res = await env.DB.prepare(
+          `SELECT rm.room_id, u.id, u.nickname, u.online, u.role, u.photo_url, rm.is_group_admin
+           FROM room_members rm JOIN users u ON u.id = rm.user_id
+           WHERE rm.room_id IN (${gPlaceholders})`
+        ).bind(...groupRoomIds).all().catch(() => ({ results: [] }));
+        memRows = res.results;
+      }
       for (const m of memRows) {
         (memberListByRoom[m.room_id] = memberListByRoom[m.room_id] || []).push(m);
       }
@@ -227,6 +273,7 @@ export async function onRequestGet(context) {
         description: r.description || null,
         preview: lastMsg ? (lastMsg.type === 'text' ? lastMsg.text : '[' + lastMsg.type + ']') : '',
         unread: unreadCount,
+        muted: !!r.muted,
         last_time: lastMsg ? lastMsg.created_at : r.created_at,
       });
     }
@@ -404,6 +451,31 @@ export async function onRequestPut(context) {
       await env.DB.prepare(`UPDATE rooms SET auto_delete_minutes = ? WHERE id = ?`).bind(minutes, roomId).run();
     }
 
+    if (typeof body.member_title !== 'undefined' && body.member_id) {
+      if (!(await _isGroupAdminOrSuper(env, user, roomId))) {
+        return json({ ok: false, error: 'Only group admins can set member titles' }, 403);
+      }
+      try {
+        await env.DB.prepare(
+          `UPDATE room_members SET title = ? WHERE room_id = ? AND user_id = ?`
+        ).bind((body.member_title || '').slice(0, 24) || null, roomId, body.member_id).run();
+        return json({ ok: true });
+      } catch (e) {
+        return json({ ok: false, error: 'Member titles are not migrated yet on the server.' }, 500);
+      }
+    }
+
+    if (typeof body.muted === 'boolean') {
+      try {
+        await env.DB.prepare(
+          `UPDATE room_members SET muted = ? WHERE room_id = ? AND user_id = ?`
+        ).bind(body.muted ? 1 : 0, roomId, user.id).run();
+      } catch (e) {
+        return json({ ok: false, error: 'Mute column not migrated yet on the server.' }, 500);
+      }
+      return json({ ok: true });
+    }
+
     if (body.generate_invite === true) {
       const existing = await env.DB.prepare(`SELECT invite_code FROM rooms WHERE id = ?`).bind(roomId).first();
       if (existing && existing.invite_code) {
@@ -420,6 +492,13 @@ export async function onRequestPut(context) {
       }
       await env.DB.prepare(`UPDATE rooms SET pinned_message_id = ? WHERE id = ?`)
         .bind(body.pinned_message_id || null, roomId).run();
+      // Also record in pin history so "View all pinned messages" works,
+      // even though the top bar only ever shows the latest one.
+      if (body.pinned_message_id) {
+        await env.DB.prepare(
+          `INSERT OR IGNORE INTO pinned_messages (room_id, message_id, pinned_by, pinned_at) VALUES (?, ?, ?, ?)`
+        ).bind(roomId, body.pinned_message_id, user.id, new Date().toISOString()).run().catch(() => {});
+      }
       return json({ ok: true });
     }
 

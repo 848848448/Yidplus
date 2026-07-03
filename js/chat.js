@@ -174,7 +174,10 @@ function renderChatList() {
     }
     var timeText = c.last_time ? _fmt12(c.last_time) : '';
     var unreadBadge = c.unread
-      ? '<div style="min-width:20px;height:20px;border-radius:10px;background:var(--blue);color:#fff;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px;flex-shrink:0">' + (c.unread > 99 ? '99+' : c.unread) + '</div>'
+      ? '<div style="min-width:20px;height:20px;border-radius:10px;background:' + (c.muted ? 'var(--bg3)' : 'var(--blue)') + ';color:' + (c.muted ? 'var(--muted)' : '#fff') + ';font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px;flex-shrink:0">' + (c.unread > 99 ? '99+' : c.unread) + '</div>'
+      : '';
+    var muteIcon = c.muted
+      ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>'
       : '';
 
     var avatarClickAttr = hasStatus ? ' onclick="event.stopPropagation();_viewChatListAvatarStatus(\'' + (c.other_user_id || c.id) + '\')"' : '';
@@ -185,7 +188,7 @@ function renderChatList() {
         '<div style="flex:1;min-width:0">' +
           '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
             '<div style="font-size:.92rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1">' + escHtml(c.nick || 'Chat') + '</div>' +
-            '<div style="font-size:.68rem;color:var(--muted);flex-shrink:0">' + timeText + '</div>' +
+            '<div style="display:flex;align-items:center;gap:.3rem;flex-shrink:0">' + muteIcon + '<div style="font-size:.68rem;color:var(--muted)">' + timeText + '</div></div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">' +
             '<div style="font-size:.82rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1;font-weight:' + (c.unread ? '500' : '400') + '">' + previewHtml + '</div>' +
@@ -442,6 +445,20 @@ window.copyInviteLink = function () {
             navigator.clipboard.writeText(url2).then(function () { toast('✅ Invite link copied!'); });
           } else { toast('🔗 ' + url2); }
         });
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.toggleMuteCurrentChat = function () {
+  if (!CHAT_curRoom) return;
+  var newMuted = !CHAT_curRoom.muted;
+  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, muted: newMuted })
+    .then(function () {
+      CHAT_curRoom.muted = newMuted;
+      var cached = CHAT_rooms.find(function (r) { return r.id === CHAT_curRoom.id; });
+      if (cached) cached.muted = newMuted;
+      toast(newMuted ? '🔇 Muted' : '🔊 Unmuted');
+      renderChatList();
     })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
@@ -840,7 +857,8 @@ function _renderMembersList() {
     var isSelf = m.id === meId;
     var controls = '';
     if (canManageGroup && !isSelf) {
-      controls = '<div style="display:flex;gap:.3rem;flex-shrink:0">' +
+      controls = '<div style="display:flex;gap:.3rem;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">' +
+        '<button onclick="event.stopPropagation();promptSetMemberTitle(\'' + m.id + '\',\'' + escHtml(m.title || '').replace(/'/g, "\\'") + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .4rem;font-size:.65rem;cursor:pointer;color:var(--text)">🏷 Title</button>' +
         '<button onclick="event.stopPropagation();toggleMemberGroupAdmin(\'' + m.id + '\',' + !m.is_group_admin + ')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .4rem;font-size:.65rem;cursor:pointer;color:var(--blue)">' + (m.is_group_admin ? 'Demote' : 'Make Admin') + '</button>' +
         '<button onclick="event.stopPropagation();removeMemberFromGroup(\'' + m.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .4rem;font-size:.65rem;cursor:pointer;color:var(--red)">Remove</button>' +
       '</div>';
@@ -851,6 +869,7 @@ function _renderMembersList() {
         (m.photo_url ? '' : (m.nickname || '?').slice(0, 1).toUpperCase()) +
       '</div>' +
       '<div style="flex:1;unicode-bidi:plaintext;text-align:start;' + (isMemberAdmin ? 'cursor:pointer' : '') + '" onclick="_openMemberDM(\'' + m.id + '\',\'' + escHtml(m.nickname || 'User').replace(/'/g, "\\'") + '\')"><div style="font-size:.85rem;font-weight:700">@' + escHtml(m.nickname || 'User') + '</div>' +
+      (m.title ? '<div style="font-size:.68rem;color:var(--blue);font-weight:600">' + escHtml(m.title) + '</div>' : '') +
       (m.online && isAnyAdmin() ? '<div style="font-size:.68rem;color:var(--green)">● online</div>' : '') +
       '</div>' +
       (m.role === 'admin_super' || m.role === 'admin_limited' ? '<span style="font-size:.65rem;background:#EAF4FF;color:var(--blue);border:1px solid #BBDEFB;border-radius:6px;padding:.1rem .4rem">Admin</span>' : '') +
@@ -859,6 +878,18 @@ function _renderMembersList() {
     '</div>';
   }).join('');
 }
+
+window.promptSetMemberTitle = function (memberId, currentTitle) {
+  if (!CHAT_curRoom) return;
+  var title = prompt('Role title for this member (e.g. "Moderator"). Leave blank to remove:', currentTitle || '');
+  if (title === null) return;
+  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, member_id: memberId, member_title: title.trim() })
+    .then(function () {
+      toast(title.trim() ? '✅ Title set!' : '✅ Title removed');
+      loadGroupMembers(CHAT_curRoom.id);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 window.switchInfoTab = function (btn, tab) {
   document.querySelectorAll('#info-media-tabs .userinfo-mtab').forEach(function (t) { t.classList.remove('active'); });
@@ -1083,7 +1114,10 @@ function renderMessages(scrollDown) {
 
     // Group sender nick
     if (!isMe && isGroup) {
-      inner += '<div class="bubble-nick" onclick="openUserProfile(\'' + m.sender_id + '\')" style="cursor:pointer">@' + escHtml(m.sender_nick || '') + '</div>';
+      var titleBadge = m.sender_title
+        ? '<span style="margin-right:.35rem;padding:.05rem .4rem;border-radius:8px;background:rgba(21,101,192,.12);color:var(--blue);font-size:.62rem;font-weight:700;vertical-align:middle">' + escHtml(m.sender_title) + '</span>'
+        : '';
+      inner += '<div class="bubble-nick" style="cursor:pointer"><span onclick="openUserProfile(\'' + m.sender_id + '\')">@' + escHtml(m.sender_nick || '') + '</span>' + titleBadge + '</div>';
     }
 
     // Reply quote
@@ -1102,10 +1136,11 @@ function renderMessages(scrollDown) {
                          quoted.type === 'voice'  ? '🎤 Voice message' :
                          quoted.type === 'sticker' ? quoted.text :
                          escHtml((quoted.text || '[media]').slice(0, 60));
-        inner += '<div class="reply-quote" onclick="scrollToMsg(\'' + quoted.id + '\')" style="display:flex;align-items:center;gap:.4rem">' +
+        var quotedNameColor = avatarColor(quoted.sender_id || quoted.sender_nick).match(/#[0-9A-Fa-f]{6}/)[0];
+        inner += '<div class="reply-quote" onclick="scrollToMsg(\'' + quoted.id + '\')" style="display:flex;align-items:center;gap:.5rem;border-left-color:' + quotedNameColor + '">' +
           quotedThumb +
-          '<div style="min-width:0"><strong style="display:block;font-size:.7rem">' + quotedName + '</strong>' +
-          '<span style="unicode-bidi:plaintext">' + quotedText + '</span></div>' +
+          '<div style="min-width:0;flex:1"><strong style="display:block;font-size:.72rem;color:' + quotedNameColor + '">' + quotedName + '</strong>' +
+          '<span style="unicode-bidi:plaintext;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + quotedText + '</span></div>' +
         '</div>';
       }
     }
@@ -1961,12 +1996,29 @@ window._emojiCat = function (btn, cat) {
     var isAdmin = window.ADMIN_GATE_SESSION && window.ADMIN_GATE_SESSION.role === 'owner' ||
                   (STATE.user && (STATE.user.role === 'admin_super' || STATE.user.email === 'Jmittelman2@gmail.com'));
     grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
-    grid.innerHTML = STICKER_PACKS.map(function (s) {
+    var uploadTile = '<div class="sticker-wrap" onclick="document.getElementById(\'custom-sticker-file-inp\').click()" style="display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:10px;cursor:pointer;aspect-ratio:1">' +
+      '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+    '</div>';
+    grid.innerHTML = uploadTile + STICKER_PACKS.map(function (s) {
       return '<div class="sticker-wrap">' +
         '<img class="sticker-gif" src="' + s.url + '" alt="' + s.label + '" loading="lazy" onclick="_sendSticker(\'' + s.url + '\')" title="' + s.label + '">' +
         (isAdmin ? '<div class="sticker-del" onclick="event.stopPropagation();_deleteSticker(\'' + s.id + '\')">✕</div>' : '') +
       '</div>';
-    }).join('');
+    }).join('') + '<div id="custom-stickers-slot" style="display:contents"></div>';
+
+    // Load custom stickers (uploaded by users) into the grid too
+    api.get('/chat/stickers', true).then(function (res) {
+      var slot = document.getElementById('custom-stickers-slot');
+      if (!slot) return;
+      var meId = STATE.user && STATE.user.id;
+      slot.innerHTML = (res.stickers || []).map(function (s) {
+        var canDelete = isAdmin || s.owner_id === meId;
+        return '<div class="sticker-wrap">' +
+          '<img class="sticker-gif" src="' + s.url + '" alt="sticker" loading="lazy" onclick="_sendSticker(\'' + s.url + '\')">' +
+          (canDelete ? '<div class="sticker-del" onclick="event.stopPropagation();_deleteCustomSticker(\'' + s.id + '\')">✕</div>' : '') +
+        '</div>';
+      }).join('');
+    }).catch(function () {});
     return;
   }
   grid.style.gridTemplateColumns = '';
@@ -1994,6 +2046,29 @@ window._deleteSticker = function (stickerId) {
   _emojiCat(null, 'stickers');
   toast('✅ Sticker removed');
 };
+
+window.uploadCustomSticker = function (file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) return toast('⚠ Please choose an image.');
+  toast('📤 Uploading sticker...');
+  var form = new FormData();
+  form.append('file', file);
+  api.post('/chat/stickers', form, true)
+    .then(function () {
+      toast('✅ Sticker added!');
+      _emojiCat(null, 'stickers');
+    })
+    .catch(function (err) { toast('❌ ' + err.message); })
+    .finally(function () { document.getElementById('custom-sticker-file-inp').value = ''; });
+};
+
+window._deleteCustomSticker = function (stickerId) {
+  if (!confirm('Delete this sticker?')) return;
+  api.del('/chat/stickers?id=' + encodeURIComponent(stickerId))
+    .then(function () { toast('✅ Deleted'); _emojiCat(null, 'stickers'); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
 
 window._insertEmoji = function (emoji) {
   // Update recently used

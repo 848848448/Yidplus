@@ -129,9 +129,10 @@ export async function onRequestGet(context) {
       const res = await env.DB.prepare(
         `SELECT m.id, m.room_id, m.sender_id, m.sender_nick, m.type, m.text, m.media_key,
                 m.reply_to_id, m.view_once, m.opened, m.edited_at, m.created_at, m.read, m.topic_id,
-                u.photo_url as sender_photo
+                u.photo_url as sender_photo, rm.title as sender_title
          FROM messages m
          LEFT JOIN users u ON u.id = m.sender_id
+         LEFT JOIN room_members rm ON rm.room_id = m.room_id AND rm.user_id = m.sender_id
          WHERE m.room_id = ?${topicFilter}
          ORDER BY m.created_at ASC
          LIMIT 200`
