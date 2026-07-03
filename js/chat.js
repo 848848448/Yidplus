@@ -23,6 +23,9 @@ var CHAT_folders     = [];
 var CHAT_bookmarks   = [];
 var CHAT_search      = '';
 var CHAT_curRoom     = null;
+var CHAT_curTopicId  = null;   // null = not in a topic-scoped view (flat chat or "General")
+var CHAT_curTopicName = null;
+var CHAT_topicsCache  = {};    // roomId -> topics array, so re-opening a group doesn't always refetch
 var CHAT_messages    = [];
 var CHAT_reactions   = {}; // { messageId: { counts: {emoji: n}, my_reaction: emoji|null } }
 var CHAT_replyTo     = null;
@@ -488,17 +491,38 @@ window.switchChatTab = function (btn, tab) {
 // ============================================================
 // OPEN ROOM
 // ============================================================
-window.openChatRoom = function (roomId) {
+window.openChatRoom = function (roomId, topicId, topicName) {
   var room = CHAT_rooms.find(function (r) { return r.id === roomId; });
   if (!room) {
     // Rooms not yet loaded — load them first, then open
     loadChatRooms(function () {
       var r2 = CHAT_rooms.find(function (r) { return r.id === roomId; });
-      if (r2) window.openChatRoom(roomId);
+      if (r2) window.openChatRoom(roomId, topicId, topicName);
       else toast('⚠ Chat not found');
     });
     return;
   }
+
+  // Groups can have Topics (Telegram-style sub-threads). If this group has
+  // any topics and we weren't told which one to open, show the topics list
+  // first instead of jumping straight into a flat chat view.
+  if (room.type === 'group' && topicId === undefined) {
+    api.get('/chat/topics?room_id=' + encodeURIComponent(roomId))
+      .then(function (res) {
+        var topics = res.topics || [];
+        if (topics.length > 0) {
+          CHAT_topicsCache[roomId] = topics;
+          openTopicsList(roomId);
+        } else {
+          openChatRoom(roomId, null, null);
+        }
+      })
+      .catch(function () { openChatRoom(roomId, null, null); });
+    return;
+  }
+
+  CHAT_curTopicId = (topicId === 'general') ? null : (topicId || null);
+  CHAT_curTopicName = topicName || null;
 
   // Switch screens using only CSS class (no inline styles that override !important)
   var screenChats    = document.getElementById('screen-chats');
@@ -528,7 +552,9 @@ window.openChatRoom = function (roomId) {
     av.textContent = (room.nick || '?').slice(0, 1).toUpperCase();
   }
 
-  document.getElementById('cr-name').textContent = room.nick || 'Chat';
+  document.getElementById('cr-name').textContent = CHAT_curTopicName
+    ? (room.nick || 'Chat') + ' › ' + CHAT_curTopicName
+    : (room.nick || 'Chat');
   document.getElementById('cr-name').onclick = function(){ openChatInfo(); };
   document.getElementById('cr-name').style.cursor = 'pointer';
   document.getElementById('cr-avatar').onclick = function(){ openChatInfo(); };
@@ -911,7 +937,8 @@ window.confirmLeaveGroup = function () {
 function loadMessages(scrollToBottom) {
   if (!CHAT_curRoom) return;
 
-  api.get('/chat?room_id=' + encodeURIComponent(CHAT_curRoom.id))
+  var topicQuery = CHAT_curTopicId ? ('&topic_id=' + encodeURIComponent(CHAT_curTopicId)) : '';
+  api.get('/chat?room_id=' + encodeURIComponent(CHAT_curRoom.id) + topicQuery)
     .then(function (res) {
       var msgs    = res.messages || [];
       var prevLen = CHAT_messages.length;
@@ -1552,6 +1579,7 @@ window.sendChatMsg = function () {
 
   var payload = { room_id: CHAT_curRoom.id, type: 'text', text: text };
   if (CHAT_replyTo) payload.reply_to_id = CHAT_replyTo.id;
+  if (CHAT_curTopicId) payload.topic_id = CHAT_curTopicId;
 
   // Clear input immediately (feels instant)
   var msgText = text;
@@ -2134,6 +2162,7 @@ function _uploadOneFile(file, caption) {
     form.append('type', type);
     form.append('text', caption || '');
     form.append('file', watermarked);
+    if (CHAT_curTopicId) form.append('topic_id', CHAT_curTopicId);
     return api.post('/chat', form, true);
   })
     .then(function () { loadMessages(true); loadChatRooms(); })

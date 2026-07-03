@@ -114,16 +114,44 @@ export async function onRequestGet(context) {
       await env.DB.prepare('UPDATE messages SET view_count = view_count + 1 WHERE room_id = ?').bind(roomId).run().catch(() => {});
     }
 
-    const { results } = await env.DB.prepare(
-      `SELECT m.id, m.room_id, m.sender_id, m.sender_nick, m.type, m.text, m.media_key,
-              m.reply_to_id, m.view_once, m.opened, m.edited_at, m.created_at, m.read,
-              u.photo_url as sender_photo
-       FROM messages m
-       LEFT JOIN users u ON u.id = m.sender_id
-       WHERE m.room_id = ?
-       ORDER BY m.created_at ASC
-       LIMIT 200`
-    ).bind(roomId).all();
+    const topicId = url.searchParams.get('topic_id');
+    let topicFilter = '';
+    let topicParams = [];
+    if (topicId === 'general') {
+      topicFilter = ' AND m.topic_id IS NULL';
+    } else if (topicId) {
+      topicFilter = ' AND m.topic_id = ?';
+      topicParams = [topicId];
+    }
+
+    let results;
+    try {
+      const res = await env.DB.prepare(
+        `SELECT m.id, m.room_id, m.sender_id, m.sender_nick, m.type, m.text, m.media_key,
+                m.reply_to_id, m.view_once, m.opened, m.edited_at, m.created_at, m.read, m.topic_id,
+                u.photo_url as sender_photo
+         FROM messages m
+         LEFT JOIN users u ON u.id = m.sender_id
+         WHERE m.room_id = ?${topicFilter}
+         ORDER BY m.created_at ASC
+         LIMIT 200`
+      ).bind(roomId, ...topicParams).all();
+      results = res.results;
+    } catch (colErr) {
+      // topic_id column doesn't exist yet (migration not run) — fall back to
+      // the pre-topics query so normal chat keeps working regardless.
+      const res = await env.DB.prepare(
+        `SELECT m.id, m.room_id, m.sender_id, m.sender_nick, m.type, m.text, m.media_key,
+                m.reply_to_id, m.view_once, m.opened, m.edited_at, m.created_at, m.read,
+                u.photo_url as sender_photo
+         FROM messages m
+         LEFT JOIN users u ON u.id = m.sender_id
+         WHERE m.room_id = ?
+         ORDER BY m.created_at ASC
+         LIMIT 200`
+      ).bind(roomId).all();
+      results = res.results;
+    }
 
     // Group "Seen by N" — compare each member's last_read_at to each message's
     // created_at. Requires the last_read_at column on room_members; if that
@@ -160,7 +188,7 @@ export async function onRequestPost(context) {
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
 
     const contentType = request.headers.get('content-type') || '';
-    let roomId, type, text, replyToId, file, viewOnce;
+    let roomId, type, text, replyToId, file, viewOnce, topicId;
 
     if (contentType.includes('multipart/form-data')) {
       const form = await request.formData();
@@ -170,6 +198,7 @@ export async function onRequestPost(context) {
       replyToId = form.get('reply_to_id') || null;
       file      = form.get('file');
       viewOnce  = form.get('view_once') === 'true' || form.get('view_once') === '1';
+      topicId   = form.get('topic_id') || null;
     } else {
       const body = await request.json();
       roomId    = body.room_id;
@@ -177,6 +206,7 @@ export async function onRequestPost(context) {
       text      = body.text || '';
       replyToId = body.reply_to_id || null;
       viewOnce  = !!body.view_once;
+      topicId   = body.topic_id || null;
     }
 
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
@@ -227,16 +257,27 @@ export async function onRequestPost(context) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    await env.DB.prepare(
-      `INSERT INTO messages
-         (id, room_id, sender_id, sender_nick, type, text, media_key, reply_to_id, view_once, opened, created_at, read)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0)`
-    ).bind(id, roomId, user.id, user.nickname || '', type, text, mediaKey, replyToId, viewOnce ? 1 : 0, now).run();
+    try {
+      await env.DB.prepare(
+        `INSERT INTO messages
+           (id, room_id, sender_id, sender_nick, type, text, media_key, reply_to_id, view_once, opened, created_at, read, topic_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?)`
+      ).bind(id, roomId, user.id, user.nickname || '', type, text, mediaKey, replyToId, viewOnce ? 1 : 0, now, topicId).run();
+    } catch (insertErr) {
+      // The topic_id column may not exist yet if the migration hasn't been
+      // run — fall back to inserting without it rather than failing the
+      // whole send.
+      await env.DB.prepare(
+        `INSERT INTO messages
+           (id, room_id, sender_id, sender_nick, type, text, media_key, reply_to_id, view_once, opened, created_at, read)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0)`
+      ).bind(id, roomId, user.id, user.nickname || '', type, text, mediaKey, replyToId, viewOnce ? 1 : 0, now).run();
+    }
 
     const result = {
       id, room_id: roomId, sender_id: user.id, sender_nick: user.nickname || '',
       type, text, media_key: mediaKey, reply_to_id: replyToId, view_once: viewOnce ? 1 : 0, opened: 0,
-      created_at: now, read: 0,
+      created_at: now, read: 0, topic_id: topicId,
     };
     if (mediaKey) result.media_url = `/api/media/${encodeURIComponent(mediaKey)}`;
 

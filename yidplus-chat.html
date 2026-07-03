@@ -103,9 +103,26 @@
 <!-- ══════════════════════════════════════════
      SCREEN 2: CHAT ROOM
 ══════════════════════════════════════════ -->
+<div class="chat-page hidden" id="screen-topics-list">
+  <div class="chatroom-topbar">
+    <div class="icon-btn" onclick="showChatList()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </div>
+    <div id="topics-room-avatar" class="chatroom-avatar group" onclick="openChatInfo()" style="cursor:pointer"></div>
+    <div style="flex:1;min-width:0">
+      <div id="topics-room-name" style="font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      <div style="font-size:.7rem;color:var(--muted)">Topics</div>
+    </div>
+    <div class="icon-btn" onclick="openCreateTopicModal()" title="New Topic">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+  </div>
+  <div id="topics-list-body" style="flex:1;overflow-y:auto"></div>
+</div>
+
 <div class="chat-page hidden" id="screen-chatroom">
   <div class="chatroom-topbar">
-    <div class="icon-btn" onclick="showChatList()" style="margin-right:.2rem">
+    <div class="icon-btn" onclick="chatroomBack()" style="margin-right:.2rem">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </div>
     <div class="chatroom-avatar" id="cr-avatar"></div>
@@ -409,6 +426,18 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="create-topic-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-title">🧵 New Topic</div>
+    <div style="display:flex;gap:.5rem;margin-bottom:.6rem">
+      <input class="field" id="new-topic-emoji" maxlength="2" value="💬" style="width:52px;text-align:center;font-size:1.2rem;flex-shrink:0">
+      <input class="field" id="new-topic-name" placeholder="Topic name..." maxlength="40" style="flex:1">
+    </div>
+    <button class="save-pill" style="width:100%" onclick="submitCreateTopic()">Create Topic</button>
+    <button class="modal-cancel" onclick="document.getElementById('create-topic-modal').classList.remove('open')">Cancel</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="add-member-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal-sheet">
     <div class="modal-title">➕ Add Member</div>
@@ -497,6 +526,7 @@
 <!-- Chat options kebab menu -->
 <div class="ctx-menu" id="chat-options-menu" style="right:1rem;top:3.2rem">
   <div class="ctx-item" id="opt-view-members" onclick="openChatInfo();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> View Members</div>
+  <div class="ctx-item" id="opt-create-topic" onclick="openCreateTopicModal();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Create Topic</div>
   <div class="ctx-item" onclick="copyInviteLink();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Copy Invite Link</div>
   <div class="ctx-item" onclick="openJumpToDate();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Jump to Date</div>
   <div class="ctx-item" onclick="toast('Muted');closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg> Mute</div>
@@ -567,12 +597,105 @@
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
+// Smart back button for the chatroom screen: return to the Topics list if
+// we came from one (i.e. this group has topics and we're viewing a
+// specific one), otherwise the normal chat list.
+window.chatroomBack = function () {
+  if (CHAT_curRoom && CHAT_curRoom.type === 'group' && CHAT_topicsCache[CHAT_curRoom.id]) {
+    openTopicsList(CHAT_curRoom.id);
+  } else {
+    showChatList();
+  }
+};
+
+window.openTopicsList = function (roomId) {
+  var room = CHAT_rooms.find(function (r) { return r.id === roomId; });
+  if (!room) return;
+  CHAT_curRoom = room;
+  _stopTypingPoll();
+
+  document.getElementById('screen-chats').classList.add('hidden');
+  document.getElementById('screen-chatroom').classList.add('hidden');
+  document.getElementById('screen-chatinfo').classList.add('hidden');
+  document.getElementById('screen-topics-list').classList.remove('hidden');
+
+  var av = document.getElementById('topics-room-avatar');
+  if (room.photo_url) { av.style.backgroundImage = "url('" + room.photo_url + "')"; av.textContent = ''; }
+  else { av.style.backgroundImage = ''; av.textContent = (room.nick || '?').slice(0, 1).toUpperCase(); }
+  document.getElementById('topics-room-name').textContent = room.nick || 'Group';
+
+  var body = document.getElementById('topics-list-body');
+  body.innerHTML = '<div class="spinner" style="margin:2rem auto"></div>';
+
+  api.get('/chat/topics?room_id=' + encodeURIComponent(roomId), true)
+    .then(function (res) {
+      var topics = res.topics || [];
+      CHAT_topicsCache[roomId] = topics;
+      if (!topics.length) {
+        body.innerHTML = '<div style="text-align:center;padding:3rem 1.5rem;color:var(--muted)">' +
+          '<div style="font-size:2rem;margin-bottom:.5rem">🧵</div>' +
+          '<div style="font-size:.88rem;margin-bottom:1rem">No topics yet</div>' +
+          '<button class="save-pill" onclick="openCreateTopicModal()">Create the first topic</button>' +
+        '</div>';
+        return;
+      }
+      body.innerHTML = topics.map(function (t) {
+        var idArg = t.id ? "'" + t.id + "'" : "'general'";
+        var nameArg = "'" + escHtml(t.name).replace(/'/g, "\\'") + "'";
+        return '<div class="chat-item" onclick="openChatRoom(\'' + roomId + '\',' + idArg + ',' + nameArg + ')">' +
+          '<div class="chat-av" style="background:' + avatarColor(t.id || 'general') + ';font-size:1.3rem">' + (t.emoji || '💬') + '</div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="display:flex;justify-content:space-between;align-items:baseline">' +
+              '<div style="font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(t.name) + (t.closed ? ' 🔒' : '') + '</div>' +
+              '<div style="font-size:.68rem;color:var(--muted);flex-shrink:0;margin-right:.4rem">' + (t.last_time ? timeAgo(t.last_time) : '') + '</div>' +
+            '</div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center">' +
+              '<div style="font-size:.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext">' + escHtml(t.preview || 'No messages yet') + '</div>' +
+              (t.unread ? '<span style="background:var(--blue);color:#fff;border-radius:10px;padding:.05rem .45rem;font-size:.65rem;font-weight:700;flex-shrink:0">' + t.unread + '</span>' : '') +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) {
+      body.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted)">Could not load topics</div>';
+      toast('❌ ' + err.message);
+    });
+};
+
+window.openCreateTopicModal = function () {
+  if (!CHAT_curRoom) return;
+  document.getElementById('new-topic-emoji').value = '💬';
+  document.getElementById('new-topic-name').value = '';
+  document.getElementById('create-topic-modal').classList.add('open');
+  setTimeout(function () { document.getElementById('new-topic-name').focus(); }, 100);
+};
+
+window.submitCreateTopic = function () {
+  if (!CHAT_curRoom) return;
+  var name = (document.getElementById('new-topic-name').value || '').trim();
+  var emoji = (document.getElementById('new-topic-emoji').value || '💬').trim() || '💬';
+  if (!name) return toast('⚠ Enter a topic name.');
+
+  api.post('/chat/topics', { room_id: CHAT_curRoom.id, name: name, emoji: emoji })
+    .then(function (res) {
+      document.getElementById('create-topic-modal').classList.remove('open');
+      toast('✅ Topic created!');
+      openTopicsList(CHAT_curRoom.id);
+      setTimeout(function () { openChatRoom(CHAT_curRoom.id, res.topic.id, res.topic.name); }, 300);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
 window.showChatList = function () {
   _stopTypingPoll();
   CHAT_curRoom = null;
+  CHAT_curTopicId = null;
+  CHAT_curTopicName = null;
   if (typeof closeInChatSearch === 'function') closeInChatSearch();
   document.getElementById('screen-chatroom').classList.add('hidden');
   document.getElementById('screen-chatinfo').classList.add('hidden');
+  document.getElementById('screen-topics-list').classList.add('hidden');
   document.getElementById('screen-chats').classList.remove('hidden');
   // Reload list if it's empty
   var area = document.getElementById('chat-list-area');
@@ -618,7 +741,10 @@ window.closeHamburgerMenu = function () {
 window.openChatOptionsMenu = function () {
   var menu = document.getElementById('chat-options-menu');
   var viewMembersOpt = document.getElementById('opt-view-members');
-  if (viewMembersOpt) viewMembersOpt.style.display = (CHAT_curRoom && CHAT_curRoom.type === 'group') ? 'flex' : 'none';
+  var createTopicOpt = document.getElementById('opt-create-topic');
+  var isGrp = (CHAT_curRoom && CHAT_curRoom.type === 'group');
+  if (viewMembersOpt) viewMembersOpt.style.display = isGrp ? 'flex' : 'none';
+  if (createTopicOpt) createTopicOpt.style.display = isGrp ? 'flex' : 'none';
   menu.classList.add('open');
 };
 window.closeOptMenu = function () {
