@@ -209,8 +209,8 @@ function buildPostCard(p) {
     (caption ? '<div style="padding:.6rem .75rem;font-size:.82rem;color:var(--muted);border-bottom:.5px solid var(--border)">' + (typeof filterContent==='function'?filterContent(_linkHashtags(escHtml(caption))):_linkHashtags(escHtml(caption))) + '</div>' : '') +
     // Actions
     '<div style="display:flex;gap:1rem;padding:.75rem">' +
-      '<button class="post-action" id="like-btn-' + p.id + '" onclick="handleLike(this,\'' + p.id + '\',' + likes + ')">' +
-        '🤍 ' + fmtN(likes) +
+      '<button class="post-action' + (p.liked ? ' liked' : '') + '" id="like-btn-' + p.id + '" onclick="handleLike(this,\'' + p.id + '\')">' +
+        (p.liked ? '❤️ ' : '🤍 ') + fmtN(likes) +
       '</button>' +
       '<button class="post-action" onclick="openPostComments(\'' + p.id + '\')">' +
         '💬 ' + fmtN(cmts) +
@@ -256,13 +256,27 @@ window.publishPost = function () {
   });
 };
 
-window.handleLike = function (btn, postId, currentLikes) {
-  var liked    = btn.classList.toggle('liked');
-  var newCount = liked ? currentLikes + 1 : currentLikes - 1;
-  btn.innerHTML = (liked ? '❤️ ' : '🤍 ') + fmtN(newCount);
+window.handleLike = function (btn, postId) {
+  var wasLiked = btn.classList.contains('liked');
+  var nowLiked = !wasLiked;
+  btn.classList.toggle('liked', nowLiked);
+  // Optimistic UI: bump the displayed count by 1 while the request is in flight
+  var curText = btn.textContent.replace(/[^\d.KM]/g, '');
+  var curNum = parseFloat(curText) || 0;
+  var mult = /K/.test(curText) ? 1000 : /M/.test(curText) ? 1000000 : 1;
+  var optimisticCount = Math.max(0, Math.round(curNum * mult) + (nowLiked ? 1 : -1));
+  btn.innerHTML = (nowLiked ? '❤️ ' : '🤍 ') + fmtN(optimisticCount);
 
-  api.put('/posts', { id: postId, likes: newCount })
+  api.put('/posts', { id: postId, like: nowLiked })
+    .then(function (res) {
+      if (res && typeof res.likes === 'number') {
+        btn.innerHTML = (nowLiked ? '❤️ ' : '🤍 ') + fmtN(res.likes);
+      }
+    })
     .catch(function (err) {
+      // Revert on failure
+      btn.classList.toggle('liked', wasLiked);
+      btn.innerHTML = (wasLiked ? '❤️ ' : '🤍 ') + fmtN(curNum * mult);
       console.warn('[HOME] Like update error:', err.message);
     });
 };
