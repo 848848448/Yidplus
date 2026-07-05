@@ -33,9 +33,9 @@ export async function sendVerificationEmail(env, userId, email, origin) {
       subject: 'Confirm your YID PLUS account',
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-          <h2 style="color:#1565C0">Welcome to YID PLUS! 🎉</h2>
+          <h2 style="color:#1F6F5C">Welcome to YID PLUS! 🎉</h2>
           <p>Please confirm your email address to activate your account.</p>
-          <a href="${verifyUrl}" style="display:inline-block;background:#1565C0;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
+          <a href="${verifyUrl}" style="display:inline-block;background:#1F6F5C;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
             Confirm My Email
           </a>
           <p style="color:#888;font-size:13px">This link expires in 24 hours. If you didn't sign up for YID PLUS, you can ignore this email.</p>

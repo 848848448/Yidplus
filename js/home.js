@@ -327,7 +327,7 @@ function fetchLatestBroadcast() {
       var bar = document.getElementById('broadcast-bar');
       if (bar) {
         var wb = document.createElement('div');
-        wb.style.cssText = 'margin:.5rem .75rem;background:linear-gradient(135deg,rgba(21,101,192,.08),rgba(21,101,192,.04));border:1px solid rgba(21,101,192,.2);border-radius:14px;padding:.75rem 1rem;display:flex;align-items:center;gap:.65rem';
+        wb.style.cssText = 'margin:.5rem .75rem;background:linear-gradient(135deg,rgba(31,111,92,.08),rgba(31,111,92,.04));border:1px solid rgba(31,111,92,.2);border-radius:14px;padding:.75rem 1rem;display:flex;align-items:center;gap:.65rem';
         wb.innerHTML =
           '<div style="font-size:1.5rem;flex-shrink:0">✡️</div>' +
           '<div style="flex:1">' +
@@ -1714,7 +1714,7 @@ function _userRow(u) {
 function _channelRow(c) {
   var av = c.photo_url
     ? '<div style="width:46px;height:46px;border-radius:12px;background-image:url(' + c.photo_url + ');background-size:cover;flex-shrink:0"></div>'
-    : '<div style="width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#1565C0,#1976D2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;color:#fff;flex-shrink:0">' + (c.nickname||'C').slice(0,1).toUpperCase() + '</div>';
+    : '<div style="width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#1F6F5C,#2B8A73);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;color:#fff;flex-shrink:0">' + (c.nickname||'C').slice(0,1).toUpperCase() + '</div>';
   return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem .85rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
     av +
     '<div style="flex:1;min-width:0">' +
@@ -2310,7 +2310,7 @@ function _renderChannelsPrev(channels) {
   if (!el) return;
   el.innerHTML = channels.slice(0,6).map(function (c) {
     return '<div style="display:flex;align-items:center;gap:.65rem;padding:.6rem 0;border-bottom:.5px solid var(--border);cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
-      '<div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#1565C0,#1976D2);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0">' + (c.nickname||'C').slice(0,1).toUpperCase() + '</div>' +
+      '<div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#1F6F5C,#2B8A73);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0">' + (c.nickname||'C').slice(0,1).toUpperCase() + '</div>' +
       '<div><div style="font-size:.85rem;font-weight:700">@' + escHtml(c.nickname||'') + '</div><div style="font-size:.7rem;color:var(--muted)">' + fmtN(c.followers||0) + ' followers</div></div>' +
     '</div>';
   }).join('');
@@ -2353,7 +2353,7 @@ function _showWelcomeBannerIfFirst() {
     var bar = document.getElementById('broadcast-bar');
     if (!bar) return;
     var wb = document.createElement('div');
-    wb.style.cssText = 'margin:.5rem .75rem;background:linear-gradient(135deg,rgba(21,101,192,.08),rgba(21,101,192,.04));border:1px solid rgba(21,101,192,.2);border-radius:14px;padding:.75rem 1rem;display:flex;align-items:center;gap:.65rem';
+    wb.style.cssText = 'margin:.5rem .75rem;background:linear-gradient(135deg,rgba(31,111,92,.08),rgba(31,111,92,.04));border:1px solid rgba(31,111,92,.2);border-radius:14px;padding:.75rem 1rem;display:flex;align-items:center;gap:.65rem';
     wb.innerHTML =
       '<div style="font-size:1.5rem;flex-shrink:0">✡️</div>' +
       '<div style="flex:1"><div style="font-size:.85rem;font-weight:700;color:var(--blue)">ברוכים הבאים ל-YID PLUS!</div><div style="font-size:.72rem;color:var(--muted);margin-top:.15rem">A Yiddish social platform 🎉</div></div>' +

@@ -1183,7 +1183,7 @@ function _addNavLoginBtn() {
   var btn = document.createElement('button');
   btn.id = 'guest-login-btn';
   btn.onclick = _showGuestLoginPopup;
-  btn.style.cssText = 'padding:.35rem .9rem;background:linear-gradient(135deg,#1565C0,#1976D2);color:#fff;border:none;border-radius:20px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:.3rem;white-space:nowrap';
+  btn.style.cssText = 'padding:.35rem .9rem;background:linear-gradient(135deg,#1F6F5C,#2B8A73);color:#fff;border:none;border-radius:20px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:.3rem;white-space:nowrap';
   btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>Sign In';
   topbar.appendChild(btn);
 }
@@ -1203,7 +1203,7 @@ window._showGuestLoginPopup = function (msg) {
       '<div style="font-size:.85rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.5">' +
         (msg || 'Sign in to interact with the YID PLUS community') +
       '</div>' +
-      '<button onclick="goPage(\'index.html\')" style="width:100%;padding:.75rem;background:linear-gradient(135deg,#1565C0,#1976D2);color:#fff;border:none;border-radius:14px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:.5rem;display:flex;align-items:center;justify-content:center;gap:.5rem">' +
+      '<button onclick="goPage(\'index.html\')" style="width:100%;padding:.75rem;background:linear-gradient(135deg,#1F6F5C,#2B8A73);color:#fff;border:none;border-radius:14px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:.5rem;display:flex;align-items:center;justify-content:center;gap:.5rem">' +
         '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>' +
         'Sign In' +
       '</button>' +

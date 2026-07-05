@@ -21,7 +21,7 @@ export async function onRequestPost(context) {
     const { user_id, badge_text, badge_color } = await request.json();
     if (!user_id || !badge_text) return json({ ok: false, error: 'user_id and badge_text required' }, 400);
     const id = crypto.randomUUID();
-    await env.DB.prepare('INSERT INTO user_badges (id, user_id, badge_text, badge_color, granted_by, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(id, user_id, badge_text, badge_color || '#1565C0', user.nickname, new Date().toISOString()).run();
+    await env.DB.prepare('INSERT INTO user_badges (id, user_id, badge_text, badge_color, granted_by, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(id, user_id, badge_text, badge_color || '#1F6F5C', user.nickname, new Date().toISOString()).run();
     return json({ ok: true, id });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
 }

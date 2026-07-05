@@ -1115,7 +1115,7 @@ function renderMessages(scrollDown) {
     // Group sender nick
     if (!isMe && isGroup) {
       var titleBadge = m.sender_title
-        ? '<span style="margin-right:.35rem;padding:.05rem .4rem;border-radius:8px;background:rgba(21,101,192,.12);color:var(--blue);font-size:.62rem;font-weight:700;vertical-align:middle">' + escHtml(m.sender_title) + '</span>'
+        ? '<span style="margin-right:.35rem;padding:.05rem .4rem;border-radius:8px;background:rgba(31,111,92,.12);color:var(--blue);font-size:.62rem;font-weight:700;vertical-align:middle">' + escHtml(m.sender_title) + '</span>'
         : '';
       inner += '<div class="bubble-nick" style="cursor:pointer"><span onclick="openUserProfile(\'' + m.sender_id + '\')">@' + escHtml(m.sender_nick || '') + '</span>' + titleBadge + '</div>';
     }
@@ -1278,7 +1278,7 @@ function renderMessages(scrollDown) {
     }
 
     if (m.reply_count) {
-      inner += '<div class="reply-thread-pill" onclick="openReplyThread(\'' + m.id + '\')" style="display:flex;align-items:center;gap:.3rem;margin-top:.35rem;padding:.25rem .55rem;background:rgba(21,101,192,.1);border-radius:10px;cursor:pointer;width:fit-content;font-size:.72rem;color:var(--blue);font-weight:600">' +
+      inner += '<div class="reply-thread-pill" onclick="openReplyThread(\'' + m.id + '\')" style="display:flex;align-items:center;gap:.3rem;margin-top:.35rem;padding:.25rem .55rem;background:rgba(31,111,92,.1);border-radius:10px;cursor:pointer;width:fit-content;font-size:.72rem;color:var(--blue);font-weight:600">' +
         '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>' +
         m.reply_count + (m.reply_count === 1 ? ' reply' : ' replies') +
       '</div>';
@@ -2154,7 +2154,7 @@ function _showSingleMediaPreview(file, isOnce) {
       '<div style="display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.13);border-radius:22px;padding:.4rem .85rem;margin-bottom:.55rem">' +
         '<input id="media-caption-input" placeholder="Add a caption..." style="flex:1;background:none;border:none;color:#fff;outline:none;font-size:.88rem;font-family:inherit" autocomplete="off">' +
       '</div>' +
-      '<button onclick="_sendSingleMedia()" style="width:100%;padding:.7rem;background:linear-gradient(135deg,#1565C0,#1976D2);border:none;border-radius:22px;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:.5rem;box-shadow:0 2px 10px rgba(21,101,192,.4)">' +
+      '<button onclick="_sendSingleMedia()" style="width:100%;padding:.7rem;background:linear-gradient(135deg,#1F6F5C,#2B8A73);border:none;border-radius:22px;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:.5rem;box-shadow:0 2px 10px rgba(31,111,92,.4)">' +
         '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg> Send' +
       '</button>' +
     '</div>';
@@ -2204,7 +2204,7 @@ function _showMultiMediaPreview(files) {
       files.map(function (f, i) {
         var url = URL.createObjectURL(f);
         var isVid = f.type.startsWith('video/');
-        return '<div style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;border:2px solid #1565C0">' +
+        return '<div style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;border:2px solid #1F6F5C">' +
           (isVid
             ? '<video src="' + url + '" style="width:100%;height:100%;object-fit:cover" preload="metadata"></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35)"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div>'
             : '<img src="' + url + '" style="width:100%;height:100%;object-fit:cover" loading="lazy">') +
@@ -2215,7 +2215,7 @@ function _showMultiMediaPreview(files) {
       '<div style="flex:1;display:flex;align-items:center;gap:.4rem;background:var(--bg3);border-radius:20px;padding:.35rem .75rem;border:1.5px solid var(--border)">' +
         '<input id="multi-caption-input" placeholder="Add a caption..." style="flex:1;background:none;border:none;color:var(--text);outline:none;font-size:.85rem;font-family:inherit">' +
       '</div>' +
-      '<button onclick="_sendMultiMedia()" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#1565C0,#1976D2);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;box-shadow:0 2px 8px rgba(21,101,192,.4)">' +
+      '<button onclick="_sendMultiMedia()" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#1F6F5C,#2B8A73);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;box-shadow:0 2px 8px rgba(31,111,92,.4)">' +
         '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>' +
       '</button>' +
     '</div>';
@@ -3315,10 +3315,10 @@ function renderChatFoldersRow() {
     var unread = _getFolderUnread(f);
     return '<button onclick="setActiveFolder(\'' + f.id + '\')" style="' +
       'display:flex;align-items:center;gap:.3rem;padding:.3rem .7rem;border-radius:16px;border:none;cursor:pointer;font-family:inherit;font-size:.78rem;font-weight:' + (isActive ? '700' : '500') + ';' +
-      'background:' + (isActive ? '#1565C0' : 'var(--bg3)') + ';' +
+      'background:' + (isActive ? '#1F6F5C' : 'var(--bg3)') + ';' +
       'color:' + (isActive ? '#fff' : 'var(--muted)') + ';white-space:nowrap;flex-shrink:0;transition:all .18s">' +
       '<span>' + f.icon + '</span>' + escHtml(f.name) +
-      (unread ? '<span style="background:' + (isActive ? 'rgba(255,255,255,.3)' : '#1565C0') + ';color:#fff;border-radius:10px;padding:.05rem .35rem;font-size:.62rem;font-weight:800;min-width:16px;text-align:center">' + (unread > 99 ? '99+' : unread) + '</span>' : '') +
+      (unread ? '<span style="background:' + (isActive ? 'rgba(255,255,255,.3)' : '#1F6F5C') + ';color:#fff;border-radius:10px;padding:.05rem .35rem;font-size:.62rem;font-weight:800;min-width:16px;text-align:center">' + (unread > 99 ? '99+' : unread) + '</span>' : '') +
     '</button>';
   }).join('') +
   '<button onclick="openFolderManager()" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;border:none;background:var(--bg3);color:var(--muted);cursor:pointer;flex-shrink:0;font-size:.9rem;margin-left:.2rem">' +
@@ -3376,7 +3376,7 @@ window.openFolderManager = function () {
       '</div>' +
       '<div style="margin-top:.75rem;display:flex;gap:.5rem">' +
         '<input id="new-folder-name" placeholder="Folder name..." style="flex:1;padding:.5rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.82rem;outline:none;font-family:inherit">' +
-        '<button onclick="createNewFolder()" style="padding:.5rem 1rem;background:#1565C0;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit">+ Add</button>' +
+        '<button onclick="createNewFolder()" style="padding:.5rem 1rem;background:#1F6F5C;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit">+ Add</button>' +
       '</div>' +
     '</div>';
   document.body.appendChild(modal);
@@ -3649,7 +3649,7 @@ window.openJumpToDate = function () {
       '<div style="font-size:.9rem;font-weight:700;margin-bottom:.85rem">📅 Jump to Date</div>' +
       '<input type="date" id="jump-date-inp" style="width:100%;box-sizing:border-box;padding:.55rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.9rem;outline:none;margin-bottom:.75rem">' +
       '<div style="display:flex;gap:.5rem">' +
-        '<button onclick="doJumpToDate()" style="flex:1;padding:.6rem;background:#1565C0;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit">Go</button>' +
+        '<button onclick="doJumpToDate()" style="flex:1;padding:.6rem;background:#1F6F5C;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit">Go</button>' +
         '<button onclick="document.getElementById(\'jump-date-modal\').remove()" style="flex:1;padding:.6rem;background:var(--bg3);border:none;border-radius:10px;cursor:pointer;font-family:inherit">Cancel</button>' +
       '</div>' +
     '</div>';
@@ -3666,7 +3666,7 @@ window.doJumpToDate = function () {
   var msg = CHAT_messages.find(function (m) { return m.created_at && m.created_at.startsWith(target); });
   if (msg) {
     var el = document.getElementById('msg-' + msg.id);
-    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.style.background = 'rgba(21,101,192,.1)'; setTimeout(function () { el.style.background = ''; }, 1500); }
+    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.style.background = 'rgba(31,111,92,.1)'; setTimeout(function () { el.style.background = ''; }, 1500); }
     else toast('Message visible — scroll up to find it');
   } else {
     toast('No messages found on that date');
@@ -3688,7 +3688,7 @@ window.openDisappearingMessages = function () {
       options.map(function (o) {
         return '<div onclick="setAutoDelete(' + o[0] + ',this.closest(\'div[style*=fixed]\')" style="display:flex;align-items:center;justify-content:space-between;padding:.7rem 0;border-bottom:.5px solid var(--border);cursor:pointer">' +
           '<span style="font-size:.88rem">' + o[1] + '</span>' +
-          (current === o[0] ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1565C0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : '') +
+          (current === o[0] ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1F6F5C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : '') +
         '</div>';
       }).join('') +
       '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:.6rem;background:var(--bg3);border:none;border-radius:10px;cursor:pointer;font-family:inherit;margin-top:.75rem">Cancel</button>' +
@@ -4008,7 +4008,7 @@ function _loadJoinLinkPreview(msgId, inviteCode) {
       if (!el) return;
       var photoHtml = room.photo_url
         ? '<img src="' + escHtml(room.photo_url) + '" style="width:48px;height:48px;border-radius:12px;object-fit:cover;flex-shrink:0" loading="lazy">'
-        : '<div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#1565C0,#1976D2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.3rem;flex-shrink:0">👥</div>';
+        : '<div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#1F6F5C,#2B8A73);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.3rem;flex-shrink:0">👥</div>';
       el.style.display = 'block';
       el.innerHTML =
         '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem;background:var(--bg3);border-radius:10px">' +
@@ -4017,7 +4017,7 @@ function _loadJoinLinkPreview(msgId, inviteCode) {
             '<div style="font-size:.88rem;font-weight:700;color:var(--text)">' + escHtml(room.name || 'Group') + '</div>' +
             '<div style="font-size:.72rem;color:var(--muted);margin-top:.1rem">' + (room.members || 0) + ' members · ' + (room.type || 'group') + '</div>' +
           '</div>' +
-          '<button onclick="joinViaInvite(\'' + escHtml(inviteCode) + '\')" style="padding:.35rem .85rem;background:linear-gradient(135deg,#1565C0,#1976D2);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:700;font-family:inherit;white-space:nowrap">Join</button>' +
+          '<button onclick="joinViaInvite(\'' + escHtml(inviteCode) + '\')" style="padding:.35rem .85rem;background:linear-gradient(135deg,#1F6F5C,#2B8A73);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:700;font-family:inherit;white-space:nowrap">Join</button>' +
         '</div>';
     })
     .catch(function () { _joinLinkCache[inviteCode] = null; });
@@ -4122,7 +4122,7 @@ function _svSegments(count, isMine) {
     var x1 = cx + r * Math.cos(rad1);
     var y1 = cy + r * Math.sin(rad1);
     var largeArc = segDeg > 180 ? 1 : 0;
-    var color = isMine ? '#999' : 'var(--blue, #1565C0)';
+    var color = isMine ? '#999' : 'var(--blue, #1F6F5C)';
     segs += '<path d="M ' + x0.toFixed(2) + ' ' + y0.toFixed(2) +
       ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + x1.toFixed(2) + ' ' + y1.toFixed(2) + '" ' +
       'stroke="' + color + '" stroke-width="2.5" fill="none" stroke-linecap="round"/>';

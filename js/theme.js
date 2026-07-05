@@ -6,7 +6,7 @@ var THEME_KEY = 'yp_theme';
 
 var THEME_PRESETS = [
   { name: 'Gold',        gold: '#B8860B', goldL: '#DAA520', bg: '#FFFFFF', bg2: '#F5F5F5', text: '#000000' },
-  { name: 'Royal Blue',  gold: '#1565C0', goldL: '#42A5F5', bg: '#FFFFFF', bg2: '#F0F4FA', text: '#000000' },
+  { name: 'Royal Blue',  gold: '#1F6F5C', goldL: '#42A5F5', bg: '#FFFFFF', bg2: '#F0F4FA', text: '#000000' },
   { name: 'Emerald',     gold: '#2E7D32', goldL: '#66BB6A', bg: '#FFFFFF', bg2: '#F0F8F0', text: '#000000' },
   { name: 'Crimson',     gold: '#C62828', goldL: '#EF5350', bg: '#FFFFFF', bg2: '#FAF0F0', text: '#000000' },
   { name: 'Violet',      gold: '#6A1B9A', goldL: '#AB47BC', bg: '#FFFFFF', bg2: '#F6F0FA', text: '#000000' },

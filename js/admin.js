@@ -717,7 +717,7 @@ function renderUsersList(users) {
     var isViewingAsOwner = userCan('view_pii') && OWNER_EMAILS_ADMIN.includes(ADMIN_gateEmail || CONFIG.OWNER_EMAIL);
     var actions = '';
     if (isViewingAsOwner && !isOwnerRow) {
-      actions += '<button class="act-btn" style="background:#1565C0;color:#fff;border-color:#1565C0" onclick="adminEditUser(\'' + u.id + '\')">' + SVG_EDIT + ' Edit</button>';
+      actions += '<button class="act-btn" style="background:#1F6F5C;color:#fff;border-color:#1F6F5C" onclick="adminEditUser(\'' + u.id + '\')">' + SVG_EDIT + ' Edit</button>';
       actions += '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + SVG_VERIFY + ' ' + (u.verified ? 'Unverify' : 'Verify') + '</button>';
       actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? SVG_DEMOTE + ' Demote' : SVG_PROMO + ' Promote') + '</button>';
       actions += '<button class="act-btn act-block" onclick="adminBlock(\'' + u.id + '\',\'' + !!u.blocked + '\')">' + SVG_BAN + ' ' + (u.blocked ? 'Unblock' : 'Block') + '</button>';
@@ -1543,7 +1543,7 @@ function buildMaintenancePanel(content) {
     .then(function (res) {
       var el = document.getElementById('guest-status');
       if (!el) return;
-      el.style.background = res.enabled ? 'rgba(21,101,192,.1)' : 'rgba(124,58,237,.1)';
+      el.style.background = res.enabled ? 'rgba(31,111,92,.1)' : 'rgba(124,58,237,.1)';
       el.style.color = res.enabled ? 'var(--blue)' : '#7C3AED';
       el.textContent = res.enabled ? '👁️ GUEST MODE IS ON — Anyone can browse' : '🔒 LOGIN REQUIRED — Guests cannot access';
     })
@@ -1865,12 +1865,12 @@ function buildLeaderboardPanel(content) {
       if (!el) return;
       function section(title, items, label) {
         if (!items || !items.length) return '';
-        return '<div style="margin-bottom:1.25rem"><div style="font-size:.72rem;font-weight:800;color:#1565C0;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">' + title + '</div>' +
+        return '<div style="margin-bottom:1.25rem"><div style="font-size:.72rem;font-weight:800;color:#1F6F5C;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">' + title + '</div>' +
           items.map(function (u, i) {
             return '<div style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;border-bottom:.5px solid var(--border)">' +
               '<div style="width:22px;font-size:.8rem;font-weight:800;color:' + (['#F59E0B','#94A3B8','#CD7C32'][i]||'var(--muted)') + '">#' + (i+1) + '</div>' +
               '<div style="flex:1;font-size:.82rem">' + escHtml(u.uid||'unknown') + '</div>' +
-              '<div style="font-size:.78rem;font-weight:700;color:#1565C0">' + fmtN(u.cnt) + ' ' + label + '</div>' +
+              '<div style="font-size:.78rem;font-weight:700;color:#1F6F5C">' + fmtN(u.cnt) + ' ' + label + '</div>' +
             '</div>';
           }).join('') + '</div>';
       }
@@ -1894,7 +1894,7 @@ function buildAnnouncementsPanel(content) {
         '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">ארויסגעשטעלטע נאכריכטן וואס אלע יוזערס זעען אויפן הויפטשירם.</div>' +
         '<textarea id="ann-text" rows="3" placeholder="Type announcement..." style="width:100%;box-sizing:border-box;padding:.6rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none;resize:none;margin-bottom:.6rem"></textarea>' +
         '<button class="bc-send-btn" onclick="adminPostAnnouncement()" style="margin-bottom:1rem">Post Announcement</button>' +
-        '<div style="font-size:.72rem;font-weight:800;color:#1565C0;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">Active:</div>' +
+        '<div style="font-size:.72rem;font-weight:800;color:#1F6F5C;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">Active:</div>' +
         '<div id="ann-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
       '</div>' +
     '</div>';
@@ -1938,7 +1938,7 @@ function buildBadgesPanel(content) {
         '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">צולייגן א ספּעציאל באדזש צו א יוזער (z.b. ⭐ VIP, 🎵 Artist).</div>' +
         '<input id="badge-user-search" class="admin-search" placeholder="Search user..." oninput="badgeUserSearch()">' +
         '<div id="badge-user-results" style="margin-bottom:.75rem"></div>' +
-        '<div style="font-size:.72rem;font-weight:800;color:#1565C0;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">All Badges:</div>' +
+        '<div style="font-size:.72rem;font-weight:800;color:#1F6F5C;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">All Badges:</div>' +
         '<div id="badges-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
       '</div>' +
     '</div>';
@@ -1972,15 +1972,15 @@ window.badgeUserSearch = function () {
         return '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;background:var(--bg3);border-radius:8px;margin-bottom:.35rem">' +
           '<span style="font-size:.82rem;flex:1">@' + escHtml(u.nickname) + '</span>' +
           '<input id="badge-text-' + u.id + '" placeholder="Badge text..." style="flex:1;padding:.35rem .5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.75rem;outline:none">' +
-          '<input type="color" id="badge-color-' + u.id + '" value="#1565C0" style="width:30px;height:28px;border:none;border-radius:6px;cursor:pointer;padding:0">' +
-          '<button class="save-pill" style="background:#1565C0;margin-left:0" onclick="adminGrantBadge(\'' + u.id + '\')">Add</button>' +
+          '<input type="color" id="badge-color-' + u.id + '" value="#1F6F5C" style="width:30px;height:28px;border:none;border-radius:6px;cursor:pointer;padding:0">' +
+          '<button class="save-pill" style="background:#1F6F5C;margin-left:0" onclick="adminGrantBadge(\'' + u.id + '\')">Add</button>' +
         '</div>';
       }).join('') || '<div style="font-size:.78rem;color:var(--muted)">No users found</div>';
     }).catch(function () {});
 };
 window.adminGrantBadge = function (userId) {
   var text  = (document.getElementById('badge-text-' + userId)||{}).value || '';
-  var color = (document.getElementById('badge-color-' + userId)||{}).value || '#1565C0';
+  var color = (document.getElementById('badge-color-' + userId)||{}).value || '#1F6F5C';
   if (!text.trim()) { toast('Enter badge text'); return; }
   api.post('/admin/badges', { user_id: userId, badge_text: text.trim(), badge_color: color })
     .then(function () { toast('Badge granted!'); loadBadgesList(); })

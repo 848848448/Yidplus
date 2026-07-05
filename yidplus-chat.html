@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#1565C0">
+<meta name="theme-color" content="#1F6F5C">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta property="og:title" content="YID PLUS — Chats">
 <meta property="og:description" content="Chat with the Jewish community on YID PLUS">
@@ -32,7 +32,7 @@
 .chat-page { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); }
 .chat-page.hidden { display: none !important; }
 </style>
-</head>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Suez+One&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"></head>
 <body>
 
 <!-- ══════════════════════════════════════════
@@ -72,7 +72,7 @@
     <button id="status-fab-btn" onclick="_handleStatusButtonTap()" style="pointer-events:all;width:48px;height:48px;border-radius:50%;background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 12px rgba(0,0,0,.15);display:none;align-items:center;justify-content:center;color:var(--text);cursor:pointer">
       <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
     </button>
-    <button onclick="toggleChatFab()" style="pointer-events:all;width:56px;height:56px;border-radius:50%;background:var(--blue);box-shadow:0 4px 14px rgba(21,101,192,.4);display:flex;align-items:center;justify-content:center;color:#fff;border:none;cursor:pointer">
+    <button onclick="toggleChatFab()" style="pointer-events:all;width:56px;height:56px;border-radius:50%;background:var(--blue);box-shadow:0 4px 14px rgba(31,111,92,.4);display:flex;align-items:center;justify-content:center;color:#fff;border:none;cursor:pointer">
       <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     </button>
   </div>
@@ -220,7 +220,7 @@
     <div class="rec-waveform" id="rec-live-meter"><div class="rec-waveform-bar" id="rec-live-level" style="height:4px"></div></div>
     <div class="rec-time" id="rec-live-time">0:00</div>
     <div class="rec-hint" id="rec-live-hint">← slide to cancel</div>
-    <button class="rec-action-btn" id="rec-locked-send-btn" style="display:none;background:linear-gradient(135deg,#1565C0,#1976D2);color:#fff" onclick="stopVoiceRecAndSend()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+    <button class="rec-action-btn" id="rec-locked-send-btn" style="display:none;background:linear-gradient(135deg,#1F6F5C,#2B8A73);color:#fff" onclick="stopVoiceRecAndSend()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
     <button class="rec-action-btn" id="rec-locked-cancel-btn" style="display:none;background:#FEE2E2;color:#E11D48" onclick="cancelVoiceRec()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
 
@@ -302,21 +302,21 @@
       <div style="padding:.85rem 1.25rem .5rem;font-size:.68rem;color:#637087;letter-spacing:.1em;text-transform:uppercase;font-weight:700">Group Settings</div>
       <div class="setting-row" style="cursor:pointer;padding:.85rem 1.25rem" onclick="toggleGroupReadOnly()">
         <div style="display:flex;align-items:center;gap:.75rem;flex:1">
-          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1565C0;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1F6F5C;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
           <div><div style="font-size:.85rem;font-weight:600">Everyone Can Write</div><div style="font-size:.7rem;color:#637087;margin-top:.1rem">Turn off = only admins can post</div></div>
         </div>
         <div class="toggle-sw" id="group-readonly-toggle"></div>
       </div>
       <div class="setting-row" style="cursor:pointer;padding:.85rem 1.25rem" onclick="toggleGroupVisibility()">
         <div style="display:flex;align-items:center;gap:.75rem;flex:1">
-          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1565C0;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1F6F5C;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
           <div><div style="font-size:.85rem;font-weight:600">Public Group</div><div style="font-size:.7rem;color:#637087;margin-top:.1rem">Anyone can discover and join</div></div>
         </div>
         <div class="toggle-sw" id="group-visibility-toggle"></div>
       </div>
       <div class="setting-row" style="cursor:pointer;padding:.85rem 1.25rem" onclick="openAutoDeleteModal()">
         <div style="display:flex;align-items:center;gap:.75rem;flex:1">
-          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1565C0;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <div style="width:36px;height:36px;border-radius:10px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#1F6F5C;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
           <div><div style="font-size:.85rem;font-weight:600">Auto-Delete Messages</div><div style="font-size:.7rem;color:#637087;margin-top:.1rem" id="auto-delete-label">Off</div></div>
         </div>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#637087" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -463,9 +463,9 @@
   <div class="modal-sheet">
     <div class="modal-title">👥 New Group</div>
     <div style="display:flex;justify-content:center;margin-bottom:1rem">
-      <div id="new-group-photo-preview" onclick="document.getElementById('new-group-photo-inp').click()" style="width:72px;height:72px;border-radius:50%;background:#EFF6FF;border:2px dashed #1565C0;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1565C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        <div style="font-size:.55rem;color:#1565C0;margin-top:.2rem">Add Photo</div>
+      <div id="new-group-photo-preview" onclick="document.getElementById('new-group-photo-inp').click()" style="width:72px;height:72px;border-radius:50%;background:#EFF6FF;border:2px dashed #1F6F5C;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F6F5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <div style="font-size:.55rem;color:#1F6F5C;margin-top:.2rem">Add Photo</div>
       </div>
       <input type="file" id="new-group-photo-inp" accept="image/*" style="display:none" onchange="previewNewGroupPhoto(event)">
     </div>
@@ -481,9 +481,9 @@
   <div class="modal-sheet">
     <div class="modal-title">📡 New Channel</div>
     <div style="display:flex;justify-content:center;margin-bottom:1rem">
-      <div id="new-channel-photo-preview" onclick="document.getElementById('new-channel-photo-inp').click()" style="width:72px;height:72px;border-radius:50%;background:#EFF6FF;border:2px dashed #1565C0;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1565C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        <div style="font-size:.55rem;color:#1565C0;margin-top:.2rem">Add Photo</div>
+      <div id="new-channel-photo-preview" onclick="document.getElementById('new-channel-photo-inp').click()" style="width:72px;height:72px;border-radius:50%;background:#EFF6FF;border:2px dashed #1F6F5C;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F6F5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <div style="font-size:.55rem;color:#1F6F5C;margin-top:.2rem">Add Photo</div>
       </div>
       <input type="file" id="new-channel-photo-inp" accept="image/*" style="display:none" onchange="previewNewChannelPhoto(event)">
     </div>
