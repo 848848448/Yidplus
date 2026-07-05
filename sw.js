@@ -26,6 +26,48 @@ self.addEventListener('activate', function (e) {
   );
 });
 
+// Show the actual OS/browser notification when a push arrives — without
+// this handler, sendWebPush() on the server can succeed perfectly and the
+// browser will still show nothing at all (no banner, no sound, no
+// vibration), since displaying it is entirely the service worker's job.
+self.addEventListener('push', function (event) {
+  var data = { title: 'YID PLUS', body: 'You have a new notification', url: '/chat' };
+  try { if (event.data) data = Object.assign(data, event.data.json()); } catch (e) {}
+
+  var options = {
+    body: data.body,
+    icon: data.icon || '/images/logo.png',
+    badge: data.badge || '/images/logo.png',
+    tag: data.tag || 'yidplus',
+    data: { url: data.url || '/chat' },
+    vibrate: [200, 100, 200],
+    silent: false,
+    renotify: true,
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+// Tapping the notification focuses an existing tab if one is open, or opens
+// a new one to the relevant URL.
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close();
+  var targetUrl = (event.notification.data && event.notification.data.url) || '/chat';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+      for (var i = 0; i < clientList.length; i++) {
+        var client = clientList[i];
+        if ('focus' in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
+  );
+});
+
 self.addEventListener('fetch', function (e) {
   var url = e.request.url;
   var path = new URL(url).pathname;
