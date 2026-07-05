@@ -705,6 +705,7 @@ function renderUsersList(users) {
     var canManage  = userCan('manage_users') && !isOwnerRow;
     var roleClass  = (u.role === 'admin_super' || u.role === 'admin_limited') ? 'admin' : 'user';
     var roleBadge  = '<span class="role-badge role-' + roleClass + '">' + (u.role || 'member') + '</span>';
+    var isMuted    = !!(u.muted_until && new Date(u.muted_until).getTime() > Date.now());
 
     var SVG_EDIT   = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>';
     var SVG_DEL    = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
@@ -723,10 +724,12 @@ function renderUsersList(users) {
       actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? SVG_DEMOTE + ' Demote' : SVG_PROMO + ' Promote') + '</button>';
       actions += '<button class="act-btn act-block" onclick="adminBlock(\'' + u.id + '\',\'' + !!u.blocked + '\')">' + SVG_BAN + ' ' + (u.blocked ? 'Unblock' : 'Block') + '</button>';
       actions += '<button class="act-btn" style="background:' + (u.no_ads ? '#16A34A' : '#637087') + ';color:#fff;border-color:transparent" onclick="adminToggleNoAds(\'' + u.id + '\',' + !!u.no_ads + ')" title="Ad-free toggle">' + SVG_ADS + ' ' + (u.no_ads ? 'Ad-Free ON' : 'Ads ON') + '</button>';
+      actions += '<button class="act-btn" style="background:' + (isMuted ? '#E11D48' : '#637087') + ';color:#fff;border-color:transparent" onclick="adminMuteUser(\'' + u.id + '\',' + isMuted + ')">' + (isMuted ? '🔇 Unmute' : '🔇 Mute') + '</button>';
       actions += '<button class="act-btn" style="background:#E11D48;color:#fff;border-color:#E11D48" onclick="adminDeleteUser(\'' + u.id + '\',\'' + escHtml(u.nickname||'') + '\')">' + SVG_DEL + ' Delete</button>';
     } else {
       if (canManage) {
         actions += '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + SVG_VERIFY + ' ' + (u.verified ? 'Unverify' : 'Verify') + '</button>';
+        actions += '<button class="act-btn" style="background:' + (isMuted ? '#E11D48' : '#637087') + ';color:#fff;border-color:transparent" onclick="adminMuteUser(\'' + u.id + '\',' + isMuted + ')">' + (isMuted ? '🔇 Unmute' : '🔇 Mute') + '</button>';
         if (userCan('promote_users')) {
           actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? SVG_DEMOTE + ' Demote' : SVG_PROMO + ' Promote') + '</button>';
         }
@@ -763,6 +766,22 @@ function renderUsersList(users) {
     '</div>';
   }).join('');
 }
+
+window.adminMuteUser = function (id, currentlyMuted) {
+  if (currentlyMuted) {
+    api.post('/admin/mute', { user_id: id, hours: 0 })
+      .then(function () { toast('🔊 Unmuted!'); buildUsersPanel(document.getElementById('admin-content')); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+    return;
+  }
+  var hoursStr = prompt('Mute for how many hours? (e.g. 1, 24, 168 for a week)', '24');
+  if (hoursStr === null) return;
+  var hours = parseFloat(hoursStr);
+  if (!hours || hours <= 0) return toast('⚠️ Enter a positive number of hours.');
+  api.post('/admin/mute', { user_id: id, hours: hours })
+    .then(function () { toast('🔇 Muted for ' + hours + 'h!'); buildUsersPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 window.filterAdminUsers = function () {
   var q = (document.getElementById('usr-search') || {}).value || '';
@@ -834,12 +853,49 @@ window.openUserDetailModal = function (userId) {
 
       body.innerHTML = profileRows + countsGrid +
         '<div class="admin-card" style="margin:0 0 .75rem"><div class="admin-card-title">🔐 Login History (last 10)</div>' + loginRows + '</div>' +
-        '<div class="admin-card" style="margin:0"><div class="admin-card-title">📋 Moderation Actions Taken Against This User</div>' + auditRows + '</div>';
+        '<div class="admin-card" style="margin:0 0 .75rem"><div class="admin-card-title">📋 Moderation Actions Taken Against This User</div>' + auditRows + '</div>' +
+        '<div class="admin-card" style="margin:0">' +
+          '<div class="admin-card-title">📝 Private Admin Notes</div>' +
+          '<div id="user-notes-list" style="margin-bottom:.5rem"><div class="spinner" style="margin:.5rem auto"></div></div>' +
+          '<textarea id="user-note-input" class="bc-textarea" rows="2" placeholder="Add a private note only admins can see..." style="margin-bottom:.4rem"></textarea>' +
+          '<button class="save-pill" style="width:100%" onclick="adminAddUserNote(\'' + userId + '\')">Add Note</button>' +
+        '</div>';
+      loadUserNotes(userId);
     })
     .catch(function (err) {
       var body = document.getElementById('user-detail-body');
       if (body) body.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--red);font-size:.8rem">⚠️ ' + escHtml(err.message) + '</div>';
     });
+};
+
+function loadUserNotes(userId) {
+  var el = document.getElementById('user-notes-list');
+  if (!el) return;
+  api.get('/admin/notes?user_id=' + encodeURIComponent(userId), true)
+    .then(function (res) {
+      var notes = res.notes || [];
+      if (!notes.length) { el.innerHTML = '<div style="font-size:.75rem;color:var(--muted)">No notes yet.</div>'; return; }
+      el.innerHTML = notes.map(function (n) {
+        return '<div style="font-size:.75rem;padding:.4rem;background:var(--bg3);border-radius:8px;margin-bottom:.35rem">' +
+          '<div>' + escHtml(n.note) + '</div>' +
+          '<div style="color:var(--muted);font-size:.65rem;margin-top:.2rem">— @' + escHtml(n.author_nick || '?') + ' · ' + timeAgo(n.created_at) + '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function () { el.innerHTML = '<div style="font-size:.75rem;color:var(--muted)">Could not load notes.</div>'; });
+}
+
+window.adminAddUserNote = function (userId) {
+  var inp = document.getElementById('user-note-input');
+  var note = (inp && inp.value || '').trim();
+  if (!note) return toast('⚠️ Write something first.');
+  api.post('/admin/notes', { user_id: userId, note: note })
+    .then(function () {
+      if (inp) inp.value = '';
+      toast('✅ Note added!');
+      loadUserNotes(userId);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
 };
 
 window.adminVerify = function (id, currentStr) {

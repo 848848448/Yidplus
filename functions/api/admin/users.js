@@ -25,14 +25,14 @@ export async function onRequestGet(context) {
     const onlineExpr = `(CASE WHEN online = 1 AND last_ping >= datetime('now','-60 seconds') THEN 1 ELSE 0 END) AS online`;
     let fields;
     if (isOwner) {
-      fields = `id, email, nickname, phone, role, verified, blocked, ${onlineExpr}, no_ads, created_at`;
+      fields = `id, email, nickname, phone, role, verified, blocked, ${onlineExpr}, no_ads, muted_until, created_at`;
     } else {
-      fields = `id, nickname, role, verified, blocked, ${onlineExpr}`;
+      fields = `id, nickname, role, verified, blocked, ${onlineExpr}, muted_until`;
     }
 
     const fallbackFields = isOwner
-      ? 'id, email, nickname, phone, role, verified, blocked, online, no_ads, created_at'
-      : 'id, nickname, role, verified, blocked, online';
+      ? 'id, email, nickname, phone, role, verified, blocked, online, no_ads, muted_until, created_at'
+      : 'id, nickname, role, verified, blocked, online, muted_until';
 
     const url    = new URL(request.url);
     const search = url.searchParams.get('search') || '';
