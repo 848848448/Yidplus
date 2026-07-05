@@ -175,13 +175,46 @@ export async function onRequestGet(context) {
       ).bind(...allRoomIds).all().catch(() => ({ results: [] }));
       for (const m of lastMsgs) lastMsgByRoom[m.room_id] = m;
 
-      // Unread counts for every room in one query.
-      const { results: unreadRows } = await env.DB.prepare(
-        `SELECT room_id, COUNT(*) AS c FROM messages
-         WHERE room_id IN (${placeholders}) AND sender_id != ? AND read = 0
-         GROUP BY room_id`
-      ).bind(...allRoomIds, user.id).all().catch(() => ({ results: [] }));
-      for (const u of unreadRows) unreadByRoom[u.room_id] = u.c;
+      // Unread counts. Private DMs only have two participants, so the
+      // shared `read` flag on the message is fine. Groups are different —
+      // that same shared flag meant the FIRST member to open a group after
+      // a new message would silently mark it "read" for every other
+      // member too, since there was only one read flag per message, not
+      // one per recipient. Groups now use each member's own last_read_at
+      // timestamp instead, so unread counts are accurate per-person.
+      if (privateRoomIds.length) {
+        const privPlaceholders = privateRoomIds.map(() => '?').join(',');
+        const { results: unreadRows } = await env.DB.prepare(
+          `SELECT room_id, COUNT(*) AS c FROM messages
+           WHERE room_id IN (${privPlaceholders}) AND sender_id != ? AND read = 0
+           GROUP BY room_id`
+        ).bind(...privateRoomIds, user.id).all().catch(() => ({ results: [] }));
+        for (const u of unreadRows) unreadByRoom[u.room_id] = u.c;
+      }
+
+      if (groupRoomIds.length) {
+        const grpPlaceholders = groupRoomIds.map(() => '?').join(',');
+        try {
+          const { results: unreadRows } = await env.DB.prepare(
+            `SELECT m.room_id, COUNT(*) AS c
+             FROM messages m
+             JOIN room_members rm ON rm.room_id = m.room_id AND rm.user_id = ?
+             WHERE m.room_id IN (${grpPlaceholders}) AND m.sender_id != ?
+               AND (rm.last_read_at IS NULL OR m.created_at > rm.last_read_at)
+             GROUP BY m.room_id`
+          ).bind(user.id, ...groupRoomIds, user.id).all();
+          for (const u of unreadRows) unreadByRoom[u.room_id] = u.c;
+        } catch (e) {
+          // last_read_at not migrated yet — fall back to the old shared
+          // flag (imperfect for groups, but keeps unread counts working).
+          const { results: unreadRows } = await env.DB.prepare(
+            `SELECT room_id, COUNT(*) AS c FROM messages
+             WHERE room_id IN (${grpPlaceholders}) AND sender_id != ? AND read = 0
+             GROUP BY room_id`
+          ).bind(...groupRoomIds, user.id).all().catch(() => ({ results: [] }));
+          for (const u of unreadRows) unreadByRoom[u.room_id] = u.c;
+        }
+      }
     }
 
     if (groupRoomIds.length) {
