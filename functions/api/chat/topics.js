@@ -184,6 +184,23 @@ export async function onRequestDelete(context) {
 
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
+    const roomId = url.searchParams.get('room_id');
+
+    // Disable Topics for an entire group (admin/owner of that group only).
+    // Unlike deleting one topic below, this does NOT delete any messages —
+    // it just turns Topics mode off and clears the topic definitions, so
+    // every message merges back into one flat conversation, exactly like
+    // a regular group. The group's admin can always turn it back on later
+    // by creating a new topic.
+    if (roomId && !id) {
+      if (!(await _isGroupAdminOrOwner(env, user, roomId))) {
+        return json({ ok: false, error: 'Only this group\'s admin can turn off Topics' }, 403);
+      }
+      await env.DB.prepare('DELETE FROM topics WHERE room_id = ?').bind(roomId).run();
+      await env.DB.prepare('UPDATE rooms SET has_topics = 0 WHERE id = ?').bind(roomId).run().catch(() => {});
+      return json({ ok: true });
+    }
+
     if (!id) return json({ ok: false, error: 'id is required' }, 400);
 
     const topic = await env.DB.prepare('SELECT room_id FROM topics WHERE id = ?').bind(id).first();

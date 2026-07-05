@@ -570,6 +570,7 @@
 <div class="ctx-menu" id="chat-options-menu" style="right:1rem;top:3.2rem">
   <div class="ctx-item" id="opt-view-members" onclick="openChatInfo();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> View Members</div>
   <div class="ctx-item" id="opt-create-topic" onclick="openCreateTopicModal();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> <span id="opt-create-topic-label">Create Topic</span></div>
+  <div class="ctx-item" id="opt-disable-topics" style="display:none;color:#D32F2F" onclick="disableTopicsForGroup();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg> Disable Topics for This Group</div>
   <div class="ctx-item" onclick="copyInviteLink();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Copy Invite Link</div>
   <div class="ctx-item" onclick="openJumpToDate();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Jump to Date</div>
   <div class="ctx-item" id="opt-mute-toggle" onclick="toggleMuteCurrentChat();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg> <span id="opt-mute-label">Mute</span></div>
@@ -775,6 +776,19 @@ window.openCreateTopicModal = function () {
   setTimeout(function () { document.getElementById('new-topic-name').focus(); }, 100);
 };
 
+window.disableTopicsForGroup = function () {
+  if (!CHAT_curRoom) return;
+  if (!confirm('Turn off Topics for this group? All messages will merge back into one regular chat. Nothing gets deleted — you can turn Topics back on any time.')) return;
+  api.del('/chat/topics?room_id=' + encodeURIComponent(CHAT_curRoom.id))
+    .then(function () {
+      CHAT_curRoom.has_topics = false;
+      delete CHAT_topicsCache[CHAT_curRoom.id];
+      toast('✅ Topics turned off for this group.');
+      openChatRoom(CHAT_curRoom.id, null, null);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
 window.submitCreateTopic = function () {
   if (!CHAT_curRoom) return;
   var name = (document.getElementById('new-topic-name').value || '').trim();
@@ -847,6 +861,7 @@ window.openChatOptionsMenu = function () {
   var viewMembersOpt = document.getElementById('opt-view-members');
   var createTopicOpt = document.getElementById('opt-create-topic');
   var createTopicLabel = document.getElementById('opt-create-topic-label');
+  var disableTopicsOpt = document.getElementById('opt-disable-topics');
   var isGrp = (CHAT_curRoom && CHAT_curRoom.type === 'group');
   if (viewMembersOpt) viewMembersOpt.style.display = isGrp ? 'flex' : 'none';
   if (createTopicOpt) {
@@ -858,6 +873,7 @@ window.openChatOptionsMenu = function () {
     var showTopicOpt = isGrp && (topicsOn || isGroupAdminHere);
     createTopicOpt.style.display = showTopicOpt ? 'flex' : 'none';
     if (createTopicLabel) createTopicLabel.textContent = topicsOn ? 'Create Topic' : 'Enable Topics for This Group';
+    if (disableTopicsOpt) disableTopicsOpt.style.display = (topicsOn && isGroupAdminHere) ? 'flex' : 'none';
   }
   var muteLabel = document.getElementById('opt-mute-label');
   if (muteLabel) muteLabel.textContent = (CHAT_curRoom && CHAT_curRoom.muted) ? 'Unmute' : 'Mute';
