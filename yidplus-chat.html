@@ -639,6 +639,40 @@ window.openPinnedListModal = function () {
     });
 };
 
+window.openReplyThread = function (msgId) {
+  var replies = CHAT_messages.filter(function (m) { return m.reply_to_id === msgId; });
+  var original = CHAT_messages.find(function (m) { return m.id === msgId; });
+  if (!replies.length) return;
+
+  var existing = document.getElementById('reply-thread-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'reply-thread-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:8500;background:var(--surface);display:flex;flex-direction:column';
+  modal.innerHTML =
+    '<div style="display:flex;align-items:center;gap:.5rem;padding:.6rem .75rem;border-bottom:1px solid var(--border);flex-shrink:0">' +
+      '<button onclick="document.getElementById(\'reply-thread-modal\').remove()" style="background:none;border:none;cursor:pointer;color:var(--blue);padding:.3rem"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>' +
+      '<div style="font-weight:700;font-size:.92rem">' + replies.length + (replies.length === 1 ? ' Reply' : ' Replies') + '</div>' +
+    '</div>' +
+    (original ? '<div style="padding:.6rem .75rem;border-bottom:1px solid var(--border);background:var(--bg2)">' +
+      '<div style="font-size:.72rem;color:var(--blue);font-weight:700">@' + escHtml(original.sender_nick || '') + '</div>' +
+      '<div style="font-size:.85rem;unicode-bidi:plaintext">' + escHtml((original.text || '[' + original.type + ']').slice(0, 150)) + '</div>' +
+    '</div>' : '') +
+    '<div style="flex:1;overflow-y:auto;padding:.5rem">' +
+      replies.map(function (r) {
+        return '<div style="display:flex;gap:.6rem;padding:.6rem .5rem;border-bottom:.5px solid var(--border)">' +
+          '<div class="chat-av" style="width:32px;height:32px;font-size:.8rem;flex-shrink:0;background:' + avatarColor(r.sender_id) + '">' + escHtml((r.sender_nick || '?').slice(0, 1).toUpperCase()) + '</div>' +
+          '<div style="min-width:0;flex:1">' +
+            '<div style="font-size:.75rem;color:var(--blue);font-weight:700">@' + escHtml(r.sender_nick || '') + '</div>' +
+            '<div style="font-size:.86rem;unicode-bidi:plaintext">' + escHtml(r.text || '[' + r.type + ']') + '</div>' +
+            '<div style="font-size:.65rem;color:var(--muted);margin-top:.15rem">' + (r.created_at ? timeAgo(r.created_at) : '') + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  document.body.appendChild(modal);
+};
+
 window.chatroomBack = function () {
   if (CHAT_curRoom && CHAT_curRoom.type === 'group' && CHAT_topicsCache[CHAT_curRoom.id]) {
     openTopicsList(CHAT_curRoom.id);

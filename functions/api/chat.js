@@ -166,6 +166,14 @@ export async function onRequestGet(context) {
       memberReads = (memberRes.results || []).filter(m => m.last_read_at);
     }
 
+    // Reply counts: how many messages in this room reply to each message,
+    // so we can show a "X replied" thread indicator. Computed with a single
+    // GROUP BY over the already-loaded room, not per-message.
+    const replyCounts = {};
+    results.forEach(row => {
+      if (row.reply_to_id) replyCounts[row.reply_to_id] = (replyCounts[row.reply_to_id] || 0) + 1;
+    });
+
     const out = results.map(row => {
       if (row.media_key) row.media_url = `/api/media/${encodeURIComponent(row.media_key)}`;
       if (memberReads.length) {
@@ -173,6 +181,7 @@ export async function onRequestGet(context) {
           m => m.user_id !== row.sender_id && m.last_read_at >= row.created_at
         ).length;
       }
+      if (replyCounts[row.id]) row.reply_count = replyCounts[row.id];
       return row;
     });
 

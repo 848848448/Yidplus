@@ -1277,6 +1277,13 @@ function renderMessages(scrollDown) {
       }
     }
 
+    if (m.reply_count) {
+      inner += '<div class="reply-thread-pill" onclick="openReplyThread(\'' + m.id + '\')" style="display:flex;align-items:center;gap:.3rem;margin-top:.35rem;padding:.25rem .55rem;background:rgba(21,101,192,.1);border-radius:10px;cursor:pointer;width:fit-content;font-size:.72rem;color:var(--blue);font-weight:600">' +
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>' +
+        m.reply_count + (m.reply_count === 1 ? ' reply' : ' replies') +
+      '</div>';
+    }
+
     inner += '<div class="bubble-meta">' + (m.edited_at ? '<span class="edited-tag">edited</span>' : '') + '<span class="bubble-time">' + time + '</span>' + ticks + '</div>';
 
     var myReaction = CHAT_reactions[m.id] && CHAT_reactions[m.id].my_reaction;
