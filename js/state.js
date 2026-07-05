@@ -884,8 +884,8 @@ window.PWA = {
     var reg = window.PWA._swReg;
     if (!reg) return Promise.reject('No SW registration');
 
-    // VAPID public key (replace with your own from https://vapidkeys.com)
-    var VAPID_PUBLIC = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+    // Real VAPID public key (matches VAPID_PRIVATE_KEY Cloudflare secret)
+    var VAPID_PUBLIC = 'BAGqD6PA_r2NR8OxUZzUhavbPTSsWsc7Xp1DTnsanX6lPGL7vemGj-O6GbqVjLynoCMJTkuc1W7d5x8ZZ0IFytQ';
 
     return reg.pushManager.subscribe({
       userVisibleOnly: true,

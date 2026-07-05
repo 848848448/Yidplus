@@ -1,7 +1,9 @@
-// POST /api/push/send -> send push to specific user or all
+// POST /api/push/send -> send a real Web Push notification to a specific user or all users
 // Body: { user_id?, title, body, url?, tag? }
-// Only admins can send to all users
+// Only admins can broadcast to all users; any signed-in user can trigger a
+// notification to a specific user_id (e.g. "you got a new message").
 import { json, corsHeaders, requireUser, isAdminRole } from '../_helpers.js';
+import { sendWebPush } from '../_webpush.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -14,8 +16,6 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { user_id, title, body: msgBody, url, tag } = body;
 
-    // If sending to specific user (e.g. new message notif) — any logged-in user can trigger
-    // If sending broadcast — only admins
     if (!user_id && !isAdminRole(user, env.OWNER_EMAIL)) {
       return json({ ok: false, error: 'Forbidden' }, 403);
     }
@@ -33,29 +33,46 @@ export async function onRequestPost(context) {
       subs = results;
     }
 
-    if (!subs.length) return json({ ok: true, sent: 0 });
+    if (!subs.length) return json({ ok: true, sent: 0, total: 0 });
 
-    // Build notification payload
-    const payload = JSON.stringify({
+    const payload = {
       title: title || 'YID PLUS',
       body:  msgBody || 'You have a new notification',
       icon:  '/images/logo.png',
       badge: '/images/logo.png',
-      url:   url || '/yidplus-chat.html',
+      url:   url || '/chat',
       tag:   tag || 'yidplus',
-    });
+    };
 
-    // Send to all subscriptions
-    // Note: For production, use Web Push Protocol with VAPID keys
-    // For now, we store subs and can send later
     let sent = 0;
+    const deadEndpoints = [];
+
     for (const sub of subs) {
       try {
-        // Web Push requires VAPID — store for now, implement with proper VAPID later
-        sent++;
-      } catch (e) {}
+        const subscription = {
+          endpoint: sub.endpoint,
+          keys: { p256dh: sub.p256dh, auth: sub.auth },
+        };
+        const result = await sendWebPush(subscription, payload, env);
+        if (result.ok) {
+          sent++;
+        } else if (result.status === 404 || result.status === 410) {
+          // Subscription is gone (user uninstalled/unsubscribed) — clean it up.
+          deadEndpoints.push(sub.endpoint);
+        }
+      } catch (e) {
+        // One bad subscription shouldn't stop the rest from sending.
+      }
+    }
+
+    if (deadEndpoints.length) {
+      for (const ep of deadEndpoints) {
+        await env.DB.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(ep).run().catch(() => {});
+      }
     }
 
     return json({ ok: true, sent, total: subs.length });
-  } catch (err) { return json({ ok: false, error: err.message }, 500); }
+  } catch (err) {
+    return json({ ok: false, error: err.message }, 500);
   }
+}

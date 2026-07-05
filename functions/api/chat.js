@@ -6,6 +6,7 @@
 // DELETE /api/chat?id=xxx       -> delete a message (own message or admin)
 
 import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner, canDeleteContent, logAudit } from './_helpers.js';
+import { sendWebPush } from './_webpush.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -281,6 +282,57 @@ export async function onRequestPost(context) {
       created_at: now, read: 0, topic_id: topicId,
     };
     if (mediaKey) result.media_url = `/api/media/${encodeURIComponent(mediaKey)}`;
+
+    // Fire push notifications to recipients in the background — never let
+    // this delay or break the send itself.
+    context.waitUntil((async () => {
+      try {
+        const roomRow = await env.DB.prepare('SELECT type, name FROM rooms WHERE id = ?').bind(roomId).first();
+        if (!roomRow) return;
+
+        let recipientIds = [];
+        if (roomRow.type === 'private') {
+          const other = await env.DB.prepare(
+            'SELECT user_id FROM room_members WHERE room_id = ? AND user_id != ?'
+          ).bind(roomId, user.id).first();
+          if (other) recipientIds = [other.user_id];
+        } else if (roomRow.type === 'group') {
+          let members;
+          try {
+            const res = await env.DB.prepare(
+              'SELECT user_id FROM room_members WHERE room_id = ? AND user_id != ? AND (muted IS NULL OR muted = 0)'
+            ).bind(roomId, user.id).all();
+            members = res.results;
+          } catch (e) {
+            const res = await env.DB.prepare(
+              'SELECT user_id FROM room_members WHERE room_id = ? AND user_id != ?'
+            ).bind(roomId, user.id).all();
+            members = res.results;
+          }
+          recipientIds = members.map(m => m.user_id);
+        }
+        if (!recipientIds.length) return;
+
+        const placeholders = recipientIds.map(() => '?').join(',');
+        const { results: subs } = await env.DB.prepare(
+          `SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id IN (${placeholders})`
+        ).bind(...recipientIds).all();
+
+        const notifText = type === 'text' ? text.slice(0, 100) : `[${type}]`;
+        const notifTitle = roomRow.type === 'group' ? (roomRow.name || 'Group') : (user.nickname || 'New message');
+        const notifBody = roomRow.type === 'group' ? `${user.nickname || 'Someone'}: ${notifText}` : notifText;
+
+        for (const sub of subs) {
+          try {
+            await sendWebPush(
+              { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+              { title: notifTitle, body: notifBody, icon: '/images/logo.png', badge: '/images/logo.png', url: '/chat', tag: 'yidplus-msg-' + roomId },
+              env
+            );
+          } catch (e) { /* one bad subscription shouldn't stop the rest */ }
+        }
+      } catch (e) { /* never let notification failures affect the message send */ }
+    })());
 
     return json({ ok: true, message: result }, 201);
   } catch (err) {
