@@ -4288,7 +4288,7 @@ function _svShowSlide() {
   var myId = STATE.user && STATE.user.id;
   var isMySlide = s.user_id === myId;
   if (slide.id && !isMySlide) {
-    api.post('/statuses', { view: true, id: slide.id }).catch(function () {});
+    api.put('/statuses', { view: true, id: slide.id }).catch(function () {});
     // Increment local view count for immediate feedback
     if (slide.views !== undefined) slide.views = (slide.views || 0) + 1;
   }

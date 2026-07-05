@@ -21,7 +21,7 @@ export async function sendVerificationEmail(env, userId, email, origin) {
 
   const fromAddr = env.RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>';
 
-  await fetch('https://api.resend.com/emails', {
+  const resp = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${env.RESEND_API_KEY}`,
@@ -42,7 +42,24 @@ export async function sendVerificationEmail(env, userId, email, origin) {
         </div>
       `,
     }),
-  }).catch(err => console.error('[email-verify] send failed:', err.message));
+  }).catch(err => ({ ok: false, _networkError: err.message }));
+
+  // fetch() only rejects on a network failure — a rejected send (bad
+  // domain, invalid key, unverified sender) comes back as a normal
+  // response with resp.ok === false, which the old code never checked at
+  // all, so a failed send was silently treated as a success. Now we
+  // actually check it, and log failures somewhere the owner can see them
+  // (the Audit Log panel), since Worker console.error isn't visible
+  // without the Cloudflare dashboard/wrangler tail.
+  if (!resp.ok) {
+    let detail = resp._networkError || '';
+    if (!detail) { try { detail = JSON.stringify(await resp.json()); } catch (e) { detail = 'HTTP ' + resp.status; } }
+    console.error('[email-verify] send failed:', detail);
+    await env.DB.prepare(
+      `INSERT INTO audit_logs (id, actor_id, actor_nick, actor_role, action, target_type, target_id, details, created_at)
+       VALUES (?, 'system', 'System', 'system', 'email_send_failed', 'user', ?, ?, ?)`
+    ).bind(crypto.randomUUID(), userId, `Verification email to ${email} failed: ${detail}`, new Date().toISOString()).run().catch(() => {});
+  }
 }
 
 // Allow resending

@@ -610,7 +610,7 @@ function _svShowSlide() {
   var myId = STATE.user && STATE.user.id;
   var isMySlide = s.user_id === myId;
   if (slide.id && !isMySlide) {
-    api.post('/statuses/view', { id: slide.id }).catch(function () {});
+    api.put('/statuses', { view: true, id: slide.id }).catch(function () {});
   }
   var viewsRow = document.getElementById('sv-views-row');
   var viewsCount = document.getElementById('sv-views-count');

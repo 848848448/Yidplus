@@ -106,6 +106,10 @@ export async function onRequestPost(context) {
 
     if (!['public', 'followers', 'private'].includes(privacy)) privacy = 'public';
 
+    if (!text.trim() && !mediaKey) {
+      return json({ ok: false, error: 'A status needs text or media — refusing to save an empty one' }, 400);
+    }
+
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await env.DB.prepare(
