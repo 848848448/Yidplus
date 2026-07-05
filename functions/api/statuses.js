@@ -24,12 +24,27 @@ export async function onRequestGet(context) {
               COALESCE(s.views, 0) as views,
               u.nickname, u.photo_url
        FROM statuses s JOIN users u ON u.id = s.user_id
-       WHERE s.created_at > ?`;
+       WHERE s.created_at > ? AND (s.hidden IS NULL OR s.hidden = 0)`;
     const params = [cutoff];
     if (filterUserId) { query += ' AND s.user_id = ?'; params.push(filterUserId); }
     query += ' ORDER BY s.user_id, s.created_at ASC';
 
-    const { results } = await env.DB.prepare(query).bind(...params).all();
+    let results;
+    try {
+      const r = await env.DB.prepare(query).bind(...params).all();
+      results = r.results;
+    } catch (e) {
+      // hidden column not migrated yet — retry without it
+      let fallbackQuery = `SELECT s.id, s.user_id, s.type, s.text, s.media_key, s.bg, s.color, s.created_at, s.privacy,
+                COALESCE(s.views, 0) as views,
+                u.nickname, u.photo_url
+         FROM statuses s JOIN users u ON u.id = s.user_id
+         WHERE s.created_at > ?`;
+      if (filterUserId) fallbackQuery += ' AND s.user_id = ?';
+      fallbackQuery += ' ORDER BY s.user_id, s.created_at ASC';
+      const r = await env.DB.prepare(fallbackQuery).bind(...params).all();
+      results = r.results;
+    }
 
     // Group by user, applying privacy + follow-based visibility
     const grouped = {};

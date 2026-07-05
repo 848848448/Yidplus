@@ -510,7 +510,9 @@ function buildStatusRow() {
         '</div>'
       : '');
 
-  api.get('/statuses')
+  (window.FeatureBlock ? FeatureBlock.check('statuses') : Promise.resolve(null)).then(function (statusesBlock) {
+    if (statusesBlock) { HOME_svStatuses = []; return; }
+    return api.get('/statuses')
     .then(function (res) {
       HOME_svStatuses = res.statuses || [];
       var meId = STATE.user && STATE.user.id;
@@ -560,6 +562,7 @@ function buildStatusRow() {
       });
     })
     .catch(function () {});
+  });
 }
 
 window.openSV = function (userIdx) {
@@ -1658,36 +1661,47 @@ function _loadExploreAll() {
   body.innerHTML = '<div style="padding:2rem;text-align:center"><div class="spinner"></div></div>';
 
   var tab = EXPLORE_tab;
-  var calls = [];
 
-  if (tab === 'all' || tab === 'users') {
-    calls.push(api.get('/users/search?featured=1', true).catch(function(){ return { users: [] }; }));
-  } else { calls.push(Promise.resolve({ users: [] })); }
+  (window.FeatureBlock ? FeatureBlock.check('channels') : Promise.resolve(null)).then(function (channelsBlock) {
+    if (channelsBlock && tab === 'channels') {
+      FeatureBlock.renderBlockedScreen(body, 'channels', channelsBlock);
+      return;
+    }
 
-  if (tab === 'all' || tab === 'channels') {
-    calls.push(api.get('/channels', true).catch(function(){ return { channels: [] }; }));
-  } else { calls.push(Promise.resolve({ channels: [] })); }
-
-  if (tab === 'all' || tab === 'groups') {
-    calls.push(api.get('/chat/rooms?public=1', true).catch(function(){ return { rooms: [] }; }));
-  } else { calls.push(Promise.resolve({ rooms: [] })); }
-
-  Promise.all(calls).then(function (res) {
-    var users    = (res[0].users || []).slice(0, 10);
-    var channels = (res[1].channels || []).slice(0, 10);
-    var groups   = (res[2].rooms || []).filter(function(r){ return r.type === 'group'; }).slice(0, 10);
-    var html = '';
+    var calls = [];
 
     if (tab === 'all' || tab === 'users') {
-      html += _exploreSection('People', users.length ? users.map(function(u){ return _userRow(u); }).join('') : '<div style="padding:1rem;color:var(--muted);font-size:.82rem;text-align:center">No users yet</div>');
-    }
-    if (tab === 'all' || tab === 'channels') {
-      html += _exploreSection('Channels', channels.length ? channels.map(function(c){ return _channelRow(c); }).join('') : '<div style="padding:1rem;color:var(--muted);font-size:.82rem;text-align:center">No channels yet</div>');
-    }
+      calls.push(api.get('/users/search?featured=1', true).catch(function(){ return { users: [] }; }));
+    } else { calls.push(Promise.resolve({ users: [] })); }
+
+    if ((tab === 'all' || tab === 'channels') && !channelsBlock) {
+      calls.push(api.get('/channels', true).catch(function(){ return { channels: [] }; }));
+    } else { calls.push(Promise.resolve({ channels: [] })); }
+
     if (tab === 'all' || tab === 'groups') {
-      html += _exploreSection('Public Groups', groups.length ? groups.map(function(g){ return _groupRow(g); }).join('') : '<div style="padding:1rem;color:var(--muted);font-size:.82rem;text-align:center">No public groups yet</div>');
-    }
-    body.innerHTML = html || '<div style="padding:3rem;text-align:center;color:var(--muted)">Nothing to explore yet!</div>';
+      calls.push(api.get('/chat/rooms?public=1', true).catch(function(){ return { rooms: [] }; }));
+    } else { calls.push(Promise.resolve({ rooms: [] })); }
+
+    Promise.all(calls).then(function (res) {
+      var users    = (res[0].users || []).slice(0, 10);
+      var channels = (res[1].channels || []).slice(0, 10);
+      var groups   = (res[2].rooms || []).filter(function(r){ return r.type === 'group'; }).slice(0, 10);
+      var html = '';
+
+      if (tab === 'all' || tab === 'users') {
+        html += _exploreSection('People', users.length ? users.map(function(u){ return _userRow(u); }).join('') : '<div style="padding:1rem;color:var(--muted);font-size:.82rem;text-align:center">No users yet</div>');
+      }
+      if (tab === 'all' || tab === 'channels') {
+        var channelsInner = channelsBlock
+          ? '<div style="padding:1rem;color:var(--muted);font-size:.8rem;text-align:center">🚫 You are currently blocked from Channels. Contact <a href="mailto:yidplusmedia@gmail.com" style="color:var(--gold)">yidplusmedia@gmail.com</a>.</div>'
+          : (channels.length ? channels.map(function(c){ return _channelRow(c); }).join('') : '<div style="padding:1rem;color:var(--muted);font-size:.82rem;text-align:center">No channels yet</div>');
+        html += _exploreSection('Channels', channelsInner);
+      }
+      if (tab === 'all' || tab === 'groups') {
+        html += _exploreSection('Public Groups', groups.length ? groups.map(function(g){ return _groupRow(g); }).join('') : '<div style="padding:1rem;color:var(--muted);font-size:.82rem;text-align:center">No public groups yet</div>');
+      }
+      body.innerHTML = html || '<div style="padding:3rem;text-align:center;color:var(--muted)">Nothing to explore yet!</div>';
+    });
   });
 }
 

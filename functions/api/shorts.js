@@ -16,14 +16,30 @@ export async function onRequestGet(context) {
   try {
     const user = await requireUser(request, env).catch(() => null);
 
-    const { results } = await env.DB.prepare(
-      `SELECT s.id, s.owner_id, s.media_key, s.caption, s.likes, s.views, s.created_at,
-              u.nickname, u.verified, u.photo_url
-       FROM shorts s
-       JOIN users u ON u.id = s.owner_id
-       ORDER BY s.created_at DESC
-       LIMIT 50`
-    ).all();
+    let results;
+    try {
+      const r = await env.DB.prepare(
+        `SELECT s.id, s.owner_id, s.media_key, s.caption, s.likes, s.views, s.created_at,
+                u.nickname, u.verified, u.photo_url
+         FROM shorts s
+         JOIN users u ON u.id = s.owner_id
+         WHERE (s.hidden IS NULL OR s.hidden = 0)
+         ORDER BY s.created_at DESC
+         LIMIT 50`
+      ).all();
+      results = r.results;
+    } catch (e) {
+      // hidden column not migrated yet
+      const r = await env.DB.prepare(
+        `SELECT s.id, s.owner_id, s.media_key, s.caption, s.likes, s.views, s.created_at,
+                u.nickname, u.verified, u.photo_url
+         FROM shorts s
+         JOIN users u ON u.id = s.owner_id
+         ORDER BY s.created_at DESC
+         LIMIT 50`
+      ).all();
+      results = r.results;
+    }
 
     let likedIds = new Set();
     if (user) {

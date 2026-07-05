@@ -11,7 +11,14 @@ var SHORTS_soundOn = false;       // once unmuted (by any user gesture), stays o
 var SHORTS_pendingFile = null;    // video file waiting on the caption modal before upload
 
 window.init_shorts = function () {
-  loadShortsFeed();
+  var cont = document.getElementById('swipe-cont');
+  if (window.FeatureBlock && cont) {
+    FeatureBlock.guard('shorts', cont).then(function (blocked) {
+      if (!blocked) loadShortsFeed();
+    });
+  } else {
+    loadShortsFeed();
+  }
 };
 
 function loadShortsFeed() {

@@ -37,7 +37,7 @@ export async function onRequestPost(context) {
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
 
     const body = await request.json();
-    const type = body.type === 'bug' ? 'bug' : 'suggest';
+    const type = ['bug', 'block_appeal'].includes(body.type) ? body.type : 'suggest';
     const text = (body.text || '').trim();
     if (!text) return json({ ok: false, error: 'text is required' }, 400);
 

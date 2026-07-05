@@ -18,7 +18,14 @@ var MUSIC_audioEl = null; // real <audio> element driving playback
 // LOAD FROM BACKEND
 // ============================================================
 window.init_music = function () {
-  loadMusicLibrary();
+  var scroll = document.getElementById('music-scroll');
+  if (window.FeatureBlock && scroll) {
+    FeatureBlock.guard('music', scroll).then(function (blocked) {
+      if (!blocked) loadMusicLibrary();
+    });
+  } else {
+    loadMusicLibrary();
+  }
 };
 
 function loadMusicLibrary() {

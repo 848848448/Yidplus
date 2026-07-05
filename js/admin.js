@@ -575,7 +575,7 @@ function buildFeedbackPanel(content) {
           '<div class="fb-header">' +
             '<div style="display:flex;align-items:center;gap:.5rem">' +
               '<span class="fb-nick">@' + escHtml(f.nickname || 'user') + '</span>' +
-              '<span class="fb-type ' + (f.type === 'bug' ? 'fb-bug' : 'fb-suggest') + '">' + (f.type === 'bug' ? '🐛 Bug' : '💡 Suggestion') + '</span>' +
+              '<span class="fb-type ' + (f.type === 'bug' ? 'fb-bug' : f.type === 'block_appeal' ? 'fb-bug' : 'fb-suggest') + '" style="' + (f.type === 'block_appeal' ? 'background:#7A1F2B' : '') + '">' + (f.type === 'bug' ? '🐛 Bug' : f.type === 'block_appeal' ? '🚫 Block Appeal' : '💡 Suggestion') + '</span>' +
             '</div>' +
             '<span class="fb-time">' + timeAgo(f.created_at) + '</span>' +
           '</div>' +
@@ -854,6 +854,22 @@ window.openUserDetailModal = function (userId) {
       body.innerHTML = profileRows + countsGrid +
         '<div class="admin-card" style="margin:0 0 .75rem"><div class="admin-card-title">🔐 Login History (last 10)</div>' + loginRows + '</div>' +
         '<div class="admin-card" style="margin:0 0 .75rem"><div class="admin-card-title">📋 Moderation Actions Taken Against This User</div>' + auditRows + '</div>' +
+        '<div class="admin-card" style="margin:0 0 .75rem">' +
+          '<div class="admin-card-title">🚫 Feature Blocks</div>' +
+          '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.5rem">Blocking only hides access to that feature — nothing is ever deleted.</div>' +
+          '<div id="user-blocks-list" style="margin-bottom:.6rem"><div class="spinner" style="margin:.5rem auto"></div></div>' +
+          '<div style="display:flex;gap:.4rem">' +
+            '<select id="user-block-feature" class="field" style="flex:1;padding:.5rem">' +
+              '<option value="shorts">Shorts</option>' +
+              '<option value="statuses">Status</option>' +
+              '<option value="music">Music</option>' +
+              '<option value="channels">Channels</option>' +
+              '<option value="chat">Chat</option>' +
+            '</select>' +
+            '<input id="user-block-hours" type="number" placeholder="Hours (blank = forever)" class="field" style="flex:1;padding:.5rem" />' +
+          '</div>' +
+          '<button class="save-pill" style="width:100%;margin-top:.4rem" onclick="adminAddFeatureBlock(\'' + userId + '\')">Block From This</button>' +
+        '</div>' +
         '<div class="admin-card" style="margin:0">' +
           '<div class="admin-card-title">📝 Private Admin Notes</div>' +
           '<div id="user-notes-list" style="margin-bottom:.5rem"><div class="spinner" style="margin:.5rem auto"></div></div>' +
@@ -861,12 +877,54 @@ window.openUserDetailModal = function (userId) {
           '<button class="save-pill" style="width:100%" onclick="adminAddUserNote(\'' + userId + '\')">Add Note</button>' +
         '</div>';
       loadUserNotes(userId);
+      loadUserBlocks(userId);
     })
     .catch(function (err) {
       var body = document.getElementById('user-detail-body');
       if (body) body.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--red);font-size:.8rem">⚠️ ' + escHtml(err.message) + '</div>';
     });
 };
+
+var FEATURE_LABELS = { shorts: 'Shorts', statuses: 'Status', music: 'Music', channels: 'Channels', chat: 'Chat' };
+
+function loadUserBlocks(userId) {
+  var el = document.getElementById('user-blocks-list');
+  if (!el) return;
+  api.get('/admin/feature-blocks?user_id=' + encodeURIComponent(userId), true)
+    .then(function (res) {
+      var now = Date.now();
+      var active = (res.blocks || []).filter(function (b) { return !b.blocked_until || new Date(b.blocked_until).getTime() > now; });
+      if (!active.length) { el.innerHTML = '<div style="font-size:.75rem;color:var(--muted)">No active blocks.</div>'; return; }
+      el.innerHTML = active.map(function (b) {
+        var until = b.blocked_until ? 'until ' + new Date(b.blocked_until).toLocaleString() : 'indefinitely';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;font-size:.75rem;padding:.4rem;background:var(--bg3);border-radius:8px;margin-bottom:.35rem">' +
+          '<div>🚫 <strong>' + (FEATURE_LABELS[b.feature] || b.feature) + '</strong> — ' + until + '<div style="color:var(--muted);font-size:.65rem">by @' + escHtml(b.blocked_by || '?') + '</div></div>' +
+          '<button class="act-btn" style="background:#637087;color:#fff;border-color:transparent" onclick="adminRemoveFeatureBlock(\'' + userId + '\',\'' + b.feature + '\')">Unblock</button>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function () { el.innerHTML = '<div style="font-size:.75rem;color:var(--muted)">Could not load blocks.</div>'; });
+}
+
+window.adminAddFeatureBlock = function (userId) {
+  var feature = document.getElementById('user-block-feature').value;
+  var hoursStr = (document.getElementById('user-block-hours').value || '').trim();
+  var hours = hoursStr ? parseFloat(hoursStr) : 0;
+  api.post('/admin/feature-blocks', { user_id: userId, feature: feature, hours: hours })
+    .then(function () {
+      toast('🚫 Blocked from ' + (FEATURE_LABELS[feature] || feature) + '!');
+      document.getElementById('user-block-hours').value = '';
+      loadUserBlocks(userId);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.adminRemoveFeatureBlock = function (userId, feature) {
+  api.del('/admin/feature-blocks?user_id=' + encodeURIComponent(userId) + '&feature=' + encodeURIComponent(feature))
+    .then(function () { toast('✅ Unblocked from ' + (FEATURE_LABELS[feature] || feature)); loadUserBlocks(userId); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
 
 function loadUserNotes(userId) {
   var el = document.getElementById('user-notes-list');

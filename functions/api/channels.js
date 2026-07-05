@@ -71,18 +71,37 @@ export async function onRequestGet(context) {
     const searchQ = url.searchParams.get('search');
     const limitParam = Math.min(parseInt(url.searchParams.get('limit'), 10) || 20, 50);
 
-    const { results } = searchQ && searchQ.trim()
-      ? await env.DB.prepare(
-          `SELECT c.id, c.owner_id, c.nickname, c.verified, COUNT(cf.follower_id) as followers
-           FROM channels c LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
-           WHERE c.nickname LIKE ?
-           GROUP BY c.id ORDER BY followers DESC LIMIT ?`
-        ).bind('%' + searchQ.trim() + '%', limitParam).all()
-      : await env.DB.prepare(
-          `SELECT c.id, c.owner_id, c.nickname, c.verified, COUNT(cf.follower_id) as followers
-           FROM channels c LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
-           GROUP BY c.id ORDER BY followers DESC, c.created_at DESC LIMIT ?`
-        ).bind(limitParam).all();
+    let results;
+    try {
+      const r = searchQ && searchQ.trim()
+        ? await env.DB.prepare(
+            `SELECT c.id, c.owner_id, c.nickname, c.verified, COUNT(cf.follower_id) as followers
+             FROM channels c LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+             WHERE c.nickname LIKE ? AND (c.hidden IS NULL OR c.hidden = 0)
+             GROUP BY c.id ORDER BY followers DESC LIMIT ?`
+          ).bind('%' + searchQ.trim() + '%', limitParam).all()
+        : await env.DB.prepare(
+            `SELECT c.id, c.owner_id, c.nickname, c.verified, COUNT(cf.follower_id) as followers
+             FROM channels c LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+             WHERE (c.hidden IS NULL OR c.hidden = 0)
+             GROUP BY c.id ORDER BY followers DESC, c.created_at DESC LIMIT ?`
+          ).bind(limitParam).all();
+      results = r.results;
+    } catch (e) {
+      const r = searchQ && searchQ.trim()
+        ? await env.DB.prepare(
+            `SELECT c.id, c.owner_id, c.nickname, c.verified, COUNT(cf.follower_id) as followers
+             FROM channels c LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+             WHERE c.nickname LIKE ?
+             GROUP BY c.id ORDER BY followers DESC LIMIT ?`
+          ).bind('%' + searchQ.trim() + '%', limitParam).all()
+        : await env.DB.prepare(
+            `SELECT c.id, c.owner_id, c.nickname, c.verified, COUNT(cf.follower_id) as followers
+             FROM channels c LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+             GROUP BY c.id ORDER BY followers DESC, c.created_at DESC LIMIT ?`
+          ).bind(limitParam).all();
+      results = r.results;
+    }
 
     return json({ ok: true, channels: results });
   } catch (err) {

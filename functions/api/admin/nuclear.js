@@ -80,7 +80,7 @@ export async function onRequestPost(context) {
     // Each category maps to a table + column
     const tableMap = {
       shorts:   { table: 'shorts',   col: 'hidden' },
-      music:    { table: 'music',    col: 'hidden' },
+      music:    { table: 'music_tracks', col: 'hidden' },
       statuses: { table: 'statuses', col: 'hidden' },
       messages: { table: 'messages', col: 'hidden' },
       posts:    { table: 'posts',    col: 'hidden' },

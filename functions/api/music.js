@@ -16,14 +16,29 @@ export async function onRequestGet(context) {
   try {
     const user = await requireUser(request, env).catch(() => null);
 
-    const { results } = await env.DB.prepare(
-      `SELECT m.id, m.owner_id, m.title, m.artist, m.type, m.album_id, m.album_name,
-              m.audio_key, m.video_key, m.cover_key, m.duration_sec, m.trending, m.plays, m.created_at,
-              u.nickname as owner_nick, u.photo_url as owner_photo
-       FROM music_tracks m
-       LEFT JOIN users u ON u.id = m.owner_id
-       ORDER BY m.created_at DESC LIMIT 200`
-    ).all();
+    let results;
+    try {
+      const r = await env.DB.prepare(
+        `SELECT m.id, m.owner_id, m.title, m.artist, m.type, m.album_id, m.album_name,
+                m.audio_key, m.video_key, m.cover_key, m.duration_sec, m.trending, m.plays, m.created_at,
+                u.nickname as owner_nick, u.photo_url as owner_photo
+         FROM music_tracks m
+         LEFT JOIN users u ON u.id = m.owner_id
+         WHERE (m.hidden IS NULL OR m.hidden = 0)
+         ORDER BY m.created_at DESC LIMIT 200`
+      ).all();
+      results = r.results;
+    } catch (e) {
+      const r = await env.DB.prepare(
+        `SELECT m.id, m.owner_id, m.title, m.artist, m.type, m.album_id, m.album_name,
+                m.audio_key, m.video_key, m.cover_key, m.duration_sec, m.trending, m.plays, m.created_at,
+                u.nickname as owner_nick, u.photo_url as owner_photo
+         FROM music_tracks m
+         LEFT JOIN users u ON u.id = m.owner_id
+         ORDER BY m.created_at DESC LIMIT 200`
+      ).all();
+      results = r.results;
+    }
 
     let likedIds = new Set();
     if (user) {

@@ -1278,3 +1278,57 @@ function _interceptGuestActions() {
 (function () {
   setTimeout(function () { _loadGuestMode(); }, 500);
 })();
+
+/* ══════════════════════════════════
+   FEATURE BLOCKS — per-user, per-feature access blocks set by the owner
+   (Shorts / Statuses / Music / Channels / Chat). Blocking never deletes or
+   hides anyone's content — it only prevents the blocked person from
+   opening that feature until the timer runs out or an owner unblocks them.
+══════════════════════════════════ */
+window.FeatureBlock = {
+  check: function (feature) {
+    if (!STATE.user) return Promise.resolve(null);
+    return api.get('/admin/feature-blocks', true).then(function (res) {
+      var blocks = res.blocks || [];
+      var match = blocks.filter(function (b) { return b.feature === feature; })[0];
+      return match || null;
+    }).catch(function () { return null; });
+  },
+
+  renderBlockedScreen: function (container, feature, blockInfo) {
+    if (!container) return;
+    var untilText = (blockInfo && blockInfo.blocked_until)
+      ? 'until ' + new Date(blockInfo.blocked_until).toLocaleString()
+      : 'until further notice';
+    var featureLabel = { shorts: 'Shorts', statuses: 'Status', music: 'Music', channels: 'Channels', chat: 'Chat' }[feature] || feature;
+
+    container.innerHTML =
+      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:3rem 1.5rem;height:100%;gap:.75rem">' +
+        '<div style="font-size:2.6rem">🚫</div>' +
+        '<div style="font-size:1.05rem;font-weight:700">You are currently blocked from ' + featureLabel + '</div>' +
+        '<div style="font-size:.85rem;color:var(--muted);max-width:320px">You will not be able to view or use ' + featureLabel + ' ' + untilText + '.</div>' +
+        '<div style="font-size:.85rem;color:var(--muted);max-width:320px">Please contact <a href="mailto:yidplusmedia@gmail.com" style="color:var(--gold)">yidplusmedia@gmail.com</a> if you believe this is a mistake.</div>' +
+        '<textarea id="block-appeal-text-' + feature + '" placeholder="Or send a message to the admins here..." style="width:100%;max-width:320px;margin-top:.5rem;padding:.6rem;border:1px solid var(--border2);border-radius:10px;font-family:inherit;font-size:.82rem" rows="3"></textarea>' +
+        '<button class="btn-primary" style="max-width:320px" onclick="FeatureBlock.sendAppeal(\'' + feature + '\')">Send Message to Admins</button>' +
+      '</div>';
+  },
+
+  sendAppeal: function (feature) {
+    var inp = document.getElementById('block-appeal-text-' + feature);
+    var text = (inp && inp.value || '').trim();
+    if (!text) { toast('⚠️ Write a message first.'); return; }
+    api.post('/feedback', { type: 'block_appeal', text: 'Blocked from ' + feature + ': ' + text })
+      .then(function () { toast('✅ Sent to the admins.'); if (inp) inp.value = ''; })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  },
+
+  // Convenience: check + render in one call. Returns a promise<boolean>
+  // (true = blocked, screen already rendered into container).
+  guard: function (feature, container) {
+    return FeatureBlock.check(feature).then(function (block) {
+      if (block) { FeatureBlock.renderBlockedScreen(container, feature, block); return true; }
+      return false;
+    });
+  }
+};
+

@@ -18,15 +18,30 @@ export async function onRequestGet(context) {
     const url = new URL(request.url);
     const filterUserId = url.searchParams.get('user_id');
 
-    const { results } = filterUserId
-      ? await env.DB.prepare(
-          `SELECT id, username, user_id, caption, content, likes, comments, created_at
-           FROM posts WHERE user_id = ? ORDER BY created_at DESC LIMIT 30`
-        ).bind(filterUserId).all()
-      : await env.DB.prepare(
-          `SELECT id, username, user_id, caption, content, likes, comments, created_at
-           FROM posts ORDER BY created_at DESC LIMIT 30`
-        ).all();
+    let results;
+    try {
+      const r = filterUserId
+        ? await env.DB.prepare(
+            `SELECT id, username, user_id, caption, content, likes, comments, created_at
+             FROM posts WHERE user_id = ? AND (hidden IS NULL OR hidden = 0) ORDER BY created_at DESC LIMIT 30`
+          ).bind(filterUserId).all()
+        : await env.DB.prepare(
+            `SELECT id, username, user_id, caption, content, likes, comments, created_at
+             FROM posts WHERE (hidden IS NULL OR hidden = 0) ORDER BY created_at DESC LIMIT 30`
+          ).all();
+      results = r.results;
+    } catch (e) {
+      const r = filterUserId
+        ? await env.DB.prepare(
+            `SELECT id, username, user_id, caption, content, likes, comments, created_at
+             FROM posts WHERE user_id = ? ORDER BY created_at DESC LIMIT 30`
+          ).bind(filterUserId).all()
+        : await env.DB.prepare(
+            `SELECT id, username, user_id, caption, content, likes, comments, created_at
+             FROM posts ORDER BY created_at DESC LIMIT 30`
+          ).all();
+      results = r.results;
+    }
 
     let likedIds = new Set();
     if (user) {
