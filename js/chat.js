@@ -3481,9 +3481,11 @@ function _insertUnreadSeparator(messages) {
 /* ══════════════════════════════════
    GLOBAL SEARCH
 ══════════════════════════════════ */
+var GSEARCH_tab = 'all';
 window.openGlobalSearch = function () {
   var existing = document.getElementById('global-search-modal');
   if (existing) existing.remove();
+  GSEARCH_tab = 'all';
   var modal = document.createElement('div');
   modal.id = 'global-search-modal';
   modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:var(--surface);display:flex;flex-direction:column';
@@ -3494,8 +3496,14 @@ window.openGlobalSearch = function () {
       '</button>' +
       '<div style="flex:1;background:var(--bg3);border-radius:10px;display:flex;align-items:center;gap:.4rem;padding:.4rem .75rem">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
-        '<input id="global-search-inp" placeholder="Search messages, chats..." style="flex:1;background:none;border:none;outline:none;font-size:.9rem;color:var(--text);font-family:inherit" oninput="doGlobalSearch()">' +
+        '<input id="global-search-inp" placeholder="Search..." style="flex:1;background:none;border:none;outline:none;font-size:.9rem;color:var(--text);font-family:inherit" oninput="doGlobalSearch()">' +
       '</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:.3rem;padding:.5rem .65rem;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;flex-shrink:0" id="gsearch-tabs">' +
+      ['all:All', 'chats:Chats', 'groups:Groups', 'channels:Channels', 'users:Users'].map(function (t) {
+        var parts = t.split(':');
+        return '<button class="gsearch-tab-btn' + (parts[0] === 'all' ? ' active' : '') + '" data-tab="' + parts[0] + '" onclick="switchGSearchTab(this,\'' + parts[0] + '\')" style="padding:.35rem .85rem;border-radius:14px;border:none;background:' + (parts[0] === 'all' ? 'var(--blue)' : 'var(--bg3)') + ';color:' + (parts[0] === 'all' ? '#fff' : 'var(--muted)') + ';font-size:.78rem;font-weight:600;cursor:pointer;white-space:nowrap">' + parts[1] + '</button>';
+      }).join('') +
     '</div>' +
     '<div id="global-search-results" style="flex:1;overflow-y:auto;padding:.5rem">' +
       '<div style="text-align:center;padding:3rem 1rem;color:var(--muted);font-size:.85rem">Type to search across all chats</div>' +
@@ -3504,28 +3512,110 @@ window.openGlobalSearch = function () {
   setTimeout(function () { var i = document.getElementById('global-search-inp'); if (i) i.focus(); }, 100);
 };
 
+window.switchGSearchTab = function (btn, tab) {
+  GSEARCH_tab = tab;
+  document.querySelectorAll('.gsearch-tab-btn').forEach(function (b) {
+    var active = b === btn;
+    b.classList.toggle('active', active);
+    b.style.background = active ? 'var(--blue)' : 'var(--bg3)';
+    b.style.color = active ? '#fff' : 'var(--muted)';
+  });
+  doGlobalSearch();
+};
+
 var _globalSearchTimer = null;
 window.doGlobalSearch = function () {
   var q = (document.getElementById('global-search-inp') || {}).value || '';
   clearTimeout(_globalSearchTimer);
-  if (q.length < 2) return;
-  _globalSearchTimer = setTimeout(function () {
-    api.get('/chat?search=' + encodeURIComponent(q))
-      .then(function (res) {
-        var el = document.getElementById('global-search-results');
-        if (!el) return;
-        var msgs = res.messages || [];
-        if (!msgs.length) { el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">No results found</div>'; return; }
-        el.innerHTML = msgs.map(function (m) {
+  var el = document.getElementById('global-search-results');
+  if (q.length < 2) {
+    if (el) el.innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:var(--muted);font-size:.85rem">Type to search across all chats</div>';
+    return;
+  }
+  el.innerHTML = '<div class="spinner" style="margin:1.5rem auto"></div>';
+  _globalSearchTimer = setTimeout(function () { _runGSearch(q); }, 400);
+};
+
+function _runGSearch(q) {
+  var el = document.getElementById('global-search-results');
+  if (!el) return;
+  var tab = GSEARCH_tab;
+  var qLower = q.toLowerCase();
+
+  var calls = [];
+  if (tab === 'all' || tab === 'chats') {
+    var localMatches = (CHAT_rooms || []).filter(function (r) {
+      return r.joined && (r.nick || '').toLowerCase().indexOf(qLower) !== -1;
+    });
+    calls.push(Promise.resolve({ kind: 'chats', items: localMatches }));
+  }
+  if (tab === 'all' || tab === 'groups') {
+    calls.push(api.get('/chat/rooms?search=' + encodeURIComponent(q), true)
+      .then(function (res) { return { kind: 'groups', items: res.rooms || [] }; })
+      .catch(function () { return { kind: 'groups', items: [] }; }));
+  }
+  if (tab === 'all' || tab === 'channels') {
+    calls.push(api.get('/channels?search=' + encodeURIComponent(q), true)
+      .then(function (res) { return { kind: 'channels', items: res.channels || [] }; })
+      .catch(function () { return { kind: 'channels', items: [] }; }));
+  }
+  if (tab === 'all' || tab === 'users') {
+    calls.push(api.get('/users/search?q=' + encodeURIComponent(q), true)
+      .then(function (res) { return { kind: 'users', items: res.users || [] }; })
+      .catch(function () { return { kind: 'users', items: [] }; }));
+  }
+  if (tab === 'all') {
+    calls.push(api.get('/chat?search=' + encodeURIComponent(q), true)
+      .then(function (res) { return { kind: 'messages', items: res.messages || [] }; })
+      .catch(function () { return { kind: 'messages', items: [] }; }));
+  }
+
+  Promise.all(calls).then(function (groups) {
+    var html = '';
+    groups.forEach(function (g) {
+      if (!g.items.length) return;
+      var label = { chats: 'Your Chats', groups: 'Groups', channels: 'Channels', users: 'Users', messages: 'Messages' }[g.kind];
+      html += '<div style="font-size:.68rem;color:var(--muted);font-weight:700;text-transform:uppercase;padding:.5rem .5rem .2rem">' + label + '</div>';
+      if (g.kind === 'chats') {
+        html += g.items.map(function (r) {
+          return '<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();openChatRoom(\'' + r.id + '\')">' +
+            '<div class="chat-av" style="width:38px;height:38px;font-size:.9rem;background:' + avatarColor(r.other_user_id || r.id) + '">' + escHtml((r.nick || '?').slice(0, 1).toUpperCase()) + '</div>' +
+            '<div style="font-size:.86rem;font-weight:600">' + escHtml(r.nick || 'Chat') + '</div>' +
+          '</div>';
+        }).join('');
+      } else if (g.kind === 'groups') {
+        html += g.items.map(function (r) {
+          return '<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();openChatRoom(\'' + r.id + '\')">' +
+            '<div class="chat-av group" style="width:38px;height:38px;font-size:1.1rem;background:' + avatarColor(r.id) + '">' + (r.emoji || '👥') + '</div>' +
+            '<div><div style="font-size:.86rem;font-weight:600">' + escHtml(r.nick || 'Group') + '</div><div style="font-size:.68rem;color:var(--muted)">' + (r.members || 0) + ' members</div></div>' +
+          '</div>';
+        }).join('');
+      } else if (g.kind === 'channels') {
+        html += g.items.map(function (c) {
+          return '<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();goPage(\'/?channel=\' + encodeURIComponent(\'' + c.owner_id + '\'))">' +
+            '<div class="chat-av" style="width:38px;height:38px;font-size:.9rem;background:' + avatarColor(c.owner_id) + '">' + escHtml((c.nickname || '?').slice(0, 1).toUpperCase()) + '</div>' +
+            '<div><div style="font-size:.86rem;font-weight:600">@' + escHtml(c.nickname || 'Channel') + '</div><div style="font-size:.68rem;color:var(--muted)">' + fmtN(c.followers || 0) + ' followers</div></div>' +
+          '</div>';
+        }).join('');
+      } else if (g.kind === 'users') {
+        html += g.items.map(function (u) {
+          return '<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();openUserProfile(\'' + u.id + '\')">' +
+            '<div class="chat-av" style="width:38px;height:38px;font-size:.9rem;background:' + avatarColor(u.id) + '">' + escHtml((u.nickname || '?').slice(0, 1).toUpperCase()) + '</div>' +
+            '<div style="font-size:.86rem;font-weight:600">@' + escHtml(u.nickname || 'User') + '</div>' +
+          '</div>';
+        }).join('');
+      } else if (g.kind === 'messages') {
+        html += g.items.map(function (m) {
           return '<div style="padding:.65rem .5rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();_openChatRoomAtMsg(\'' + m.room_id + '\',\'' + m.id + '\')">' +
             '<div style="font-size:.7rem;color:var(--muted);margin-bottom:.2rem">@' + escHtml(m.sender_nick||'') + ' in ' + escHtml(m.room_name||'Chat') + ' · ' + timeAgo(m.created_at) + '</div>' +
             '<div style="font-size:.85rem">' + escHtml((m.text||'').slice(0,100)) + '</div>' +
           '</div>';
         }).join('');
-      })
-      .catch(function () {});
-  }, 400);
-};
+      }
+    });
+    el.innerHTML = html || '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">No results found</div>';
+  });
+}
 
 /* ══════════════════════════════════
    TRANSLATE MESSAGE
