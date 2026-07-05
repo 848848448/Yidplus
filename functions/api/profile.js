@@ -20,7 +20,11 @@ export async function onRequestGet(context) {
         `SELECT id, nickname, photo_url, banner_url, bio, location, website, instagram, youtube,
                 profile_color, verified, role, created_at, privacy_profile, is_private
          FROM users WHERE id = ?`
-      ).bind(targetId).first();
+      ).bind(targetId).first().catch(() => env.DB.prepare(
+        `SELECT id, nickname, photo_url, banner_url, bio, location, website, instagram, youtube,
+                profile_color, verified, role, created_at, privacy_profile
+         FROM users WHERE id = ?`
+      ).bind(targetId).first());
       if (!profile) return json({ ok: false, error: 'User not found' }, 404);
       if (profile.privacy_profile === 'private' && (!user || user.id !== targetId)) {
         return json({ ok: false, error: 'Profile is private' }, 403);
@@ -49,7 +53,13 @@ export async function onRequestGet(context) {
               privacy_profile, privacy_messages, notif_messages, notif_likes, notif_followers, notif_channels,
               no_ads, muted_until, is_private
        FROM users WHERE id = ?`
-    ).bind(user.id).first();
+    ).bind(user.id).first().catch(() => env.DB.prepare(
+      `SELECT id, email, nickname, phone, photo_url, banner_url, bio, location, birthday, website,
+              instagram, youtube, profile_color, verified, role, created_at, profile_views,
+              privacy_profile, privacy_messages, notif_messages, notif_likes, notif_followers, notif_channels,
+              no_ads, muted_until
+       FROM users WHERE id = ?`
+    ).bind(user.id).first());
 
     // Sessions
     const { results: sessions } = await env.DB.prepare(

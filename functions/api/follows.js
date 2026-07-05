@@ -24,7 +24,7 @@ export async function onRequestGet(context) {
         `SELECT fr.id as request_id, u.id, u.nickname, u.photo_url, u.verified, fr.created_at
          FROM follow_requests fr JOIN users u ON u.id = fr.requester_id
          WHERE fr.target_id = ? ORDER BY fr.created_at DESC LIMIT 100`
-      ).bind(me.id).all();
+      ).bind(me.id).all().catch(() => ({ results: [] }));
       return json({ ok: true, requests: results });
     }
 
@@ -55,7 +55,7 @@ export async function onRequestGet(context) {
     const [followersRow, followingRow, targetUser] = await Promise.all([
       env.DB.prepare('SELECT COUNT(*) as cnt FROM user_follows WHERE following_id = ?').bind(targetId).first(),
       env.DB.prepare('SELECT COUNT(*) as cnt FROM user_follows WHERE follower_id = ?').bind(targetId).first(),
-      env.DB.prepare('SELECT is_private FROM users WHERE id = ?').bind(targetId).first(),
+      env.DB.prepare('SELECT is_private FROM users WHERE id = ?').bind(targetId).first().catch(() => null),
     ]);
 
     let isFollowing = false;
@@ -96,13 +96,13 @@ export async function onRequestPost(context) {
     if (body.action === 'accept' && body.requester_id) {
       const req = await env.DB.prepare(
         'SELECT id FROM follow_requests WHERE requester_id = ? AND target_id = ?'
-      ).bind(body.requester_id, me.id).first();
+      ).bind(body.requester_id, me.id).first().catch(() => null);
       if (!req) return json({ ok: false, error: 'Request not found' }, 404);
 
       await env.DB.prepare(
         'INSERT OR IGNORE INTO user_follows (id, follower_id, following_id, created_at) VALUES (?, ?, ?, ?)'
       ).bind(crypto.randomUUID(), body.requester_id, me.id, new Date().toISOString()).run();
-      await env.DB.prepare('DELETE FROM follow_requests WHERE id = ?').bind(req.id).run();
+      await env.DB.prepare('DELETE FROM follow_requests WHERE id = ?').bind(req.id).run().catch(() => {});
 
       return json({ ok: true, accepted: true });
     }
@@ -112,7 +112,8 @@ export async function onRequestPost(context) {
     if (!user_id) return json({ ok: false, error: 'user_id required' }, 400);
     if (user_id === me.id) return json({ ok: false, error: 'Cannot follow yourself' }, 400);
 
-    const target = await env.DB.prepare('SELECT is_private FROM users WHERE id = ?').bind(user_id).first();
+    const target = await env.DB.prepare('SELECT is_private FROM users WHERE id = ?').bind(user_id).first()
+      .catch(() => env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(user_id).first());
     if (!target) return json({ ok: false, error: 'User not found' }, 404);
 
     if (target.is_private) {
@@ -144,7 +145,7 @@ export async function onRequestDelete(context) {
     if (url.searchParams.get('request')) {
       await env.DB.prepare(
         'DELETE FROM follow_requests WHERE (requester_id = ? AND target_id = ?) OR (requester_id = ? AND target_id = ?)'
-      ).bind(me.id, user_id, user_id, me.id).run();
+      ).bind(me.id, user_id, user_id, me.id).run().catch(() => {});
       return json({ ok: true });
     }
 
