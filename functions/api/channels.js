@@ -13,11 +13,16 @@ export async function onRequestGet(context) {
 
     if (ownerId) {
       const channel = await env.DB.prepare(
-        `SELECT id, owner_id, nickname, followers, following, total_views, verified, bio, cover_key, created_at, privacy
+        `SELECT id, owner_id, nickname, following, total_views, verified, bio, cover_key, created_at, privacy
          FROM channels WHERE owner_id = ?`
       ).bind(ownerId).first();
 
       if (!channel) return json({ ok: false, error: 'Channel not found' }, 404);
+
+      const followerCountRow = await env.DB.prepare(
+        `SELECT COUNT(*) as c FROM channel_followers WHERE channel_owner_id = ?`
+      ).bind(ownerId).first().catch(() => ({ c: 0 }));
+      channel.followers = followerCountRow ? followerCountRow.c : 0;
 
       const user = await requireUser(request, env).catch(() => null);
       const isOwner = user && user.id === ownerId;
@@ -68,12 +73,15 @@ export async function onRequestGet(context) {
 
     const { results } = searchQ && searchQ.trim()
       ? await env.DB.prepare(
-          `SELECT id, owner_id, nickname, followers, verified FROM channels
-           WHERE nickname LIKE ? ORDER BY followers DESC LIMIT ?`
+          `SELECT c.id, c.owner_id, c.nickname, c.verified, COUNT(cf.follower_id) as followers
+           FROM channels c LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+           WHERE c.nickname LIKE ?
+           GROUP BY c.id ORDER BY followers DESC LIMIT ?`
         ).bind('%' + searchQ.trim() + '%', limitParam).all()
       : await env.DB.prepare(
-          `SELECT id, owner_id, nickname, followers, verified FROM channels
-           ORDER BY followers DESC, created_at DESC LIMIT ?`
+          `SELECT c.id, c.owner_id, c.nickname, c.verified, COUNT(cf.follower_id) as followers
+           FROM channels c LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+           GROUP BY c.id ORDER BY followers DESC, c.created_at DESC LIMIT ?`
         ).bind(limitParam).all();
 
     return json({ ok: true, channels: results });

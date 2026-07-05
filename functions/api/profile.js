@@ -66,7 +66,7 @@ export async function onRequestGet(context) {
       env.DB.prepare('SELECT COUNT(*) as cnt FROM shorts WHERE owner_id = ?').bind(user.id).first().catch(() => ({ cnt: 0 })),
       env.DB.prepare('SELECT COUNT(*) as cnt FROM music_tracks WHERE owner_id = ?').bind(user.id).first().catch(() => ({ cnt: 0 })),
       env.DB.prepare('SELECT COUNT(*) as cnt FROM messages WHERE sender_id = ?').bind(user.id).first().catch(() => ({ cnt: 0 })),
-      env.DB.prepare('SELECT followers FROM channels WHERE owner_id = ? LIMIT 1').bind(user.id).first().catch(() => null),
+      env.DB.prepare('SELECT COUNT(*) as followers FROM channel_followers WHERE channel_owner_id = ?').bind(user.id).first().catch(() => ({ followers: 0 })),
     ]);
 
     return json({

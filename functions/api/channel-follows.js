@@ -7,6 +7,26 @@
 
 import { json, corsHeaders, requireUser } from './_helpers.js';
 
+// Channel-following and person-following were two entirely separate systems
+// (channel_followers vs user_follows), and Status visibility only checks
+// user_follows. Following someone's channel now also creates the matching
+// user_follows row (and removes it on unfollow), so a channel follow
+// actually means something for Status visibility too — this was the root
+// cause of "I followed them but nothing changed."
+async function _syncUserFollow(env, followerId, followingId, isFollowing) {
+  try {
+    if (isFollowing) {
+      await env.DB.prepare(
+        `INSERT OR IGNORE INTO user_follows (id, follower_id, following_id, created_at) VALUES (?, ?, ?, ?)`
+      ).bind(crypto.randomUUID(), followerId, followingId, new Date().toISOString()).run();
+    } else {
+      await env.DB.prepare(
+        `DELETE FROM user_follows WHERE follower_id = ? AND following_id = ?`
+      ).bind(followerId, followingId).run();
+    }
+  } catch (e) { /* best-effort — never let this break the channel-follow action itself */ }
+}
+
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
@@ -71,6 +91,7 @@ export async function onRequestPost(context) {
       await env.DB.prepare(
         `INSERT OR REPLACE INTO channel_followers (channel_owner_id, follower_id, followed_at) VALUES (?, ?, ?)`
       ).bind(ownerId, user.id, new Date().toISOString()).run();
+      await _syncUserFollow(env, user.id, ownerId, true);
       return json({ ok: true, status: 'approved' });
     }
 
@@ -92,6 +113,7 @@ export async function onRequestPost(context) {
       await env.DB.prepare(
         `INSERT OR REPLACE INTO channel_followers (channel_owner_id, follower_id, followed_at) VALUES (?, ?, ?)`
       ).bind(ownerId, user.id, now).run();
+      await _syncUserFollow(env, user.id, ownerId, true);
       return json({ ok: true, status: 'approved' });
     }
 
@@ -147,6 +169,7 @@ export async function onRequestPut(context) {
       await env.DB.prepare(
         `INSERT OR REPLACE INTO channel_followers (channel_owner_id, follower_id, followed_at) VALUES (?, ?, ?)`
       ).bind(req.channel_owner_id, req.requester_id, now).run();
+      await _syncUserFollow(env, req.requester_id, req.channel_owner_id, true);
     }
 
     return json({ ok: true, status: newStatus });
@@ -172,9 +195,10 @@ export async function onRequestDelete(context) {
     await env.DB.prepare(
       `DELETE FROM channel_follow_requests WHERE channel_owner_id = ? AND requester_id = ?`
     ).bind(ownerId, user.id).run();
+    await _syncUserFollow(env, user.id, ownerId, false);
 
     return json({ ok: true });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-      }
+}
