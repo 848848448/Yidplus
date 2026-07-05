@@ -99,11 +99,17 @@ export async function onRequestPut(context) {
         if (k === 'photo' && v instanceof File) {
           const key = `avatars/${user.id}.${v.name.split('.').pop() || 'jpg'}`;
           await env.MY_BUCKET.put(key, await v.arrayBuffer(), { httpMetadata: { contentType: v.type } });
-          body.photo_url = `https://yidplus-media.a06785e7a5ea1da913c0a95975e11d74.r2.cloudflarestorage.com/${key}`;
+          // Media is served through our own /api/media/<key> route (the R2
+          // bucket itself isn't publicly reachable at its raw storage URL).
+          // The ?v= cache-bust matters because the media route sets a
+          // year-long immutable Cache-Control on every key — without a
+          // change in the URL, re-uploading a new photo to the same avatar
+          // key would keep showing the old cached image forever.
+          body.photo_url = `/api/media/${encodeURIComponent(key)}?v=${Date.now()}`;
         } else if (k === 'banner' && v instanceof File) {
           const key = `banners/${user.id}.${v.name.split('.').pop() || 'jpg'}`;
           await env.MY_BUCKET.put(key, await v.arrayBuffer(), { httpMetadata: { contentType: v.type } });
-          body.banner_url = `https://yidplus-media.a06785e7a5ea1da913c0a95975e11d74.r2.cloudflarestorage.com/${key}`;
+          body.banner_url = `/api/media/${encodeURIComponent(key)}?v=${Date.now()}`;
         } else { body[k] = v; }
       }
     } else {
