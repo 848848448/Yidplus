@@ -434,6 +434,21 @@ export async function onRequestPut(context) {
     const roomId = body.room_id;
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
 
+    // Mute is a personal preference — any member can set it for themselves,
+    // regardless of group-admin status. Must come before the admin-only
+    // gate below, or every non-admin member would be rejected trying to
+    // mute their own notifications.
+    if (typeof body.muted === 'boolean') {
+      try {
+        await env.DB.prepare(
+          `UPDATE room_members SET muted = ? WHERE room_id = ? AND user_id = ?`
+        ).bind(body.muted ? 1 : 0, roomId, user.id).run();
+      } catch (e) {
+        return json({ ok: false, error: 'Mute column not migrated yet on the server.' }, 500);
+      }
+      return json({ ok: true });
+    }
+
     if (!(await _isGroupAdminOrSuper(env, user, roomId))) {
       return json({ ok: false, error: 'Only the group admin can change group settings' }, 403);
     }
@@ -452,9 +467,6 @@ export async function onRequestPut(context) {
     }
 
     if (typeof body.member_title !== 'undefined' && body.member_id) {
-      if (!(await _isGroupAdminOrSuper(env, user, roomId))) {
-        return json({ ok: false, error: 'Only group admins can set member titles' }, 403);
-      }
       try {
         await env.DB.prepare(
           `UPDATE room_members SET title = ? WHERE room_id = ? AND user_id = ?`
@@ -463,17 +475,6 @@ export async function onRequestPut(context) {
       } catch (e) {
         return json({ ok: false, error: 'Member titles are not migrated yet on the server.' }, 500);
       }
-    }
-
-    if (typeof body.muted === 'boolean') {
-      try {
-        await env.DB.prepare(
-          `UPDATE room_members SET muted = ? WHERE room_id = ? AND user_id = ?`
-        ).bind(body.muted ? 1 : 0, roomId, user.id).run();
-      } catch (e) {
-        return json({ ok: false, error: 'Mute column not migrated yet on the server.' }, 500);
-      }
-      return json({ ok: true });
     }
 
     if (body.generate_invite === true) {
