@@ -217,10 +217,15 @@ export async function onRequestGet(context) {
     if (privateRoomIds.length) {
       const pPlaceholders = privateRoomIds.map(() => '?').join(',');
       const { results: otherRows } = await env.DB.prepare(
+        `SELECT rm.room_id, u.id, u.nickname, u.photo_url,
+                (CASE WHEN u.online = 1 AND u.last_ping >= datetime('now','-60 seconds') THEN 1 ELSE 0 END) AS online
+         FROM room_members rm JOIN users u ON u.id = rm.user_id
+         WHERE rm.room_id IN (${pPlaceholders}) AND rm.user_id != ?`
+      ).bind(...privateRoomIds, user.id).all().catch(() => env.DB.prepare(
         `SELECT rm.room_id, u.id, u.nickname, u.online, u.photo_url
          FROM room_members rm JOIN users u ON u.id = rm.user_id
          WHERE rm.room_id IN (${pPlaceholders}) AND rm.user_id != ?`
-      ).bind(...privateRoomIds, user.id).all().catch(() => ({ results: [] }));
+      ).bind(...privateRoomIds, user.id).all().catch(() => ({ results: [] })));
       for (const o of otherRows) otherUserByRoom[o.room_id] = o;
     }
 

@@ -22,29 +22,51 @@ export async function onRequestGet(context) {
     // Owner/Co-Owner see full PII (email, phone). Everyone else sees only
     // public fields. password_hash is NEVER returned to anyone via the API —
     // there is no legitimate reason to read it back; resets are write-only.
+    const onlineExpr = `(CASE WHEN online = 1 AND last_ping >= datetime('now','-60 seconds') THEN 1 ELSE 0 END) AS online`;
     let fields;
     if (isOwner) {
-      fields = 'id, email, nickname, phone, role, verified, blocked, online, no_ads, created_at';
+      fields = `id, email, nickname, phone, role, verified, blocked, ${onlineExpr}, no_ads, created_at`;
     } else {
-      fields = 'id, nickname, role, verified, blocked, online';
+      fields = `id, nickname, role, verified, blocked, ${onlineExpr}`;
     }
+
+    const fallbackFields = isOwner
+      ? 'id, email, nickname, phone, role, verified, blocked, online, no_ads, created_at'
+      : 'id, nickname, role, verified, blocked, online';
 
     const url    = new URL(request.url);
     const search = url.searchParams.get('search') || '';
 
     let results;
-    if (search) {
-      const q = '%' + search.toLowerCase() + '%';
-      const clause = isOwner ? 'OR lower(email) LIKE ? OR lower(nickname) LIKE ?' : '';
-      const r = await env.DB.prepare(
-        `SELECT ${fields} FROM users WHERE lower(nickname) LIKE ? ${clause} ORDER BY created_at DESC LIMIT 20`
-      ).bind(...(isOwner ? [q, q, q] : [q])).all();
-      results = r.results;
-    } else {
-      const r = await env.DB.prepare(
-        `SELECT ${fields} FROM users ORDER BY created_at DESC`
-      ).all();
-      results = r.results;
+    try {
+      if (search) {
+        const q = '%' + search.toLowerCase() + '%';
+        const clause = isOwner ? 'OR lower(email) LIKE ? OR lower(nickname) LIKE ?' : '';
+        const r = await env.DB.prepare(
+          `SELECT ${fields} FROM users WHERE lower(nickname) LIKE ? ${clause} ORDER BY created_at DESC LIMIT 20`
+        ).bind(...(isOwner ? [q, q, q] : [q])).all();
+        results = r.results;
+      } else {
+        const r = await env.DB.prepare(
+          `SELECT ${fields} FROM users ORDER BY created_at DESC`
+        ).all();
+        results = r.results;
+      }
+    } catch (e) {
+      // last_ping column not migrated yet — fall back to the raw online flag
+      if (search) {
+        const q = '%' + search.toLowerCase() + '%';
+        const clause = isOwner ? 'OR lower(email) LIKE ? OR lower(nickname) LIKE ?' : '';
+        const r = await env.DB.prepare(
+          `SELECT ${fallbackFields} FROM users WHERE lower(nickname) LIKE ? ${clause} ORDER BY created_at DESC LIMIT 20`
+        ).bind(...(isOwner ? [q, q, q] : [q])).all();
+        results = r.results;
+      } else {
+        const r = await env.DB.prepare(
+          `SELECT ${fallbackFields} FROM users ORDER BY created_at DESC`
+        ).all();
+        results = r.results;
+      }
     }
 
     return json({ ok: true, users: results });

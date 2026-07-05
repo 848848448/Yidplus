@@ -11,7 +11,9 @@ export async function onRequestGet(context) {
       env.DB.prepare('SELECT COUNT(*) AS c FROM users').first(),
       env.DB.prepare('SELECT COUNT(*) AS c FROM shorts').first(),
       env.DB.prepare('SELECT COUNT(*) AS c FROM messages').first(),
-      env.DB.prepare('SELECT COUNT(*) AS c FROM users WHERE online = 1').first(),
+      env.DB.prepare(
+        "SELECT COUNT(*) AS c FROM users WHERE online = 1 AND last_ping >= datetime('now','-60 seconds')"
+      ).first().catch(() => env.DB.prepare('SELECT COUNT(*) AS c FROM users WHERE online = 1').first()),
       env.DB.prepare('SELECT COUNT(*) AS c FROM music_tracks').first().catch(() => ({ c: 0 })),
       env.DB.prepare('SELECT COUNT(*) AS c FROM channels').first().catch(() => ({ c: 0 })),
       env.DB.prepare('SELECT COUNT(*) AS c FROM reports WHERE resolved = 0').first().catch(() => ({ c: 0 })),

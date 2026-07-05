@@ -26,9 +26,18 @@ export async function onRequestPost(context) {
     }
 
     const placeholders = ids.map(() => '?').join(',');
-    const { results } = await env.DB.prepare(
-      `SELECT id, online FROM users WHERE id IN (${placeholders})`
-    ).bind(...ids).all();
+    let results;
+    try {
+      const r = await env.DB.prepare(
+        `SELECT id, (CASE WHEN online = 1 AND last_ping >= datetime('now','-60 seconds') THEN 1 ELSE 0 END) AS online
+         FROM users WHERE id IN (${placeholders})`
+      ).bind(...ids).all();
+      results = r.results;
+    } catch (e) {
+      // last_ping column not migrated yet — fall back to the raw flag
+      const r = await env.DB.prepare(`SELECT id, online FROM users WHERE id IN (${placeholders})`).bind(...ids).all();
+      results = r.results;
+    }
 
     const online = {};
     for (const row of results) online[row.id] = !!row.online;

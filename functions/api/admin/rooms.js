@@ -122,11 +122,17 @@ export async function onRequestGet(context) {
         members = mc ? mc.c : 0;
 
         const { results: memRows } = await env.DB.prepare(
+          `SELECT u.id, u.nickname, u.role, u.photo_url, rm.is_group_admin,
+                  (CASE WHEN u.online = 1 AND u.last_ping >= datetime('now','-60 seconds') THEN 1 ELSE 0 END) AS online
+           FROM room_members rm
+           JOIN users u ON u.id = rm.user_id
+           WHERE rm.room_id = ?`
+        ).bind(r.id).all().catch(() => env.DB.prepare(
           `SELECT u.id, u.nickname, u.online, u.role, u.photo_url, rm.is_group_admin
            FROM room_members rm
            JOIN users u ON u.id = rm.user_id
            WHERE rm.room_id = ?`
-        ).bind(r.id).all();
+        ).bind(r.id).all());
         memberList = memRows;
       }
 
@@ -137,10 +143,16 @@ export async function onRequestGet(context) {
       let otherUserId = null;
       if (r.type === 'private') {
         const other = await env.DB.prepare(
+          `SELECT u.id, u.nickname, u.photo_url,
+                  (CASE WHEN u.online = 1 AND u.last_ping >= datetime('now','-60 seconds') THEN 1 ELSE 0 END) AS online
+           FROM room_members rm
+           JOIN users u ON u.id = rm.user_id
+           WHERE rm.room_id = ? AND rm.user_id != ?`
+        ).bind(r.id, user.id).first().catch(() => env.DB.prepare(
           `SELECT u.id, u.nickname, u.online, u.photo_url FROM room_members rm
            JOIN users u ON u.id = rm.user_id
            WHERE rm.room_id = ? AND rm.user_id != ?`
-        ).bind(r.id, user.id).first();
+        ).bind(r.id, user.id).first());
         if (other) { nick = other.nickname; online = !!other.online; photoUrl = other.photo_url; otherUserId = other.id; }
       }
 

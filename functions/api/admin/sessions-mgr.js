@@ -6,10 +6,15 @@ export async function onRequestGet(context) {
     const user = await requireUser(request, env);
     if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
     const { results } = await env.DB.prepare(
+      `SELECT s.id, s.created_at, u.id as user_id, u.nickname, u.email,
+              (CASE WHEN u.online = 1 AND u.last_ping >= datetime('now','-60 seconds') THEN 1 ELSE 0 END) AS online
+       FROM sessions s JOIN users u ON u.id = s.user_id
+       ORDER BY s.created_at DESC LIMIT 200`
+    ).all().catch(() => env.DB.prepare(
       `SELECT s.id, s.created_at, u.id as user_id, u.nickname, u.email, u.online
        FROM sessions s JOIN users u ON u.id = s.user_id
        ORDER BY s.created_at DESC LIMIT 200`
-    ).all();
+    ).all());
     return json({ ok: true, sessions: results });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
 }

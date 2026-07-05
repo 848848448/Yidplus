@@ -98,7 +98,8 @@ export async function onRequestPost(context) {
     const sessionId = crypto.randomUUID();
     const now = new Date().toISOString();
     await env.DB.prepare('INSERT INTO sessions (id, user_id, created_at) VALUES (?, ?, ?)').bind(sessionId, user.id, now).run();
-    await env.DB.prepare('UPDATE users SET online = 1 WHERE id = ?').bind(user.id).run();
+    await env.DB.prepare('UPDATE users SET online = 1, last_ping = ? WHERE id = ?').bind(now, user.id).run()
+      .catch(() => env.DB.prepare('UPDATE users SET online = 1 WHERE id = ?').bind(user.id).run());
 
     // Log login
     await env.DB.prepare(

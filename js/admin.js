@@ -717,6 +717,7 @@ function renderUsersList(users) {
     var isViewingAsOwner = userCan('view_pii') && OWNER_EMAILS_ADMIN.includes(ADMIN_gateEmail || CONFIG.OWNER_EMAIL);
     var actions = '';
     if (isViewingAsOwner && !isOwnerRow) {
+      actions += '<button class="act-btn" style="background:var(--muted);color:#fff;border-color:var(--muted)" onclick="openUserDetailModal(\'' + u.id + '\')">🔍 Details</button>';
       actions += '<button class="act-btn" style="background:#1F6F5C;color:#fff;border-color:#1F6F5C" onclick="adminEditUser(\'' + u.id + '\')">' + SVG_EDIT + ' Edit</button>';
       actions += '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + SVG_VERIFY + ' ' + (u.verified ? 'Unverify' : 'Verify') + '</button>';
       actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? SVG_DEMOTE + ' Demote' : SVG_PROMO + ' Promote') + '</button>';
@@ -771,6 +772,74 @@ window.filterAdminUsers = function () {
            (u.email    || '').toLowerCase().indexOf(q) !== -1;
   });
   renderUsersList(filtered);
+};
+
+window.openUserDetailModal = function (userId) {
+  var existing = document.getElementById('user-detail-overlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'user-detail-overlay';
+  overlay.className = 'modal-overlay open';
+  overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML =
+    '<div class="modal-sheet" style="max-height:85vh;overflow-y:auto">' +
+      '<div class="modal-title" style="text-align:left;display:flex;justify-content:space-between;align-items:center">' +
+        '<span>🔍 User Activity</span>' +
+        '<button onclick="document.getElementById(\'user-detail-overlay\').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>' +
+      '</div>' +
+      '<div id="user-detail-body"><div class="feed-state"><div class="spinner"></div></div></div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  api.get('/admin/user-detail?user_id=' + encodeURIComponent(userId))
+    .then(function (res) {
+      var body = document.getElementById('user-detail-body');
+      if (!body) return;
+      var p = res.profile, c = res.counts;
+
+      var profileRows =
+        '<div class="admin-card" style="margin:0 0 .75rem">' +
+          '<div style="font-size:.95rem;font-weight:700;margin-bottom:.5rem">@' + escHtml(p.nickname || 'user') + ' ' + (p.online ? '🟢' : '⚪') + '</div>' +
+          (p.email ? '<div style="font-size:.78rem;color:var(--muted)">📧 <a href="mailto:' + escHtml(p.email) + '" style="color:var(--gold)">' + escHtml(p.email) + '</a></div>' : '') +
+          (p.phone ? '<div style="font-size:.78rem;color:var(--muted)">📞 <a href="tel:' + escHtml(p.phone) + '" style="color:var(--gold)">' + escHtml(p.phone) + '</a></div>' : '') +
+          '<div style="font-size:.78rem;color:var(--muted)">📅 Joined ' + timeAgo(p.created_at) + '</div>' +
+          '<div style="font-size:.78rem;color:var(--muted)">🎭 Role: ' + (p.role || 'member') + (p.verified ? ' · ✅ Verified' : '') + (p.blocked ? ' · 🚫 Blocked' : '') + '</div>' +
+        '</div>';
+
+      var countsGrid =
+        '<div class="admin-card" style="margin:0 0 .75rem">' +
+          '<div class="admin-card-title">📊 Activity Counts</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;text-align:center;font-size:.78rem">' +
+            '<div>💬<br><strong>' + c.messages + '</strong><br>Messages</div>' +
+            '<div>🎬<br><strong>' + c.shorts + '</strong><br>Shorts</div>' +
+            '<div>⭐<br><strong>' + c.statuses + '</strong><br>Statuses</div>' +
+            '<div>🎵<br><strong>' + c.music + '</strong><br>Music</div>' +
+            '<div>👥<br><strong>' + c.groups_created + '</strong><br>Groups Made</div>' +
+            '<div>🚪<br><strong>' + c.groups_joined + '</strong><br>Groups Joined</div>' +
+          '</div>' +
+        '</div>';
+
+      var loginRows = (res.login_history || []).slice(0, 10).map(function (l) {
+        return '<div style="font-size:.72rem;color:var(--muted);padding:.3rem 0;border-bottom:.5px solid var(--border)">' +
+          (l.action === 'fail' ? '❌ Failed login' : '✅ Login') + ' — ' + escHtml(l.ip || '?') + ' — ' + timeAgo(l.created_at) +
+        '</div>';
+      }).join('') || '<div style="font-size:.75rem;color:var(--muted)">No login history yet</div>';
+
+      var auditRows = (res.audit_as_target || []).slice(0, 10).map(function (a) {
+        return '<div style="font-size:.72rem;color:var(--muted);padding:.3rem 0;border-bottom:.5px solid var(--border)">' +
+          '⚡ ' + escHtml(a.action || '') + ' by @' + escHtml(a.actor_nick || '?') + ' — ' + timeAgo(a.created_at) +
+        '</div>';
+      }).join('') || '<div style="font-size:.75rem;color:var(--muted)">No moderation actions on this user</div>';
+
+      body.innerHTML = profileRows + countsGrid +
+        '<div class="admin-card" style="margin:0 0 .75rem"><div class="admin-card-title">🔐 Login History (last 10)</div>' + loginRows + '</div>' +
+        '<div class="admin-card" style="margin:0"><div class="admin-card-title">📋 Moderation Actions Taken Against This User</div>' + auditRows + '</div>';
+    })
+    .catch(function (err) {
+      var body = document.getElementById('user-detail-body');
+      if (body) body.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--red);font-size:.8rem">⚠️ ' + escHtml(err.message) + '</div>';
+    });
 };
 
 window.adminVerify = function (id, currentStr) {
