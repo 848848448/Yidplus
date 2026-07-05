@@ -3248,7 +3248,11 @@ window.openChatSettings = function () {
 
   // Sync read receipts
   var receipts = document.getElementById('cs-receipts-toggle');
-  if (receipts) { receipts.classList.add('on'); }
+  if (receipts) {
+    var receiptsOn = true;
+    try { receiptsOn = localStorage.getItem('yp_read_receipts') !== '0'; } catch (e) {}
+    receipts.classList.toggle('on', receiptsOn);
+  }
 
   document.getElementById('chat-settings-modal').classList.add('open');
 };
@@ -3259,6 +3263,13 @@ window.toggleDarkMode = function (toggleEl) {
   document.documentElement.classList.toggle('dark-mode', isDark);
   try { localStorage.setItem('yp_dark_mode', isDark ? '1' : '0'); } catch (e) {}
   toast(isDark ? '🌙 Dark mode on' : '☀️ Light mode on');
+};
+
+window.toggleReadReceipts = function (toggleEl) {
+  toggleEl.classList.toggle('on');
+  var on = toggleEl.classList.contains('on');
+  try { localStorage.setItem('yp_read_receipts', on ? '1' : '0'); } catch (e) {}
+  toast(on ? '✓✓ Read receipts on' : 'Read receipts off');
 };
 
 window.setChatFont = function (size, btn) {

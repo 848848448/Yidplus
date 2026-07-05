@@ -535,6 +535,37 @@
   </div>
 </div>
 
+<!-- Chat Settings modal -->
+<div class="modal-overlay" id="chat-settings-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-title">⚙️ Chat Settings</div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:.88rem">🌙 Dark Mode</div>
+      <div class="toggle-sw" id="cs-dark-toggle" onclick="toggleDarkMode(this)"></div>
+    </div>
+
+    <div style="padding:.75rem 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:.88rem;margin-bottom:.5rem">🔤 Message Text Size</div>
+      <div style="display:flex;gap:.5rem">
+        <button class="cs-font-btn" id="cs-font-sm" onclick="setChatFont('sm', this)">Small</button>
+        <button class="cs-font-btn" id="cs-font-md" onclick="setChatFont('md', this)">Medium</button>
+        <button class="cs-font-btn" id="cs-font-lg" onclick="setChatFont('lg', this)">Large</button>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 0">
+      <div>
+        <div style="font-size:.88rem">✓✓ Read Receipts</div>
+        <div style="font-size:.68rem;color:var(--muted)">Let others see when you've read their messages</div>
+      </div>
+      <div class="toggle-sw" id="cs-receipts-toggle" onclick="toggleReadReceipts(this)"></div>
+    </div>
+
+    <button class="modal-cancel" onclick="document.getElementById('chat-settings-modal').classList.remove('open')" style="margin-top:.5rem">Close</button>
+  </div>
+</div>
+
 <!-- Chat options kebab menu -->
 <div class="ctx-menu" id="chat-options-menu" style="right:1rem;top:3.2rem">
   <div class="ctx-item" id="opt-view-members" onclick="openChatInfo();closeOptMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> View Members</div>
