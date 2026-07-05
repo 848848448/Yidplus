@@ -90,14 +90,14 @@ export async function onRequestGet(context) {
       const res = await env.DB.prepare(
         `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at,
                 r.invite_code, r.pinned_message_id, r.photo_key,
-                r.channel_admins, r.description, r.created_by, m.muted
+                r.channel_admins, r.description, r.created_by, m.muted, r.has_topics
          FROM rooms r
          JOIN room_members m ON m.room_id = r.id
          WHERE m.user_id = ?`
       ).bind(user.id).all();
       myRooms = res.results;
     } catch (e) {
-      // muted column not migrated yet — fall back without it
+      // muted or has_topics column not migrated yet — fall back without them
       const res = await env.DB.prepare(
         `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at,
                 r.invite_code, r.pinned_message_id, r.photo_key,
@@ -263,6 +263,7 @@ export async function onRequestGet(context) {
         joined,
         admin_spectating: isAdminSpectating,
         is_group_admin: isGroupAdmin,
+        has_topics: !!r.has_topics,
         online,
         members,
         member_list: memberList,

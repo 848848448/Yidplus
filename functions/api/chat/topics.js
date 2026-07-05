@@ -113,6 +113,24 @@ export async function onRequestPost(context) {
     ).bind(roomId, user.id).first();
     if (!isMember) return json({ ok: false, error: 'You must be a member of this group' }, 403);
 
+    // A regular group does NOT have Topics by default, and it should never
+    // get silently switched into Topics-mode just because some member
+    // clicked the option once. Only a group admin/owner is allowed to turn
+    // Topics on for a group (by creating its first topic). Once it's on,
+    // any member can add further topics to it.
+    let hasTopicsAlready = false;
+    try {
+      const room = await env.DB.prepare('SELECT has_topics FROM rooms WHERE id = ?').bind(roomId).first();
+      hasTopicsAlready = !!(room && room.has_topics);
+    } catch (e) { hasTopicsAlready = false; }
+
+    if (!hasTopicsAlready) {
+      const isAdminHere = await _isGroupAdminOrOwner(env, user, roomId);
+      if (!isAdminHere) {
+        return json({ ok: false, error: 'Only a group admin can turn on Topics for this group' }, 403);
+      }
+    }
+
     const topicId = crypto.randomUUID();
     const now = new Date().toISOString();
     await env.DB.prepare(
