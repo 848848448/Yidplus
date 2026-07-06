@@ -134,6 +134,20 @@ export async function onRequestPut(context) {
 
     if (body.role) {
       if (isModeratorOnly) return json({ ok: false, error: 'Only Super Admins can change roles' }, 403);
+      // Only these three roles can ever be assigned through the panel.
+      // 'owner' is deliberately NOT assignable — ownership is decided
+      // strictly by the hardcoded owner emails on the server, and several
+      // code paths treat role === 'owner' as owner-level, so letting it be
+      // written here would be a direct privilege-escalation path.
+      const ASSIGNABLE_ROLES = ['member', 'admin_limited', 'admin_super'];
+      if (!ASSIGNABLE_ROLES.includes(body.role)) {
+        return json({ ok: false, error: 'Invalid role' }, 400);
+      }
+      // Only a full Owner/Co-Owner can grant or revoke Super Admin — a
+      // Super Admin shouldn't be able to mint more Super Admins.
+      if (body.role === 'admin_super' && !isOwner) {
+        return json({ ok: false, error: 'Only the Owner can grant Super Admin' }, 403);
+      }
       await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?')
         .bind(body.role, id).run();
       await logAudit(env, user, 'change_role', 'user', id, `@${target.nickname} -> ${body.role}`);

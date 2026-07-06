@@ -79,9 +79,10 @@ export async function onRequestDelete(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
+    if (!isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
     const id = new URL(request.url).searchParams.get('id');
     if (!id) return json({ ok: false, error: 'id required' }, 400);
     await env.DB.prepare('DELETE FROM reports WHERE id = ?').bind(id).run();
     return json({ ok: true });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
-           }
+}
