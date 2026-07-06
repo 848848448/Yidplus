@@ -23,11 +23,30 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: 'file is required' }, 400);
     }
 
-    const ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop() : 'bin';
+    // Size cap — protects against runaway R2 storage costs and abuse.
+    const MAX_BYTES = 100 * 1024 * 1024; // 100MB
+    if (file.size > MAX_BYTES) {
+      return json({ ok: false, error: 'File too large (max 100MB)' }, 413);
+    }
+
+    // Only real media types are allowed. This is a stored-XSS defense, not
+    // just tidiness: /api/media/ serves uploads back from the app's OWN
+    // origin with the stored content type — an uploaded .html (or SVG,
+    // which can carry scripts) would execute as a page on yidplus.com and
+    // could call the API as whoever opened it.
+    const ALLOWED_EXT = ['jpg','jpeg','png','gif','webp','avif','heic','mp4','webm','mov','m4v','mp3','m4a','aac','wav','ogg','opus'];
+    const rawExt = (file.name && file.name.includes('.')) ? file.name.split('.').pop().toLowerCase() : '';
+    const ext = ALLOWED_EXT.includes(rawExt) ? rawExt : null;
+    const type = (file.type || '').toLowerCase();
+    const typeOk = type.startsWith('image/') || type.startsWith('video/') || type.startsWith('audio/');
+    if (!ext || !typeOk || type === 'image/svg+xml') {
+      return json({ ok: false, error: 'Only image, video, and audio files are allowed' }, 415);
+    }
+
     const key = `${folder}/${user.id}/${Date.now()}_${crypto.randomUUID()}.${ext}`;
 
     await env.MY_BUCKET.put(key, await file.arrayBuffer(), {
-      httpMetadata: { contentType: file.type || 'application/octet-stream' },
+      httpMetadata: { contentType: type },
     });
 
     return json({ ok: true, key, url: `/api/media/${encodeURIComponent(key)}` }, 201);

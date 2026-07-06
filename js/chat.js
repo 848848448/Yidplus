@@ -579,7 +579,7 @@ window.openChatRoom = function (roomId, topicId, topicName) {
 
   var st = document.getElementById('cr-status');
   var meId = STATE.user && STATE.user.id;
-  var isSuperAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.email === CONFIG.OWNER_EMAIL);
+  var isSuperAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
   if (room.admin_spectating) {
     st.textContent = '👁 Viewing as Admin';
     st.style.color = 'var(--gold-d)';
@@ -690,7 +690,7 @@ window.openChatInfo = function () {
 
   // Group admin settings panel — visible to this group's sub-admins and Super Admins.
   var meId = STATE.user && STATE.user.id;
-  var isSuperAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.email === CONFIG.OWNER_EMAIL);
+  var isSuperAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
   var canManageGroup = isGroup && (CHAT_curRoom.is_group_admin || isSuperAdmin);
   document.getElementById('info-admin-settings').style.display = canManageGroup ? 'block' : 'none';
 
@@ -849,7 +849,7 @@ function _renderMembersList() {
     return;
   }
   var meId = STATE.user && STATE.user.id;
-  var isSuperAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.email === CONFIG.OWNER_EMAIL);
+  var isSuperAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
   var canManageGroup = CHAT_curRoom && (CHAT_curRoom.is_group_admin || isSuperAdmin);
 
   list.innerHTML = CHAT_members.map(function (m) {
@@ -2012,7 +2012,7 @@ window._emojiCat = function (btn, cat) {
 
   if (cat === 'stickers') {
     var isAdmin = window.ADMIN_GATE_SESSION && window.ADMIN_GATE_SESSION.role === 'owner' ||
-                  (STATE.user && (STATE.user.role === 'admin_super' || (STATE.user.email || '').toLowerCase() === 'jmittelman2@gmail.com'));
+                  (STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner));
     grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
     var uploadTile = '<div class="sticker-wrap" onclick="document.getElementById(\'custom-sticker-file-inp\').click()" style="display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:10px;cursor:pointer;aspect-ratio:1">' +
       '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +

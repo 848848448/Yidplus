@@ -135,7 +135,7 @@ export async function onRequestPost(context) {
       await env.DB.prepare('UPDATE users SET email_verified = 1 WHERE id = ?').bind(userId).run().catch(() => {});
     }
 
-    const headers = { ...corsHeaders, 'Set-Cookie': `yp_session=${sessionId}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000` };
+    const headers = { ...corsHeaders, 'Set-Cookie': `yp_session=${sessionId}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=2592000` };
     return new Response(JSON.stringify({ ok: true, user: { id: userId, email, nickname, role, verified: 0 }, email_verify_required: requireVerify }), { status: 201, headers: { 'Content-Type': 'application/json', ...headers } });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);

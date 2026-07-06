@@ -8,7 +8,7 @@
 
 // ── CONFIG ──────────────────────────────────────────────
 window.CONFIG = {
-  OWNER_EMAIL: 'avrumy5872877@gmail.com',
+  OWNER_EMAIL: '',   // deliberately blank in client source; ownership is decided server-side (user.is_owner)
   API_BASE:    '/api',
   POLL_MS:     4000,        // chat/online polling interval
   PRESENCE_MS: 20000,       // how often we ping "I'm online"
@@ -488,14 +488,16 @@ window.goPage = function (page) {
 // window.ADMIN_GATE_SESSION is set by admin.js after a successful
 // email+PIN gate unlock: { email, role }. When present, these helpers
 // trust THAT verified identity over STATE.user — this matters because
-// ── OWNER EMAILS (hardcoded, cannot be changed) ──
-var OWNER_EMAILS_LIST = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
-
+// ── OWNERSHIP ──
+// Ownership is decided SERVER-side (auth/me and login return
+// user.is_owner, computed against the hardcoded owner emails that live
+// only in backend code). The client source deliberately contains no
+// owner email addresses. Note this flag is cosmetic/UI-routing only —
+// every real permission check happens on the server regardless of what
+// the client believes.
 window.isOwner = function () {
-  var email = window.ADMIN_GATE_SESSION
-    ? window.ADMIN_GATE_SESSION.email
-    : (STATE.user && STATE.user.email);
-  return !!(email && OWNER_EMAILS_LIST.includes(String(email).toLowerCase()));
+  if (window.ADMIN_GATE_SESSION) return window.ADMIN_GATE_SESSION.role === 'owner';
+  return !!(STATE.user && STATE.user.is_owner);
 };
 window.isSuperAdmin = function () {
   if (window.ADMIN_GATE_SESSION) {

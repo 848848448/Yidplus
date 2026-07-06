@@ -53,7 +53,7 @@ window.checkGateEmail = function () {
       setLoad('gate-email', false);
 
       var role = res.role;
-      var authorized = email === CONFIG.OWNER_EMAIL ||
+      var authorized = role === 'owner' ||
         role === 'admin_super' || role === 'admin_limited';
 
       if (!authorized) {
@@ -107,10 +107,10 @@ window.checkPin = function () {
       setLoad('gate-pin', false);
       document.getElementById('admin-gate').classList.remove('open');
 
-      const CO_OWNER = 'jmittelman2@gmail.com';
-      var role = ((ADMIN_gateEmail || '').toLowerCase() === CONFIG.OWNER_EMAIL || (ADMIN_gateEmail || '').toLowerCase() === CO_OWNER)
-                   ? 'owner'
-                   : (ADMIN_gateRole || 'member');
+      // ADMIN_gateRole was verified server-side at the email step
+      // (check-email returns 'owner' for the two owner accounts), so no
+      // client-side email comparison is needed — or wanted — here.
+      var role = ADMIN_gateRole || 'member';
 
       // Publish the verified gate identity so userCan()/isOwner()/isSuperAdmin()/isAnyAdmin()
       // in state.js use THIS identity for the rest of the admin panel session, not whichever
@@ -208,9 +208,7 @@ function buildAdminNav() {
   if (!nav) return;
   nav.innerHTML = '';
 
-  var CO_OWNER = 'jmittelman2@gmail.com';
-  var userRole = ((ADMIN_gateEmail || '').toLowerCase() === CONFIG.OWNER_EMAIL || (ADMIN_gateEmail || '').toLowerCase() === CO_OWNER)
-    ? 'owner' : (ADMIN_gateRole || 'member');
+  var userRole = ADMIN_gateRole || 'member';
 
   ADMIN_PANELS
     .filter(function (p) { return p.roles.indexOf(userRole) !== -1; })
@@ -280,9 +278,7 @@ function buildAdminPanel(id) {
     loadBroadcastHistory();
 
   } else if (id === 'app-settings') {
-    var userRole = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL)
-      ? 'owner'
-      : (STATE.user && STATE.user.role);
+    var userRole = ADMIN_gateRole || (STATE.user && STATE.user.role);
 
     content.innerHTML =
       '<div class="admin-panel">' +
@@ -323,8 +319,8 @@ function buildAdminPanel(id) {
             '</label>' +
           '</div>' +
           '<div style="padding:.75rem 0">' +
-            '<div style="font-size:.82rem;color:var(--red)">🔒 Hardcoded Owner: <strong>' + escHtml(CONFIG.OWNER_EMAIL) + '</strong></div>' +
-            '<div style="font-size:.68rem;color:var(--muted);margin-top:.25rem">Cannot be changed by anyone.</div>' +
+            '<div style="font-size:.82rem;color:var(--red)">🔒 Owner accounts are hardcoded server-side</div>' +
+            '<div style="font-size:.68rem;color:var(--muted);margin-top:.25rem">Cannot be changed or removed by anyone.</div>' +
           '</div>' +
         '</div>' +
         '<div class="admin-card">' +
@@ -718,8 +714,7 @@ function renderUsersList(users) {
   }
 
   el.innerHTML = users.map(function (u) {
-    var OWNER_EMAILS_ADMIN = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
-    var isOwnerRow = OWNER_EMAILS_ADMIN.includes((u.email || '').toLowerCase());
+    var isOwnerRow = !!u.protected;
     var canBlock   = userCan('block_users') && !isOwnerRow;
     var canManage  = userCan('manage_users') && !isOwnerRow;
     var roleClass  = (u.role === 'admin_super' || u.role === 'admin_limited') ? 'admin' : 'user';
@@ -734,7 +729,7 @@ function renderUsersList(users) {
     var SVG_DEMOTE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
     var SVG_ADS    = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
 
-    var isViewingAsOwner = userCan('view_pii') && OWNER_EMAILS_ADMIN.includes(ADMIN_gateEmail || CONFIG.OWNER_EMAIL);
+    var isViewingAsOwner = userCan('view_pii') && (ADMIN_gateRole === 'owner' || (typeof isOwner === 'function' && isOwner()));
     var actions = '';
     if (isViewingAsOwner && !isOwnerRow) {
       actions += '<button class="act-btn" style="background:var(--muted);color:#fff;border-color:var(--muted)" onclick="openUserDetailModal(\'' + u.id + '\')">🔍 Details</button>';
@@ -1182,7 +1177,7 @@ console.log('[YID PLUS] admin.js loaded ✓ (Cloudflare D1 mode)');
 var SUPPORT_ACTIVE_TAB = 'new';
 
 function buildSupportChatsPanel(content) {
-  var isOwnerHere = (ADMIN_gateEmail || '').toLowerCase() === CONFIG.OWNER_EMAIL || (typeof isOwner === 'function' && isOwner());
+  var isOwnerHere = ADMIN_gateRole === 'owner' || (typeof isOwner === 'function' && isOwner());
   content.innerHTML =
     '<div class="admin-panel">' +
       '<div style="display:flex;gap:.4rem;padding:.6rem .75rem;background:var(--surface);border-bottom:1px solid var(--border);align-items:center">' +

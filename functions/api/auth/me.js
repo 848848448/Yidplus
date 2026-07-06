@@ -1,4 +1,4 @@
-import { json, corsHeaders, requireUser } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -7,6 +7,9 @@ export async function onRequestGet(context) {
   try {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
+    // Computed server-side so the client never needs to know WHICH emails
+    // are the owners' — keeps them out of the downloadable JS source.
+    user.is_owner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
     return json({ ok: true, user });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);

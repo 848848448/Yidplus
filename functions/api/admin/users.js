@@ -69,6 +69,28 @@ export async function onRequestGet(context) {
       }
     }
 
+    // Mark the two owner accounts as protected server-side, so the client
+    // can render the "Protected" state without hardcoding the owner
+    // emails anywhere in downloadable JS.
+    const CO_OWNER_EMAIL = 'jmittelman2@gmail.com';
+    const roleById = {};
+    if (!isOwner) {
+      // Limited-admin view doesn't include emails, so look up which of the
+      // listed ids belong to the two protected accounts in one query.
+      const ids = results.map(r => r.id);
+      if (ids.length) {
+        const ph = ids.map(() => '?').join(',');
+        const { results: protRows } = await env.DB.prepare(
+          `SELECT id FROM users WHERE id IN (${ph}) AND (lower(email) = ? OR lower(email) = ?)`
+        ).bind(...ids, (env.OWNER_EMAIL || '').toLowerCase(), CO_OWNER_EMAIL).all().catch(() => ({ results: [] }));
+        for (const pr of protRows) roleById[pr.id] = true;
+      }
+    }
+    for (const row of results) {
+      const rowEmail = (row.email || '').toLowerCase();
+      row.protected = (rowEmail && (rowEmail === (env.OWNER_EMAIL || '').toLowerCase() || rowEmail === CO_OWNER_EMAIL)) || roleById[row.id] ? 1 : 0;
+    }
+
     return json({ ok: true, users: results });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);

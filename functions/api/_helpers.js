@@ -4,10 +4,15 @@
 
 export const corsHeaders = {
   'Content-Type': 'application/json',
+  // The frontend and API live on the same origin (Cloudflare Pages serves
+  // both), so no cross-origin site ever needs credentialed access to this
+  // API. Wildcard origin is fine for public GETs; deliberately NO
+  // Access-Control-Allow-Credentials header — the browser will therefore
+  // never attach or expose session cookies on any cross-origin request,
+  // which shuts the door on cross-site request abuse of the API.
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Credentials': 'true',
 };
 
 export function isValidEmail(email) {

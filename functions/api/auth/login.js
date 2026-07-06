@@ -1,4 +1,4 @@
-import { json, corsHeaders, verifyPassword, hashPassword, isValidEmail } from '../_helpers.js';
+import { json, corsHeaders, verifyPassword, hashPassword, isValidEmail, isOwnerOrCoOwner } from '../_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -107,8 +107,9 @@ export async function onRequestPost(context) {
       `INSERT INTO login_logs (id, user_id, ip, fingerprint, action, created_at) VALUES (?, ?, ?, ?, 'login', ?)`
     ).bind(crypto.randomUUID(), user.id, ip, fingerprint || null, now).run().catch(() => {});
 
-    const headers = { ...corsHeaders, 'Set-Cookie': `yp_session=${sessionId}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000` };
+    const headers = { ...corsHeaders, 'Set-Cookie': `yp_session=${sessionId}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=2592000` };
     const { password_hash, ...safeUser } = user;
+    safeUser.is_owner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
     return new Response(JSON.stringify({ ok: true, user: safeUser }), { status: 200, headers: { 'Content-Type': 'application/json', ...headers } });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
