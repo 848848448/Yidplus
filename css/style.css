@@ -1020,7 +1020,7 @@ html.dark-mode .admin-search { background-color: #232427; border-color: #2C2D31;
 .sys-msg span { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.08); border-radius: 12px; padding: .3rem .85rem; font-size: .68rem; color: var(--muted); }
 .member-row-admin { display: flex; align-items: center; gap: .5rem; padding: .65rem 1rem; border-bottom: 1px solid var(--border); }
 .member-photo { width: 42px; height: 42px; border-radius: 50%; background: var(--blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: 700; flex-shrink: 0; overflow: hidden; background-size: cover; background-position: center; }
-.chat-messages { flex: 1; overflow-y: auto; padding: .85rem .75rem; scrollbar-width: none; background:
+.chat-messages { flex: 1; overflow-y: auto; overflow-x: hidden; touch-action: pan-y; padding: .85rem .75rem; scrollbar-width: none; display: flex; flex-direction: column; justify-content: flex-end; background:
   radial-gradient(circle at 15% 20%, rgba(91,141,239,.05) 0%, transparent 35%),
   radial-gradient(circle at 85% 75%, rgba(124,77,255,.05) 0%, transparent 35%),
   var(--bg2); }
