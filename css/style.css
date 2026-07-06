@@ -583,6 +583,9 @@ body.night {
 .bubble.me   { background: linear-gradient(145deg, #1F6F5C 0%, #14503F 100%); color: #fff; border-bottom-right-radius: 4px; box-shadow: 0 2px 10px rgba(20,80,63,.28); }
 .bubble.them { background: #fff; color: var(--text); border: none; border-bottom-left-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
 .bubble.sticker { background: transparent !important; border: none !important; box-shadow: none !important; font-size: 3.5rem; padding: .25rem !important; }
+.bubble.bubble-emoji { background: transparent !important; box-shadow: none !important; padding: .1rem .2rem !important; font-size: 2.6rem; line-height: 1.15; }
+.bubble.bubble-emoji .bubble-meta { justify-content: flex-end; }
+.bubble.bubble-emoji.them .bubble-time { color: var(--muted); }
 html.dark-mode .bubble.them { background: var(--bg3); color: var(--text); }
 html.dark-mode .bubble.me   { background: linear-gradient(135deg, #2B8A73 0%, #1F6F5C 100%); color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
 

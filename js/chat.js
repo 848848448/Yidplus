@@ -1114,7 +1114,8 @@ function renderMessages(scrollDown) {
     }
 
     var isMediaMsg = (m.type === 'media' && m.media_url);
-    var bubbleClass = 'bubble ' + (isMe ? 'me' : 'them') + (isMediaMsg ? ' bubble-media' : '');
+    var isEmojiOnlyMsg = ((m.type === 'text' || !m.type) && _isEmojiOnlyText(m.text));
+    var bubbleClass = 'bubble ' + (isMe ? 'me' : 'them') + (isMediaMsg ? ' bubble-media' : '') + (isEmojiOnlyMsg ? ' bubble-emoji' : '');
     var inner = '';
 
     // Group sender nick
@@ -2793,9 +2794,29 @@ function _fakeBars(n) {
 
 function _linkify(text, isMe) {
   var c = isMe ? 'rgba(255,255,255,.9)' : 'var(--blue)';
-  return text.replace(/(https?:\/\/[^\s<>"]+)/g, function (url) {
+  var out = text.replace(/(https?:\/\/[^\s<>"]+)/g, function (url) {
     return '<a href="' + url + '" target="_blank" style="color:' + c + ';word-break:break-all;text-decoration:underline">' + url + '</a>';
   });
+  // Lightweight WhatsApp/Telegram-style inline formatting. Order matters:
+  // code first (so *, _, ~ inside a code span are left alone), then bold,
+  // then italic, then strikethrough. Each requires non-space content
+  // directly against the markers so normal use of * _ ~ in everyday
+  // sentences doesn't accidentally trigger formatting.
+  out = out.replace(/`([^`\n]+)`/g, '<code style="background:rgba(127,127,127,.18);padding:.05em .35em;border-radius:4px;font-family:\'IBM Plex Mono\',monospace;font-size:.92em">$1</code>');
+  out = out.replace(/\*\*([^\s*][^*]*?)\*\*/g, '<b>$1</b>');
+  out = out.replace(/(^|[\s(])_([^\s_][^_]*?)_(?=[\s).,!?]|$)/g, '$1<i>$2</i>');
+  out = out.replace(/~([^\s~][^~]*?)~/g, '<s>$1</s>');
+  return out;
+}
+
+// A message that's just one or a few emoji (no other text) renders much
+// bigger, the way every mainstream messaging app does it — makes casual
+// reactions ("😂😂😂", "❤️") feel intentional instead of tiny and lost.
+var _EMOJI_ONLY_RE = /^(?:\p{Extended_Pictographic}\u200d?|\uFE0F|\s){1,6}$/u;
+function _isEmojiOnlyText(text) {
+  if (!text) return false;
+  var t = text.trim();
+  return t.length > 0 && t.length <= 24 && _EMOJI_ONLY_RE.test(t);
 }
 
 function _renderWaveBars(peaks) {
