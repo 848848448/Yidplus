@@ -1352,7 +1352,7 @@ function renderMessages(scrollDown) {
   // Preserve scroll position if not at bottom
   var prevScroll = cont.scrollTop;
   var prevHeight = cont.scrollHeight;
-  cont.innerHTML = html;
+  cont.innerHTML = '<div class="chat-msgs-inner">' + html + '</div>';
 
   if (scrollDown) {
     cont.scrollTop = cont.scrollHeight;

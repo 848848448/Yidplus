@@ -1020,7 +1020,7 @@ html.dark-mode .admin-search { background-color: #232427; border-color: #2C2D31;
 .sys-msg span { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.08); border-radius: 12px; padding: .3rem .85rem; font-size: .68rem; color: var(--muted); }
 .member-row-admin { display: flex; align-items: center; gap: .5rem; padding: .65rem 1rem; border-bottom: 1px solid var(--border); }
 .member-photo { width: 42px; height: 42px; border-radius: 50%; background: var(--blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: 700; flex-shrink: 0; overflow: hidden; background-size: cover; background-position: center; }
-.chat-messages { flex: 1; overflow-y: auto; overflow-x: hidden; touch-action: pan-y; padding: .85rem .75rem; scrollbar-width: none; display: flex; flex-direction: column; justify-content: flex-end; background:
+.chat-messages { flex: 1; overflow-y: auto; overflow-x: hidden; padding: .85rem .75rem; scrollbar-width: none; background:
   radial-gradient(circle at 15% 20%, rgba(91,141,239,.05) 0%, transparent 35%),
   radial-gradient(circle at 85% 75%, rgba(124,77,255,.05) 0%, transparent 35%),
   var(--bg2); }
@@ -1029,6 +1029,14 @@ html.dark-mode .chat-messages { background:
   radial-gradient(circle at 85% 75%, rgba(124,77,255,.06) 0%, transparent 35%),
   var(--bg2); }
 .chat-messages.tg-chat-bg { /* class combo applied in HTML */ }
+/* Anchors short conversations to the bottom (near the input) instead of
+   the top, WITHOUT making the scrollable element itself a flex
+   container — an earlier attempt did that directly on .chat-messages
+   and broke touch-scrolling on some Android WebViews. This wrapper sits
+   INSIDE the plain-block scroll container and only affects layout when
+   there's room to spare; once there are enough messages to overflow,
+   it behaves exactly like a normal block. */
+.chat-msgs-inner { display: flex; flex-direction: column; justify-content: flex-end; min-height: 100%; }
 .chat-messages::-webkit-scrollbar { display: none; }
 .vbar { width: 3px; border-radius: 2px; background: rgba(255,255,255,.4); min-height: 4px; transition: background .1s; flex-shrink: 0; }
 .vbar.played { background: rgba(255,255,255,.9); }
