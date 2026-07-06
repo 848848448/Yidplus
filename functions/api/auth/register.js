@@ -20,7 +20,7 @@ export async function onRequestPost(context) {
       "SELECT value FROM app_settings WHERE key = 'maintenance_mode'"
     ).first().catch(() => null);
     if (maintRow && maintRow.value === 'true') {
-      const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
+      const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
       if (!OWNER_EMAILS.includes(email)) {
         return json({ ok: false, error: 'Site is under maintenance. Registration is temporarily disabled.' }, 503);
       }
@@ -41,7 +41,7 @@ export async function onRequestPost(context) {
     if (password.length < 6) return json({ ok: false, error: 'Password must be at least 6 characters' }, 400);
     if (password.length > 128) return json({ ok: false, error: 'Password too long' }, 400);
 
-    const isOwnerEmail = email === env.OWNER_EMAIL || email === 'Jmittelman2@gmail.com';
+    const isOwnerEmail = email === env.OWNER_EMAIL || email === 'jmittelman2@gmail.com';
 
     // ── IP + fingerprint ban check (non-owners only) ──
     const ip = request.headers.get('CF-Connecting-IP') ||

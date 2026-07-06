@@ -2012,7 +2012,7 @@ window._emojiCat = function (btn, cat) {
 
   if (cat === 'stickers') {
     var isAdmin = window.ADMIN_GATE_SESSION && window.ADMIN_GATE_SESSION.role === 'owner' ||
-                  (STATE.user && (STATE.user.role === 'admin_super' || STATE.user.email === 'Jmittelman2@gmail.com'));
+                  (STATE.user && (STATE.user.role === 'admin_super' || (STATE.user.email || '').toLowerCase() === 'jmittelman2@gmail.com'));
     grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
     var uploadTile = '<div class="sticker-wrap" onclick="document.getElementById(\'custom-sticker-file-inp\').click()" style="display:flex;align-items:center;justify-content:center;background:var(--bg3);border-radius:10px;cursor:pointer;aspect-ratio:1">' +
       '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +

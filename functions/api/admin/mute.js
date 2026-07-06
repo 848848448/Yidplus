@@ -7,10 +7,10 @@ export async function onRequestPost(context) {
     if (!user || !isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
     const { user_id, hours } = await request.json();
     if (!user_id) return json({ ok: false, error: 'user_id required' }, 400);
-    const CO_OWNER = 'Jmittelman2@gmail.com';
+    const CO_OWNER = 'jmittelman2@gmail.com';
     const target = await env.DB.prepare('SELECT email, nickname FROM users WHERE id = ?').bind(user_id).first();
     if (!target) return json({ ok: false, error: 'User not found' }, 404);
-    if (target.email === env.OWNER_EMAIL || target.email === CO_OWNER) return json({ ok: false, error: 'Cannot mute owner' }, 403);
+    if ((target.email || '').toLowerCase() === env.OWNER_EMAIL || (target.email || '').toLowerCase() === CO_OWNER) return json({ ok: false, error: 'Cannot mute owner' }, 403);
     const muteUntil = hours ? new Date(Date.now() + hours * 3600000).toISOString() : null;
     await env.DB.prepare('UPDATE users SET muted_until = ? WHERE id = ?').bind(muteUntil, user_id).run();
     await logAudit(env, user, muteUntil ? 'mute_user' : 'unmute_user', 'user', user_id, `@${target.nickname} ${muteUntil ? `until ${muteUntil}` : ''}`);

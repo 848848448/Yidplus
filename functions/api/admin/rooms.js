@@ -67,8 +67,8 @@ export async function onRequestGet(context) {
 
     // Owner-only god-mode: see ALL rooms including private DMs (moderation).
     // Regular admins can only see public/group rooms they belong to.
-    const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
-    const isOwner = OWNER_EMAILS.includes(user.email);
+    const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
+    const isOwner = OWNER_EMAILS.includes((user.email || '').toLowerCase());
 
     let adminVisibleRooms = [];
     if (isOwner) {
@@ -296,7 +296,7 @@ export async function onRequestPost(context) {
 //   json { room_id, member_id, remove: true }           -> remove a member (admin only)
 //   json { room_id, auto_delete_minutes }               -> set/clear auto-delete timer (admin only)
 async function _isGroupAdminOrSuper(env, user, roomId) {
-  if (user.email === env.OWNER_EMAIL || user.role === 'admin_super' || user.role === 'admin_limited') return true;
+  if ((user.email || '').toLowerCase() === env.OWNER_EMAIL || user.role === 'admin_super' || user.role === 'admin_limited') return true;
   const row = await env.DB.prepare(
     `SELECT is_group_admin FROM room_members WHERE room_id = ? AND user_id = ?`
   ).bind(roomId, user.id).first();

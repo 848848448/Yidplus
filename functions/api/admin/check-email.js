@@ -7,7 +7,7 @@ export async function onRequestPost(context) {
     const email = (body.email || '').toLowerCase().trim();
     if (!email) return json({ ok: false, error: 'email required' }, 400);
     const user = await env.DB.prepare('SELECT role, email FROM users WHERE email = ?').bind(email).first();
-    const isOwner = user && (email === env.OWNER_EMAIL || email === "Jmittelman2@gmail.com");
+    const isOwner = user && (email === env.OWNER_EMAIL || email === "jmittelman2@gmail.com");
     const isAdmin = user && (isOwner || user.role === 'admin_super' || user.role === 'admin_limited');
     // Deliberately identical response whether the email doesn't exist at all or
     // simply isn't an admin — distinguishing the two would let anyone probe

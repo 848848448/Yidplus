@@ -64,7 +64,7 @@ export async function onRequestPost(context) {
 
     const target = await env.DB.prepare('SELECT email, nickname FROM users WHERE id = ?').bind(targetId).first();
     if (!target) return json({ ok: false, error: 'User not found' }, 404);
-    if (target.email === env.OWNER_EMAIL || target.email === 'Jmittelman2@gmail.com') {
+    if ((target.email || '').toLowerCase() === env.OWNER_EMAIL || (target.email || '').toLowerCase() === 'jmittelman2@gmail.com') {
       return json({ ok: false, error: 'Cannot block the owner or co-owner' }, 403);
     }
 

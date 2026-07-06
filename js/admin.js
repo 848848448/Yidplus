@@ -107,8 +107,8 @@ window.checkPin = function () {
       setLoad('gate-pin', false);
       document.getElementById('admin-gate').classList.remove('open');
 
-      const CO_OWNER = 'Jmittelman2@gmail.com';
-      var role = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL || ADMIN_gateEmail === CO_OWNER)
+      const CO_OWNER = 'jmittelman2@gmail.com';
+      var role = ((ADMIN_gateEmail || '').toLowerCase() === CONFIG.OWNER_EMAIL || (ADMIN_gateEmail || '').toLowerCase() === CO_OWNER)
                    ? 'owner'
                    : (ADMIN_gateRole || 'member');
 
@@ -206,8 +206,8 @@ function buildAdminNav() {
   if (!nav) return;
   nav.innerHTML = '';
 
-  var CO_OWNER = 'Jmittelman2@gmail.com';
-  var userRole = (ADMIN_gateEmail === CONFIG.OWNER_EMAIL || ADMIN_gateEmail === CO_OWNER)
+  var CO_OWNER = 'jmittelman2@gmail.com';
+  var userRole = ((ADMIN_gateEmail || '').toLowerCase() === CONFIG.OWNER_EMAIL || (ADMIN_gateEmail || '').toLowerCase() === CO_OWNER)
     ? 'owner' : (ADMIN_gateRole || 'member');
 
   ADMIN_PANELS
@@ -699,8 +699,8 @@ function renderUsersList(users) {
   }
 
   el.innerHTML = users.map(function (u) {
-    var OWNER_EMAILS_ADMIN = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
-    var isOwnerRow = OWNER_EMAILS_ADMIN.includes(u.email);
+    var OWNER_EMAILS_ADMIN = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
+    var isOwnerRow = OWNER_EMAILS_ADMIN.includes((u.email || '').toLowerCase());
     var canBlock   = userCan('block_users') && !isOwnerRow;
     var canManage  = userCan('manage_users') && !isOwnerRow;
     var roleClass  = (u.role === 'admin_super' || u.role === 'admin_limited') ? 'admin' : 'user';

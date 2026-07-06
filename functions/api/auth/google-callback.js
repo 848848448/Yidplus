@@ -52,7 +52,7 @@ export async function onRequestGet(context) {
     const payloadJson = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
     const profile = JSON.parse(payloadJson);
 
-    const email = profile.email;
+    const email = (profile.email || '').toLowerCase().trim();
     const emailVerified = profile.email_verified;
     const googlePhoto = profile.picture;
     const googleName = profile.name || (email ? email.split('@')[0] : 'user');
@@ -66,7 +66,7 @@ export async function onRequestGet(context) {
       "SELECT value FROM app_settings WHERE key = 'maintenance_mode'"
     ).first().catch(() => null);
     if (maintRow && maintRow.value === 'true') {
-      const OWNER_EMAILS_M = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
+      const OWNER_EMAILS_M = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
       if (!OWNER_EMAILS_M.includes(email)) {
         return Response.redirect(`${origin}/?error=maintenance`, 302);
       }
@@ -74,7 +74,7 @@ export async function onRequestGet(context) {
 
     // ── Check device bans (same as regular login) ──
     const ip = request.headers.get('CF-Connecting-IP') || '0.0.0.0';
-    const isOwnerEmail = email === env.OWNER_EMAIL || email === 'Jmittelman2@gmail.com';
+    const isOwnerEmail = email === env.OWNER_EMAIL || email === 'jmittelman2@gmail.com';
 
     if (!isOwnerEmail && ip && ip !== '0.0.0.0') {
       const ipBan = await env.DB.prepare(`SELECT id FROM device_bans WHERE ip = ? LIMIT 1`).bind(ip).first().catch(() => null);

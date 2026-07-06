@@ -87,10 +87,10 @@ export async function onRequestPut(context) {
     const { id } = body;
     if (!id) return json({ ok: false, error: 'id is required' }, 400);
 
-    const CO_OWNER = 'Jmittelman2@gmail.com';
+    const CO_OWNER = 'jmittelman2@gmail.com';
     const target = await env.DB.prepare('SELECT email, nickname FROM users WHERE id = ?').bind(id).first();
     if (!target) return json({ ok: false, error: 'User not found' }, 404);
-    if (target.email === env.OWNER_EMAIL || target.email === CO_OWNER) {
+    if ((target.email || '').toLowerCase() === env.OWNER_EMAIL || (target.email || '').toLowerCase() === CO_OWNER) {
       return json({ ok: false, error: 'Cannot modify owner or co-owner account' }, 403);
     }
 
@@ -176,10 +176,10 @@ export async function onRequestDelete(context) {
     const id = url.searchParams.get('id');
     if (!id) return json({ ok: false, error: 'id required' }, 400);
 
-    const CO_OWNER = 'Jmittelman2@gmail.com';
+    const CO_OWNER = 'jmittelman2@gmail.com';
     const target = await env.DB.prepare('SELECT email, nickname FROM users WHERE id = ?').bind(id).first();
     if (!target) return json({ ok: false, error: 'User not found' }, 404);
-    if (target.email === env.OWNER_EMAIL || target.email === CO_OWNER)
+    if ((target.email || '').toLowerCase() === env.OWNER_EMAIL || (target.email || '').toLowerCase() === CO_OWNER)
       return json({ ok: false, error: 'Cannot delete owner or co-owner' }, 403);
 
     await cleanupUserReferences(env, id, target.nickname);

@@ -156,29 +156,32 @@ export async function requireUser(request, env) {
 // admin_limited : "Moderator" — can view, delete content, block users.
 // admin_super   : "Super Admin" — full access.
 // owner (by email): ultimate admin, cannot be demoted/blocked.
-// CO_OWNER      : Jmittelman2@gmail.com — same rights as owner, hardcoded.
+// CO_OWNER      : jmittelman2@gmail.com — same rights as owner, hardcoded.
 
-const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
+const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
 
 export function isAdminRole(user, ownerEmail) {
   if (!user) return false;
+  var email = (user.email || '').toLowerCase();
   // Both owners always have admin access
-  if (OWNER_EMAILS.includes(user.email)) return true;
-  if (ownerEmail && user.email === ownerEmail) return true;
+  if (OWNER_EMAILS.includes(email)) return true;
+  if (ownerEmail && email === ownerEmail.toLowerCase()) return true;
   return user.role === 'admin_super' || user.role === 'admin_limited';
 }
 
 export function isSuperOrOwner(user, ownerEmail) {
   if (!user) return false;
-  if (OWNER_EMAILS.includes(user.email)) return true;
-  if (ownerEmail && user.email === ownerEmail) return true;
+  var email = (user.email || '').toLowerCase();
+  if (OWNER_EMAILS.includes(email)) return true;
+  if (ownerEmail && email === ownerEmail.toLowerCase()) return true;
   return user.role === 'admin_super';
 }
 
 export function isOwnerOrCoOwner(user, ownerEmail) {
   if (!user) return false;
-  if (OWNER_EMAILS.includes(user.email)) return true;
-  if (ownerEmail && user.email === ownerEmail) return true;
+  var email = (user.email || '').toLowerCase();
+  if (OWNER_EMAILS.includes(email)) return true;
+  if (ownerEmail && email === ownerEmail.toLowerCase()) return true;
   return false;
 }
 

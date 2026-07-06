@@ -5,7 +5,7 @@ export async function onRequestGet(context) {
   try {
     const user = await requireUser(request, env).catch(() => null);
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const isAdmin = user && (user.email === env.OWNER_EMAIL || user.email === "Jmittelman2@gmail.com" || user.role === 'admin_super' || user.role === 'admin_limited');
+    const isAdmin = user && ((user.email || '').toLowerCase() === env.OWNER_EMAIL || (user.email || '').toLowerCase() === "jmittelman2@gmail.com" || user.role === 'admin_super' || user.role === 'admin_limited');
 
     // Optional: fetch statuses for ONE specific user (used by profile screen)
     const url = new URL(request.url);
@@ -131,7 +131,7 @@ export async function onRequestPut(context) {
     if (body.action === 'delete' && body.id) {
       const row = await env.DB.prepare('SELECT user_id, media_key FROM statuses WHERE id = ?').bind(body.id).first();
       if (!row) return json({ ok: false, error: 'Not found' }, 404);
-      const isAdmin = user.role === 'admin_super' || user.email === env.OWNER_EMAIL || user.email === "Jmittelman2@gmail.com";
+      const isAdmin = user.role === 'admin_super' || (user.email || '').toLowerCase() === env.OWNER_EMAIL || (user.email || '').toLowerCase() === "jmittelman2@gmail.com";
       if (row.user_id !== user.id && !isAdmin) return json({ ok: false, error: 'Forbidden' }, 403);
       if (row.media_key) await env.MY_BUCKET.delete(row.media_key).catch(() => {});
       await env.DB.prepare('DELETE FROM statuses WHERE id = ?').bind(body.id).run();

@@ -489,13 +489,13 @@ window.goPage = function (page) {
 // email+PIN gate unlock: { email, role }. When present, these helpers
 // trust THAT verified identity over STATE.user — this matters because
 // ── OWNER EMAILS (hardcoded, cannot be changed) ──
-var OWNER_EMAILS_LIST = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
+var OWNER_EMAILS_LIST = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
 
 window.isOwner = function () {
   var email = window.ADMIN_GATE_SESSION
     ? window.ADMIN_GATE_SESSION.email
     : (STATE.user && STATE.user.email);
-  return !!(email && OWNER_EMAILS_LIST.includes(email));
+  return !!(email && OWNER_EMAILS_LIST.includes(String(email).toLowerCase()));
 };
 window.isSuperAdmin = function () {
   if (window.ADMIN_GATE_SESSION) {

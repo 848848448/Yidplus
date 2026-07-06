@@ -17,7 +17,7 @@ export async function onRequestPost(context) {
     const ip = request.headers.get('CF-Connecting-IP') ||
                request.headers.get('X-Forwarded-For') ||
                '0.0.0.0';
-    const CO_OWNER = 'Jmittelman2@gmail.com';
+    const CO_OWNER = 'jmittelman2@gmail.com';
     const isOwnerEmail = email === (env.OWNER_EMAIL || '') || email === CO_OWNER;
 
     if (!isOwnerEmail) {
@@ -54,7 +54,7 @@ export async function onRequestPost(context) {
       "SELECT value FROM app_settings WHERE key = 'maintenance_mode'"
     ).first().catch(() => null);
     if (maintRow && maintRow.value === 'true') {
-      const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'Jmittelman2@gmail.com'];
+      const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
       if (!OWNER_EMAILS.includes(email)) {
         return json({ ok: false, error: 'Site is under maintenance. Please try again later.' }, 503);
       }
