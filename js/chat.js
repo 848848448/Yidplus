@@ -1028,18 +1028,23 @@ function loadMessages(scrollToBottom) {
             .then(function (res) {
               if (!res || !res.ok || !res.title) return;
               var isMe = m.sender_id === (STATE.user && STATE.user.id);
-              lpEl.style.display = 'block';
               lpEl.onclick = function () { window.open(rawUrl, '_blank'); };
-              lpEl.style.cssText = 'display:block;margin-top:.4rem;border-radius:12px;overflow:hidden;border:1px solid var(--border);cursor:pointer;background:var(--surface);max-width:100%';
+              lpEl.style.cssText = 'display:block;margin-top:.4rem;border-radius:12px;overflow:hidden;border:1px solid var(--border);cursor:pointer;background:var(--surface);max-width:100%;opacity:0;transition:opacity .25s ease';
               lpEl.innerHTML =
                 (res.image
-                  ? '<img src="' + escHtml(res.image) + '" style="width:100%;max-height:150px;object-fit:cover;display:block" loading="lazy">'
+                  ? '<img src="' + escHtml(res.image) + '" style="width:100%;aspect-ratio:1.91/1;max-height:150px;object-fit:cover;display:block;background:var(--bg3)" loading="lazy">'
                   : '') +
                 '<div style="padding:.5rem .65rem">' +
                   '<div style="font-size:.7rem;color:' + (isMe ? 'rgba(255,255,255,.6)' : 'var(--muted)') + ';margin-bottom:.15rem;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">' + escHtml(new URL(rawUrl).hostname) + '</div>' +
                   '<div style="font-size:.82rem;font-weight:700;color:' + (isMe ? '#fff' : 'var(--text)') + ';line-height:1.3">' + escHtml(res.title.slice(0, 80)) + '</div>' +
                   (res.description ? '<div style="font-size:.72rem;color:' + (isMe ? 'rgba(255,255,255,.75)' : 'var(--muted)') + ';margin-top:.2rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + escHtml(res.description.slice(0, 120)) + '</div>' : '') +
                 '</div>';
+              lpEl.style.display = 'block';
+              // Fade in on the next frame instead of popping straight to
+              // opacity 1 — softens the sudden appearance once the async
+              // preview fetch resolves, since it always lands a beat after
+              // the message itself is already rendered and scrolled.
+              requestAnimationFrame(function () { lpEl.style.opacity = '1'; });
             })
             .catch(function () {});
         });
@@ -1241,7 +1246,7 @@ function renderMessages(scrollDown) {
           '</div>';
         }
       } else {
-        inner += '<img src="' + m.media_url + '" style="max-width:260px;border-radius:10px;display:block;cursor:pointer;width:100%" loading="lazy" onclick="_openMediaViewer(\'' + m.id + '\')">';
+        inner += '<img src="' + m.media_url + '" style="max-width:260px;border-radius:10px;display:block;cursor:pointer;width:100%;aspect-ratio:4/5;object-fit:cover;background:#000" loading="lazy" onclick="_openMediaViewer(\'' + m.id + '\')">';
       }
       if (m.text && m.text !== '__once__') {
         var capRTL = /[\u0590-\u05FF]/.test(m.text);
