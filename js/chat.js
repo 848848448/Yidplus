@@ -1162,7 +1162,12 @@ function renderMessages(scrollDown) {
 
     } else if (m.type === 'sticker') {
       var stickerUrl = m.text || '';
-      var isGif = stickerUrl.startsWith('http');
+      // Built-in animated stickers are absolute URLs (https://...); custom
+      // stickers uploaded by users are our own relative /api/media/... path.
+      // The old check only recognized the absolute case, so a custom
+      // sticker's URL fell through to being displayed as literal raw text
+      // instead of rendering as an image.
+      var isGif = stickerUrl.startsWith('http') || stickerUrl.startsWith('/');
       return dateSep + '<div class="msg-wrap' + (isMe ? ' me' : '') + '" id="msg-' + m.id + '" data-id="' + m.id + '">' +
         '<div class="bubble sticker" data-msg-id="' + m.id + '" ' +
           'oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')">' +
