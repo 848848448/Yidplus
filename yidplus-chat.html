@@ -113,6 +113,9 @@
       <div id="topics-room-name" style="font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
       <div style="font-size:.7rem;color:var(--muted)">Topics</div>
     </div>
+    <div class="icon-btn" id="topics-disable-btn" style="display:none" onclick="disableTopicsForGroup()" title="Disable Topics for this group">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg>
+    </div>
     <div class="icon-btn" onclick="openCreateTopicModal()" title="New Topic">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </div>
@@ -728,6 +731,12 @@ window.openTopicsList = function (roomId) {
   if (room.photo_url) { av.style.backgroundImage = "url('" + room.photo_url + "')"; av.textContent = ''; }
   else { av.style.backgroundImage = ''; av.textContent = (room.nick || '?').slice(0, 1).toUpperCase(); }
   document.getElementById('topics-room-name').textContent = room.nick || 'Group';
+
+  var disableBtn = document.getElementById('topics-disable-btn');
+  if (disableBtn) {
+    var isGroupAdminHere = room.is_group_admin || (typeof isAnyAdmin === 'function' && isAnyAdmin());
+    disableBtn.style.display = isGroupAdminHere ? 'flex' : 'none';
+  }
 
   var body = document.getElementById('topics-list-body');
   body.innerHTML = '<div class="spinner" style="margin:2rem auto"></div>';
