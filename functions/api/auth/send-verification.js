@@ -1,6 +1,6 @@
 // Internal helper, called by register.js — sends a verification email via Resend.
 // Also exposed as POST /api/auth/send-verification { email } for "resend" button.
-import { json, corsHeaders } from '../_helpers.js';
+import { json, corsHeaders, requireUser } from '../_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -66,8 +66,15 @@ export async function sendVerificationEmail(env, userId, email, origin) {
 export async function onRequestPost(context) {
   const { request, env } = context;
   try {
-    const { email } = await request.json();
-    if (!email) return json({ ok: false, error: 'email required' }, 400);
+    const body = await request.json().catch(() => ({}));
+    let email = (body.email || '').toLowerCase().trim();
+
+    if (!email) {
+      // No email in the body — fall back to the signed-in session, if any.
+      const sessionUser = await requireUser(request, env).catch(() => null);
+      if (!sessionUser) return json({ ok: false, error: 'email required' }, 400);
+      email = sessionUser.email;
+    }
 
     const user = await env.DB.prepare('SELECT id, email_verified FROM users WHERE email = ?').bind(email).first();
     if (!user) return json({ ok: true }); // don't leak whether email exists
@@ -78,4 +85,4 @@ export async function onRequestPost(context) {
 
     return json({ ok: true });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
-            }
+}

@@ -144,6 +144,7 @@ window.checkPin = function () {
 ══════════════════════════════════ */
 // SVG icons for admin nav (clean, modern)
 var ADMIN_ICONS = {
+  'support-chats': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
   analytics:      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
   'app-settings': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   users:          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
@@ -180,6 +181,7 @@ var ADMIN_PANELS = [
   { id:'shorts-mod',     label:'Shorts',          roles:['admin_limited','admin_super','owner'] },
   { id:'music-mod',      label:'Music',           roles:['admin_limited','admin_super','owner'] },
   { id:'feedback',       label:'Feedback',        roles:['admin_limited','admin_super','owner'] },
+  { id:'support-chats',  label:'Support',         roles:['admin_limited','admin_super','owner'] },
   { id:'chat-watch',     label:'Chats',           roles:['admin_limited','admin_super','owner'] },
   // Everything below requires actual configuration/creation power, or exposes
   // extra personal information beyond what's needed to moderate — owner only.
@@ -306,6 +308,20 @@ function buildAdminPanel(id) {
               '<span style="font-size:.82rem;font-weight:700" id="reg-open-label">' + (STATE.settings.registration_open !== 'false' ? 'Open' : 'Closed') + '</span>' +
             '</label>' +
           '</div>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 0;border-bottom:.5px solid rgba(201,168,76,.06)">' +
+            '<div><div style="font-size:.82rem">"Start Chat" — Sign-In Screen</div><div style="font-size:.68rem;color:var(--muted)">Lets people who can\'t sign in get help</div></div>' +
+            '<label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">' +
+              '<input type="checkbox" id="sc-login-toggle" ' + (STATE.settings.support_chat_login_enabled !== 'false' ? 'checked' : '') + ' onchange="adminToggleSetting(\'support_chat_login_enabled\', this.checked)" style="width:18px;height:18px;cursor:pointer">' +
+              '<span style="font-size:.82rem;font-weight:700">' + (STATE.settings.support_chat_login_enabled !== 'false' ? 'On' : 'Off') + '</span>' +
+            '</label>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 0;border-bottom:.5px solid rgba(201,168,76,.06)">' +
+            '<div><div style="font-size:.82rem">"Start Chat" — Main App</div><div style="font-size:.68rem;color:var(--muted)">Lets signed-in users request help</div></div>' +
+            '<label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">' +
+              '<input type="checkbox" id="sc-home-toggle" ' + (STATE.settings.support_chat_home_enabled !== 'false' ? 'checked' : '') + ' onchange="adminToggleSetting(\'support_chat_home_enabled\', this.checked)" style="width:18px;height:18px;cursor:pointer">' +
+              '<span style="font-size:.82rem;font-weight:700">' + (STATE.settings.support_chat_home_enabled !== 'false' ? 'On' : 'Off') + '</span>' +
+            '</label>' +
+          '</div>' +
           '<div style="padding:.75rem 0">' +
             '<div style="font-size:.82rem;color:var(--red)">🔒 Hardcoded Owner: <strong>' + escHtml(CONFIG.OWNER_EMAIL) + '</strong></div>' +
             '<div style="font-size:.68rem;color:var(--muted);margin-top:.25rem">Cannot be changed by anyone.</div>' +
@@ -337,6 +353,9 @@ function buildAdminPanel(id) {
 
   } else if (id === 'feedback') {
     buildFeedbackPanel(content);
+
+  } else if (id === 'support-chats') {
+    buildSupportChatsPanel(content);
 
   } else if (id === 'admin-settings') {
     content.innerHTML =
@@ -767,6 +786,15 @@ function renderUsersList(users) {
   }).join('');
 }
 
+window.adminSetNewPassword = function (userId) {
+  var pass = prompt('Enter a new temporary password for this user (they should change it after logging in):');
+  if (pass === null) return;
+  if (pass.trim().length < 6) return toast('⚠️ Password must be at least 6 characters.');
+  api.put('/admin/users', { id: userId, password: pass.trim() })
+    .then(function () { toast('🔑 New password set! Let them know to change it once they sign in.'); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
 window.adminMuteUser = function (id, currentlyMuted) {
   if (currentlyMuted) {
     api.post('/admin/mute', { user_id: id, hours: 0 })
@@ -824,6 +852,7 @@ window.openUserDetailModal = function (userId) {
           (p.phone ? '<div style="font-size:.78rem;color:var(--muted)">📞 <a href="tel:' + escHtml(p.phone) + '" style="color:var(--gold)">' + escHtml(p.phone) + '</a></div>' : '') +
           '<div style="font-size:.78rem;color:var(--muted)">📅 Joined ' + timeAgo(p.created_at) + '</div>' +
           '<div style="font-size:.78rem;color:var(--muted)">🎭 Role: ' + (p.role || 'member') + (p.verified ? ' · ✅ Verified' : '') + (p.blocked ? ' · 🚫 Blocked' : '') + '</div>' +
+          '<button class="act-btn" style="background:#637087;color:#fff;border-color:transparent;margin-top:.5rem" onclick="adminSetNewPassword(\'' + userId + '\')">🔑 Set New Password</button>' +
         '</div>';
 
       var countsGrid =
@@ -1109,6 +1138,10 @@ function loadBroadcastHistory() {
 }
 
 /* ── SETTINGS HELPERS ── */
+window.adminToggleSetting = function (key, isOn) {
+  saveSetting(key, isOn ? 'true' : 'false');
+};
+
 window.adminToggleRegistration = function (isOpen) {
   saveSetting('registration_open', isOpen ? 'true' : 'false').then(function () {
     var label = document.getElementById('reg-open-label');
@@ -1144,6 +1177,213 @@ window.adminUploadLogo = function (e) {
 };
 
 console.log('[YID PLUS] admin.js loaded ✓ (Cloudflare D1 mode)');
+
+/* ── SUPPORT CHATS ── */
+var SUPPORT_ACTIVE_TAB = 'new';
+
+function buildSupportChatsPanel(content) {
+  var isOwnerHere = (ADMIN_gateEmail || '').toLowerCase() === CONFIG.OWNER_EMAIL || (typeof isOwner === 'function' && isOwner());
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div style="display:flex;gap:.4rem;padding:.6rem .75rem;background:var(--surface);border-bottom:1px solid var(--border);align-items:center">' +
+        '<button class="save-pill" id="sc-tab-new" onclick="loadSupportChatsTab(\'new\')">New</button>' +
+        '<button class="save-pill" id="sc-tab-mine" onclick="loadSupportChatsTab(\'mine\')">Mine</button>' +
+        '<button class="save-pill" id="sc-tab-all" onclick="loadSupportChatsTab(\'all\')">All</button>' +
+        (isOwnerHere ? '<button class="save-pill" style="margin-left:auto;background:#637087" onclick="openManageSupportQuestions()">⚙️ Questions</button>' : '') +
+      '</div>' +
+      '<div id="sc-list-body" style="padding:.75rem"></div>' +
+    '</div>';
+  loadSupportChatsTab('new');
+}
+
+window.loadSupportChatsTab = function (tab) {
+  SUPPORT_ACTIVE_TAB = tab;
+  ['new', 'mine', 'all'].forEach(function (t) {
+    var btn = document.getElementById('sc-tab-' + t);
+    if (btn) { btn.style.background = (t === tab) ? '#1F6F5C' : '#637087'; btn.style.color = '#fff'; }
+  });
+  var body = document.getElementById('sc-list-body');
+  if (!body) return;
+  body.innerHTML = '<div class="spinner" style="margin:2rem auto"></div>';
+
+  api.get('/support-chats?tab=' + tab, true)
+    .then(function (res) {
+      var chats = res.chats || [];
+      if (!chats.length) { body.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted)">No chats here.</div>'; return; }
+      body.innerHTML = chats.map(function (c) {
+        var statusBadge = c.status === 'closed'
+          ? '<span style="color:var(--muted)">✅ Closed</span>'
+          : (c.claimed_by ? '<span style="color:#B08D4F">🟡 Claimed by @' + escHtml(c.claimed_by_nick || '?') + '</span>' : '<span style="color:#1F6F5C;font-weight:700">🆕 New</span>');
+        return '<div class="admin-card" style="cursor:pointer;margin-bottom:.5rem" onclick="openSupportChatThread(\'' + c.id + '\')">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">' +
+            '<div style="font-weight:700;font-size:.85rem">' + escHtml(c.question_label) + '</div>' +
+            '<div style="font-size:.68rem;color:var(--muted);white-space:nowrap">' + timeAgo(c.updated_at) + '</div>' +
+          '</div>' +
+          '<div style="font-size:.75rem;color:var(--muted)">' + (c.user_id ? '@' + escHtml(c.user_nick || 'user') : escHtml(c.user_nick || 'Guest')) + (c.user_email ? ' · ' + escHtml(c.user_email) : '') + ' · ' + (c.screen === 'login' ? 'Sign-in screen' : 'Main app') + '</div>' +
+          '<div style="font-size:.72rem;margin-top:.3rem">' + statusBadge + '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) { body.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--red)">⚠️ ' + escHtml(err.message) + '</div>'; });
+};
+
+window.openSupportChatThread = function (chatId) {
+  var existing = document.getElementById('sc-thread-overlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'sc-thread-overlay';
+  overlay.className = 'modal-overlay open';
+  overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML =
+    '<div class="modal-sheet" style="max-height:85vh;overflow-y:auto">' +
+      '<div class="modal-title" style="display:flex;justify-content:space-between;align-items:center">' +
+        '<span>💬 Support Chat</span>' +
+        '<button onclick="document.getElementById(\'sc-thread-overlay\').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>' +
+      '</div>' +
+      '<div id="sc-thread-body"><div class="spinner" style="margin:2rem auto"></div></div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  _loadSupportChatThread(chatId);
+};
+
+function _loadSupportChatThread(chatId) {
+  api.get('/support-chats?chat_id=' + encodeURIComponent(chatId) + '&admin=1', true)
+    .then(function (res) {
+      var body = document.getElementById('sc-thread-body');
+      if (!body) return;
+      var chat = res.chat, messages = res.messages || [];
+
+      var userInfo = chat.user_id
+        ? '<button class="act-btn" style="background:#1F6F5C;color:#fff;border-color:transparent;width:100%;margin-bottom:.75rem" onclick="openUserDetailModal(\'' + chat.user_id + '\')">🔍 View Full User Info &amp; Set Password</button>'
+        : '<div class="admin-card" style="margin:0 0 .75rem"><div style="font-size:.78rem;color:var(--muted)">Not signed in — contact: ' + escHtml(chat.user_email || 'no email given') + (chat.user_nick ? ' (' + escHtml(chat.user_nick) + ')' : '') + '</div></div>';
+
+      var claimRow = chat.status !== 'closed'
+        ? '<div style="display:flex;gap:.4rem;margin-bottom:.75rem">' +
+            (!chat.claimed_by ? '<button class="act-btn" style="background:#1F6F5C;color:#fff;border-color:transparent" onclick="claimSupportChat(\'' + chatId + '\')">✋ Claim This</button>' : '') +
+            '<button class="act-btn" style="background:#637087;color:#fff;border-color:transparent" onclick="closeSupportChat(\'' + chatId + '\')">✅ Close Ticket</button>' +
+          '</div>'
+        : '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">This ticket is closed.</div>';
+
+      var msgsHtml = messages.map(function (m) {
+        var isAdminMsg = m.sender_type === 'admin';
+        return '<div style="display:flex;' + (isAdminMsg ? 'justify-content:flex-end' : 'justify-content:flex-start') + ';margin-bottom:.5rem">' +
+          '<div style="max-width:75%;padding:.5rem .75rem;border-radius:14px;background:' + (isAdminMsg ? '#1F6F5C' : 'var(--bg3)') + ';color:' + (isAdminMsg ? '#fff' : 'var(--text)') + ';font-size:.82rem">' +
+            (isAdminMsg ? '<div style="font-size:.65rem;opacity:.8;margin-bottom:.15rem">@' + escHtml(m.sender_nick || 'admin') + '</div>' : '') +
+            escHtml(m.text) +
+            '<div style="font-size:.62rem;opacity:.7;margin-top:.2rem">' + timeAgo(m.created_at) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      body.innerHTML = userInfo + claimRow +
+        '<div style="border:1px solid var(--border);border-radius:12px;padding:.6rem;margin-bottom:.75rem;max-height:280px;overflow-y:auto">' + (msgsHtml || '<div style="color:var(--muted);font-size:.78rem">No messages yet.</div>') + '</div>' +
+        (chat.status !== 'closed'
+          ? '<textarea class="bc-textarea" id="sc-reply-text" rows="2" placeholder="Reply..."></textarea>' +
+            '<button class="btn-primary" onclick="sendSupportChatReply(\'' + chatId + '\')">Send Reply</button>'
+          : '');
+    })
+    .catch(function (err) {
+      var body = document.getElementById('sc-thread-body');
+      if (body) body.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--red);font-size:.8rem">⚠️ ' + escHtml(err.message) + '</div>';
+    });
+}
+
+window.claimSupportChat = function (chatId) {
+  api.post('/support-chats', { chat_id: chatId, claim: true })
+    .then(function () { toast('✋ Claimed!'); _loadSupportChatThread(chatId); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.closeSupportChat = function (chatId) {
+  api.post('/support-chats', { chat_id: chatId, close: true })
+    .then(function () { toast('✅ Ticket closed.'); _loadSupportChatThread(chatId); loadSupportChatsTab(SUPPORT_ACTIVE_TAB); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.sendSupportChatReply = function (chatId) {
+  var inp = document.getElementById('sc-reply-text');
+  var text = (inp && inp.value || '').trim();
+  if (!text) return toast('⚠️ Write a reply first.');
+  api.post('/support-chats', { chat_id: chatId, text: text, admin: true })
+    .then(function () { _loadSupportChatThread(chatId); loadSupportChatsTab(SUPPORT_ACTIVE_TAB); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.openManageSupportQuestions = function () {
+  var existing = document.getElementById('sc-questions-overlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'sc-questions-overlay';
+  overlay.className = 'modal-overlay open';
+  overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML =
+    '<div class="modal-sheet" style="max-height:85vh;overflow-y:auto">' +
+      '<div class="modal-title" style="display:flex;justify-content:space-between;align-items:center">' +
+        '<span>⚙️ Support Questions</span>' +
+        '<button onclick="document.getElementById(\'sc-questions-overlay\').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>' +
+      '</div>' +
+      '<div style="display:flex;gap:.4rem;margin-bottom:.75rem">' +
+        '<button class="save-pill" id="scq-tab-login" onclick="loadSupportQuestionsAdmin(\'login\')">Sign-In Screen</button>' +
+        '<button class="save-pill" id="scq-tab-home" onclick="loadSupportQuestionsAdmin(\'home\')">Main App</button>' +
+      '</div>' +
+      '<div id="scq-list"></div>' +
+      '<div style="border-top:1px solid var(--border);margin-top:.75rem;padding-top:.75rem">' +
+        '<input class="field" id="scq-new-label" placeholder="Question text (in English)">' +
+        '<select class="field" id="scq-new-action">' +
+          '<option value="admin_message">Sends a message to admins</option>' +
+          '<option value="auto_resend">Auto-resend verification email</option>' +
+          '<option value="self_block">Let user block themselves from a feature</option>' +
+          '<option value="free_text">Free text (something else)</option>' +
+        '</select>' +
+        '<button class="btn-primary" onclick="addSupportQuestion()">Add Question</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  loadSupportQuestionsAdmin('login');
+};
+
+var SCQ_ACTIVE_SCREEN = 'login';
+window.loadSupportQuestionsAdmin = function (screen) {
+  SCQ_ACTIVE_SCREEN = screen;
+  ['login', 'home'].forEach(function (s) {
+    var btn = document.getElementById('scq-tab-' + s);
+    if (btn) { btn.style.background = (s === screen) ? '#1F6F5C' : '#637087'; btn.style.color = '#fff'; }
+  });
+  var list = document.getElementById('scq-list');
+  if (!list) return;
+  list.innerHTML = '<div class="spinner" style="margin:1rem auto"></div>';
+  api.get('/support-questions?screen=' + screen, true).then(function (res) {
+    var qs = res.questions || [];
+    list.innerHTML = qs.length ? qs.map(function (q) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem;border-bottom:1px solid var(--border);font-size:.8rem">' +
+        '<span>' + escHtml(q.label) + ' <span style="color:var(--muted);font-size:.68rem">(' + q.action_type + ')</span></span>' +
+        '<button class="act-btn" style="background:#E11D48;color:#fff;border-color:transparent" onclick="deleteSupportQuestion(\'' + q.id + '\')">Delete</button>' +
+      '</div>';
+    }).join('') : '<div style="color:var(--muted);font-size:.8rem;padding:.5rem">No questions yet.</div>';
+  });
+};
+
+window.addSupportQuestion = function () {
+  var label = (document.getElementById('scq-new-label').value || '').trim();
+  var actionType = document.getElementById('scq-new-action').value;
+  if (!label) return toast('⚠️ Enter the question text.');
+  api.post('/support-questions', { screen: SCQ_ACTIVE_SCREEN, label: label, action_type: actionType })
+    .then(function () {
+      document.getElementById('scq-new-label').value = '';
+      toast('✅ Question added!');
+      loadSupportQuestionsAdmin(SCQ_ACTIVE_SCREEN);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.deleteSupportQuestion = function (id) {
+  api.del('/support-questions?id=' + encodeURIComponent(id))
+    .then(function () { loadSupportQuestionsAdmin(SCQ_ACTIVE_SCREEN); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 /* ── AUDIT LOGS (Super Admin only) ── */
 function buildAuditLogsPanel(content) {

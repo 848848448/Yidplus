@@ -788,6 +788,139 @@ window.applyAppSettings = function () {
       });
     }
   });
+
+  // Support chat entry points default to ON unless the owner explicitly turned them off.
+  var loginBtn = document.getElementById('support-chat-login-btn');
+  if (loginBtn) loginBtn.style.display = (s.support_chat_login_enabled === 'false') ? 'none' : 'block';
+  var homeBtn = document.getElementById('support-chat-home-btn');
+  if (homeBtn) homeBtn.style.display = (s.support_chat_home_enabled === 'false') ? 'none' : 'flex';
+};
+
+/* ══════════════════════════════════
+   SUPPORT CHAT — "Start Chat" quick-question flow (login screen + home
+   page). Questions themselves are admin-editable and fetched live from
+   /api/support-questions; this is just the widget that renders them and
+   routes each one to the right action.
+══════════════════════════════════ */
+var SUPPORT_FEATURE_LABELS = { shorts: 'Shorts', statuses: 'Status', music: 'Music', channels: 'Channels', chat: 'Chat' };
+
+window.openSupportChat = function (screen) {
+  var existing = document.getElementById('support-chat-overlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'support-chat-overlay';
+  overlay.className = 'modal-overlay open';
+  overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML =
+    '<div class="modal-sheet" style="max-height:80vh;overflow-y:auto">' +
+      '<div class="modal-title" style="display:flex;justify-content:space-between;align-items:center">' +
+        '<span>💬 Start Chat</span>' +
+        '<button onclick="document.getElementById(\'support-chat-overlay\').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>' +
+      '</div>' +
+      '<div id="support-chat-body"><div class="feed-state"><div class="spinner"></div></div></div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  api.get('/support-questions?screen=' + encodeURIComponent(screen), true)
+    .then(function (res) {
+      var body = document.getElementById('support-chat-body');
+      if (!body) return;
+      var questions = res.questions || [];
+      if (!questions.length) {
+        _renderSupportForm(screen, 'General question', 'free_text');
+        return;
+      }
+      body.innerHTML =
+        '<div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">What do you need help with?</div>' +
+        questions.map(function (q) {
+          return '<div class="ctx-item" style="border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem" onclick="_supportQuestionTapped(\'' + screen + '\',\'' + escHtml(q.label).replace(/'/g, "\\'") + '\',\'' + q.action_type + '\')">' + escHtml(q.label) + '</div>';
+        }).join('');
+    })
+    .catch(function () {
+      _renderSupportForm(screen, 'General question', 'free_text');
+    });
+};
+
+window._supportQuestionTapped = function (screen, label, actionType) {
+  if (actionType === 'auto_resend') return _supportAutoResend(screen);
+  if (actionType === 'self_block') return _renderSelfBlockPicker(screen, label);
+  _renderSupportForm(screen, label, actionType);
+};
+
+function _supportAutoResend(screen) {
+  var body = document.getElementById('support-chat-body');
+  if (!body) return;
+  if (STATE.user) {
+    api.post('/auth/send-verification', {}).then(function () {
+      body.innerHTML = '<div style="text-align:center;padding:1.5rem 0">✅ Verification email sent! Check your inbox.</div>';
+    }).catch(function (err) {
+      body.innerHTML = '<div style="text-align:center;padding:1.5rem 0;color:var(--red)">❌ ' + escHtml(err.message) + '</div>';
+    });
+    return;
+  }
+  body.innerHTML =
+    '<div style="font-size:.82rem;color:var(--muted);margin-bottom:.6rem">Enter your email and we\'ll resend it.</div>' +
+    '<input class="field" type="email" id="support-resend-email" placeholder="Your email address">' +
+    '<button class="btn-primary" onclick="_submitSupportResend()">Resend Email</button>';
+}
+
+window._submitSupportResend = function () {
+  var email = (document.getElementById('support-resend-email').value || '').trim();
+  if (!email) return toast('⚠️ Enter your email.');
+  var body = document.getElementById('support-chat-body');
+  api.post('/auth/send-verification', { email: email }).then(function () {
+    body.innerHTML = '<div style="text-align:center;padding:1.5rem 0">✅ If that email is registered, a new verification link is on its way.</div>';
+  }).catch(function (err) {
+    toast('❌ ' + err.message);
+  });
+};
+
+function _renderSelfBlockPicker(screen, label) {
+  var body = document.getElementById('support-chat-body');
+  if (!body) return;
+  body.innerHTML =
+    '<div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">Pick what you\'d like to block yourself from. This takes effect right away — only an admin can undo it, so choose carefully.</div>' +
+    Object.keys(SUPPORT_FEATURE_LABELS).map(function (f) {
+      return '<div class="ctx-item" style="border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem;color:#D32F2F" onclick="_confirmSelfBlock(\'' + f + '\')">🚫 Block ' + SUPPORT_FEATURE_LABELS[f] + '</div>';
+    }).join('');
+}
+
+window._confirmSelfBlock = function (feature) {
+  if (!confirm('Block yourself from ' + SUPPORT_FEATURE_LABELS[feature] + '? Only an admin will be able to undo this.')) return;
+  api.post('/self-block', { feature: feature }).then(function () {
+    var body = document.getElementById('support-chat-body');
+    if (body) body.innerHTML = '<div style="text-align:center;padding:1.5rem 0">🚫 You\'re now blocked from ' + SUPPORT_FEATURE_LABELS[feature] + '. Contact an admin if you ever want this undone.</div>';
+  }).catch(function (err) { toast('❌ ' + err.message); });
+};
+
+function _renderSupportForm(screen, label, actionType) {
+  var body = document.getElementById('support-chat-body');
+  if (!body) return;
+  var needsContact = !STATE.user;
+  body.innerHTML =
+    '<div style="font-size:.85rem;font-weight:700;margin-bottom:.5rem">' + escHtml(label) + '</div>' +
+    (needsContact
+      ? '<input class="field" type="email" id="support-contact-email" placeholder="Your email address">' +
+        '<input class="field" type="text" id="support-contact-nick" placeholder="Your nickname (if you have an account)">'
+      : '') +
+    '<textarea class="bc-textarea" id="support-msg-text" rows="4" placeholder="Tell us what\'s going on..."></textarea>' +
+    '<button class="btn-primary" onclick="_submitSupportChat(\'' + screen + '\',\'' + label.replace(/'/g, "\\'") + '\')">Send</button>';
+}
+
+window._submitSupportChat = function (screen, label) {
+  var text = (document.getElementById('support-msg-text').value || '').trim();
+  if (!text) return toast('⚠️ Write a message first.');
+  var payload = { screen: screen, question_label: label, text: text };
+  if (!STATE.user) {
+    payload.contact_email = (document.getElementById('support-contact-email') || {}).value || '';
+    payload.contact_nick  = (document.getElementById('support-contact-nick') || {}).value || '';
+    if (!payload.contact_email.trim()) return toast('⚠️ Enter your email so an admin can reach you.');
+  }
+  api.post('/support-chats', payload).then(function () {
+    var body = document.getElementById('support-chat-body');
+    if (body) body.innerHTML = '<div style="text-align:center;padding:1.5rem 0">✅ Sent! An admin will get back to you as soon as possible.</div>';
+  }).catch(function (err) { toast('❌ ' + err.message); });
 };
 
 window.saveSetting = function (key, value) {
