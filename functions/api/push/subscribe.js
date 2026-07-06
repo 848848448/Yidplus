@@ -8,8 +8,15 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { endpoint, keys } = body;
     if (!endpoint || !keys) return json({ ok: false, error: 'Invalid subscription' }, 400);
+    // Clear any existing row for this exact device/browser subscription
+    // first. INSERT OR REPLACE alone doesn't help here — id is a fresh
+    // random UUID every call, so it never actually conflicts with
+    // anything, meaning re-subscribing (which happens often — every app
+    // load, browser updates, etc.) was quietly piling up duplicate rows
+    // per device instead of replacing the old one.
+    await env.DB.prepare('DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?').bind(user.id, endpoint).run().catch(() => {});
     await env.DB.prepare(
-      `INSERT OR REPLACE INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at)
+      `INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`
     ).bind(crypto.randomUUID(), user.id, endpoint, keys.p256dh || '', keys.auth || '', new Date().toISOString()).run();
     return json({ ok: true });
