@@ -1,4 +1,4 @@
-import { json, corsHeaders, hashPassword } from '../_helpers.js';
+import { json, corsHeaders, hashPassword, isValidEmail } from '../_helpers.js';
 import { sendVerificationEmail } from './send-verification.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
@@ -28,7 +28,7 @@ export async function onRequestPost(context) {
 
 
     // ── Validate email format
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    if (!isValidEmail(email)) {
       return json({ ok: false, error: 'Invalid email address' }, 400);
     }
     // ── Validate nickname

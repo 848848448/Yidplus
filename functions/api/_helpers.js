@@ -10,6 +10,16 @@ export const corsHeaders = {
   'Access-Control-Allow-Credentials': 'true',
 };
 
+export function isValidEmail(email) {
+  // Deliberately strict: only the characters a real email address can
+  // contain. The previous check in register.js (`[^@\s]+@[^@\s]+\.[^@\s]+`)
+  // accepted almost anything as long as it had the word@word.word shape —
+  // including <, >, ", ', ; and other HTML/script-injection characters,
+  // which is exactly the kind of "put a code in instead of an email" input
+  // that should never reach the database or get echoed back into any page.
+  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email) && email.length <= 254;
+}
+
 export function json(obj, status = 200, cacheSeconds = 0) {
   const headers = { ...corsHeaders, 'Content-Type': 'application/json' };
   if (cacheSeconds > 0) {

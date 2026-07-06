@@ -3,7 +3,7 @@
 // PUT /api/admin/users  -> update a user (verified / blocked / role / no_ads / profile fields)
 // Body for PUT: { id, verified?, blocked?, role?, no_ads?, nickname?, email?, phone?, password? }
 
-import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner, logAudit, hashPassword, cleanupUserReferences } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner, logAudit, hashPassword, cleanupUserReferences, isValidEmail } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -137,6 +137,7 @@ export async function onRequestPut(context) {
         profileUpdates.push('nickname = ?'); profileParams.push(body.nickname);
       }
       if (body.email) {
+        if (!isValidEmail(body.email)) return json({ ok: false, error: 'Invalid email address' }, 400);
         const taken = await env.DB.prepare('SELECT id FROM users WHERE email = ? AND id != ?').bind(body.email.toLowerCase(), id).first();
         if (taken) return json({ ok: false, error: 'Email already in use' }, 409);
         profileUpdates.push('email = ?'); profileParams.push(body.email.toLowerCase());

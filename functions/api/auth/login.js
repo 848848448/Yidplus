@@ -1,4 +1,4 @@
-import { json, corsHeaders, verifyPassword, hashPassword } from '../_helpers.js';
+import { json, corsHeaders, verifyPassword, hashPassword, isValidEmail } from '../_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -11,6 +11,7 @@ export async function onRequestPost(context) {
     const fingerprint = (body.fingerprint || '').trim();
 
     if (!email || !password) return json({ ok: false, error: 'email and password are required' }, 400);
+    if (!isValidEmail(email)) return json({ ok: false, error: 'Invalid email or password' }, 401);
 
     // ── IP + fingerprint ban check ──
     const ip = request.headers.get('CF-Connecting-IP') ||
