@@ -31,7 +31,20 @@ function loadShortsFeed() {
   api.get('/shorts')
     .then(function (res) {
       SHORTS_data = res.shorts || [];
+      var sharedId = (window.location.hash || '').replace('#', '');
+      if (sharedId && !SHORTS_data.some(function (s) { return s.id === sharedId; })) {
+        // The shared short might be older than the top-50 feed — fetch it
+        // directly and put it at the front so a shared link actually opens
+        // the short that was shared, not just the generic feed top.
+        return api.get('/shorts?id=' + encodeURIComponent(sharedId))
+          .then(function (r2) {
+            if (r2.shorts && r2.shorts.length) SHORTS_data.unshift(r2.shorts[0]);
+          })
+          .catch(function () {})
+          .then(function () { renderShorts(); _scrollToSharedShort(sharedId); });
+      }
       renderShorts();
+      if (sharedId) _scrollToSharedShort(sharedId);
     })
     .catch(function (err) {
       cont.innerHTML = '<div class="feed-state" style="height:100vh;color:#fff">' +
@@ -41,6 +54,16 @@ function loadShortsFeed() {
     });
 }
 window.loadShortsFeed = loadShortsFeed;
+
+function _scrollToSharedShort(id) {
+  setTimeout(function () {
+    var idx = SHORTS_data.findIndex(function (s) { return s.id === id; });
+    if (idx < 0) return;
+    var cont = document.getElementById('swipe-cont');
+    var slide = cont && cont.children[idx];
+    if (slide) slide.scrollIntoView({ block: 'start' });
+  }, 100);
+}
 
 // ── Icon set (matches the modern SVG style used across the rest of the app) ──
 var ICON_HEART_OUTLINE = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';

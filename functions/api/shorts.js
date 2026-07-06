@@ -15,6 +15,34 @@ export async function onRequestGet(context) {
 
   try {
     const user = await requireUser(request, env).catch(() => null);
+    const url = new URL(request.url);
+    const singleId = url.searchParams.get('id');
+
+    // Deep-link support: Share generates a /shorts#<id> link. Without this,
+    // opening a shared link had no way to actually fetch that specific
+    // short — it just silently fell back to the generic top-of-feed list.
+    if (singleId) {
+      const row = await env.DB.prepare(
+        `SELECT s.id, s.owner_id, s.media_key, s.caption, s.likes, s.views, s.created_at,
+                u.nickname, u.verified, u.photo_url
+         FROM shorts s JOIN users u ON u.id = s.owner_id
+         WHERE s.id = ?`
+      ).bind(singleId).first();
+      if (!row) return json({ ok: true, shorts: [] });
+      let liked = false;
+      if (user) {
+        const likeRow = await env.DB.prepare('SELECT 1 FROM short_likes WHERE short_id = ? AND user_id = ?').bind(singleId, user.id).first();
+        liked = !!likeRow;
+      }
+      return json({
+        ok: true,
+        shorts: [{
+          id: row.id, owner_id: row.owner_id, nick: row.nickname, photo_url: row.photo_url || null,
+          verified: !!row.verified, caption: row.caption, likes: row.likes, views: row.views,
+          media_url: `/api/media/${encodeURIComponent(row.media_key)}`, created_at: row.created_at, liked,
+        }],
+      });
+    }
 
     let results;
     try {
