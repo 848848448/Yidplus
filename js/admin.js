@@ -321,6 +321,12 @@ function buildAdminPanel(id) {
           '<div style="padding:.75rem 0">' +
             '<div style="font-size:.82rem;color:var(--red)">🔒 Owner accounts are hardcoded server-side</div>' +
             '<div style="font-size:.68rem;color:var(--muted);margin-top:.25rem">Cannot be changed or removed by anyone.</div>' +
+            '<div style="padding:.75rem 0 0;border-top:1px solid var(--border);margin-top:.75rem">' +
+            '<div style="font-size:.82rem;font-weight:700;margin-bottom:.35rem">📧 Email Delivery Test</div>' +
+            '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.5rem">Send a test email and see exactly what happens — the quickest way to find out why verification / reset emails aren\'t arriving.</div>' +
+            '<input class="field" id="email-test-to" placeholder="Send test to... (defaults to your email)">' +
+            '<button class="act-btn" style="background:#1F6F5C;color:#fff;border-color:transparent" onclick="runEmailTest()">Send Test Email</button>' +
+            '<div id="email-test-result" style="margin-top:.6rem;font-size:.72rem;white-space:pre-wrap;word-break:break-word"></div>' +
           '</div>' +
         '</div>' +
         '<div class="admin-card">' +
@@ -1133,6 +1139,34 @@ function loadBroadcastHistory() {
 }
 
 /* ── SETTINGS HELPERS ── */
+window.runEmailTest = function () {
+  var to = (document.getElementById('email-test-to') || {}).value || '';
+  var resEl = document.getElementById('email-test-result');
+  if (resEl) resEl.innerHTML = '<span style="color:var(--muted)">Sending…</span>';
+  api.post('/admin/email-test', { to: to.trim() })
+    .then(function (res) {
+      if (!resEl) return;
+      if (res.ok) {
+        resEl.innerHTML = '<span style="color:#1F6F5C;font-weight:700">✅ Sent successfully to ' + escHtml(res.sent_to) + '</span>\n\n' +
+          'From: ' + escHtml(res.config.from_address_used) + '\nResend status: ' + res.resend_status + '\n\nIf it\'s not in the inbox, check the spam folder.';
+      } else {
+        var lines = '❌ ' + escHtml(res.error || 'Send failed') + '\n\n';
+        if (res.config) {
+          lines += 'API key set: ' + (res.config.resend_api_key_present ? 'yes' : 'NO') + '\n';
+          lines += 'From-email configured: ' + (res.config.resend_from_email_configured ? 'yes' : 'no (using Resend test sender)') + '\n';
+          lines += 'From address: ' + escHtml(res.config.from_address_used) + '\n';
+        }
+        if (res.resend_status) lines += 'Resend status: ' + res.resend_status + '\n';
+        if (res.resend_response) lines += 'Resend said: ' + escHtml(JSON.stringify(res.resend_response)) + '\n';
+        if (res.hint) lines += '\n💡 ' + escHtml(res.hint);
+        resEl.innerHTML = '<span style="color:#C62828">' + lines + '</span>';
+      }
+    })
+    .catch(function (err) {
+      if (resEl) resEl.innerHTML = '<span style="color:#C62828">❌ ' + escHtml(err.message) + '</span>';
+    });
+};
+
 window.adminToggleSetting = function (key, isOn) {
   saveSetting(key, isOn ? 'true' : 'false');
 };
