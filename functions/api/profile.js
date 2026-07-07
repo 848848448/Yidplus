@@ -42,7 +42,15 @@ export async function onRequestGet(context) {
         env.DB.prepare('SELECT COUNT(*) as cnt FROM messages WHERE sender_id = ?').bind(targetId).first().catch(() => ({ cnt: 0 })),
       ]);
 
-      return json({ ok: true, profile: { ...profile, stats: { shorts: shorts?.cnt || 0, music: music?.cnt || 0, messages: msgs?.cnt || 0 } } });
+      // Whether the current viewer has blocked this user (for Block/Unblock UI)
+      let iBlocked = false;
+      if (user && user.id !== targetId) {
+        const b = await env.DB.prepare('SELECT 1 FROM user_blocks WHERE blocker_id = ? AND blocked_id = ?')
+          .bind(user.id, targetId).first().catch(() => null);
+        iBlocked = !!b;
+      }
+
+      return json({ ok: true, profile: { ...profile, i_blocked: iBlocked, stats: { shorts: shorts?.cnt || 0, music: music?.cnt || 0, messages: msgs?.cnt || 0 } } });
     }
 
     // Own full profile

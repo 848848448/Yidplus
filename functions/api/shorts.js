@@ -44,6 +44,14 @@ export async function onRequestGet(context) {
       });
     }
 
+    // Users the viewer has blocked — their shorts are hidden from the feed.
+    let blockedIds = [];
+    if (user) {
+      const { results: br } = await env.DB.prepare('SELECT blocked_id FROM user_blocks WHERE blocker_id = ?')
+        .bind(user.id).all().catch(() => ({ results: [] }));
+      blockedIds = br.map(r => r.blocked_id);
+    }
+
     let results;
     try {
       const r = await env.DB.prepare(
@@ -67,6 +75,10 @@ export async function onRequestGet(context) {
          LIMIT 50`
       ).all();
       results = r.results;
+    }
+
+    if (blockedIds.length) {
+      results = results.filter(row => blockedIds.indexOf(row.owner_id) === -1);
     }
 
     let likedIds = new Set();

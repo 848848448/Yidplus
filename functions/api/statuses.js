@@ -46,6 +46,16 @@ export async function onRequestGet(context) {
       results = r.results;
     }
 
+    // Hide statuses from users the viewer has blocked.
+    if (user) {
+      const { results: br } = await env.DB.prepare('SELECT blocked_id FROM user_blocks WHERE blocker_id = ?')
+        .bind(user.id).all().catch(() => ({ results: [] }));
+      if (br.length) {
+        const blocked = new Set(br.map(r => r.blocked_id));
+        results = results.filter(s => !blocked.has(s.user_id));
+      }
+    }
+
     // Group by user, applying privacy + follow-based visibility
     const grouped = {};
     const myId = user ? user.id : null;

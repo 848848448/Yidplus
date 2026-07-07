@@ -1814,6 +1814,10 @@ function _buildProfileScreen(userId) {
       ? '<button onclick="openDMWith(\'' + userId + '\')" style="padding:.45rem 1.25rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:600">Message</button>'
       : '';
 
+    var moreBtn = !isMe
+      ? '<button onclick="openProfileMoreMenu(\'' + userId + '\',\'' + escHtml(p.nickname || 'user').replace(/'/g, "\\'") + '\',' + (p.i_blocked ? 'true' : 'false') + ')" style="padding:.45rem .8rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.9rem;cursor:pointer;font-family:inherit;font-weight:700;color:var(--text)">⋯</button>'
+      : '';
+
     var bioHtml = p.bio ? '<div style="font-size:.85rem;color:var(--text);text-align:center;padding:0 1.25rem;margin-bottom:.75rem;line-height:1.5">' + escHtml(p.bio) + '</div>' : '';
 
     var linksHtml = '';
@@ -1843,7 +1847,7 @@ function _buildProfileScreen(userId) {
           _pStat(stats.music  || 0, 'Music', '') +
         '</div>' +
         // Action buttons
-        '<div style="display:flex;gap:.5rem;justify-content:center">' + followBtn + msgBtn + '</div>' +
+        '<div style="display:flex;gap:.5rem;justify-content:center">' + followBtn + msgBtn + moreBtn + '</div>' +
       '</div>' +
 
       // Content tabs
@@ -1859,6 +1863,59 @@ function _buildProfileScreen(userId) {
     if (body) body.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted)">' + escHtml(err.message) + '</div>';
   });
 }
+
+window.openProfileMoreMenu = function (userId, nick, iBlocked) {
+  var existing = document.getElementById('profile-more-overlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'profile-more-overlay';
+  overlay.className = 'modal-overlay open';
+  overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML =
+    '<div class="modal-sheet">' +
+      '<div class="modal-title">@' + escHtml(nick) + '</div>' +
+      '<div class="ctx-item" style="border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem;color:' + (iBlocked ? 'var(--text)' : '#D32F2F') + '" onclick="' + (iBlocked ? 'unblockUserAction' : 'blockUserAction') + '(\'' + userId + '\',\'' + nick.replace(/'/g, "\\'") + '\')">' +
+        (iBlocked ? '🔓 Unblock this user' : '🚫 Block this user') +
+      '</div>' +
+      '<div class="ctx-item" style="border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem;color:#D32F2F" onclick="reportUserAction(\'' + userId + '\',\'' + nick.replace(/'/g, "\\'") + '\')">🚩 Report this user</div>' +
+      '<button class="modal-cancel" onclick="document.getElementById(\'profile-more-overlay\').remove()">Cancel</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+};
+
+window.blockUserAction = function (userId, nick) {
+  if (!confirm('Block @' + nick + '? You won\'t see their content or messages, and they won\'t be able to message you.')) return;
+  api.post('/blocks', { blocked_id: userId })
+    .then(function () {
+      toast('🚫 Blocked @' + nick);
+      var ov = document.getElementById('profile-more-overlay'); if (ov) ov.remove();
+      openUserProfile(userId);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.unblockUserAction = function (userId, nick) {
+  api.del('/blocks?id=' + encodeURIComponent(userId))
+    .then(function () {
+      toast('🔓 Unblocked @' + nick);
+      var ov = document.getElementById('profile-more-overlay'); if (ov) ov.remove();
+      openUserProfile(userId);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.reportUserAction = function (userId, nick) {
+  var reason = prompt('Why are you reporting @' + nick + '? (e.g. harassment, spam, inappropriate content)');
+  if (reason === null) return;
+  if (!reason.trim()) return toast('⚠️ Please give a reason.');
+  api.post('/reports', { reported_id: userId, reported_nick: nick, reason: reason.trim() })
+    .then(function () {
+      toast('🚩 Report sent. Thank you.');
+      var ov = document.getElementById('profile-more-overlay'); if (ov) ov.remove();
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 function _pStat(val, label, onclick) {
   return '<div style="text-align:center;cursor:' + (onclick ? 'pointer' : 'default') + '"' + (onclick ? ' onclick="' + onclick + '"' : '') + '>' +
