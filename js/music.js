@@ -257,6 +257,28 @@ window.switchMusicTab = function (btn, tab) {
 // ============================================================
 // PLAY TRACK — real <audio>/<video> playback from R2
 // ============================================================
+window.toggleCurrentTrackSave = function () {
+  if (!STATE.user) return toast('⚠ Please sign in first.');
+  if (!MUSIC_curTrack) return;
+  var t = MUSIC_curTrack;
+  var newSaved = !t.saved;
+  var req = newSaved
+    ? api.post('/saves', { item_type: 'music', item_id: t.id })
+    : api.del('/saves?item_type=music&item_id=' + encodeURIComponent(t.id));
+  req.then(function () {
+    t.saved = newSaved;
+    _syncPlayerSaveButton();
+    toast(newSaved ? '🔖 Saved!' : 'Removed from saved');
+  }).catch(function (err) { toast('❌ ' + err.message); });
+};
+
+function _syncPlayerSaveButton() {
+  var icon = document.getElementById('player-save-icon');
+  if (!icon || !MUSIC_curTrack) return;
+  // filled bookmark when saved, outline when not
+  icon.setAttribute('fill', MUSIC_curTrack.saved ? 'currentColor' : 'none');
+}
+
 window.playTrack = function (trackId) {
   var t = MUSIC_allTracks.find(function (x) { return x.id === trackId; });
   if (!t) return;
@@ -282,6 +304,8 @@ window.playTrack = function (trackId) {
 
   // Track play count (fire and forget)
   api.put('/music', { id: t.id, play: true }).catch(function () {});
+
+  _syncPlayerSaveButton();
 
   var nameEl = document.getElementById('player-name');
   var artistEl = document.getElementById('player-artist');

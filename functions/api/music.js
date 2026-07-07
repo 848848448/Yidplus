@@ -41,11 +41,17 @@ export async function onRequestGet(context) {
     }
 
     let likedIds = new Set();
+    let savedIds = new Set();
     if (user) {
       const { results: likedRows } = await env.DB.prepare(
         `SELECT track_id FROM music_likes WHERE user_id = ?`
       ).bind(user.id).all();
       likedIds = new Set(likedRows.map(r => r.track_id));
+
+      const { results: savedRows } = await env.DB.prepare(
+        `SELECT item_id FROM saved_items WHERE user_id = ? AND item_type = 'music'`
+      ).bind(user.id).all().catch(() => ({ results: [] }));
+      savedIds = new Set(savedRows.map(r => r.item_id));
     }
 
     const out = results.map(t => ({
@@ -54,6 +60,7 @@ export async function onRequestGet(context) {
       video_url: t.video_key ? `/api/media/${encodeURIComponent(t.video_key)}` : null,
       cover_url: t.cover_key ? `/api/media/${encodeURIComponent(t.cover_key)}` : null,
       liked: likedIds.has(t.id),
+      saved: savedIds.has(t.id),
     }));
 
     return json({ ok: true, tracks: out });

@@ -5,12 +5,13 @@
 var THEME_KEY = 'yp_theme';
 
 var THEME_PRESETS = [
-  { name: 'Gold',        gold: '#B8860B', goldL: '#DAA520', bg: '#FFFFFF', bg2: '#F5F5F5', text: '#000000' },
-  { name: 'Royal Blue',  gold: '#1F6F5C', goldL: '#42A5F5', bg: '#FFFFFF', bg2: '#F0F4FA', text: '#000000' },
-  { name: 'Emerald',     gold: '#2E7D32', goldL: '#66BB6A', bg: '#FFFFFF', bg2: '#F0F8F0', text: '#000000' },
-  { name: 'Crimson',     gold: '#C62828', goldL: '#EF5350', bg: '#FFFFFF', bg2: '#FAF0F0', text: '#000000' },
-  { name: 'Violet',      gold: '#6A1B9A', goldL: '#AB47BC', bg: '#FFFFFF', bg2: '#F6F0FA', text: '#000000' },
-  { name: 'Midnight',    gold: '#C9A84C', goldL: '#F0D080', bg: '#0A0A0F', bg2: '#13131A', text: '#F0EDE6' },
+  { name: 'Emerald Teal', gold: '#1F6F5C', goldL: '#2B8A73', bg: '#FAFAF8', bg2: '#F1F0ED', text: '#14151A' },
+  { name: 'Ocean Blue',   gold: '#1565C0', goldL: '#42A5F5', bg: '#FAFAFB', bg2: '#F0F4FA', text: '#14151A' },
+  { name: 'Forest',       gold: '#2E7D32', goldL: '#66BB6A', bg: '#FAFBFA', bg2: '#F0F8F0', text: '#14151A' },
+  { name: 'Crimson',      gold: '#C62828', goldL: '#EF5350', bg: '#FBFAFA', bg2: '#FAF0F0', text: '#14151A' },
+  { name: 'Violet',       gold: '#6A1B9A', goldL: '#AB47BC', bg: '#FBFAFB', bg2: '#F6F0FA', text: '#14151A' },
+  { name: 'Amber',        gold: '#B8860B', goldL: '#DAA520', bg: '#FBFAF7', bg2: '#F7F4EC', text: '#14151A' },
+  { name: 'Midnight',     gold: '#2B8A73', goldL: '#3EBFA1', bg: '#0A0A0F', bg2: '#13131A', text: '#F0EDE6' },
 ];
 
 window.applyTheme = function (theme) {
