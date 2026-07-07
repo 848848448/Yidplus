@@ -1142,7 +1142,7 @@ function loadBroadcastHistory() {
 window.runEmailTest = function () {
   var to = (document.getElementById('email-test-to') || {}).value || '';
   var resEl = document.getElementById('email-test-result');
-  if (resEl) resEl.innerHTML = '<span style="color:var(--muted)">Sending…</span>';
+  if (resEl) resEl.innerHTML = '<span style="color:var(--muted)">Sending… [build v2]</span>';
   api.post('/admin/email-test', { to: to.trim() })
     .then(function (res) {
       if (!resEl) return;
