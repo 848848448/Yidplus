@@ -54,7 +54,14 @@ export async function onRequestPost(context) {
     let respBody = null;
     try { respBody = await resp.json(); } catch (e) { respBody = { _note: 'no JSON body' }; }
 
-    if (!resp.ok) {
+    // Resend returns a message id on success. Treat success as: HTTP 2xx AND
+    // a body that isn't an error. Some setups surface errors with a 200, so
+    // check the body too rather than trusting the status alone.
+    const httpOk = resp.status >= 200 && resp.status < 300;
+    const bodyHasId = respBody && respBody.id;
+    const bodyHasError = respBody && (respBody.error || respBody.message || respBody.statusCode >= 400);
+
+    if (!httpOk || bodyHasError || !bodyHasId) {
       return json({
         ok: false,
         config,
@@ -72,9 +79,21 @@ export async function onRequestPost(context) {
 }
 
 function _hintFor(status, respBody, fromConfigured) {
-  const msg = (respBody && (respBody.message || respBody.error || '')) + '';
+  const msg = (respBody && (respBody.message || respBody.error || (respBody.error && respBody.error.message) || '')) + '';
   const lower = msg.toLowerCase();
+
+  // Resend's most common real-world block: on a shared/unverified sender you
+  // may ONLY send to your own account email. Sending to anyone else fails
+  // with a message about testing / verifying a domain / recipients.
+  if (lower.includes('you can only send testing emails') ||
+      lower.includes('own email address') ||
+      lower.includes('testing emails to your')) {
+    return 'Resend is in testing mode: it will ONLY deliver to your own Resend account email until you verify a domain. Verify yidplus.com in Resend (Domains tab), then set RESEND_FROM_EMAIL to an address on it (e.g. noreply@yidplus.com). After that, emails reach all users.';
+  }
   if (status === 401 || status === 403) {
+    if (lower.includes('domain') || lower.includes('verify') || lower.includes('testing') || lower.includes('only send')) {
+      return 'Your sender domain isn\u2019t verified in Resend, so it only delivers to your own account email. Verify yidplus.com in Resend and set RESEND_FROM_EMAIL to an address on it.';
+    }
     return 'The Resend API key looks invalid or lacks permission. Re-check RESEND_API_KEY in Cloudflare.';
   }
   if (lower.includes('domain') || lower.includes('verify') || lower.includes('not allowed') || lower.includes('from')) {
@@ -84,6 +103,9 @@ function _hintFor(status, respBody, fromConfigured) {
   }
   if (status === 422) {
     return 'Resend rejected the request (422) — usually the "from" address is on an unverified domain. Verify your domain in Resend and set RESEND_FROM_EMAIL.';
+  }
+  if (status >= 200 && status < 300) {
+    return 'Resend accepted the request but didn\u2019t return a message id — check the response above. If RESEND_FROM_EMAIL isn\u2019t on a verified domain, verify your domain in Resend.';
   }
   return 'Check the resend_response above for the exact reason.';
 }
