@@ -23,6 +23,22 @@ function AUTH_clearMsg() {
 }
 
 // ── AUTH TAB SWITCHER ────────────────────────────
+window.requestPasswordReset = function () {
+  var prefill = (document.getElementById('l-email') || {}).value || '';
+  var email = prompt('Enter your account email and we\u2019ll send you a link to reset your password:', prefill.trim());
+  if (email === null) return; // cancelled
+  email = email.trim();
+  if (!email) return toast('\u26A0 Please enter your email.');
+
+  api.post('/auth/request-password-reset', { email: email })
+    .then(function () {
+      // Deliberately the same message whether or not the email is registered,
+      // so this can't be used to discover which emails have accounts.
+      toast('\uD83D\uDCE7 If that email has an account, a reset link is on its way. Check your inbox.');
+    })
+    .catch(function (err) { toast('\u274C ' + err.message); });
+};
+
 window.authTab = function (tab) {
   var loginEl = document.getElementById('auth-login');
   var regEl   = document.getElementById('auth-register');

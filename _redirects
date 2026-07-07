@@ -5,6 +5,7 @@
 /shorts     /yidplus-shorts.html      200
 /music      /yidplus-music.html       200
 /admin      /yidplus-admin.html       200
+/reset-password  /reset-password.html  200
 
 # Keep old direct .html links working too (in case anything still uses them)
 /yidplus-dashboard.html  /  200
