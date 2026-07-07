@@ -4565,14 +4565,6 @@ window.closeSV = function () {
 };
 
 // ── Mute ─────────────────────────────────────────────────
-window.svToggleMute = window.svMute = function () {
-  HOME_svMuted = !HOME_svMuted;
-  var btn = document.getElementById('sv-mute');
-  if (btn) btn.textContent = HOME_svMuted ? '🔇' : '🔊';
-  var vid = document.querySelector('#sv-slide video');
-  if (vid) vid.muted = HOME_svMuted;
-};
-
 // ── Reactions / Likes ────────────────────────────────────
 window.toggleSVReactionBar = function () {
   svPause();

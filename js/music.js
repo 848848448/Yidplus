@@ -273,10 +273,11 @@ window.toggleCurrentTrackSave = function () {
 };
 
 function _syncPlayerSaveButton() {
-  var icon = document.getElementById('player-save-icon');
+  var icon = document.getElementById('save-music-icon');
   if (!icon || !MUSIC_curTrack) return;
-  // filled bookmark when saved, outline when not
-  icon.setAttribute('fill', MUSIC_curTrack.saved ? 'currentColor' : 'none');
+  // filled + accent color when saved, muted outline when not
+  icon.setAttribute('fill', MUSIC_curTrack.saved ? 'var(--gold)' : 'none');
+  icon.setAttribute('stroke', MUSIC_curTrack.saved ? 'var(--gold)' : 'var(--muted)');
 }
 
 window.playTrack = function (trackId) {
