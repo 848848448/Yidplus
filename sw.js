@@ -1,6 +1,6 @@
 // YID PLUS Service Worker v6 — Force fresh files
-const CACHE_NAME = 'yidplus-v6';
-const CACHE_CSS  = 'yidplus-css-v6';
+const CACHE_NAME = 'yidplus-v7';
+const CACHE_CSS  = 'yidplus-css-v7';
 
 // JS and HTML — always fetch fresh (never cache)
 const NEVER_CACHE = ['.js', '.html', '/api/'];
