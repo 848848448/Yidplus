@@ -1146,11 +1146,11 @@ window.runEmailTest = function () {
   api.post('/admin/email-test', { to: to.trim() })
     .then(function (res) {
       if (!resEl) return;
-      if (res.ok) {
+      if (res.delivered) {
         resEl.innerHTML = '<span style="color:#1F6F5C;font-weight:700">✅ Sent successfully to ' + escHtml(res.sent_to) + '</span>\n\n' +
           'From: ' + escHtml(res.config.from_address_used) + '\nResend status: ' + res.resend_status + '\n\nIf it\'s not in the inbox, check the spam folder.';
       } else {
-        var lines = '❌ ' + escHtml(res.error || 'Send failed') + '\n\n';
+        var lines = '❌ Not delivered.\n\n';
         if (res.config) {
           lines += 'API key set: ' + (res.config.resend_api_key_present ? 'yes' : 'NO') + '\n';
           lines += 'From-email configured: ' + (res.config.resend_from_email_configured ? 'yes' : 'no (using Resend test sender)') + '\n';
@@ -1158,6 +1158,7 @@ window.runEmailTest = function () {
         }
         if (res.resend_status) lines += 'Resend status: ' + res.resend_status + '\n';
         if (res.resend_response) lines += 'Resend said: ' + escHtml(JSON.stringify(res.resend_response)) + '\n';
+        if (res.network_error) lines += 'Network error: ' + escHtml(res.network_error) + '\n';
         if (res.hint) lines += '\n💡 ' + escHtml(res.hint);
         resEl.innerHTML = '<span style="color:#C62828">' + lines + '</span>';
       }

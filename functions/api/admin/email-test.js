@@ -34,7 +34,7 @@ export async function onRequestPost(context) {
     };
 
     if (!hasKey) {
-      return json({ ok: false, config, error: 'RESEND_API_KEY is not set in Cloudflare — no email can be sent.' });
+      return json({ ok: true, delivered: false, config, hint: 'RESEND_API_KEY is not set in Cloudflare — no email can be sent. Add it in Cloudflare > your project > Settings > Environment Variables, then redeploy.' });
     }
 
     const resp = await fetch('https://api.resend.com/emails', {
@@ -63,7 +63,8 @@ export async function onRequestPost(context) {
 
     if (!httpOk || bodyHasError || !bodyHasId) {
       return json({
-        ok: false,
+        ok: true,
+        delivered: false,
         config,
         resend_status: resp.status || 0,
         resend_response: respBody,
@@ -72,7 +73,7 @@ export async function onRequestPost(context) {
       });
     }
 
-    return json({ ok: true, config, resend_status: resp.status, resend_response: respBody, sent_to: to });
+    return json({ ok: true, delivered: true, config, resend_status: resp.status, resend_response: respBody, sent_to: to });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
