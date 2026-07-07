@@ -1864,6 +1864,51 @@ function _buildProfileScreen(userId) {
   });
 }
 
+window.openSavedItems = function () {
+  var existing = document.getElementById('saved-items-overlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'saved-items-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:9000;display:flex;flex-direction:column';
+  overlay.innerHTML =
+    '<div class="topbar">' +
+      '<div style="display:flex;align-items:center;gap:.6rem">' +
+        '<button onclick="document.getElementById(\'saved-items-overlay\').remove()" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:1.2rem">✕</button>' +
+        '<div style="font-size:.95rem;font-weight:700">🔖 Saved Items</div>' +
+      '</div>' +
+    '</div>' +
+    '<div id="saved-items-body" class="scroll-area" style="flex:1;padding:.75rem"><div class="feed-state"><div class="spinner"></div></div></div>';
+  document.body.appendChild(overlay);
+
+  api.get('/saves', true).then(function (res) {
+    var body = document.getElementById('saved-items-body');
+    if (!body) return;
+    var items = res.items || [];
+    if (!items.length) {
+      body.innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:var(--muted)">Nothing saved yet.<br><span style="font-size:.8rem">Tap Save on any Short or song to keep it here.</span></div>';
+      return;
+    }
+    body.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">' +
+      items.map(function (it) {
+        if (it.item_type === 'short') {
+          return '<div style="position:relative;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#000;cursor:pointer" onclick="document.getElementById(\'saved-items-overlay\').remove();goPage(\'/shorts#' + it.id + '\')">' +
+            '<video src="' + it.media_url + '#t=0.1" style="width:100%;height:100%;object-fit:cover" muted preload="metadata"></video>' +
+            '<div style="position:absolute;bottom:0;left:0;right:0;padding:.4rem;background:linear-gradient(transparent,rgba(0,0,0,.7));color:#fff;font-size:.7rem">@' + escHtml(it.nick || '') + '</div>' +
+          '</div>';
+        }
+        return '<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)">' +
+          (it.cover_url ? '<div style="width:100%;aspect-ratio:1;background-image:url(' + it.cover_url + ');background-size:cover;background-position:center"></div>' : '<div style="width:100%;aspect-ratio:1;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:2rem">🎵</div>') +
+          '<div style="padding:.5rem"><div style="font-size:.8rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(it.title || 'Untitled') + '</div>' +
+          '<div style="font-size:.7rem;color:var(--muted)">' + escHtml(it.artist || '') + '</div></div>' +
+        '</div>';
+      }).join('') + '</div>';
+  }).catch(function (err) {
+    var body = document.getElementById('saved-items-body');
+    if (body) body.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--red)">⚠️ ' + escHtml(err.message) + '</div>';
+  });
+};
+
 window.openProfileMoreMenu = function (userId, nick, iBlocked) {
   var existing = document.getElementById('profile-more-overlay');
   if (existing) existing.remove();

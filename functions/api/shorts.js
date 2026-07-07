@@ -82,11 +82,16 @@ export async function onRequestGet(context) {
     }
 
     let likedIds = new Set();
+    let savedIds = new Set();
     if (user) {
       const { results: likedRows } = await env.DB.prepare(
         `SELECT short_id FROM short_likes WHERE user_id = ?`
       ).bind(user.id).all();
       likedIds = new Set(likedRows.map(r => r.short_id));
+      const { results: savedRows } = await env.DB.prepare(
+        `SELECT item_id FROM saved_items WHERE user_id = ? AND item_type = 'short'`
+      ).bind(user.id).all().catch(() => ({ results: [] }));
+      savedIds = new Set(savedRows.map(r => r.item_id));
     }
 
     const out = results.map(row => ({
@@ -101,6 +106,7 @@ export async function onRequestGet(context) {
       created_at: row.created_at,
       media_url: `/api/media/${encodeURIComponent(row.media_key)}`,
       liked: likedIds.has(row.id),
+      saved: savedIds.has(row.id),
     }));
 
     return json({ ok: true, shorts: out });

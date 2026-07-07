@@ -132,6 +132,9 @@ function renderShorts() {
         '<div class="s-action" onclick="openComments(' + i + ')">' +
           '<div class="s-icon">' + ICON_COMMENT + '</div><div class="s-count">Chat</div>' +
         '</div>' +
+        '<div class="s-action' + (s.saved ? ' liked' : '') + '" id="save-' + i + '" onclick="toggleShortSave(' + i + ')">' +
+          '<div class="s-icon" id="save-icon-' + i + '">' + (s.saved ? '🔖' : '🏷️') + '</div><div class="s-count">Save</div>' +
+        '</div>' +
         '<div class="s-action" onclick="shareShort(' + i + ')">' +
           '<div class="s-icon">' + ICON_SHARE + '</div><div class="s-count">Share</div>' +
         '</div>' +
@@ -353,6 +356,23 @@ window.toggleShortLike = function (i) {
       count.textContent = fmtN(s.likes);
     })
     .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.toggleShortSave = function (i) {
+  if (!STATE.user) return toast('⚠ Please sign in first.');
+  var s = SHORTS_data[i];
+  var newSaved = !s.saved;
+  var req = newSaved
+    ? api.post('/saves', { item_type: 'short', item_id: s.id })
+    : api.del('/saves?item_type=short&item_id=' + encodeURIComponent(s.id));
+  req.then(function () {
+    s.saved = newSaved;
+    var icon = document.getElementById('save-icon-' + i);
+    var el = document.getElementById('save-' + i);
+    if (icon) icon.textContent = newSaved ? '🔖' : '🏷️';
+    if (el) el.classList.toggle('liked', newSaved);
+    toast(newSaved ? '🔖 Saved!' : 'Removed from saved');
+  }).catch(function (err) { toast('❌ ' + err.message); });
 };
 
 // ── CHANNEL ──
