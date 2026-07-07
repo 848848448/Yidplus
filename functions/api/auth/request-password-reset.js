@@ -48,7 +48,7 @@ export async function onRequestPost(context) {
     ).bind(crypto.randomUUID(), user.id, email, token, expiresAt, now.toISOString()).run();
 
     const origin = new URL(request.url).origin;
-    const resetUrl = `${origin}/reset-password.html?token=${token}`;
+    const resetUrl = `${origin}/reset-password?token=${token}`;
     const fromAddr = env.RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>';
 
     const resp = await fetch('https://api.resend.com/emails', {
