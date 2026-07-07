@@ -742,19 +742,29 @@ html.dark-mode .chat-input-pill { background: #232427; border-color: #2C2D31; }
 /* =============================================
    CHANNEL SCREEN
    ============================================= */
-.channel-cover { width: 100%; height: 200px; position: relative; overflow: hidden; flex-shrink: 0; background: var(--bg3); }
+.channel-cover { width: 100%; height: 160px; position: relative; overflow: hidden; flex-shrink: 0; background: linear-gradient(135deg, var(--gold) 0%, var(--gold-l) 55%, var(--gold) 100%); }
+.channel-cover::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 25% 30%, rgba(255,255,255,.18), transparent 60%), radial-gradient(circle at 80% 70%, rgba(0,0,0,.12), transparent 55%); }
 .channel-topbar-over { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: .6rem .75rem; pointer-events: none; }
 .channel-topbar-over > * { pointer-events: all; }
 .ch-cover-over { position: absolute; top: 0; left: 0; right: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; background: linear-gradient(to bottom, rgba(0,0,0,.4), transparent); }
-.ch-cover-emoji { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 6rem; }
-.ch-av-big { width: 80px; height: 80px; border-radius: 50%; background: var(--bg3); border: 3px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin-bottom: .75rem; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
-.ch-stats-row { display: flex; gap: 1.5rem; padding: .75rem 1rem; border-bottom: 1px solid var(--border); }
-.ch-follow-btn { flex: 1; padding: .6rem; border-radius: 10px; font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; border: none; background: #000; color: #fff; transition: all .2s; }
-.ch-follow-btn:hover { background: #222; }
-.ch-follow-btn.following { background: var(--surface); color: #000; border: 1px solid #000; }
-.chtab { flex: 1; padding: .7rem; text-align: center; font-size: .78rem; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; transition: all .2s; }
-.chtab.active { color: #000; border-bottom-color: #000; font-weight: 700; }
-.ch-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 2px; padding: 2px; }
+.ch-cover-emoji { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.9); z-index: 1; }
+.ch-avatar-big { width: 88px; height: 88px; border-radius: 26px; background: var(--surface); border: 4px solid var(--surface); display: flex; align-items: center; justify-content: center; font-size: 2.4rem; font-weight: 800; color: var(--gold); background-size: cover; background-position: center; box-shadow: 0 4px 16px rgba(0,0,0,.16); overflow: hidden; }
+.ch-stats-row { display: flex; padding: .5rem 1rem 1rem; gap: 0; }
+.ch-stats-row > div { flex: 1; }
+.ch-stat-val { font-size: 1.05rem; font-weight: 800; color: var(--text); }
+.ch-stat-lbl { font-size: .66rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: .1rem; }
+.ch-follow-btn { flex: 1; padding: .7rem; border-radius: 24px; font-size: .88rem; font-weight: 700; cursor: pointer; font-family: inherit; border: none; background: var(--gold); color: #fff; transition: transform .12s, filter .2s; }
+.ch-follow-btn:active { transform: scale(.97); }
+.ch-follow-btn:hover { filter: brightness(1.06); }
+.ch-follow-btn.following { background: var(--bg3); color: var(--text); border: 1.5px solid var(--border); }
+.ch-icon-btn { width: 46px; height: 46px; border-radius: 14px; background: var(--bg3); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; color: var(--text); transition: transform .12s, background .2s; }
+.ch-icon-btn:active { transform: scale(.94); }
+.ch-icon-btn.on { background: var(--gold); color: #fff; border-color: transparent; }
+.chtab { flex: 1; padding: .8rem .5rem; text-align: center; font-size: .8rem; color: var(--muted); cursor: pointer; border-bottom: 2.5px solid transparent; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; transition: color .2s, border-color .2s; }
+.chtab.active { color: var(--gold); border-bottom-color: var(--gold); font-weight: 700; }
+.ch-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 3px; padding: 3px; }
+.ch-grid-item { transition: transform .12s; }
+.ch-grid-item:active { transform: scale(.97); }
 .grid-short { aspect-ratio: 9/16; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 2rem; cursor: pointer; position: relative; overflow: hidden; }
 
 /* =============================================

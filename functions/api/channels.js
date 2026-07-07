@@ -13,8 +13,10 @@ export async function onRequestGet(context) {
 
     if (ownerId) {
       const channel = await env.DB.prepare(
-        `SELECT id, owner_id, nickname, following, total_views, verified, bio, cover_key, created_at, privacy
-         FROM channels WHERE owner_id = ?`
+        `SELECT c.id, c.owner_id, c.nickname, c.following, c.total_views, c.verified, c.bio, c.cover_key, c.created_at, c.privacy,
+                u.photo_url, u.banner_url
+         FROM channels c LEFT JOIN users u ON u.id = c.owner_id
+         WHERE c.owner_id = ?`
       ).bind(ownerId).first();
 
       if (!channel) return json({ ok: false, error: 'Channel not found' }, 404);
@@ -81,8 +83,10 @@ export async function onRequestGet(context) {
              GROUP BY c.id ORDER BY followers DESC LIMIT ?`
           ).bind('%' + searchQ.trim() + '%', limitParam).all()
         : await env.DB.prepare(
-            `SELECT c.id, c.owner_id, c.nickname, c.verified, COUNT(cf.follower_id) as followers
-             FROM channels c LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+            `SELECT c.id, c.owner_id, c.nickname, c.verified, c.bio, u.photo_url, COUNT(cf.follower_id) as followers
+             FROM channels c
+             LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+             LEFT JOIN users u ON u.id = c.owner_id
              WHERE (c.hidden IS NULL OR c.hidden = 0)
              GROUP BY c.id ORDER BY followers DESC, c.created_at DESC LIMIT ?`
           ).bind(limitParam).all();

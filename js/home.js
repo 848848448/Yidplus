@@ -1253,14 +1253,31 @@ function _renderChannelHeader(ch) {
   var initial = (ch.nickname || '?').slice(0, 1).toUpperCase();
 
   var coverEl = document.getElementById('ch-cover-emoji');
-  if (coverEl) coverEl.innerHTML = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.35"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+  if (coverEl) coverEl.innerHTML = '<svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity:.18"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+  var coverWrap = document.getElementById('ch-cover');
+  if (coverWrap) {
+    if (ch.banner_url) {
+      coverWrap.style.backgroundImage = 'url(' + ch.banner_url + ')';
+      coverWrap.style.backgroundSize = 'cover';
+      coverWrap.style.backgroundPosition = 'center';
+      if (coverEl) coverEl.style.display = 'none';
+    } else {
+      coverWrap.style.backgroundImage = '';
+      if (coverEl) coverEl.style.display = 'flex';
+    }
+  }
+
   var avatarBig = document.getElementById('ch-avatar-big');
-  avatarBig.textContent = initial;
-  avatarBig.style.backgroundImage = '';
+  if (ch.photo_url) {
+    avatarBig.textContent = '';
+    avatarBig.style.backgroundImage = 'url(' + ch.photo_url + ')';
+  } else {
+    avatarBig.textContent = initial;
+    avatarBig.style.backgroundImage = '';
+  }
 
   var nameEl = document.getElementById('ch-name');
   nameEl.textContent = ch.nickname || 'Channel';
-  nameEl.style.direction = 'rtl';
 
   document.getElementById('ch-handle').textContent = '@' + (ch.nickname || 'user');
   document.getElementById('ch-bio').textContent = ch.bio || '';
@@ -1321,9 +1338,12 @@ window.toggleChannelPrivacy = function () {
     grid.innerHTML = '<div style="grid-column:1/-1;padding:2rem;text-align:center;font-size:.82rem;color:var(--muted)">No content yet</div>';
   } else {
     grid.innerHTML = shorts.map(function (s) {
-      return '<div class="ch-grid-item" style="position:relative;aspect-ratio:9/16;background:var(--bg3);border-radius:8px;overflow:hidden;cursor:pointer" onclick="goPage(\'/shorts\')">' +
-        (s.media_url ? '<video src="' + s.media_url + '" muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" preload="metadata"></video>' : '') +
-        '<div style="position:absolute;bottom:.3rem;left:.3rem;font-size:.65rem;color:#fff;background:rgba(0,0,0,.5);padding:.1rem .35rem;border-radius:4px">▶ ' + fmtN(s.likes || 0) + '</div>' +
+      return '<div class="ch-grid-item" style="position:relative;aspect-ratio:9/16;background:var(--bg3);border-radius:10px;overflow:hidden;cursor:pointer" onclick="goPage(\'/shorts#' + encodeURIComponent(s.id) + '\')">' +
+        (s.media_url ? '<video src="' + s.media_url + '" muted preload="none" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video>' : '') +
+        '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">' +
+          '<div style="width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div>' +
+        '</div>' +
+        '<div style="position:absolute;bottom:.3rem;left:.3rem;font-size:.65rem;color:#fff;background:rgba(0,0,0,.5);padding:.1rem .35rem;border-radius:6px;display:flex;align-items:center;gap:.15rem"><svg width="10" height="10" viewBox="0 0 24 24" fill="#fff"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' + fmtN(s.likes || 0) + '</div>' +
       '</div>';
     }).join('');
   }
@@ -1728,14 +1748,16 @@ function _userRow(u) {
 function _channelRow(c) {
   var av = c.photo_url
     ? '<div style="width:46px;height:46px;border-radius:12px;background-image:url(' + c.photo_url + ');background-size:cover;flex-shrink:0"></div>'
-    : '<div style="width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#1F6F5C,#2B8A73);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;color:#fff;flex-shrink:0">' + (c.nickname||'C').slice(0,1).toUpperCase() + '</div>';
-  return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem .85rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
+    : '<div style="width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;color:#fff;flex-shrink:0">' + (c.nickname||'C').slice(0,1).toUpperCase() + '</div>';
+  var bioSnippet = c.bio ? '<div style="font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.1rem;unicode-bidi:plaintext">' + escHtml(c.bio) + '</div>' : '';
+  return '<div style="display:flex;align-items:center;gap:.65rem;padding:.7rem .85rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
     av +
     '<div style="flex:1;min-width:0">' +
-      '<div style="font-size:.88rem;font-weight:700">@' + escHtml(c.nickname||'Channel') + (c.verified?' ✅':'') + '</div>' +
-      '<div style="font-size:.72rem;color:var(--muted)">' + fmtN(c.followers||0) + ' followers</div>' +
+      '<div style="font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext">' + escHtml(c.nickname||'Channel') + (c.verified?' ✅':'') + '</div>' +
+      (bioSnippet || '<div style="font-size:.72rem;color:var(--muted)">' + fmtN(c.followers||0) + ' followers</div>') +
     '</div>' +
-    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>' +
+    '<div style="font-size:.66rem;color:var(--muted);text-align:right;flex-shrink:0">' + (bioSnippet ? fmtN(c.followers||0) + '<br>followers' : '') + '</div>' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>' +
   '</div>';
 }
 
