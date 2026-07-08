@@ -186,29 +186,50 @@ function buildPostCard(p) {
   var caption = p.caption  || '';
   var likes   = p.likes    || 0;
   var cmts    = p.comments || 0;
-  var emoji   = /^[\p{Emoji}]+$/u.test(p.content || '') ? p.content : '🎬';
   var timeStr = p.created_at ? timeAgo(p.created_at) : '';
+
+  // Does this post actually carry media? content holds a media URL/key for
+  // media posts; for a plain text post it's empty (or just an emoji).
+  var content = (p.content || '').trim();
+  var hasMedia = content && (content.indexOf('/') !== -1 || content.indexOf('http') === 0);
+  var isEmojiOnly = content && /^[\p{Emoji}\s]+$/u.test(content) && !hasMedia;
+
+  var mediaHtml = '';
+  if (hasMedia) {
+    var url = content.indexOf('http') === 0 ? content : ('/api/media/' + encodeURIComponent(content.replace(/^\//, '')));
+    var isVideo = /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
+    if (isVideo) {
+      mediaHtml = '<div class="post-media"><video src="' + url + '" controls preload="metadata" style="width:100%;max-height:70vh;display:block;background:#000"></video></div>';
+    } else {
+      mediaHtml = '<div class="post-media"><img src="' + url + '" style="width:100%;display:block" loading="lazy"></div>';
+    }
+  } else if (isEmojiOnly) {
+    mediaHtml = '<div class="post-emoji-big">' + escHtml(content) + '</div>';
+  }
+
+  var captionHtml = '';
+  if (caption) {
+    var big = !mediaHtml && caption.length < 140; // short text-only posts render larger
+    captionHtml = '<div class="post-caption' + (big ? ' post-caption-big' : '') + '">' +
+      (typeof filterContent === 'function' ? filterContent(_linkHashtags(escHtml(caption))) : _linkHashtags(escHtml(caption))) +
+    '</div>';
+  }
 
   article.innerHTML =
     // Header
     '<div style="display:flex;align-items:center;gap:.6rem;padding:.75rem;cursor:pointer" onclick="openChannel(\'' + escHtml(p.user_id || '') + '\')">' +
-      '<div style="width:38px;height:38px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1.1rem;border:1px solid var(--border);flex-shrink:0">' +
+      '<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-size:1.05rem;font-weight:800;color:#fff;flex-shrink:0">' +
         escHtml(nick.charAt(0).toUpperCase()) +
       '</div>' +
-      '<div>' +
-        '<div style="font-size:.85rem;font-weight:700">@' + escHtml(nick) + '</div>' +
-        '<div style="font-size:.65rem;color:var(--muted)">' + escHtml(timeStr) + '</div>' +
+      '<div style="min-width:0">' +
+        '<div style="font-size:.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext">@' + escHtml(nick) + '</div>' +
+        '<div style="font-size:.68rem;color:var(--muted)">' + escHtml(timeStr) + '</div>' +
       '</div>' +
     '</div>' +
-    // Thumbnail
-    '<div class="post-thumb" onclick="toast(\'Opening post...\')">' +
-      emoji +
-      '<div class="post-play">▶</div>' +
-    '</div>' +
-    // Caption
-    (caption ? '<div style="padding:.6rem .75rem;font-size:.82rem;color:var(--muted);border-bottom:.5px solid var(--border)">' + (typeof filterContent==='function'?filterContent(_linkHashtags(escHtml(caption))):_linkHashtags(escHtml(caption))) + '</div>' : '') +
+    mediaHtml +
+    captionHtml +
     // Actions
-    '<div style="display:flex;gap:1rem;padding:.75rem">' +
+    '<div style="display:flex;gap:1.25rem;padding:.7rem .85rem;align-items:center">' +
       '<button class="post-action' + (p.liked ? ' liked' : '') + '" id="like-btn-' + p.id + '" onclick="handleLike(this,\'' + p.id + '\')">' +
         (p.liked ? '❤️ ' : '🤍 ') + fmtN(likes) +
       '</button>' +
@@ -218,7 +239,6 @@ function buildPostCard(p) {
       '<button class="post-action" onclick="copyPostLink(\'' + p.id + '\')">' +
         '📤 Share' +
       '</button>' +
-      // Delete button — only visible to admins
       (isAnyAdmin() ?
         '<button class="post-action" style="color:var(--red);margin-left:auto" data-role="admin" onclick="adminDeletePost(\'' + p.id + '\')">' +
           '🗑 Delete' +
