@@ -2692,7 +2692,12 @@ function _showWelcomeBannerIfFirst() {
 ══════════════════════════════════════════════════════════ */
 (function () {
   var sx = 0, sy = 0, tracking = false, startT = 0, curX = 0, movedHoriz = false;
-  var EDGE = 40, THRESHOLD = 40, MAX_VERTICAL = 70;
+  // Start zone is the left third of the screen (not just the extreme edge),
+  // because many mobile browsers/OSes claim the very edge for their OWN
+  // back gesture, so a true edge-swipe never reaches this code. Requiring a
+  // clearly-horizontal move keeps it from fighting vertical scroll.
+  var EDGE = Math.max(90, Math.round(window.innerWidth / 3));
+  var THRESHOLD = 55, MAX_VERTICAL = 45;
 
   function _findBackTarget() {
     var chTop = document.getElementById('channel-topbar-fixed');
@@ -2754,9 +2759,9 @@ function _showWelcomeBannerIfFirst() {
     curX = t.clientX;
     var dx = t.clientX - sx;
     var dy = Math.abs(t.clientY - sy);
-    // Once we know it's a horizontal drag, give live feedback: the screen
-    // slides with the finger.
-    if (dx > 8 && dx > dy) {
+    // Only treat as a back-swipe once it's clearly horizontal: moved right
+    // at least 14px AND horizontal travel dominates vertical by 1.5x.
+    if (dx > 14 && dx > dy * 1.5) {
       movedHoriz = true;
       var el = _activeScreenEl();
       if (el) { el.style.transition = 'none'; el.style.transform = 'translateX(' + Math.min(dx, 120) + 'px)'; }
@@ -2773,8 +2778,9 @@ function _showWelcomeBannerIfFirst() {
     var dt = Date.now() - startT;
     var velocity = dx / Math.max(1, dt); // px per ms
     _resetTransform();
-    // Trigger on either enough distance OR a quick flick.
-    if (dy <= MAX_VERTICAL && (dx >= THRESHOLD || (dx >= 20 && velocity > 0.35))) {
+    // Only fire if it was a real horizontal drag (movedHoriz set in touchmove),
+    // on either enough distance OR a quick flick.
+    if (movedHoriz && dy <= MAX_VERTICAL && (dx >= THRESHOLD || (dx >= 30 && velocity > 0.3))) {
       _goBack();
     }
   }, { passive: true, capture: true });
