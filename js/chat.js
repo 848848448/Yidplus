@@ -31,6 +31,100 @@ var CHAT_reactions   = {}; // { messageId: { counts: {emoji: n}, my_reaction: em
 var CHAT_replyTo     = null;
 var CHAT_ctxMsg      = null;
 var CHAT_pollTimer   = null;
+var CHAT_scheduleFor = null;   // ISO string when this message should send, or null
+var CHAT_disappearSecs = 0;    // seconds until the message vanishes, or 0
+
+window._resetMsgOptions = function () {
+  CHAT_scheduleFor = null;
+  CHAT_disappearSecs = 0;
+  var badge = document.getElementById('msg-opts-badge');
+  if (badge) badge.style.display = 'none';
+};
+
+function _updateMsgOptsBadge() {
+  var badge = document.getElementById('msg-opts-badge');
+  if (!badge) return;
+  var parts = [];
+  if (CHAT_scheduleFor) {
+    var d = new Date(CHAT_scheduleFor);
+    parts.push('🕓 ' + d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
+  }
+  if (CHAT_disappearSecs) {
+    var lbl = CHAT_disappearSecs >= 86400 ? (CHAT_disappearSecs / 86400) + 'd'
+            : CHAT_disappearSecs >= 3600 ? (CHAT_disappearSecs / 3600) + 'h'
+            : (CHAT_disappearSecs / 60) + 'm';
+    parts.push('💨 ' + lbl);
+  }
+  if (parts.length) {
+    badge.textContent = parts.join('  ·  ') + '   ✕';
+    badge.style.display = 'block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+window.openMsgOptionsMenu = function () {
+  var existing = document.getElementById('msg-opts-overlay');
+  if (existing) { existing.remove(); return; }
+  var overlay = document.createElement('div');
+  overlay.id = 'msg-opts-overlay';
+  overlay.className = 'modal-overlay open';
+  overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML =
+    '<div class="modal-sheet">' +
+      '<div class="modal-title">Message options</div>' +
+      '<div class="ctx-item" style="border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem" onclick="_openSchedulePicker()">🕓 Schedule for later</div>' +
+      '<div style="font-size:.72rem;color:var(--muted);margin:.5rem 0 .35rem">💨 Disappear after</div>' +
+      '<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.5rem">' +
+        ['Off:0','1 min:60','1 hour:3600','1 day:86400','1 week:604800'].map(function (o) {
+          var p = o.split(':'); var secs = parseInt(p[1], 10);
+          var active = CHAT_disappearSecs === secs;
+          return '<button onclick="_setDisappear(' + secs + ')" style="padding:.4rem .7rem;border-radius:16px;border:1.5px solid ' + (active ? 'var(--gold)' : 'var(--border)') + ';background:' + (active ? 'var(--gold)' : 'transparent') + ';color:' + (active ? '#fff' : 'var(--text)') + ';font-size:.75rem;cursor:pointer;font-family:inherit">' + p[0] + '</button>';
+        }).join('') +
+      '</div>' +
+      '<button class="modal-cancel" onclick="document.getElementById(\'msg-opts-overlay\').remove()">Done</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+};
+
+window._openSchedulePicker = function () {
+  var ov = document.getElementById('msg-opts-overlay');
+  if (ov) ov.remove();
+  var picker = document.createElement('div');
+  picker.id = 'schedule-overlay';
+  picker.className = 'modal-overlay open';
+  picker.onclick = function (e) { if (e.target === picker) picker.remove(); };
+  // Default to 1 hour from now, formatted for datetime-local input.
+  var d = new Date(Date.now() + 60 * 60 * 1000);
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  var localVal = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  picker.innerHTML =
+    '<div class="modal-sheet">' +
+      '<div class="modal-title">🕓 Schedule message</div>' +
+      '<div style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem">Choose when this message should be sent (up to 30 days ahead).</div>' +
+      '<input type="datetime-local" id="schedule-inp" value="' + localVal + '" style="width:100%;box-sizing:border-box;padding:.6rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.9rem;margin-bottom:.75rem">' +
+      '<button class="btn-primary" onclick="_confirmSchedule()">Set Schedule</button>' +
+      '<button class="modal-cancel" onclick="document.getElementById(\'schedule-overlay\').remove()">Cancel</button>' +
+    '</div>';
+  document.body.appendChild(picker);
+};
+
+window._confirmSchedule = function () {
+  var val = document.getElementById('schedule-inp').value;
+  if (!val) return;
+  var t = new Date(val).getTime();
+  if (isNaN(t) || t <= Date.now()) return toast('⚠ Pick a time in the future.');
+  CHAT_scheduleFor = new Date(val).toISOString();
+  var ov = document.getElementById('schedule-overlay'); if (ov) ov.remove();
+  _updateMsgOptsBadge();
+  toast('🕓 Will send at the chosen time');
+};
+
+window._setDisappear = function (secs) {
+  CHAT_disappearSecs = secs;
+  var ov = document.getElementById('msg-opts-overlay'); if (ov) ov.remove();
+  _updateMsgOptsBadge();
+};
 var CHAT_isRecording = false;
 var CHAT_mediaRec    = null;
 var CHAT_recChunks   = [];
@@ -1096,6 +1190,9 @@ function renderMessages(scrollDown) {
     }
 
     var time = m.created_at ? _fmt12(m.created_at) : '';
+    // Small indicators for scheduled (not yet sent) and disappearing messages.
+    if (m._scheduled_pending) time = '🕓 ' + _fmt12(m.scheduled_for) + ' · ' + time;
+    else if (m.expires_at) time = '💨 ' + time;
     var tickSvg = m.read
       ? '<svg width="16" height="10" viewBox="0 0 16 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-7" stroke="rgba(255,255,255,.7)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5l3 3 5-7" stroke="rgba(255,255,255,.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
       : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-6" stroke="rgba(255,255,255,.6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -1633,6 +1730,10 @@ window.sendChatMsg = function () {
   var payload = { room_id: CHAT_curRoom.id, type: 'text', text: text };
   if (CHAT_replyTo) payload.reply_to_id = CHAT_replyTo.id;
   if (CHAT_curTopicId) payload.topic_id = CHAT_curTopicId;
+  if (CHAT_scheduleFor) payload.scheduled_for = CHAT_scheduleFor;
+  if (CHAT_disappearSecs) payload.disappear_seconds = CHAT_disappearSecs;
+
+  var wasScheduled = !!CHAT_scheduleFor;
 
   // Clear input immediately (feels instant)
   var msgText = text;
@@ -1658,12 +1759,18 @@ window.sendChatMsg = function () {
 
   api.post('/chat', payload)
     .then(function () {
+      if (wasScheduled) {
+        toast('🕓 Message scheduled');
+        CHAT_messages = CHAT_messages.filter(function(m){ return m.id !== tempId; });
+      }
+      _resetMsgOptions();
       loadMessages(true); // get real message from server
     })
     .catch(function (err) {
       toast('❌ ' + err.message);
       inp.value = msgText; // restore text if failed
       CHAT_messages = CHAT_messages.filter(function(m){ return m.id !== tempId; });
+      _resetMsgOptions();
       renderMessages(false);
     });
 };

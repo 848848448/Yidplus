@@ -130,6 +130,7 @@ export async function onRequestGet(context) {
       const res = await env.DB.prepare(
         `SELECT m.id, m.room_id, m.sender_id, m.sender_nick, m.type, m.text, m.media_key,
                 m.reply_to_id, m.view_once, m.opened, m.edited_at, m.created_at, m.read, m.topic_id,
+                m.scheduled_for, m.expires_at,
                 u.photo_url as sender_photo, rm.title as sender_title
          FROM messages m
          LEFT JOIN users u ON u.id = m.sender_id
@@ -155,7 +156,36 @@ export async function onRequestGet(context) {
       results = res.results;
     }
 
-    // Group "Seen by N" — compare each member's last_read_at to each message's
+    // ── Scheduled + disappearing messages ──
+    // These use the scheduled_for / expires_at columns, which may be absent on
+    // an un-migrated DB — in that case the fields are simply undefined and the
+    // checks below are no-ops, so normal chat is unaffected.
+    const nowMs = Date.now();
+    const senderId = user.id;
+    results = results.filter(function (m) {
+      // A scheduled message stays hidden until its time — but its own author
+      // always sees it (so they can tell it's queued).
+      if (m.scheduled_for) {
+        const relMs = new Date(m.scheduled_for).getTime();
+        if (!isNaN(relMs) && relMs > nowMs && m.sender_id !== senderId) return false;
+      }
+      // An expired disappearing message is hidden for everyone.
+      if (m.expires_at) {
+        const expMs = new Date(m.expires_at).getTime();
+        if (!isNaN(expMs) && expMs <= nowMs) return false;
+      }
+      return true;
+    });
+    // Mark scheduled-but-still-pending messages so the client can badge them.
+    results.forEach(function (m) {
+      if (m.scheduled_for && new Date(m.scheduled_for).getTime() > nowMs) m._scheduled_pending = 1;
+    });
+    // Best-effort: physically delete messages that have already expired, so the
+    // table doesn't accumulate them. Never blocks the response.
+    context.waitUntil(
+      env.DB.prepare(`DELETE FROM messages WHERE expires_at IS NOT NULL AND expires_at <= ?`)
+        .bind(new Date().toISOString()).run().catch(() => {})
+    );
     // created_at. Requires the last_read_at column on room_members; if that
     // migration hasn't been run yet, this simply yields no seen counts.
     let memberReads = [];
@@ -199,7 +229,7 @@ export async function onRequestPost(context) {
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
 
     const contentType = request.headers.get('content-type') || '';
-    let roomId, type, text, replyToId, file, viewOnce, topicId;
+    let roomId, type, text, replyToId, file, viewOnce, topicId, scheduledFor, disappearSeconds;
 
     if (contentType.includes('multipart/form-data')) {
       const form = await request.formData();
@@ -210,6 +240,8 @@ export async function onRequestPost(context) {
       file      = form.get('file');
       viewOnce  = form.get('view_once') === 'true' || form.get('view_once') === '1';
       topicId   = form.get('topic_id') || null;
+      scheduledFor = form.get('scheduled_for') || null;
+      disappearSeconds = parseInt(form.get('disappear_seconds') || '0', 10) || 0;
     } else {
       const body = await request.json();
       roomId    = body.room_id;
@@ -218,7 +250,20 @@ export async function onRequestPost(context) {
       replyToId = body.reply_to_id || null;
       viewOnce  = !!body.view_once;
       topicId   = body.topic_id || null;
+      scheduledFor = body.scheduled_for || null;
+      disappearSeconds = parseInt(body.disappear_seconds || 0, 10) || 0;
     }
+
+    // Validate scheduled time: must be a valid future ISO timestamp, at most
+    // 30 days out. Anything invalid or in the past is treated as "send now".
+    if (scheduledFor) {
+      const t = new Date(scheduledFor).getTime();
+      const maxAhead = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      if (isNaN(t) || t <= Date.now() || t > maxAhead) scheduledFor = null;
+    }
+    // Expiry window for disappearing messages: cap between 0 and 7 days.
+    if (disappearSeconds < 0) disappearSeconds = 0;
+    if (disappearSeconds > 7 * 24 * 60 * 60) disappearSeconds = 7 * 24 * 60 * 60;
 
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
 
@@ -268,6 +313,14 @@ export async function onRequestPost(context) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    // For a disappearing message, compute when it expires (from now, or from
+    // its scheduled release time if it's also scheduled).
+    let expiresAt = null;
+    if (disappearSeconds > 0) {
+      const base = scheduledFor ? new Date(scheduledFor).getTime() : Date.now();
+      expiresAt = new Date(base + disappearSeconds * 1000).toISOString();
+    }
+
     try {
       await env.DB.prepare(
         `INSERT INTO messages
@@ -283,6 +336,13 @@ export async function onRequestPost(context) {
            (id, room_id, sender_id, sender_nick, type, text, media_key, reply_to_id, view_once, opened, created_at, read)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0)`
       ).bind(id, roomId, user.id, user.nickname || '', type, text, mediaKey, replyToId, viewOnce ? 1 : 0, now).run();
+    }
+
+    // Store scheduling / expiry in their own columns if they exist. Done as a
+    // best-effort follow-up UPDATE so a not-yet-migrated DB still sends fine.
+    if (scheduledFor || expiresAt) {
+      await env.DB.prepare('UPDATE messages SET scheduled_for = ?, expires_at = ? WHERE id = ?')
+        .bind(scheduledFor, expiresAt, id).run().catch(() => {});
     }
 
     const result = {
