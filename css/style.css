@@ -744,8 +744,8 @@ html.dark-mode .chat-input-pill { background: #232427; border-color: #2C2D31; }
 /* =============================================
    CHANNEL SCREEN
    ============================================= */
-.channel-cover { width: 100%; height: 120px; position: relative; overflow: hidden; flex-shrink: 0; background: linear-gradient(135deg, var(--gold) 0%, var(--gold-l) 55%, var(--gold) 100%); }
-.channel-cover::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 25% 30%, rgba(255,255,255,.18), transparent 60%), radial-gradient(circle at 80% 70%, rgba(0,0,0,.12), transparent 55%); }
+.channel-cover { width: 100%; height: 110px; position: relative; overflow: hidden; flex-shrink: 0; background: linear-gradient(135deg, var(--bg2) 0%, var(--surface) 60%, var(--bg2) 100%); border-bottom: 1px solid var(--border); }
+.channel-cover::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 80% 20%, rgba(31,111,92,.06), transparent 55%); }
 .channel-topbar-over { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: .6rem .75rem; pointer-events: none; }
 .channel-topbar-over > * { pointer-events: all; }
 .ch-cover-over { position: absolute; top: 0; left: 0; right: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; background: linear-gradient(to bottom, rgba(0,0,0,.4), transparent); }

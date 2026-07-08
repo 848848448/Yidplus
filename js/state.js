@@ -453,6 +453,12 @@ window.navTo = function (id) {
   if (id !== 'channel') {
     var tb = document.getElementById('channel-topbar-fixed');
     if (tb) tb.style.display = 'none';
+    // Also drop the persisted channel + URL param, so a refresh on this new
+    // page doesn't bounce back into the channel we just left.
+    try { localStorage.removeItem('yp_channel_owner'); } catch (e) {}
+    if (window.location.search.indexOf('channel=') !== -1) {
+      try { window.history.replaceState({}, '', window.location.pathname); } catch (e) {}
+    }
   }
 
   // Settings screen — build full page

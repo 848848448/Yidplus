@@ -1181,7 +1181,15 @@ window.init_channel = function () {
   var ownerId = CHANNEL_pendingOwnerId;
   CHANNEL_pendingOwnerId = null;
   if (!ownerId && CHANNEL_current) ownerId = CHANNEL_current.owner_id;
+  // On a page refresh, CHANNEL_pendingOwnerId is gone; fall back to the last
+  // channel we persisted so we stay on this page instead of bouncing home.
+  if (!ownerId) { try { ownerId = localStorage.getItem('yp_channel_owner') || null; } catch (e) {} }
   if (!ownerId) { toast('⚠ No channel selected.'); navTo('home'); return; }
+
+  // Persist which channel this is + reflect it in the URL, so a refresh
+  // reloads this same channel page rather than the home feed.
+  try { localStorage.setItem('yp_channel_owner', ownerId); } catch (e) {}
+  try { window.history.replaceState({}, '', window.location.pathname + '?channel=' + encodeURIComponent(ownerId)); } catch (e) {}
 
   _loadChannel(ownerId);
 };
@@ -1253,7 +1261,7 @@ function _renderChannelHeader(ch) {
   var initial = (ch.nickname || '?').slice(0, 1).toUpperCase();
 
   var coverEl = document.getElementById('ch-cover-emoji');
-  if (coverEl) coverEl.innerHTML = '<svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity:.14"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+  if (coverEl) coverEl.innerHTML = '<svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity:.2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
   var coverWrap = document.getElementById('ch-cover');
   if (coverWrap) {
     if (ch.banner_url) {
