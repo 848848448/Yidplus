@@ -1,4 +1,4 @@
-import { json, corsHeaders, hashPassword, isValidEmail } from '../_helpers.js';
+import { json, corsHeaders, hashPassword, isValidEmail, generateSessionToken, checkRateLimit } from '../_helpers.js';
 import { sendVerificationEmail } from './send-verification.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
@@ -6,6 +6,10 @@ export async function onRequestOptions() { return new Response(null, { status: 2
 export async function onRequestPost(context) {
   const { request, env } = context;
   try {
+    // Cap automated mass-signups: at most 5 new accounts per IP per hour.
+    const allowed = await checkRateLimit(env, request, 'register', 5, 60);
+    if (!allowed) return json({ ok: false, error: 'Too many sign-up attempts. Please try again later.' }, 429);
+
     const body = await request.json();
     const email       = (body.email || '').toLowerCase().trim();
     const nickname    = (body.nickname || '').trim();
@@ -113,7 +117,7 @@ export async function onRequestPost(context) {
       'INSERT INTO channels (id, owner_id, nickname, followers, following, total_views, verified, bio, created_at) VALUES (?, ?, ?, 0, 0, 0, 0, NULL, ?)'
     ).bind(crypto.randomUUID(), userId, nickname, now).run();
 
-    const sessionId = crypto.randomUUID();
+    const sessionId = generateSessionToken();
     await env.DB.prepare('INSERT INTO sessions (id, user_id, created_at) VALUES (?, ?, ?)').bind(sessionId, userId, now).run();
     await env.DB.prepare('UPDATE users SET online = 1 WHERE id = ?').bind(userId).run();
 

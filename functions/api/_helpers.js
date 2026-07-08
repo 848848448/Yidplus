@@ -15,6 +15,49 @@ export const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
+// Simple IP-based rate limiter. Records each hit and returns false when the
+// caller has exceeded `max` hits for `bucket` in the last `windowMinutes`.
+// Fails open (returns true) on any DB error so a storage hiccup never locks
+// legitimate users out. Uses a self-creating table so no manual migration.
+export async function checkRateLimit(env, request, bucket, max, windowMinutes) {
+  try {
+    const ip = (request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown')
+      .split(',')[0].trim().replace(/[^0-9a-fA-F:.]/g, '').slice(0, 64) || 'unknown';
+
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS rate_limits (id TEXT PRIMARY KEY, bucket TEXT NOT NULL, ip TEXT NOT NULL, created_at TEXT NOT NULL)`
+    ).run().catch(() => {});
+
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) as cnt FROM rate_limits WHERE bucket = ? AND ip = ? AND created_at > datetime('now', ?)`
+    ).bind(bucket, ip, `-${windowMinutes} minutes`).first().catch(() => ({ cnt: 0 }));
+
+    if ((row?.cnt || 0) >= max) return false;
+
+    await env.DB.prepare(
+      `INSERT INTO rate_limits (id, bucket, ip, created_at) VALUES (?, ?, ?, datetime('now'))`
+    ).bind(crypto.randomUUID(), bucket, ip).run().catch(() => {});
+
+    return true;
+  } catch (e) {
+    return true; // fail open
+  }
+}
+
+// Generates a 256-bit (32-byte) cryptographically-random session token,
+// hex-encoded. crypto.randomUUID() is already CSPRNG-backed, but a single
+// UUID is only 122 bits and has a fixed version/variant layout; this gives
+// a longer, fully-random opaque token with no guessable structure.
+export function generateSessionToken() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, '0');
+  }
+  return hex;
+}
+
 export function isValidEmail(email) {
   // Deliberately strict: only the characters a real email address can
   // contain. The previous check in register.js (`[^@\s]+@[^@\s]+\.[^@\s]+`)

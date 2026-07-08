@@ -4,7 +4,7 @@
 //   ok:true regardless of whether the email exists, so nobody can use this
 //   to discover which addresses are registered (enumeration).
 
-import { json, corsHeaders } from '../_helpers.js';
+import { json, corsHeaders, checkRateLimit } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -13,6 +13,10 @@ export async function onRequestOptions() {
 export async function onRequestPost(context) {
   const { request, env } = context;
   try {
+    // Prevent password-reset email flooding: 5 requests per IP per hour.
+    const allowed = await checkRateLimit(env, request, 'pwreset', 5, 60);
+    if (!allowed) return json({ ok: true }); // silent — don't reveal the limit or the email's existence
+
     const body = await request.json().catch(() => ({}));
     const email = (body.email || '').toLowerCase().trim();
     if (!email) return json({ ok: false, error: 'email required' }, 400);

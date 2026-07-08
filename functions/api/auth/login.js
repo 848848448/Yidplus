@@ -1,4 +1,4 @@
-import { json, corsHeaders, verifyPassword, hashPassword, isValidEmail, isOwnerOrCoOwner } from '../_helpers.js';
+import { json, corsHeaders, verifyPassword, hashPassword, isValidEmail, isOwnerOrCoOwner, generateSessionToken } from '../_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -96,7 +96,7 @@ export async function onRequestPost(context) {
     }
     if (user.blocked) return json({ ok: false, error: 'Account suspended. Contact support.' }, 403);
 
-    const sessionId = crypto.randomUUID();
+    const sessionId = generateSessionToken();
     const now = new Date().toISOString();
     await env.DB.prepare('INSERT INTO sessions (id, user_id, created_at) VALUES (?, ?, ?)').bind(sessionId, user.id, now).run();
     await env.DB.prepare('UPDATE users SET online = 1, last_ping = ? WHERE id = ?').bind(now, user.id).run()

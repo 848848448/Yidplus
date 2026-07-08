@@ -1,6 +1,6 @@
 // GET /api/auth/google-callback?code=...&state=...
 // Exchanges the Google auth code for tokens, creates/logs in the user, sets session cookie.
-import { json } from '../_helpers.js';
+import { json, generateSessionToken } from '../_helpers.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -119,7 +119,7 @@ export async function onRequestGet(context) {
     }
 
     // ── Create session ──
-    const sessionId = crypto.randomUUID();
+    const sessionId = generateSessionToken();
 
     await env.DB.prepare(
       'INSERT INTO sessions (id, user_id, created_at) VALUES (?, ?, ?)'

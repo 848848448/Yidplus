@@ -19,7 +19,7 @@
 //        to a ticket someone else already claimed)
 //   POST /api/support-chats { chat_id, close: true }   -> close a ticket (claimer or owner)
 
-import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner } from './_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner, checkRateLimit } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -140,6 +140,9 @@ export async function onRequestPost(context) {
     }
 
     // ── Create a new ticket ──
+    const allowed = await checkRateLimit(env, request, 'support_ticket', 10, 60);
+    if (!allowed) return json({ ok: false, error: 'Too many messages. Please wait a bit before sending another.' }, 429);
+
     const screen = body.screen;
     const questionLabel = (body.question_label || '').trim();
     const text = (body.text || '').trim();
