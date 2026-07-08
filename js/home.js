@@ -2685,22 +2685,68 @@ function _showWelcomeBannerIfFirst() {
 
 /* ══════════════════════════════════════════════════════════
    EDGE-SWIPE-BACK — swipe from the left edge to go back, like native
-   phones. Applies app-wide. Also closes any open bottom-sheet/overlay
-   first if one is up. Kept deliberately conservative: the gesture must
-   start within 28px of the left edge, be mostly horizontal, and travel
-   far enough, so it never interferes with normal scrolling or with the
-   in-content swipe gestures (e.g. swipe-to-reply in chat).
+   phones. It triggers the SAME destination as the visible back arrow on
+   the current screen (by finding and clicking it), so it lands exactly
+   where the arrow would — not always the home feed. A small, light drag
+   is enough. Closes any open overlay/bottom-sheet first.
 ══════════════════════════════════════════════════════════ */
 (function () {
-  var sx = 0, sy = 0, tracking = false;
-  var EDGE = 28, THRESHOLD = 70, MAX_VERTICAL = 55;
+  var sx = 0, sy = 0, tracking = false, lastX = 0;
+  var EDGE = 32, THRESHOLD = 45, MAX_VERTICAL = 60;
+
+  // Find the back control that's actually visible on the current screen.
+  function _findBackTarget() {
+    // Channel screen has its own fixed back button.
+    var chTop = document.getElementById('channel-topbar-fixed');
+    if (chTop && chTop.style.display !== 'none') {
+      var chBtn = chTop.querySelector('div[onclick]');
+      if (chBtn) return chBtn;
+    }
+    // Any visible screen's own back button (navBack / navTo('home') in a topbar).
+    var active = document.querySelector('.screen.active');
+    if (active) {
+      var btns = active.querySelectorAll('button[onclick*="navBack"], button[onclick*="navTo(\'home\'"], [onclick*="navBack"]');
+      for (var i = 0; i < btns.length; i++) {
+        var b = btns[i];
+        // Skip bottom-nav "Home" tabs — we want a topbar back arrow.
+        if (b.classList.contains('nav-item')) continue;
+        if (b.offsetParent !== null) return b; // visible
+      }
+    }
+    return null;
+  }
+
+  function _goBack() {
+    // 1) Close the top-most open overlay / bottom-sheet if any.
+    var overlays = document.querySelectorAll(
+      '[id^="comments-modal-"], #history-overlay, #profile-more-overlay, ' +
+      '#msg-opts-overlay, #schedule-overlay, #support-chat-overlay, #sc-thread-overlay, ' +
+      '.modal-overlay.open'
+    );
+    if (overlays.length) { overlays[overlays.length - 1].remove(); return; }
+
+    // 2) Trigger the real back arrow of this screen, so it goes where the
+    //    arrow goes (channel -> previous screen, profile -> back, etc).
+    var target = _findBackTarget();
+    if (target) { target.click(); return; }
+
+    // 3) Fallback.
+    try {
+      if (typeof navBack === 'function') navBack();
+      else if (typeof navTo === 'function') navTo((window.STATE && STATE.prevScreen) || 'home');
+    } catch (e) {}
+  }
 
   document.addEventListener('touchstart', function (e) {
     if (!e.touches || e.touches.length !== 1) { tracking = false; return; }
     var t = e.touches[0];
-    // Only arm the gesture when it begins right at the left edge.
     tracking = t.clientX <= EDGE;
-    sx = t.clientX; sy = t.clientY;
+    sx = t.clientX; sy = t.clientY; lastX = t.clientX;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function (e) {
+    if (!tracking || !e.touches || !e.touches.length) return;
+    lastX = e.touches[0].clientX;
   }, { passive: true });
 
   document.addEventListener('touchend', function (e) {
@@ -2710,23 +2756,7 @@ function _showWelcomeBannerIfFirst() {
     if (!t) return;
     var dx = t.clientX - sx;
     var dy = Math.abs(t.clientY - sy);
-    if (dx < THRESHOLD || dy > MAX_VERTICAL) return; // not a clean horizontal back-swipe
-
-    // 1) If a bottom-sheet / overlay is open, close the top-most one.
-    var overlays = document.querySelectorAll(
-      '#comments-modal-, [id^="comments-modal-"], #history-overlay, #profile-more-overlay, ' +
-      '#msg-opts-overlay, #schedule-overlay, #support-chat-overlay, #sc-thread-overlay, ' +
-      '.modal-overlay.open, #history-overlay'
-    );
-    if (overlays.length) {
-      var top = overlays[overlays.length - 1];
-      if (top) { top.remove(); return; }
-    }
-
-    // 2) Otherwise navigate back within the app.
-    try {
-      if (typeof navBack === 'function') { navBack(); return; }
-      if (typeof navTo === 'function') { navTo((window.STATE && STATE.prevScreen) || 'home'); }
-    } catch (err) {}
+    if (dx < THRESHOLD || dy > MAX_VERTICAL) return; // not a clean, horizontal back-swipe
+    _goBack();
   }, { passive: true });
 })();
