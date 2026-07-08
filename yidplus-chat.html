@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://yidplus.com">
 <meta property="og:type" content="website">
 <title>YID PLUS — Chats</title>
-<link rel="stylesheet" href="css/style.css?v=202607081850">
+<link rel="stylesheet" href="css/style.css?v=202607082236">
 <script>
 (function () {
   try {
@@ -639,10 +639,10 @@
 #chat-options-menu { position: fixed; }
 </style>
 
-<script src="js/state.js?v=202607081850"></script>
-<script src="js/theme.js?v=202607081850"></script>
-<script src="js/app.js?v=202607081850"></script>
-<script src="js/chat.js?v=202607081850"></script>
+<script src="js/state.js?v=202607082236"></script>
+<script src="js/theme.js?v=202607082236"></script>
+<script src="js/app.js?v=202607082236"></script>
+<script src="js/chat.js?v=202607082236"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
@@ -736,8 +736,7 @@ window.openTopicsList = function (roomId) {
 
   var disableBtn = document.getElementById('topics-disable-btn');
   if (disableBtn) {
-    var isGroupAdminHere = room.is_group_admin || (typeof isAnyAdmin === 'function' && isAnyAdmin());
-    disableBtn.style.display = isGroupAdminHere ? 'flex' : 'none';
+    disableBtn.style.display = 'none'; // Topics feature hidden for now
   }
 
   var body = document.getElementById('topics-list-body');
@@ -876,15 +875,9 @@ window.openChatOptionsMenu = function () {
   var isGrp = (CHAT_curRoom && CHAT_curRoom.type === 'group');
   if (viewMembersOpt) viewMembersOpt.style.display = isGrp ? 'flex' : 'none';
   if (createTopicOpt) {
-    var topicsOn = isGrp && !!CHAT_curRoom.has_topics;
-    var isGroupAdminHere = isGrp && (CHAT_curRoom.is_group_admin || (typeof isAnyAdmin === 'function' && isAnyAdmin()));
-    // Regular groups don't get Topics by default. Only a group admin can
-    // switch a group into Topics-mode (by creating its first topic); once
-    // it's on, every member can add further topics.
-    var showTopicOpt = isGrp && (topicsOn || isGroupAdminHere);
-    createTopicOpt.style.display = showTopicOpt ? 'flex' : 'none';
-    if (createTopicLabel) createTopicLabel.textContent = topicsOn ? 'Create Topic' : 'Enable Topics for This Group';
-    if (disableTopicsOpt) disableTopicsOpt.style.display = (topicsOn && isGroupAdminHere) ? 'flex' : 'none';
+    // Topics feature hidden for now — never show the create/enable option.
+    createTopicOpt.style.display = 'none';
+    if (disableTopicsOpt) disableTopicsOpt.style.display = 'none';
   }
   var muteLabel = document.getElementById('opt-mute-label');
   if (muteLabel) muteLabel.textContent = (CHAT_curRoom && CHAT_curRoom.muted) ? 'Unmute' : 'Mute';
@@ -992,7 +985,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="js/ads.js?v=202607081850"></script>
+<script src="js/ads.js?v=202607082236"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");</script>
 </body>
 </html>

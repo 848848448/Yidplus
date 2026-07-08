@@ -614,21 +614,10 @@ window.openChatRoom = function (roomId, topicId, topicName) {
     return;
   }
 
-  // Groups can have Topics (Telegram-style sub-threads). If this group has
-  // any topics and we weren't told which one to open, show the topics list
-  // first instead of jumping straight into a flat chat view.
+  // Topics feature hidden for now — always open groups as a flat chat,
+  // skipping the topics list even if a group still has topics on the server.
   if (room.type === 'group' && topicId === undefined) {
-    api.get('/chat/topics?room_id=' + encodeURIComponent(roomId))
-      .then(function (res) {
-        var topics = res.topics || [];
-        if (topics.length > 0) {
-          CHAT_topicsCache[roomId] = topics;
-          openTopicsList(roomId);
-        } else {
-          openChatRoom(roomId, null, null);
-        }
-      })
-      .catch(function () { openChatRoom(roomId, null, null); });
+    openChatRoom(roomId, null, null);
     return;
   }
 
