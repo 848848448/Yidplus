@@ -2691,72 +2691,91 @@ function _showWelcomeBannerIfFirst() {
    is enough. Closes any open overlay/bottom-sheet first.
 ══════════════════════════════════════════════════════════ */
 (function () {
-  var sx = 0, sy = 0, tracking = false, lastX = 0;
-  var EDGE = 32, THRESHOLD = 45, MAX_VERTICAL = 60;
+  var sx = 0, sy = 0, tracking = false, startT = 0, curX = 0, movedHoriz = false;
+  var EDGE = 40, THRESHOLD = 40, MAX_VERTICAL = 70;
 
-  // Find the back control that's actually visible on the current screen.
   function _findBackTarget() {
-    // Channel screen has its own fixed back button.
     var chTop = document.getElementById('channel-topbar-fixed');
     if (chTop && chTop.style.display !== 'none') {
       var chBtn = chTop.querySelector('div[onclick]');
       if (chBtn) return chBtn;
     }
-    // Any visible screen's own back button (navBack / navTo('home') in a topbar).
     var active = document.querySelector('.screen.active');
     if (active) {
       var btns = active.querySelectorAll('button[onclick*="navBack"], button[onclick*="navTo(\'home\'"], [onclick*="navBack"]');
       for (var i = 0; i < btns.length; i++) {
         var b = btns[i];
-        // Skip bottom-nav "Home" tabs — we want a topbar back arrow.
         if (b.classList.contains('nav-item')) continue;
-        if (b.offsetParent !== null) return b; // visible
+        if (b.offsetParent !== null) return b;
       }
     }
     return null;
   }
 
+  function _activeScreenEl() {
+    var chTop = document.getElementById('channel-topbar-fixed');
+    if (chTop && chTop.style.display !== 'none') {
+      return document.getElementById('screen-channel') || document.querySelector('.screen.active');
+    }
+    return document.querySelector('.screen.active');
+  }
+
   function _goBack() {
-    // 1) Close the top-most open overlay / bottom-sheet if any.
     var overlays = document.querySelectorAll(
       '[id^="comments-modal-"], #history-overlay, #profile-more-overlay, ' +
       '#msg-opts-overlay, #schedule-overlay, #support-chat-overlay, #sc-thread-overlay, ' +
       '.modal-overlay.open'
     );
     if (overlays.length) { overlays[overlays.length - 1].remove(); return; }
-
-    // 2) Trigger the real back arrow of this screen, so it goes where the
-    //    arrow goes (channel -> previous screen, profile -> back, etc).
     var target = _findBackTarget();
     if (target) { target.click(); return; }
-
-    // 3) Fallback.
     try {
       if (typeof navBack === 'function') navBack();
       else if (typeof navTo === 'function') navTo((window.STATE && STATE.prevScreen) || 'home');
     } catch (e) {}
   }
 
-  document.addEventListener('touchstart', function (e) {
+  function _resetTransform() {
+    var el = _activeScreenEl();
+    if (el) { el.style.transition = 'transform .18s ease'; el.style.transform = ''; setTimeout(function(){ if(el) el.style.transition = ''; }, 200); }
+  }
+
+  window.addEventListener('touchstart', function (e) {
     if (!e.touches || e.touches.length !== 1) { tracking = false; return; }
     var t = e.touches[0];
     tracking = t.clientX <= EDGE;
-    sx = t.clientX; sy = t.clientY; lastX = t.clientX;
-  }, { passive: true });
+    movedHoriz = false;
+    sx = t.clientX; sy = t.clientY; curX = t.clientX; startT = Date.now();
+  }, { passive: true, capture: true });
 
-  document.addEventListener('touchmove', function (e) {
+  window.addEventListener('touchmove', function (e) {
     if (!tracking || !e.touches || !e.touches.length) return;
-    lastX = e.touches[0].clientX;
-  }, { passive: true });
+    var t = e.touches[0];
+    curX = t.clientX;
+    var dx = t.clientX - sx;
+    var dy = Math.abs(t.clientY - sy);
+    // Once we know it's a horizontal drag, give live feedback: the screen
+    // slides with the finger.
+    if (dx > 8 && dx > dy) {
+      movedHoriz = true;
+      var el = _activeScreenEl();
+      if (el) { el.style.transition = 'none'; el.style.transform = 'translateX(' + Math.min(dx, 120) + 'px)'; }
+    }
+  }, { passive: true, capture: true });
 
-  document.addEventListener('touchend', function (e) {
+  window.addEventListener('touchend', function (e) {
     if (!tracking) return;
     tracking = false;
     var t = (e.changedTouches && e.changedTouches[0]);
-    if (!t) return;
+    if (!t) { _resetTransform(); return; }
     var dx = t.clientX - sx;
     var dy = Math.abs(t.clientY - sy);
-    if (dx < THRESHOLD || dy > MAX_VERTICAL) return; // not a clean, horizontal back-swipe
-    _goBack();
-  }, { passive: true });
+    var dt = Date.now() - startT;
+    var velocity = dx / Math.max(1, dt); // px per ms
+    _resetTransform();
+    // Trigger on either enough distance OR a quick flick.
+    if (dy <= MAX_VERTICAL && (dx >= THRESHOLD || (dx >= 20 && velocity > 0.35))) {
+      _goBack();
+    }
+  }, { passive: true, capture: true });
 })();
