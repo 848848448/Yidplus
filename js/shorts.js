@@ -283,6 +283,7 @@ function setupShortsObserver() {
         var s = SHORTS_data[idx];
         if (s && !s._viewed) {
           s._viewed = true;
+          if (STATE.user) api.post('/history', { item_type: 'short', item_id: s.id }).catch(function () {});
           api.put('/shorts', { id: s.id, view: true })
             .then(function (res) {
               var el = document.getElementById('views-' + idx);

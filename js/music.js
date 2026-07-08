@@ -305,6 +305,7 @@ window.playTrack = function (trackId) {
 
   // Track play count (fire and forget)
   api.put('/music', { id: t.id, play: true }).catch(function () {});
+  if (STATE.user) api.post('/history', { item_type: 'music', item_id: t.id }).catch(function () {});
 
   _syncPlayerSaveButton();
 
