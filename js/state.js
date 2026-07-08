@@ -812,6 +812,223 @@ window.applyAppSettings = function () {
 ══════════════════════════════════ */
 var SUPPORT_FEATURE_LABELS = { shorts: 'Shorts', statuses: 'Status', music: 'Music', channels: 'Channels', chat: 'Chat' };
 
+/* ══════════════════════════════════════════════════════════
+   GUIDED SUPPORT CHAT — a floating 💬 button that opens an
+   Intercom/WhatsApp-style guided conversation. Tapping an option adds
+   the bot's next message + a new set of options, drilling down until it
+   reaches a real action (resend verification, self-block a feature, or
+   send a free-text message to the admins).
+══════════════════════════════════════════════════════════ */
+var SUPPORT_FLOW = {
+  start: {
+    bot: ['Hi! 👋 I\'m here to help.', 'What do you need help with?'],
+    options: [
+      { label: '🔑 I can\'t sign in', next: 'signin' },
+      { label: '💬 A problem with Chat', next: 'chat' },
+      { label: '🎬 Shorts / Music / Status', next: 'media' },
+      { label: '👤 My account or profile', next: 'account' },
+      { label: '✍️ Something else', action: 'free_text', label_for_msg: 'Something else' },
+    ],
+  },
+  signin: {
+    bot: ['No problem — let\'s get you back in.', 'What\'s happening?'],
+    options: [
+      { label: 'I forgot my password', action: 'reset_password', label_for_msg: 'Forgot password' },
+      { label: 'I didn\'t get my verification email', action: 'resend_verification', label_for_msg: 'Resend verification' },
+      { label: 'My account is blocked', action: 'free_text', label_for_msg: 'Account blocked' },
+      { label: '⬅️ Back', next: 'start' },
+    ],
+  },
+  chat: {
+    bot: ['Let\'s sort out the chat issue.'],
+    options: [
+      { label: 'Messages won\'t send', action: 'free_text', label_for_msg: 'Messages won\'t send' },
+      { label: 'Block myself from Chat', action: 'self_block', feature: 'chat' },
+      { label: 'Someone is bothering me', action: 'free_text', label_for_msg: 'Someone bothering me in chat' },
+      { label: '⬅️ Back', next: 'start' },
+    ],
+  },
+  media: {
+    bot: ['Which one, and what\'s wrong?'],
+    options: [
+      { label: 'Block myself from Shorts', action: 'self_block', feature: 'shorts' },
+      { label: 'Block myself from Music', action: 'self_block', feature: 'music' },
+      { label: 'Block myself from Status', action: 'self_block', feature: 'statuses' },
+      { label: 'Something isn\'t loading', action: 'free_text', label_for_msg: 'Media not loading' },
+      { label: '⬅️ Back', next: 'start' },
+    ],
+  },
+  account: {
+    bot: ['Happy to help with your account.'],
+    options: [
+      { label: 'Change my password', action: 'reset_password', label_for_msg: 'Change password' },
+      { label: 'A privacy question', action: 'free_text', label_for_msg: 'Privacy question' },
+      { label: 'Report a bug', action: 'free_text', label_for_msg: 'Bug report' },
+      { label: '⬅️ Back', next: 'start' },
+    ],
+  },
+};
+
+window.initSupportFab = function () {
+  if (document.getElementById('support-fab')) return;
+  var fab = document.createElement('button');
+  fab.id = 'support-fab';
+  fab.setAttribute('aria-label', 'Help');
+  fab.onclick = function () { openGuidedSupport(); };
+  fab.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
+  document.body.appendChild(fab);
+};
+
+window.openGuidedSupport = function () {
+  var existing = document.getElementById('guided-support');
+  if (existing) { existing.remove(); return; }
+  var wrap = document.createElement('div');
+  wrap.id = 'guided-support';
+  wrap.innerHTML =
+    '<div class="gs-header">' +
+      '<div style="display:flex;align-items:center;gap:.6rem">' +
+        '<div class="gs-avatar">💬</div>' +
+        '<div><div style="font-weight:700;font-size:.9rem">Help & Support</div>' +
+        '<div style="font-size:.68rem;opacity:.85">We\'re here for you</div></div>' +
+      '</div>' +
+      '<button onclick="document.getElementById(\'guided-support\').remove()" style="background:none;border:none;color:#fff;cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' +
+    '</div>' +
+    '<div class="gs-body" id="gs-body"></div>';
+  document.body.appendChild(wrap);
+  _gsGoTo('start');
+};
+
+function _gsAddBot(lines) {
+  var body = document.getElementById('gs-body');
+  if (!body) return;
+  (Array.isArray(lines) ? lines : [lines]).forEach(function (line) {
+    var b = document.createElement('div');
+    b.className = 'gs-bubble gs-bot';
+    b.textContent = line;
+    body.appendChild(b);
+  });
+  body.scrollTop = body.scrollHeight;
+}
+
+function _gsAddUser(text) {
+  var body = document.getElementById('gs-body');
+  if (!body) return;
+  var b = document.createElement('div');
+  b.className = 'gs-bubble gs-user';
+  b.textContent = text;
+  body.appendChild(b);
+  body.scrollTop = body.scrollHeight;
+}
+
+function _gsAddOptions(options) {
+  var body = document.getElementById('gs-body');
+  if (!body) return;
+  var wrap = document.createElement('div');
+  wrap.className = 'gs-options';
+  wrap.id = 'gs-current-options';
+  options.forEach(function (opt) {
+    var btn = document.createElement('button');
+    btn.className = 'gs-opt';
+    btn.textContent = opt.label;
+    btn.onclick = function () { _gsPick(opt); };
+    wrap.appendChild(btn);
+  });
+  body.appendChild(wrap);
+  body.scrollTop = body.scrollHeight;
+}
+
+function _gsGoTo(nodeKey) {
+  var node = SUPPORT_FLOW[nodeKey];
+  if (!node) return;
+  _gsAddBot(node.bot);
+  setTimeout(function () { _gsAddOptions(node.options); }, 200);
+}
+
+function _gsPick(opt) {
+  var cur = document.getElementById('gs-current-options');
+  if (cur) { cur.id = ''; cur.remove(); }
+  _gsAddUser(opt.label);
+
+  if (opt.next) { setTimeout(function () { _gsGoTo(opt.next); }, 250); return; }
+
+  setTimeout(function () {
+    if (opt.action === 'reset_password') {
+      _gsAddBot(['You can reset your password from the sign-in screen — tap "Forgot password?" and we\'ll email you a link.', 'Want me to send it now?']);
+      _gsAddOptions([
+        { label: '📧 Email me a reset link', action: 'do_reset' },
+        { label: '⬅️ Back to start', next: 'start' },
+      ]);
+    } else if (opt.action === 'do_reset') {
+      _gsPromptEmailThen(function (email) {
+        api.post('/auth/request-password-reset', { email: email }).then(function () {
+          _gsAddBot('✅ If that email has an account, a reset link is on its way. Check your inbox (and spam).');
+        }).catch(function (e) { _gsAddBot('❌ ' + e.message); });
+      });
+    } else if (opt.action === 'resend_verification') {
+      if (STATE.user) {
+        api.post('/auth/send-verification', {}).then(function () {
+          _gsAddBot('✅ Verification email sent! Check your inbox.');
+        }).catch(function (e) { _gsAddBot('❌ ' + e.message); });
+      } else {
+        _gsPromptEmailThen(function (email) {
+          api.post('/auth/send-verification', { email: email }).then(function () {
+            _gsAddBot('✅ If that email is registered, a new verification link is on its way.');
+          }).catch(function (e) { _gsAddBot('❌ ' + e.message); });
+        });
+      }
+    } else if (opt.action === 'self_block') {
+      _gsAddBot(['This will block YOU from ' + (SUPPORT_FEATURE_LABELS[opt.feature] || opt.feature) + ' right away.', 'Only an admin can undo it. Are you sure?']);
+      _gsAddOptions([
+        { label: '🚫 Yes, block me', action: 'do_self_block', feature: opt.feature },
+        { label: 'No, cancel', next: 'start' },
+      ]);
+    } else if (opt.action === 'do_self_block') {
+      api.post('/self-block', { feature: opt.feature }).then(function () {
+        _gsAddBot('✅ Done. You\'re now blocked from ' + (SUPPORT_FEATURE_LABELS[opt.feature] || opt.feature) + '. Ask an admin to undo it when you\'re ready.');
+      }).catch(function (e) { _gsAddBot('❌ ' + e.message); });
+    } else if (opt.action === 'free_text') {
+      _gsAddBot('Sure — type your message below and it\'ll go straight to our team.');
+      _gsShowComposer(opt.label_for_msg || 'Support request');
+    }
+  }, 250);
+}
+
+function _gsPromptEmailThen(cb) {
+  _gsAddBot('What\'s your email address?');
+  _gsShowComposer('__email__', cb);
+}
+
+function _gsShowComposer(topic, emailCb) {
+  var body = document.getElementById('gs-body');
+  if (!body) return;
+  var wrap = document.createElement('div');
+  wrap.className = 'gs-composer';
+  wrap.innerHTML =
+    '<input id="gs-input" placeholder="' + (topic === '__email__' ? 'Your email...' : 'Type your message...') + '" style="flex:1;padding:.55rem .8rem;border:1.5px solid var(--border);border-radius:20px;background:var(--bg3);color:var(--text);font-size:.85rem;font-family:inherit;outline:none">' +
+    '<button id="gs-send" style="width:40px;height:40px;border-radius:50%;background:var(--gold);border:none;color:#fff;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>';
+  body.appendChild(wrap);
+  body.scrollTop = body.scrollHeight;
+  var inp = document.getElementById('gs-input');
+  var send = document.getElementById('gs-send');
+  if (inp) inp.focus();
+
+  function submit() {
+    var val = (inp.value || '').trim();
+    if (!val) return;
+    wrap.remove();
+    _gsAddUser(val);
+    if (topic === '__email__') { if (emailCb) emailCb(val); return; }
+    api.post('/support-chats', { screen: 'guided', question_label: topic, text: val })
+      .then(function () {
+        _gsAddBot(['✅ Got it — your message is with our team.', 'We\'ll get back to you as soon as we can.']);
+        _gsAddOptions([{ label: '🏠 Back to start', next: 'start' }]);
+      })
+      .catch(function (e) { _gsAddBot('❌ ' + e.message); });
+  }
+  if (send) send.onclick = submit;
+  if (inp) inp.onkeydown = function (e) { if (e.key === 'Enter') submit(); };
+}
+
 window.openSupportChat = function (screen) {
   var existing = document.getElementById('support-chat-overlay');
   if (existing) existing.remove();
