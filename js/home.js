@@ -2271,10 +2271,14 @@ window.openNotifPanel = function () {
 window.openPostComments = function (postId) {
   var modal = document.createElement('div');
   modal.id = 'comments-modal-' + postId;
+  modal.dataset.postId = postId;
   modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
   modal.innerHTML =
-    '<div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:500px;max-height:80vh;display:flex;flex-direction:column">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.1rem;border-bottom:1px solid var(--border);flex-shrink:0">' +
+    '<div class="comments-sheet" style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:500px;max-height:80vh;display:flex;flex-direction:column;transition:transform .05s">' +
+      '<div class="comments-grab" style="padding:.5rem 0 .25rem;cursor:grab;flex-shrink:0;touch-action:none">' +
+        '<div style="width:38px;height:4px;border-radius:2px;background:var(--border);margin:0 auto"></div>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem 1.1rem .6rem;border-bottom:1px solid var(--border);flex-shrink:0">' +
         '<div style="font-weight:700;font-size:.92rem">Comments</div>' +
         '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;cursor:pointer;color:var(--muted)">' +
           '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
@@ -2282,7 +2286,7 @@ window.openPostComments = function (postId) {
       '</div>' +
       '<div id="comments-list-' + postId + '" style="flex:1;overflow-y:auto;padding:.5rem .85rem"><div style="text-align:center;padding:1.5rem"><div class="spinner"></div></div></div>' +
       '<div style="padding:.6rem .85rem max(.6rem,env(safe-area-inset-bottom));border-top:1px solid var(--border);display:flex;gap:.5rem;flex-shrink:0">' +
-        '<input id="comment-inp-' + postId + '" placeholder="Write a comment..." style="flex:1;padding:.5rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none" onkeydown="if(event.key===\'Enter\')submitComment(\'' + postId + '\')">' +
+        '<input id="comment-inp-' + postId + '" placeholder="Write a comment..." style="flex:1;padding:.5rem .75rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none;unicode-bidi:plaintext" onkeydown="if(event.key===\'Enter\')submitComment(\'' + postId + '\')">' +
         '<button onclick="submitComment(\'' + postId + '\')" style="width:38px;height:38px;border-radius:50%;background:var(--gold);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>' +
         '</button>' +
@@ -2291,31 +2295,113 @@ window.openPostComments = function (postId) {
   document.body.appendChild(modal);
   modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
 
-  // Load comments
+  // Swipe-down-to-close on the grab handle / header area.
+  _wireSheetSwipeClose(modal);
+
   api.get('/posts/comments?post_id=' + encodeURIComponent(postId), true)
     .then(function (res) {
-      var el = document.getElementById('comments-list-' + postId);
-      if (!el) return;
-      var comments = res.comments || [];
-      if (!comments.length) {
-        el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">No comments yet — be first!</div>';
-        return;
-      }
-      el.innerHTML = comments.map(function (c) {
-        return '<div style="padding:.6rem 0;border-bottom:.5px solid var(--border)">' +
-          '<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">' +
-            '<span style="font-size:.8rem;font-weight:700">@' + escHtml(c.nickname||c.username||'User') + '</span>' +
-            '<span style="font-size:.68rem;color:var(--muted)">' + timeAgo(c.created_at) + '</span>' +
-          '</div>' +
-          '<div style="font-size:.85rem;color:var(--text)">' + (typeof filterContent==='function'?filterContent(escHtml(c.text)):escHtml(c.text)) + '</div>' +
-        '</div>';
-      }).join('');
+      _renderCommentsList(postId, res.comments || []);
     })
     .catch(function () {
       var el = document.getElementById('comments-list-' + postId);
       if (el) el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted)">Could not load comments</div>';
     });
 };
+
+function _renderCommentsList(postId, comments) {
+  var el = document.getElementById('comments-list-' + postId);
+  if (!el) return;
+  if (!comments.length) {
+    el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">No comments yet — be first!</div>';
+    return;
+  }
+  el.innerHTML = comments.map(function (c) { return _commentRow(c); }).join('');
+}
+
+function _commentRow(c) {
+  return '<div class="comment-row" data-cid="' + c.id + '" style="padding:.6rem 0;border-bottom:.5px solid var(--border);display:flex;gap:.6rem;align-items:flex-start">' +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">' +
+        '<span style="font-size:.8rem;font-weight:700;unicode-bidi:plaintext">@' + escHtml(c.nickname||c.username||'User') + '</span>' +
+        '<span style="font-size:.68rem;color:var(--muted)">' + timeAgo(c.created_at) + '</span>' +
+      '</div>' +
+      '<div style="font-size:.85rem;color:var(--text);unicode-bidi:plaintext;word-break:break-word">' + (typeof filterContent==='function'?filterContent(escHtml(c.text)):escHtml(c.text)) + '</div>' +
+    '</div>' +
+    '<div style="display:flex;flex-direction:column;align-items:center;gap:.15rem;flex-shrink:0">' +
+      '<button onclick="toggleCommentLike(\'' + c.id + '\',this)" data-liked="' + (c.my_liked?'1':'0') + '" style="background:none;border:none;cursor:pointer;font-size:.9rem;line-height:1;padding:.1rem">' + (c.my_liked?'❤️':'🤍') + '</button>' +
+      '<span class="clike-count" style="font-size:.65rem;color:var(--muted)">' + (c.likes||0) + '</span>' +
+    '</div>' +
+    (c.can_delete ?
+      '<button onclick="deleteComment(\'' + c.id + '\')" style="background:none;border:none;cursor:pointer;color:var(--muted);flex-shrink:0;padding:.1rem" title="Delete">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
+      '</button>' : '') +
+  '</div>';
+}
+
+window.toggleCommentLike = function (commentId, btn) {
+  var wasLiked = btn.dataset.liked === '1';
+  // Optimistic
+  btn.textContent = wasLiked ? '🤍' : '❤️';
+  btn.dataset.liked = wasLiked ? '0' : '1';
+  var countEl = btn.parentElement.querySelector('.clike-count');
+  if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent||0) + (wasLiked?-1:1));
+
+  api.put('/posts/comments', { comment_id: commentId })
+    .then(function (res) {
+      btn.textContent = res.liked ? '❤️' : '🤍';
+      btn.dataset.liked = res.liked ? '1' : '0';
+      if (countEl) countEl.textContent = res.likes;
+    })
+    .catch(function (err) {
+      // revert
+      btn.textContent = wasLiked ? '❤️' : '🤍';
+      btn.dataset.liked = wasLiked ? '1' : '0';
+      toast('❌ ' + err.message);
+    });
+};
+
+window.deleteComment = function (commentId) {
+  if (!confirm('Delete this comment?')) return;
+  var row = document.querySelector('.comment-row[data-cid="' + commentId + '"]');
+  api.del('/posts/comments?id=' + encodeURIComponent(commentId))
+    .then(function () {
+      if (row) row.remove();
+      toast('Deleted');
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+// Wires a bottom-sheet so dragging its grab-handle/header downward past a
+// threshold closes it — like every modern mobile app.
+function _wireSheetSwipeClose(modal) {
+  var sheet = modal.querySelector('.comments-sheet');
+  var grab = modal.querySelector('.comments-grab');
+  if (!sheet || !grab) return;
+  var startY = 0, curY = 0, dragging = false;
+  grab.addEventListener('touchstart', function (e) {
+    dragging = true; startY = e.touches[0].clientY; curY = startY;
+  }, { passive: true });
+  grab.addEventListener('touchmove', function (e) {
+    if (!dragging) return;
+    curY = e.touches[0].clientY;
+    var dy = Math.max(0, curY - startY);
+    sheet.style.transform = 'translateY(' + dy + 'px)';
+  }, { passive: true });
+  grab.addEventListener('touchend', function () {
+    if (!dragging) return;
+    dragging = false;
+    var dy = curY - startY;
+    if (dy > 110) {
+      sheet.style.transition = 'transform .2s';
+      sheet.style.transform = 'translateY(100%)';
+      setTimeout(function () { modal.remove(); }, 180);
+    } else {
+      sheet.style.transition = 'transform .2s';
+      sheet.style.transform = 'translateY(0)';
+      setTimeout(function () { sheet.style.transition = 'transform .05s'; }, 200);
+    }
+  });
+}
 
 window.submitComment = function (postId) {
   var inp = document.getElementById('comment-inp-' + postId);
@@ -2326,16 +2412,27 @@ window.submitComment = function (postId) {
   inp.disabled = true;
 
   api.post('/posts/comments', { post_id: postId, text: text })
-    .then(function () {
+    .then(function (res) {
       inp.disabled = false;
+      inp.focus();
       api.bust('/posts/comments?post_id=' + postId);
-      openPostComments(postId);
-      // Update comment count
+      // Append the new comment instantly instead of reopening the whole sheet.
+      var listEl = document.getElementById('comments-list-' + postId);
+      if (listEl && res.comment) {
+        // Clear the "no comments yet" placeholder if present.
+        if (listEl.querySelector('div[style*="be first"]') || !listEl.querySelector('.comment-row')) {
+          listEl.innerHTML = '';
+        }
+        listEl.insertAdjacentHTML('beforeend', _commentRow(res.comment));
+        listEl.scrollTop = listEl.scrollHeight;
+      }
+      // Update the post's comment count in the feed.
       var countEl = document.querySelector('[data-post-comments="' + postId + '"]');
       if (countEl) countEl.textContent = parseInt(countEl.textContent || 0) + 1;
     })
     .catch(function (err) {
       inp.disabled = false;
+      inp.value = text; // restore
       toast('❌ ' + err.message);
     });
 };
@@ -2585,3 +2682,51 @@ function _showWelcomeBannerIfFirst() {
     setTimeout(function(){ if(wb.parentElement) wb.remove(); }, 8000);
   } catch(e) {}
                                            }
+
+/* ══════════════════════════════════════════════════════════
+   EDGE-SWIPE-BACK — swipe from the left edge to go back, like native
+   phones. Applies app-wide. Also closes any open bottom-sheet/overlay
+   first if one is up. Kept deliberately conservative: the gesture must
+   start within 28px of the left edge, be mostly horizontal, and travel
+   far enough, so it never interferes with normal scrolling or with the
+   in-content swipe gestures (e.g. swipe-to-reply in chat).
+══════════════════════════════════════════════════════════ */
+(function () {
+  var sx = 0, sy = 0, tracking = false;
+  var EDGE = 28, THRESHOLD = 70, MAX_VERTICAL = 55;
+
+  document.addEventListener('touchstart', function (e) {
+    if (!e.touches || e.touches.length !== 1) { tracking = false; return; }
+    var t = e.touches[0];
+    // Only arm the gesture when it begins right at the left edge.
+    tracking = t.clientX <= EDGE;
+    sx = t.clientX; sy = t.clientY;
+  }, { passive: true });
+
+  document.addEventListener('touchend', function (e) {
+    if (!tracking) return;
+    tracking = false;
+    var t = (e.changedTouches && e.changedTouches[0]);
+    if (!t) return;
+    var dx = t.clientX - sx;
+    var dy = Math.abs(t.clientY - sy);
+    if (dx < THRESHOLD || dy > MAX_VERTICAL) return; // not a clean horizontal back-swipe
+
+    // 1) If a bottom-sheet / overlay is open, close the top-most one.
+    var overlays = document.querySelectorAll(
+      '#comments-modal-, [id^="comments-modal-"], #history-overlay, #profile-more-overlay, ' +
+      '#msg-opts-overlay, #schedule-overlay, #support-chat-overlay, #sc-thread-overlay, ' +
+      '.modal-overlay.open, #history-overlay'
+    );
+    if (overlays.length) {
+      var top = overlays[overlays.length - 1];
+      if (top) { top.remove(); return; }
+    }
+
+    // 2) Otherwise navigate back within the app.
+    try {
+      if (typeof navBack === 'function') { navBack(); return; }
+      if (typeof navTo === 'function') { navTo((window.STATE && STATE.prevScreen) || 'home'); }
+    } catch (err) {}
+  }, { passive: true });
+})();
