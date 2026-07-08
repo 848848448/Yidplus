@@ -74,12 +74,28 @@ export async function onRequestPost(context) {
 
     // username is a denormalized snapshot of the nickname at post time —
     // always sourced from the authenticated user, never trusted from the client.
-    await env.DB.prepare(
-      `INSERT INTO posts (id, username, user_id, caption, content, likes, comments, created_at)
-       VALUES (?, ?, ?, ?, ?, 0, 0, ?)`
-    ).bind(id, user.nickname || 'Anonymous', user.id, caption, body.content || '', now).run();
+    let finalId = id;
+    try {
+      await env.DB.prepare(
+        `INSERT INTO posts (id, username, user_id, caption, content, likes, comments, created_at)
+         VALUES (?, ?, ?, ?, ?, 0, 0, ?)`
+      ).bind(id, user.nickname || 'Anonymous', user.id, caption, body.content || '', now).run();
+    } catch (mismatchErr) {
+      // Some deployments have posts.id as INTEGER (autoincrement), which
+      // rejects a UUID string with SQLITE_MISMATCH. Fall back to letting the
+      // DB assign the id and read it back.
+      if (String(mismatchErr.message || '').includes('MISMATCH')) {
+        const res = await env.DB.prepare(
+          `INSERT INTO posts (username, user_id, caption, content, likes, comments, created_at)
+           VALUES (?, ?, ?, ?, 0, 0, ?)`
+        ).bind(user.nickname || 'Anonymous', user.id, caption, body.content || '', now).run();
+        finalId = res.meta && res.meta.last_row_id != null ? res.meta.last_row_id : id;
+      } else {
+        throw mismatchErr;
+      }
+    }
 
-    return json({ ok: true, post: { id, username: user.nickname, user_id: user.id, caption, content: body.content || '', likes: 0, comments: 0, created_at: now, liked: false } }, 201);
+    return json({ ok: true, post: { id: finalId, username: user.nickname, user_id: user.id, caption, content: body.content || '', likes: 0, comments: 0, created_at: now, liked: false } }, 201);
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }

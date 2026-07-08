@@ -744,7 +744,7 @@ html.dark-mode .chat-input-pill { background: #232427; border-color: #2C2D31; }
 /* =============================================
    CHANNEL SCREEN
    ============================================= */
-.channel-cover { width: 100%; height: 160px; position: relative; overflow: hidden; flex-shrink: 0; background: linear-gradient(135deg, var(--gold) 0%, var(--gold-l) 55%, var(--gold) 100%); }
+.channel-cover { width: 100%; height: 120px; position: relative; overflow: hidden; flex-shrink: 0; background: linear-gradient(135deg, var(--gold) 0%, var(--gold-l) 55%, var(--gold) 100%); }
 .channel-cover::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 25% 30%, rgba(255,255,255,.18), transparent 60%), radial-gradient(circle at 80% 70%, rgba(0,0,0,.12), transparent 55%); }
 .channel-topbar-over { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: .6rem .75rem; pointer-events: none; }
 .channel-topbar-over > * { pointer-events: all; }
