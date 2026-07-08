@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://yidplus.com">
 <meta property="og:type" content="website">
 <title>YID PLUS — Chats</title>
-<link rel="stylesheet" href="css/style.css?v=202607081705">
+<link rel="stylesheet" href="css/style.css?v=202607081850">
 <script>
 (function () {
   try {
@@ -639,10 +639,10 @@
 #chat-options-menu { position: fixed; }
 </style>
 
-<script src="js/state.js?v=202607081705"></script>
-<script src="js/theme.js?v=202607081705"></script>
-<script src="js/app.js?v=202607081705"></script>
-<script src="js/chat.js?v=202607081705"></script>
+<script src="js/state.js?v=202607081850"></script>
+<script src="js/theme.js?v=202607081850"></script>
+<script src="js/app.js?v=202607081850"></script>
+<script src="js/chat.js?v=202607081850"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
@@ -893,6 +893,23 @@ window.openChatOptionsMenu = function () {
 window.closeOptMenu = function () {
   document.getElementById('chat-options-menu').classList.remove('open');
 };
+
+window.disableTopicsForGroup = function () {
+  if (!CHAT_curRoom || CHAT_curRoom.type !== 'group') return;
+  if (!confirm('Turn off Topics for this group? All messages merge back into one normal conversation. No messages are deleted, and an admin can re-enable Topics later.')) return;
+  var roomId = CHAT_curRoom.id;
+  api.del('/chat/topics?room_id=' + encodeURIComponent(roomId))
+    .then(function () {
+      CHAT_curRoom.has_topics = 0;
+      CHAT_curTopicId = null;
+      CHAT_curTopicName = null;
+      if (CHAT_topicsCache) delete CHAT_topicsCache[roomId];
+      toast('Topics turned off');
+      // Drop straight into the now-flat conversation.
+      openChatRoom(roomId, null, null);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 document.addEventListener('click', function (e) {
   if (!e.target.closest('#chat-options-menu') && !e.target.closest('[onclick*="openChatOptionsMenu"]')) closeOptMenu();
 });
@@ -975,7 +992,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="js/ads.js?v=202607081705"></script>
+<script src="js/ads.js?v=202607081850"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");</script>
 </body>
 </html>
