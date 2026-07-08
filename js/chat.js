@@ -1290,9 +1290,13 @@ function renderMessages(scrollDown) {
           inner += '<div class="voice-msg">' +
             '<audio src="' + m.media_url + '" id="aud-' + m.id + '" preload="metadata"></audio>' +
             '<button class="play-voice" id="pbtn-' + m.id + '" onclick="_playVoice(\'' + m.id + '\',this)">' + ICON_PLAY_SM + '</button>' +
-            '<div class="voice-bars" id="vbars-' + m.id + '" onclick="_seekVoice(event,\'' + m.id + '\')">' + bars + '</div>' +
-            '<div class="voice-dur" id="vdur-' + m.id + '">' + (voiceData.dur || '0:00') + '</div>' +
-            '<button class="voice-speed-btn" id="vspeed-' + m.id + '" onclick="_toggleVoiceSpeed(\'' + m.id + '\')">1x</button>' +
+            '<div class="voice-body">' +
+              '<div class="voice-bars" id="vbars-' + m.id + '" onclick="_seekVoice(event,\'' + m.id + '\')">' + bars + '</div>' +
+              '<div class="voice-meta">' +
+                '<div class="voice-dur" id="vdur-' + m.id + '">' + (voiceData.dur || '0:00') + '</div>' +
+                '<button class="voice-speed-btn" id="vspeed-' + m.id + '" onclick="_toggleVoiceSpeed(\'' + m.id + '\')">1x</button>' +
+              '</div>' +
+            '</div>' +
           '</div>';
         }
       } else {
@@ -2899,7 +2903,7 @@ function _dateLabel(iso) {
 function _fakeBars(n) {
   var bars = '';
   for (var i = 0; i < n; i++) {
-    bars += '<div class="vbar" style="width:3px;height:' + (4 + Math.random() * 14) + 'px"></div>';
+    bars += '<div class="vbar" style="height:' + (5 + Math.random() * 22) + 'px"></div>';
   }
   return bars;
 }
@@ -2933,7 +2937,7 @@ function _isEmojiOnlyText(text) {
 
 function _renderWaveBars(peaks) {
   return peaks.map(function (p) {
-    var h = Math.max(3, Math.round(p * 24));
+    var h = Math.max(4, Math.round(p * 30));
     return '<div class="vbar" style="height:' + h + 'px"></div>';
   }).join('');
 }
@@ -2985,13 +2989,34 @@ window._playVoice = function (msgId, btn) {
     }
   });
 
+  // webm/opus recordings from MediaRecorder frequently report duration as
+  // Infinity or NaN until the whole file has been decoded, which makes the
+  // progress bar jump around and seeking fail (the "shockt zich op" jank).
+  // Force the browser to resolve the real duration once before first play.
+  if (aud.paused && (!isFinite(aud.duration) || aud.duration === 0) && !aud._durFixed) {
+    aud._durFixed = true;
+    aud.currentTime = 1e101; // seek way past the end
+    aud.addEventListener('durationchange', function onceDur() {
+      if (isFinite(aud.duration)) {
+        aud.removeEventListener('durationchange', onceDur);
+        aud.currentTime = 0;
+        _startVoicePlayback(msgId, btn, aud);
+      }
+    });
+    return;
+  }
+
+  _startVoicePlayback(msgId, btn, aud);
+};
+
+function _startVoicePlayback(msgId, btn, aud) {
   if (aud.paused) {
     aud.play().catch(function (e) { toast('\u26a0 Audio error: ' + e.message); });
     btn.innerHTML = ICON_PAUSE_SM;
 
     aud.ontimeupdate = function () {
       var barsEl = document.getElementById('vbars-' + msgId);
-      if (!barsEl || !aud.duration) return;
+      if (!barsEl || !isFinite(aud.duration) || !aud.duration) return;
       var pct = aud.currentTime / aud.duration;
       var bars = barsEl.querySelectorAll('.vbar');
       var playedCount = Math.floor(pct * bars.length);
