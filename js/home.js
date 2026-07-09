@@ -1869,7 +1869,14 @@ window.openUserProfile = function (userId) {
 };
 
 window.navBack = function () {
-  navTo(STATE.prevScreen || 'home');
+  var prev = STATE.prevScreen;
+  if (!prev || prev === 'auth' || prev === 'home') {
+    // No sensible in-page screen to return to (e.g. arrived via deep-link) —
+    // go to the app's home base, Chats.
+    goPage('/chat');
+    return;
+  }
+  navTo(prev);
 };
 
 function _buildProfileScreen(userId) {

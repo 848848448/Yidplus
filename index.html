@@ -19,7 +19,7 @@
 <meta name="twitter:description" content="A Yiddish social platform for the Jewish community">
 <meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>YID PLUS</title>
-<link rel="stylesheet" href="css/style.css?v=202607091120">
+<link rel="stylesheet" href="css/style.css?v=202607091210">
 <script>
 // Apply saved user theme ASAP (before paint) to avoid flash-of-default-colors
 (function () {
@@ -544,11 +544,11 @@
 <!-- ════════════════════════════════
      SCRIPTS — ORDER MATTERS!
 ════════════════════════════════ -->
-<script src="js/state.js?v=202607091120"></script>
-<script src="js/theme.js?v=202607091120"></script>
-<script src="js/app.js?v=202607091120"></script>
-<script src="js/auth.js?v=202607091120"></script>
-<script src="js/home.js?v=202607091120"></script>
+<script src="js/state.js?v=202607091210"></script>
+<script src="js/theme.js?v=202607091210"></script>
+<script src="js/app.js?v=202607091210"></script>
+<script src="js/auth.js?v=202607091210"></script>
+<script src="js/home.js?v=202607091210"></script>
 
 <script>
 // ── POSTS FEED (Cloudflare D1 via /api/posts) ──
@@ -684,9 +684,13 @@ document.addEventListener('DOMContentLoaded', function () {
             _applyGuestMode();
             loadAppSettings();
             var gGoto = new URLSearchParams(window.location.search).get('goto');
+            var gProfile = new URLSearchParams(window.location.search).get('profile');
             var GUEST_SCREENS = ['explore', 'settings', 'profile', 'channel'];
             var gp = localStorage.getItem('yp_page');
-            if (gGoto && GUEST_SCREENS.indexOf(gGoto) !== -1) {
+            if (gProfile && typeof openUserProfile === 'function') {
+              openUserProfile(gProfile);
+              window.history.replaceState({}, '', window.location.pathname);
+            } else if (gGoto && GUEST_SCREENS.indexOf(gGoto) !== -1) {
               navTo(gGoto); initAds(gGoto);
               window.history.replaceState({}, '', window.location.pathname);
             } else if (gp && GUEST_SCREENS.indexOf(gp) !== -1) {
@@ -741,8 +745,12 @@ function _continueBootAfterAuth(user) {
   }
   var channelOwnerId = urlParams.get('channel');
   var gotoScreen = urlParams.get('goto');
+  var profileUserId = urlParams.get('profile');
   var INDEX_SCREENS = ['explore', 'settings', 'profile', 'channel'];
-  if (channelOwnerId) {
+  if (profileUserId && typeof openUserProfile === 'function') {
+    openUserProfile(profileUserId);
+    window.history.replaceState({}, '', window.location.pathname);
+  } else if (channelOwnerId) {
     CHANNEL_pendingOwnerId = channelOwnerId;
     navTo('channel');
     window.history.replaceState({}, '', window.location.pathname);
@@ -805,6 +813,6 @@ window._resendVerifyEmail = function (btn) {
 };
 </script>
 
-<script src="js/ads.js?v=202607091120"></script>
+<script src="js/ads.js?v=202607091210"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
       </html>

@@ -1164,15 +1164,16 @@ html.dark-mode .chat-messages { background:
 /* Chat list rows — soft elevated cards instead of flat dividers */
 .chat-item-wrap { position: relative; overflow: hidden; }
 .chat-item-wrap + .chat-item-wrap { border-top: 1px solid var(--border); }
-.chat-item { display: flex; align-items: center; gap: .85rem; padding: .7rem 1rem; cursor: pointer; background: var(--surface); transition: background .12s; position: relative; z-index: 2; touch-action: pan-y; }
+.chat-item { display: flex; align-items: center; gap: .8rem; padding: .8rem 1rem; cursor: pointer; background: var(--surface); transition: background .12s; position: relative; z-index: 2; touch-action: pan-y; }
 .chat-item:hover  { background: var(--bg2); }
 .chat-item:active { background: var(--bg3); }
-.chat-item.unread { background: var(--surface); }
+.chat-item.unread { background: color-mix(in srgb, var(--blue) 5%, var(--surface)); }
+.chat-item.unread::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--blue); }
 .chat-item.swiped { transform: translateX(-84px); }
 .chat-item-delete { position: absolute; top: 0; right: 0; bottom: 0; width: 84px; background: var(--red); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; cursor: pointer; z-index: 1; }
 
-.chat-av { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #1F6F5C, #2B8A73); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; font-weight: 700; flex-shrink: 0; position: relative; overflow: hidden; background-size: cover; background-position: center; letter-spacing: .02em; }
-.chat-av.group { border-radius: 15px; }
+.chat-av { width: 54px; height: 54px; border-radius: 50%; background: linear-gradient(135deg, #1F6F5C, #2B8A73); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 800; flex-shrink: 0; position: relative; overflow: hidden; background-size: cover; background-position: center; letter-spacing: .02em; box-shadow: 0 2px 6px rgba(20,80,63,.18); }
+.chat-av.group { border-radius: 16px; }
 
 /* Hamburger side menu */
 .hamburger-overlay { position: fixed; inset: 0; z-index: 250; background: rgba(0,0,0,.4); display: none; }

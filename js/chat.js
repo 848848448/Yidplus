@@ -281,11 +281,11 @@ function renderChatList() {
         '<div class="' + avClass + '" style="' + avStyle + '"' + avatarClickAttr + '>' + avatarContent + onlineDot + '</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
-            '<div style="font-size:.92rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1">' + escHtml(c.nick || 'Chat') + '</div>' +
+            '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:left;flex:1">' + escHtml(c.nick || 'Chat') + '</div>' +
             '<div style="display:flex;align-items:center;gap:.3rem;flex-shrink:0">' + muteIcon + '<div style="font-size:.68rem;color:var(--muted)">' + timeText + '</div></div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">' +
-            '<div style="font-size:.82rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1;font-weight:' + (c.unread ? '500' : '400') + '">' + previewHtml + '</div>' +
+            '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:left;flex:1;font-weight:' + (c.unread ? '500' : '400') + '">' + previewHtml + '</div>' +
             unreadBadge +
           '</div>' +
         '</div>' +
@@ -2773,53 +2773,10 @@ window.addMemberToGroup = function (userId) {
 // infrastructure — navTo, PROFILE_userId, follow system — not loaded here).
 window.openUserProfile = function (userId) {
   if (!userId) return;
-  var meId = STATE.user && STATE.user.id;
-  var existing = document.getElementById('mini-profile-modal');
-  if (existing) existing.remove();
-
-  var modal = document.createElement('div');
-  modal.id = 'mini-profile-modal';
-  modal.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end';
-  modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
-  modal.innerHTML =
-    '<div style="width:100%;background:var(--surface);border-radius:18px 18px 0 0;padding:1.5rem 1.25rem 2rem;text-align:center">' +
-      '<div id="mini-profile-av" style="width:80px;height:80px;border-radius:50%;margin:0 auto .85rem;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;color:#fff;background-size:cover;background-position:center">…</div>' +
-      '<div id="mini-profile-nick" style="font-size:1.05rem;font-weight:700;margin-bottom:.2rem">…</div>' +
-      '<div id="mini-profile-bio" style="font-size:.82rem;color:var(--muted);margin-bottom:1.1rem"></div>' +
-      '<div style="display:flex;gap:.6rem">' +
-        (userId !== meId
-          ? '<button onclick="document.getElementById(\'mini-profile-modal\').remove();startDM(\'' + userId + '\')" style="flex:1;padding:.65rem;border-radius:14px;background:var(--blue);color:#fff;border:none;font-size:.88rem;font-weight:700;cursor:pointer">Message</button>'
-          : '') +
-        '<button onclick="document.getElementById(\'mini-profile-modal\').remove()" style="flex:1;padding:.65rem;border-radius:14px;background:var(--bg3);color:var(--text);border:1px solid var(--border);font-size:.88rem;font-weight:700;cursor:pointer">Close</button>' +
-      '</div>' +
-    '</div>';
-  document.body.appendChild(modal);
-
-  api.get('/profile?user_id=' + encodeURIComponent(userId), true)
-    .then(function (res) {
-      var p = res.profile || {};
-      var avEl = document.getElementById('mini-profile-av');
-      if (avEl) {
-        if (p.photo_url) { avEl.style.backgroundImage = "url('" + p.photo_url + "')"; avEl.textContent = ''; }
-        else { avEl.style.background = avatarColor(userId); avEl.textContent = (p.nickname || '?').slice(0, 1).toUpperCase(); }
-      }
-      var nickEl = document.getElementById('mini-profile-nick');
-      if (nickEl) nickEl.textContent = '@' + (p.nickname || 'User');
-      var bioEl = document.getElementById('mini-profile-bio');
-      if (bioEl) bioEl.textContent = p.bio || '';
-    })
-    .catch(function (err) {
-      var nickEl = document.getElementById('mini-profile-nick');
-      var bioEl  = document.getElementById('mini-profile-bio');
-      var notFound = err && err.status === 404;
-      if (nickEl) nickEl.textContent = notFound ? 'User not found' : 'Could not load profile';
-      if (bioEl) bioEl.textContent = notFound ? 'This account may have been deleted.' : (err && err.message ? err.message : '');
-      if (notFound) {
-        var modalEl = document.getElementById('mini-profile-modal');
-        var msgBtn = modalEl && modalEl.querySelector('button[onclick*="startDM"]');
-        if (msgBtn) msgBtn.style.display = 'none';
-      }
-    });
+  // The full profile (posts, videos, music, status) lives on the main app
+  // page. Deep-link there so tapping a name in chat shows the real profile
+  // instead of a tiny preview sheet.
+  goPage('/?profile=' + encodeURIComponent(userId));
 };
 
 window.startDM = function (userId) {
