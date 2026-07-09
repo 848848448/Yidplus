@@ -93,6 +93,10 @@ var _homeInitDone = false;
 window.init_home = function () {
   if (typeof applyRoleUI === 'function') applyRoleUI();
 
+  // Instant, no-network UI: greeting hero + composer avatar + statuses
+  _renderHomeHero();
+  if (typeof loadStatuses === 'function') loadStatuses();
+
   // Run all home data fetches in parallel for max speed
   Promise.all([
     _fetchHomeData(),
@@ -106,6 +110,58 @@ window.init_home = function () {
     setInterval(listenBroadcasts, 120000);  // every 2 min
   }
 };
+
+// ── HERO GREETING — Yiddish greeting, Hebrew (luach) date, Shabbos badge ──
+function _renderHomeHero() {
+  var greetEl = document.getElementById('hh-greet');
+  var dateEl  = document.getElementById('hh-date');
+  var badgeEl = document.getElementById('hh-badge');
+  var avEl    = document.getElementById('cc-av');
+  if (!greetEl) return;
+
+  var now  = new Date();
+  var h    = now.getHours();
+  var day  = now.getDay(); // 0=Sun .. 5=Fri, 6=Sat
+
+  var greet;
+  if (h >= 5 && h < 12)       greet = 'גוט מאָרגן';
+  else if (h >= 12 && h < 17) greet = 'גוטן טאָג';
+  else if (h >= 17 && h < 22) greet = 'גוטן אָוונט';
+  else                        greet = 'אַ גוטע נאַכט';
+
+  var nick = (window.STATE && STATE.user && STATE.user.nickname) ? STATE.user.nickname : '';
+  greetEl.textContent = nick ? (greet + ', ' + nick + '!') : (greet + '!');
+
+  // Hebrew calendar date via built-in Intl (no library needed)
+  if (dateEl) {
+    var weekdays = ['זונטיק','מאָנטיק','דינסטיק','מיטוואָך','דאָנערשטיק','פֿרײַטיק','שבת קודש'];
+    var hebDate = '';
+    try {
+      hebDate = new Intl.DateTimeFormat('he-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' }).format(now);
+    } catch (e) {}
+    dateEl.textContent = weekdays[day] + (hebDate ? ' · ' + hebDate : '');
+  }
+
+  // Shabbos badge: Friday all day, Shabbos day, Motzei Shabbos in the evening
+  if (badgeEl) {
+    var badge = '';
+    if (day === 5)                badge = '🕯️ אַ גוטן שבת!';
+    else if (day === 6 && h < 19) badge = '🕯️ גוט שבת!';
+    else if (day === 6)           badge = '✨ אַ גוטע וואָך!';
+    badgeEl.textContent = badge;
+    badgeEl.style.display = badge ? 'block' : 'none';
+  }
+
+  // Composer avatar
+  if (avEl && window.STATE && STATE.user) {
+    if (STATE.user.photo_url) {
+      avEl.style.backgroundImage = "url('" + STATE.user.photo_url + "')";
+      avEl.textContent = '';
+    } else {
+      avEl.textContent = (STATE.user.nickname || '?').slice(0, 1).toUpperCase();
+    }
+  }
+}
 
 // Single batched fetch for all home screen data
 function _fetchHomeData() {
@@ -505,10 +561,10 @@ function buildStatusRow() {
   var row = document.getElementById('status-row');
   if (!row) return;
 
-  var meNick = (STATE.user && STATE.user.nickname) ? STATE.user.nickname : 'My Status';
+  var meNick = (STATE.user && STATE.user.nickname) ? STATE.user.nickname : 'מײַן סטאַטוס';
   var meInitial = meNick.slice(0,1).toUpperCase();
 
-  // "My Status" — always first, shows highlights indicator if archived
+  // "מײַן סטאַטוס" — always first, shows highlights indicator if archived
   row.innerHTML =
     '<div class="status-item" onclick="openStatusUpload()">' +
       '<div class="status-ring mine" style="border-style:dashed">' +
@@ -519,7 +575,7 @@ function buildStatusRow() {
           '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
         '</div>' +
       '</div>' +
-      '<div class="status-name">My Status</div>' +
+      '<div class="status-name">מײַן סטאַטוס</div>' +
     '</div>';
     (HOME_HIGHLIGHTS.length
       ? '<div class="status-item" onclick="openHighlightsModal()">' +
@@ -577,7 +633,7 @@ function buildStatusRow() {
               avatarContent +
             '</div>' +
           '</div>' +
-          '<div class="status-name">' + escHtml(isMine ? 'My Status' : (s.nickname || 'User')) + '</div>';
+          '<div class="status-name">' + escHtml(isMine ? 'מײַן סטאַטוס' : (s.nickname || 'User')) + '</div>';
         row.appendChild(el);
       });
     })
@@ -2585,7 +2641,7 @@ function _renderStatusRow(statuses) {
       '</div>' +
       '<div style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:var(--blue);border:2px solid var(--surface);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.85rem;font-weight:700">+</div>' +
     '</div>' +
-    '<div style="font-size:.65rem;color:var(--muted);text-align:center">My Status</div>' +
+    '<div style="font-size:.65rem;color:var(--muted);text-align:center">מײַן סטאַטוס</div>' +
   '</div>';
 
   // Other statuses — use index so openSV(idx) works correctly
@@ -2612,14 +2668,18 @@ function _renderStatusRow(statuses) {
 function _renderShortsPrev(shorts) {
   var el = document.getElementById('home-shorts');
   if (!el) return;
-  if (!shorts.length) { el.closest('.home-section') && (el.closest('.home-section').style.display = 'none'); return; }
-  el.innerHTML = shorts.slice(0,6).map(function (s) {
-    return '<div style="flex-shrink:0;width:100px;cursor:pointer" onclick="goPage(\'/shorts\')">' +
-      '<div style="width:100px;height:160px;border-radius:12px;background:#111;overflow:hidden;position:relative">' +
-        (s.media_url ? '<video src="' + s.media_url + '" style="width:100%;height:100%;object-fit:cover" preload="none"></video>' : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem">📹</div>') +
-        '<div style="position:absolute;bottom:0;left:0;right:0;padding:.35rem .4rem;background:linear-gradient(transparent,rgba(0,0,0,.7))">' +
-          '<div style="font-size:.6rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@' + escHtml(s.nick||'') + '</div>' +
+  var sec = document.getElementById('sec-shorts');
+  if (!shorts.length) { if (sec) sec.style.display = 'none'; return; }
+  if (sec) sec.style.display = '';
+  el.innerHTML = shorts.slice(0,8).map(function (s) {
+    return '<div class="sp-card" onclick="goPage(\'/shorts\')">' +
+      '<div class="sp-thumb">' +
+        (s.media_url ? '<video src="' + s.media_url + '" muted playsinline style="width:100%;height:100%;object-fit:cover" preload="metadata"></video>' : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem">📹</div>') +
+        '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.72),transparent 45%);display:flex;flex-direction:column;justify-content:flex-end;padding:.45rem .5rem">' +
+          '<div style="font-size:.64rem;color:#fff;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext">@' + escHtml(s.nick||'') + '</div>' +
+          '<div style="font-size:.6rem;color:rgba(255,255,255,.85)">❤️ ' + fmtN(s.likes||0) + '</div>' +
         '</div>' +
+        '<div style="position:absolute;top:.4rem;right:.4rem;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center"><svg width="11" height="11" viewBox="0 0 24 24" fill="#fff"><polygon points="6 3 20 12 6 21 6 3"/></svg></div>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -2628,10 +2688,17 @@ function _renderShortsPrev(shorts) {
 function _renderChannelsPrev(channels) {
   var el = document.getElementById('home-channels');
   if (!el) return;
-  el.innerHTML = channels.slice(0,6).map(function (c) {
-    return '<div style="display:flex;align-items:center;gap:.65rem;padding:.6rem 0;border-bottom:.5px solid var(--border);cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
-      '<div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#1F6F5C,#2B8A73);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0">' + (c.nickname||'C').slice(0,1).toUpperCase() + '</div>' +
-      '<div><div style="font-size:.85rem;font-weight:700">@' + escHtml(c.nickname||'') + '</div><div style="font-size:.7rem;color:var(--muted)">' + fmtN(c.followers||0) + ' followers</div></div>' +
+  var sec = document.getElementById('sec-channels');
+  if (!channels.length) { if (sec) sec.style.display = 'none'; return; }
+  if (sec) sec.style.display = '';
+  el.innerHTML = channels.slice(0,8).map(function (c) {
+    return '<div class="chp-card" onclick="CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
+      '<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#14503F,#2B8A73);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.15rem;color:#fff;margin:0 auto .5rem;position:relative">' +
+        escHtml((c.nickname||'C').slice(0,1).toUpperCase()) +
+        (c.verified ? '<div style="position:absolute;top:-5px;right:-4px;font-size:.8rem">👑</div>' : '') +
+      '</div>' +
+      '<div style="font-size:.8rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext">@' + escHtml(c.nickname||'') + '</div>' +
+      '<div style="font-size:.66rem;color:var(--muted);margin-top:.15rem" dir="rtl">' + fmtN(c.followers||0) + ' נאָכפֿאָלגער</div>' +
     '</div>';
   }).join('');
 }
@@ -2640,7 +2707,13 @@ function _renderFeed(posts) {
   var feed = document.getElementById('home-feed');
   if (!feed) return;
   if (!posts.length) {
-    feed.innerHTML = '<div class="feed-state"><div style="font-size:2.5rem">📭</div><div class="feed-state-text">No posts yet</div></div>';
+    feed.innerHTML =
+      '<div class="feed-state" dir="rtl">' +
+        '<div style="font-size:2.8rem">🕎</div>' +
+        '<div class="feed-state-text" style="font-weight:700">נאָך קיין פּאָסטן דאָ</div>' +
+        '<div class="feed-state-sub">זײַ דער ערשטער וואָס טיילט עפּעס מיט דער קהילה!</div>' +
+        '<button class="feed-empty-cta" onclick="var t=document.getElementById(\'new-post-content\');if(t){t.focus();t.scrollIntoView({behavior:\'smooth\',block:\'center\'})}">✍️ שרײַב דעם ערשטן פּאָסט</button>' +
+      '</div>';
     return;
   }
   feed.innerHTML = '';

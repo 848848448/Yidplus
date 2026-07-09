@@ -1500,3 +1500,167 @@ img { opacity: 1; }
 .gs-opt { background: var(--surface); border: 1.5px solid var(--gold); color: var(--gold); padding: .55rem .9rem; border-radius: 18px; font-size: .82rem; font-weight: 600; cursor: pointer; font-family: inherit; text-align: right; max-width: 88%; transition: background .15s; }
 .gs-opt:active { background: var(--bg3); }
 .gs-composer { display: flex; gap: .5rem; align-items: center; margin-top: .4rem; padding: .3rem 0; }
+
+/* =============================================
+   HOME REDESIGN — hero, composer, quick tiles
+   ============================================= */
+
+/* ── HERO GREETING CARD ── */
+.home-hero {
+  position: relative;
+  margin: .75rem .85rem .25rem;
+  padding: 1.1rem 1.15rem 1.15rem;
+  border-radius: var(--r-lg);
+  background: linear-gradient(150deg, #14503F 0%, #1F6F5C 62%, #2B8A73 100%);
+  color: #fff;
+  overflow: hidden;
+  box-shadow: 0 6px 22px rgba(20, 80, 63, .22);
+}
+.hh-glow {
+  position: absolute; top: -60px; right: -40px;
+  width: 190px; height: 190px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.16), transparent 68%);
+  pointer-events: none;
+}
+.hh-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.hh-txt { min-width: 0; }
+.hh-greet {
+  font-family: 'Suez One', 'Heebo', serif;
+  font-size: 1.45rem; line-height: 1.25;
+  letter-spacing: .01em;
+  text-shadow: 0 1px 3px rgba(0,0,0,.14);
+  unicode-bidi: plaintext;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hh-date {
+  margin-top: .3rem;
+  font-size: .76rem; font-weight: 500;
+  color: rgba(255,255,255,.82);
+  unicode-bidi: plaintext;
+}
+.hh-badge {
+  flex-shrink: 0;
+  padding: .45rem .8rem;
+  border-radius: 999px;
+  background: rgba(232,184,75,.18);
+  border: 1px solid rgba(232,184,75,.55);
+  color: #F3D27E;
+  font-size: .74rem; font-weight: 700;
+  white-space: nowrap;
+  animation: fadeIn .6s ease both;
+}
+
+/* ── COMPOSER CARD ── */
+.composer-card {
+  margin: .65rem .85rem 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: .85rem .9rem .75rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,.04);
+}
+.cc-top { display: flex; align-items: flex-start; gap: .65rem; }
+.cc-av {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), var(--gold-l));
+  color: #fff; font-weight: 800; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; overflow: hidden;
+  background-size: cover; background-position: center;
+}
+.cc-input {
+  flex: 1; min-width: 0;
+  background: none; border: none; outline: none; resize: none;
+  font-family: inherit; font-size: .92rem; color: var(--text);
+  padding: .5rem 0 .25rem; line-height: 1.45;
+  max-height: 120px;
+}
+.cc-input::placeholder { color: var(--muted2); }
+.cc-actions {
+  display: flex; align-items: center; gap: .45rem;
+  margin-top: .55rem; padding-top: .6rem;
+  border-top: 1px solid var(--border);
+}
+.cc-chip {
+  padding: .42rem .75rem;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: inherit; font-size: .74rem; font-weight: 600;
+  color: var(--text); cursor: pointer;
+  transition: background .15s;
+}
+.cc-chip:active { background: var(--bg4); }
+.cc-post {
+  margin-left: auto;
+  padding: .48rem 1.1rem;
+  background: linear-gradient(135deg, var(--gold-d), var(--gold));
+  border: none; border-radius: 999px;
+  font-family: inherit; font-size: .78rem; font-weight: 700;
+  color: #fff; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(20,80,63,.25);
+  transition: transform .12s;
+}
+.cc-post:active { transform: scale(.96); }
+
+/* ── QUICK TILES ── */
+.qt-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .55rem;
+  margin: .75rem .85rem 0;
+}
+.qt-tile {
+  display: flex; flex-direction: column; align-items: center; gap: .4rem;
+  padding: .75rem .25rem .65rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  cursor: pointer; font-family: inherit;
+  transition: transform .12s, box-shadow .12s;
+}
+.qt-tile:active { transform: scale(.95); }
+.qt-ic {
+  width: 36px; height: 36px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+}
+.qt-ic-shorts  { background: linear-gradient(135deg, #E2574C, #F08A4B); }
+.qt-ic-music   { background: linear-gradient(135deg, #7C5CD6, #A78BFA); }
+.qt-ic-chat    { background: linear-gradient(135deg, #14503F, #2B8A73); }
+.qt-ic-explore { background: linear-gradient(135deg, #2563AC, #4A9BE0); }
+.qt-lbl { font-size: .68rem; font-weight: 700; color: var(--text); }
+
+/* ── SHORT / CHANNEL PREVIEW CARDS ── */
+.sp-card {
+  flex-shrink: 0; width: 106px; cursor: pointer;
+}
+.sp-thumb {
+  width: 106px; height: 168px; border-radius: 14px;
+  background: #101112; overflow: hidden; position: relative;
+  border: 1px solid var(--border);
+}
+.chp-card {
+  flex-shrink: 0; width: 128px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: .85rem .6rem .75rem;
+  text-align: center; cursor: pointer;
+  transition: transform .12s;
+}
+.chp-card:active { transform: scale(.96); }
+
+/* ── EMPTY FEED CTA ── */
+.feed-empty-cta {
+  padding: .55rem 1.35rem;
+  background: linear-gradient(135deg, var(--gold-d), var(--gold));
+  border: none; border-radius: 999px;
+  color: #fff; font-size: .82rem; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+  box-shadow: 0 3px 10px rgba(20,80,63,.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero, .hh-badge, .qt-tile, .cc-post { animation: none; transition: none; }
+}
