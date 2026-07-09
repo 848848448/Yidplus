@@ -1,58 +1,79 @@
 // Security middleware — scoped to /api/* only (this file lives under
-// functions/api/, not functions/, on purpose). It was previously at
-// functions/_middleware.js, which made it run on EVERY request site-wide,
-// including static pages served via _redirects rewrites like /admin, /chat,
-// /shorts, /music. That combination caused an actual redirect loop
-// (ERR_TOO_MANY_REDIRECTS) on those routes. Its job — blocking suspicious
-// URL patterns and adding security headers — only makes sense for API
-// calls anyway, so scoping it here fixes the loop and matches its real
-// intent.
+// functions/api/, NOT functions/). It must stay here: a site-wide
+// functions/_middleware.js previously caused an ERR_TOO_MANY_REDIRECTS loop
+// on the _redirects-rewritten routes (/admin, /chat, /shorts, /music).
+//
+// Multiple independent defense layers ("defense in depth"): if one is
+// bypassed, the others still stand.
 export async function onRequest(context) {
   const { request, next } = context;
   const url = new URL(request.url);
+  const path = url.pathname;
 
-  // ── Block suspicious patterns in URLs (SQLi, XSS, path traversal)
+  let fullUrl = path + (url.search || '');
+  try { fullUrl = decodeURIComponent(fullUrl); } catch (e) {}
+
+  // ── Layer 1: block injection / XSS / traversal signatures in the URL ──
   const suspiciousPatterns = [
-    /(\-\-|;|\/\*|\*\/)/,           // SQL comments
-    /(union\s+select|drop\s+table|insert\s+into|delete\s+from)/i,  // SQL injection
-    /(<script|javascript:|on\w+=)/i, // XSS
-    /\.\.\//,                         // Path traversal
-    /\/etc\/passwd/i,                 // System file access
+    /(union\s+select|drop\s+table|insert\s+into|delete\s+from|update\s+\w+\s+set)/i, // SQLi
+    /(\bor\s+1\s*=\s*1|\band\s+1\s*=\s*1)/i,     // SQLi tautology
+    /(<script|javascript:|on\w+\s*=|<iframe|<img\s)/i, // XSS
+    /\.\.[\/\\]/,                                 // path traversal
+    /\/etc\/(passwd|shadow)/i,                    // system files
+    /\$\{.*\}/,                                    // template injection
+    /\bexec\s*\(|\beval\s*\(|system\s*\(/i,       // code-exec probes
   ];
-
-  const fullUrl = url.pathname + url.search;
   for (const pattern of suspiciousPatterns) {
-    if (pattern.test(fullUrl)) {
-      return new Response(JSON.stringify({ ok: false, error: 'Bad request' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
+    if (pattern.test(fullUrl)) return _deny(400);
   }
 
-  // ── Rate limit: max 120 API requests per minute per IP
-  const ip = request.headers.get('CF-Connecting-IP') || '0.0.0.0';
-  const isApiRequest = url.pathname.startsWith('/api/');
+  // ── Layer 2: block probes for other stacks / secret files ──
+  const badPaths = [
+    /\/wp-(admin|login|content|includes)/i, /\/(phpmyadmin|adminer|xmlrpc)/i,
+    /\.(php|asp|aspx|jsp|cgi|sh|bak|sql|env)$/i, /\/\.(git|env|htaccess|ssh)/i,
+  ];
+  for (const rx of badPaths) {
+    if (rx.test(path)) return _deny(403);
+  }
 
-  // Get response from the actual function
-  const response = await next();
+  // ── Layer 3: HTTP method allowlist ──
+  if (!['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'].includes(request.method)) {
+    return _deny(405);
+  }
 
-  // ── Add security headers to all responses
-  const newHeaders = new Headers(response.headers);
-  newHeaders.set('X-Content-Type-Options', 'nosniff');
-  newHeaders.set('X-Frame-Options', 'SAMEORIGIN');
-  newHeaders.set('X-XSS-Protection', '1; mode=block');
-  newHeaders.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  newHeaders.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // ── Layer 4: cap request body size (~105MB) against memory exhaustion ──
+  const clen = parseInt(request.headers.get('content-length') || '0', 10);
+  if (clen > 105 * 1024 * 1024) return _deny(413);
 
-  // HTTPS only
+  // ── Run the actual endpoint, masking any uncaught internal error ──
+  let response;
+  try {
+    response = await next();
+  } catch (e) {
+    return _deny(500); // never leak a stack trace to the client
+  }
+
+  // ── Layer 5: harden response headers on every API response ──
+  const h = new Headers(response.headers);
+  h.set('X-Content-Type-Options', 'nosniff');
+  h.set('X-Frame-Options', 'DENY');
+  h.set('X-XSS-Protection', '1; mode=block');
+  h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  h.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  h.set('X-Permitted-Cross-Domain-Policies', 'none');
+  h.delete('X-Powered-By');
+  h.delete('Server');
   if (!url.hostname.includes('localhost')) {
-    newHeaders.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    h.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
 
   return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: newHeaders,
+    status: response.status, statusText: response.statusText, headers: h,
+  });
+}
+
+function _deny(status) {
+  return new Response(JSON.stringify({ ok: false, error: status === 500 ? 'Server error' : 'Blocked' }), {
+    status, headers: { 'Content-Type': 'application/json', 'X-Content-Type-Options': 'nosniff' },
   });
 }
