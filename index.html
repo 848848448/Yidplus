@@ -19,7 +19,7 @@
 <meta name="twitter:description" content="A Yiddish social platform for the Jewish community">
 <meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>YID PLUS</title>
-<link rel="stylesheet" href="css/style.css?v=202607090510">
+<link rel="stylesheet" href="css/style.css?v=202607091120">
 <script>
 // Apply saved user theme ASAP (before paint) to avoid flash-of-default-colors
 (function () {
@@ -197,19 +197,13 @@
     <div class="section-hdr"><h2 dir="rtl">📰 לעצטע פּאָסטן</h2></div>
     <div style="padding:0 .85rem" id="home-feed"></div>
   </div>
-  <nav class="bottom-nav">
-    <button class="nav-item active" onclick="navTo('home')">             <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-label">Home</span></button>
-    <button class="nav-item"        onclick="goPage('/shorts')" style="position:relative"><span class="nav-icon"><span class="nav-badge" id="nav-badge-shorts" style="display:none"></span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button>
-    <button class="nav-item"        onclick="goPage('/music')"> <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button>
-    <button class="nav-item"        onclick="goPage('/chat')">  <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button>
-    <button class="nav-item"        onclick="navTo('explore')">         <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></span><span class="nav-label">Explore</span></button>
-  </nav>
+  <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button><button class="nav-item" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.5"/></svg></span><span class="nav-label">Channels</span></button><button class="nav-item" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="nav-label">Settings</span></button></nav>
 </div>
 
 <!-- ══ EXPLORE SCREEN (Channels) ══ -->
 <div class="screen" id="screen-explore">
   <div class="topbar">
-    <div class="topbar-logo">Explore</div>
+    <div class="topbar-logo">Channels</div>
   </div>
   <!-- Search bar -->
   <div style="padding:.6rem .75rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
@@ -231,13 +225,7 @@
   <div class="scroll-area" style="padding-bottom:80px" id="explore-content">
     <div id="explore-body" style="padding:.5rem 0"></div>
   </div>
-  <nav class="bottom-nav">
-    <button class="nav-item"  onclick="navTo('home')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-label">Home</span></button>
-    <button class="nav-item"  onclick="goPage('/shorts')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button>
-    <button class="nav-item"  onclick="goPage('/music')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button>
-    <button class="nav-item"  onclick="goPage('/chat')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button>
-    <button class="nav-item active" onclick="navTo('explore')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></span><span class="nav-label">Explore</span></button>
-  </nav>
+  <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button><button class="nav-item active" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.5"/></svg></span><span class="nav-label">Channels</span></button><button class="nav-item" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="nav-label">Settings</span></button></nav>
 </div>
 
 <!-- ══ USER PROFILE SCREEN ══ -->
@@ -255,20 +243,14 @@
       <div class="spinner"></div>
     </div>
   </div>
-  <nav class="bottom-nav">
-    <button class="nav-item" onclick="navTo('home')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-label">Home</span></button>
-    <button class="nav-item" onclick="goPage('/shorts')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button>
-    <button class="nav-item" onclick="goPage('/music')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button>
-    <button class="nav-item" onclick="goPage('/chat')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button>
-    <button class="nav-item" onclick="navTo('settings')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="nav-label">Settings</span></button>
-  </nav>
+  <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button><button class="nav-item" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.5"/></svg></span><span class="nav-label">Channels</span></button><button class="nav-item" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="nav-label">Settings</span></button></nav>
 </div>
 
 <!-- ══ SETTINGS SCREEN ══ -->
 <div class="screen" id="screen-settings">
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:.6rem">
-      <button onclick="navTo('home')" style="background:none;border:none;color:var(--blue);cursor:pointer;padding:0;font-size:.85rem;display:flex;align-items:center;gap:.2rem">
+      <button onclick="goPage('/chat')" style="background:none;border:none;color:var(--blue);cursor:pointer;padding:0;font-size:.85rem;display:flex;align-items:center;gap:.2rem">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         Back
       </button>
@@ -300,13 +282,7 @@
       Sign Out
     </div>
   </div>
-  <nav class="bottom-nav">
-    <button class="nav-item"        onclick="navTo('home')">             <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="nav-label">Home</span></button>
-    <button class="nav-item"        onclick="goPage('/shorts')" style="position:relative"><span class="nav-icon"><span class="nav-badge" id="nav-badge-shorts" style="display:none"></span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button>
-    <button class="nav-item"        onclick="goPage('/music')"> <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button>
-    <button class="nav-item"        onclick="goPage('/chat')">  <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button>
-    <button class="nav-item active" onclick="navTo('settings')">         <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="nav-label">Settings</span></button>
-  </nav>
+  <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button><button class="nav-item" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.5"/></svg></span><span class="nav-label">Channels</span></button><button class="nav-item active" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="nav-label">Settings</span></button></nav>
 </div>
 
 <!-- ══ CHANNEL SCREEN ══ -->
@@ -568,11 +544,11 @@
 <!-- ════════════════════════════════
      SCRIPTS — ORDER MATTERS!
 ════════════════════════════════ -->
-<script src="js/state.js?v=202607090510"></script>
-<script src="js/theme.js?v=202607090510"></script>
-<script src="js/app.js?v=202607090510"></script>
-<script src="js/auth.js?v=202607090510"></script>
-<script src="js/home.js?v=202607090510"></script>
+<script src="js/state.js?v=202607091120"></script>
+<script src="js/theme.js?v=202607091120"></script>
+<script src="js/app.js?v=202607091120"></script>
+<script src="js/auth.js?v=202607091120"></script>
+<script src="js/home.js?v=202607091120"></script>
 
 <script>
 // ── POSTS FEED (Cloudflare D1 via /api/posts) ──
@@ -706,10 +682,18 @@ document.addEventListener('DOMContentLoaded', function () {
             sessionStorage.removeItem('yp_logged_in');
             GUEST_MODE = true;
             _applyGuestMode();
-            var page = localStorage.getItem('yp_page');
-            navTo((page && page !== 'auth') ? page : 'home');
             loadAppSettings();
-            initAds('home');
+            var gGoto = new URLSearchParams(window.location.search).get('goto');
+            var GUEST_SCREENS = ['explore', 'settings', 'profile', 'channel'];
+            var gp = localStorage.getItem('yp_page');
+            if (gGoto && GUEST_SCREENS.indexOf(gGoto) !== -1) {
+              navTo(gGoto); initAds(gGoto);
+              window.history.replaceState({}, '', window.location.pathname);
+            } else if (gp && GUEST_SCREENS.indexOf(gp) !== -1) {
+              navTo(gp); initAds(gp);
+            } else {
+              goPage('/chat');
+            }
           } else {
             // Guest Mode OFF — must login
             sessionStorage.removeItem('yp_logged_in');
@@ -756,13 +740,26 @@ function _continueBootAfterAuth(user) {
     window.history.replaceState({}, '', window.location.pathname);
   }
   var channelOwnerId = urlParams.get('channel');
+  var gotoScreen = urlParams.get('goto');
+  var INDEX_SCREENS = ['explore', 'settings', 'profile', 'channel'];
   if (channelOwnerId) {
     CHANNEL_pendingOwnerId = channelOwnerId;
     navTo('channel');
     window.history.replaceState({}, '', window.location.pathname);
+  } else if (gotoScreen && INDEX_SCREENS.indexOf(gotoScreen) !== -1) {
+    // Came from another page's bottom nav (Channels / Settings)
+    navTo(gotoScreen);
+    window.history.replaceState({}, '', window.location.pathname);
   } else {
     var page = localStorage.getItem('yp_page');
-    navTo((page && page !== 'auth') ? page : 'home');
+    if (page && INDEX_SCREENS.indexOf(page) !== -1) {
+      navTo(page);
+    } else {
+      // Default landing = Chats (WhatsApp-style). Home page is retired.
+      applyRoleUI();
+      goPage('/chat');
+      return;
+    }
   }
   applyRoleUI();
   loadAppSettings();
@@ -808,6 +805,6 @@ window._resendVerifyEmail = function (btn) {
 };
 </script>
 
-<script src="js/ads.js?v=202607090510"></script>
+<script src="js/ads.js?v=202607091120"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
       </html>

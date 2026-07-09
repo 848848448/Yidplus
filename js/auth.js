@@ -66,11 +66,16 @@ function AUTH_goHome() {
     _checkEmailVerifyAndContinue(STATE.user);
     return;
   }
-  var page = localStorage.getItem('yp_page') || 'home';
-  navTo(page);
   applyRoleUI();
   if (typeof loadAppSettings === 'function') loadAppSettings();
-  if (page === 'home' && typeof init_home === 'function') init_home();
+  var page = localStorage.getItem('yp_page');
+  var INDEX_SCREENS = ['explore', 'settings', 'profile', 'channel'];
+  if (page && INDEX_SCREENS.indexOf(page) !== -1) {
+    navTo(page);
+  } else {
+    // Default landing = Chats (WhatsApp-style)
+    goPage('/chat');
+  }
 }
 
 // ── LOGIN ────────────────────────────────────────

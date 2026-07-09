@@ -1260,7 +1260,7 @@ window.init_channel = function () {
   // On a page refresh, CHANNEL_pendingOwnerId is gone; fall back to the last
   // channel we persisted so we stay on this page instead of bouncing home.
   if (!ownerId) { try { ownerId = localStorage.getItem('yp_channel_owner') || null; } catch (e) {} }
-  if (!ownerId) { toast('⚠ No channel selected.'); navTo('home'); return; }
+  if (!ownerId) { toast('⚠ No channel selected.'); navTo('explore'); return; }
 
   // Persist which channel this is + reflect it in the URL, so a refresh
   // reloads this same channel page rather than the home feed.
@@ -1288,7 +1288,7 @@ function _loadChannel(ownerId) {
     })
     .catch(function (err) {
       toast('❌ ' + err.message);
-      navTo('home');
+      navTo('explore');
     });
 }
 
