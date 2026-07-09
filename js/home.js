@@ -2213,11 +2213,21 @@ window.unfollowUser = function (userId) {
 };
 
 window.openDMWith = function (userId) {
+  if (!userId) { toast('❌ No user'); return; }
+  if (STATE.user && STATE.user.id === userId) { toast("That's you 🙂"); return; }
+  toast('💬 Opening chat…');
   api.post('/chat/rooms', { type: 'private', other_user_id: userId })
     .then(function (res) {
-      goPage('/chat');
+      // Deep-link straight into the conversation on the chat page, so tapping
+      // "Message" anywhere opens THAT chat — not just the chat list.
+      goPage('/chat?room=' + encodeURIComponent(res.room_id));
     })
     .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+// Message the owner of the currently-open channel.
+window.messageChannelOwner = function () {
+  if (CHANNEL_current && CHANNEL_current.owner_id) openDMWith(CHANNEL_current.owner_id);
 };
 
 window.openFollowersList = function (userId) {
