@@ -30,6 +30,23 @@ export async function onRequestPost(context) {
       }
     }
 
+    // ── Sign-in lockdown ──
+    // New sign-ups are blocked while sign-in is locked, UNLESS the owner has
+    // pre-authorized this exact email (allowlist). That lets the owner invite one
+    // specific person in without opening registration to the public.
+    const _lockRow = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'signin_locked'"
+    ).first().catch(() => null);
+    if (_lockRow && _lockRow.value === 'true') {
+      const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
+      const preAllowed = await env.DB.prepare(
+        'SELECT email FROM access_allowlist WHERE email = ?'
+      ).bind(email).first().catch(() => null);
+      if (!OWNER_EMAILS.includes(email) && !preAllowed) {
+        return json({ ok: false, error: 'Sign-up is currently disabled.' }, 403);
+      }
+    }
+
 
     // ── Validate email format
     if (!isValidEmail(email)) {

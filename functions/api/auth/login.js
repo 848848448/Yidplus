@@ -59,6 +59,21 @@ export async function onRequestPost(context) {
         return json({ ok: false, error: 'Site is under maintenance. Please try again later.' }, 503);
       }
     }
+
+    // ── Sign-in lockdown ──
+    // When enabled, NOBODY can sign in — not even existing accounts — except the
+    // owner/co-owner and any email the owner has explicitly allow-listed.
+    const lockRow = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'signin_locked'"
+    ).first().catch(() => null);
+    if (lockRow && lockRow.value === 'true' && !isOwnerEmail) {
+      const allowed = await env.DB.prepare(
+        'SELECT email FROM access_allowlist WHERE email = ?'
+      ).bind(email).first().catch(() => null);
+      if (!allowed) {
+        return json({ ok: false, error: 'Sign-in is currently disabled.' }, 403);
+      }
+    }
     // ── Brute-force protection ──
     // Count failed attempts from this IP in last 15 minutes
     const failKey = 'login_fail_' + ip.replace(/[^0-9a-f:.]/gi, '');

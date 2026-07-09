@@ -169,6 +169,7 @@ var ADMIN_ICONS = {
   announcements:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3z"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
   badges:         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>',
   warnings:       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  'access-control': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
 };
 
 var ADMIN_PANELS = [
@@ -186,6 +187,7 @@ var ADMIN_PANELS = [
   // Everything below requires actual configuration/creation power, or exposes
   // extra personal information beyond what's needed to moderate — owner only.
   { id:'channels-mgr',   label:'Channels',        roles:['owner'] },
+  { id:'access-control', label:'Access',          roles:['owner'] },
   { id:'broadcast',      label:'Broadcast',       roles:['owner'] },
   { id:'banned-devices', label:'Banned',          roles:['owner'] },
   { id:'ip-logs',        label:'IP Logs',         roles:['owner'] },
@@ -209,8 +211,8 @@ var ADMIN_PANELS = [
 var ADMIN_CATEGORIES = [
   { id:'overview',   label:'Overview',   desc:'Analytics and leaderboard',            color:'#185FA5', bg:'#E6F1FB', bgd:'#0C447C',
     panels:['analytics','leaderboard'] },
-  { id:'people',     label:'People',     desc:'Users, warnings, badges, sessions',    color:'#0F6E56', bg:'#E1F5EE', bgd:'#085041',
-    panels:['users','warnings','badges','sessions','banned-devices','ad-exempt'] },
+  { id:'people',     label:'People',     desc:'Access, users, warnings, sessions',    color:'#0F6E56', bg:'#E1F5EE', bgd:'#085041',
+    panels:['access-control','users','warnings','badges','sessions','banned-devices','ad-exempt'] },
   { id:'moderation', label:'Moderation', desc:'Reports, feedback, support, filter',   color:'#A32D2D', bg:'#FCEBEB', bgd:'#791F1F',
     panels:['reports','feedback','support-chats','chat-watch','shorts-mod','music-mod','bad-words'] },
   { id:'content',    label:'Content',    desc:'Announce, broadcast, channels, more',  color:'#534AB7', bg:'#EEEDFE', bgd:'#3C3489',
@@ -481,6 +483,9 @@ function buildAdminPanel(id) {
 
   } else if (id === 'channels-mgr') {
     buildChannelsMgrPanel(content);
+
+  } else if (id === 'access-control') {
+    buildAccessControlPanel(content);
 
   } else if (id === 'maintenance') {
     buildMaintenancePanel(content);
@@ -828,6 +833,7 @@ function renderUsersList(users) {
       actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? SVG_DEMOTE + ' Demote' : SVG_PROMO + ' Promote') + '</button>';
       actions += '<button class="act-btn act-block" onclick="adminBlock(\'' + u.id + '\',\'' + !!u.blocked + '\')">' + SVG_BAN + ' ' + (u.blocked ? 'Unblock' : 'Block') + '</button>';
       actions += '<button class="act-btn" style="background:' + (u.no_ads ? '#16A34A' : '#637087') + ';color:#fff;border-color:transparent" onclick="adminToggleNoAds(\'' + u.id + '\',' + !!u.no_ads + ')" title="Ad-free toggle">' + SVG_ADS + ' ' + (u.no_ads ? 'Ad-Free ON' : 'Ads ON') + '</button>';
+      actions += '<button class="act-btn" style="background:#B45309;color:#fff;border-color:#B45309" onclick="acForceLogout(\'' + u.id + '\',\'' + escHtml(u.nickname||'') + '\')" title="Force sign-out">👢 Kick out</button>';
       actions += '<button class="act-btn" style="background:' + (isMuted ? '#E11D48' : '#637087') + ';color:#fff;border-color:transparent" onclick="adminMuteUser(\'' + u.id + '\',' + isMuted + ')">' + (isMuted ? '🔇 Unmute' : '🔇 Mute') + '</button>';
       actions += '<button class="act-btn" style="background:#E11D48;color:#fff;border-color:#E11D48" onclick="adminDeleteUser(\'' + u.id + '\',\'' + escHtml(u.nickname||'') + '\')">' + SVG_DEL + ' Delete</button>';
     } else {
@@ -2980,3 +2986,121 @@ window.getTelegramUpdates = function () {
     })
     .catch(function () { if (el) el.textContent = 'Error fetching updates'; });
 };
+
+/* ══════════════════════════════════
+   ACCESS CONTROL  (owner only)
+══════════════════════════════════ */
+function buildAccessControlPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel" id="ac-panel">' +
+      '<div class="admin-card" style="text-align:center;padding:2rem"><div class="spinner"></div></div>' +
+    '</div>';
+  _loadAccessControl();
+}
+
+function _loadAccessControl() {
+  api.get('/admin/access-control').then(function (res) {
+    var panel = document.getElementById('ac-panel');
+    if (!panel) return;
+    var locked = !!res.locked;
+    var list = res.allowlist || [];
+
+    var rows = list.length ? list.map(function (a) {
+      return '<div style="display:flex;align-items:center;gap:.6rem;padding:.6rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:.85rem;font-weight:700;direction:ltr;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtmlA(a.email) + '</div>' +
+            '<div style="font-size:.68rem;color:var(--muted)">' + (a.nickname ? '@' + escHtmlA(a.nickname) : 'no account yet') + (a.note ? ' · ' + escHtmlA(a.note) : '') + '</div>' +
+          '</div>' +
+          '<button onclick="acRemoveAllow(\'' + escAttrA(a.email) + '\',this)" style="padding:.35rem .7rem;background:none;border:1px solid #E5989B;border-radius:8px;font-size:.72rem;font-weight:700;color:#D32F2F;cursor:pointer;font-family:inherit">Remove</button>' +
+        '</div>';
+    }).join('') : '<div style="padding:1rem;text-align:center;color:var(--muted);font-size:.8rem">No one on the allow-list yet.</div>';
+
+    panel.innerHTML =
+      // ── Lockdown toggle ──
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🔒 Sign-in lock</div>' +
+        '<div style="display:flex;align-items:center;gap:.75rem">' +
+          '<div style="flex:1">' +
+            '<div style="font-size:.9rem;font-weight:700">' + (locked ? 'Sign-in is LOCKED' : 'Sign-in is open') + '</div>' +
+            '<div style="font-size:.74rem;color:var(--muted);margin-top:.2rem">When locked, nobody can sign in or register — even existing accounts — except you and the people on the allow-list below.</div>' +
+          '</div>' +
+          '<button onclick="acToggleLock(' + (locked ? 'false' : 'true') + ')" style="padding:.55rem 1.1rem;border:none;border-radius:10px;font-weight:800;font-size:.8rem;cursor:pointer;font-family:inherit;color:#fff;background:' + (locked ? '#2E7D32' : '#C62828') + '">' +
+            (locked ? 'Unlock' : 'Lock now') +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+
+      // ── Allow a person (existing email) ──
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">✅ Allow someone in</div>' +
+        '<div style="font-size:.74rem;color:var(--muted);margin-bottom:.6rem">Add an email so that person can sign in even while sign-in is locked.</div>' +
+        '<div style="display:flex;gap:.5rem">' +
+          '<input id="ac-allow-email" type="email" placeholder="email@example.com" style="flex:1;padding:.6rem .8rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;direction:ltr">' +
+          '<button onclick="acAddAllow()" style="padding:.6rem 1rem;border:none;border-radius:10px;background:var(--gold);color:#fff;font-weight:800;font-size:.8rem;cursor:pointer;font-family:inherit">Add</button>' +
+        '</div>' +
+      '</div>' +
+
+      // ── Create a new account directly ──
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">➕ Create an account</div>' +
+        '<div style="font-size:.74rem;color:var(--muted);margin-bottom:.6rem">Make an account for someone without opening public sign-up. They\'ll be able to sign in right away (auto allow-listed).</div>' +
+        '<input id="ac-new-email" type="email" placeholder="email@example.com" style="width:100%;padding:.6rem .8rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;direction:ltr;margin-bottom:.5rem;box-sizing:border-box">' +
+        '<input id="ac-new-nick" type="text" placeholder="Nickname" style="width:100%;padding:.6rem .8rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;margin-bottom:.5rem;box-sizing:border-box">' +
+        '<input id="ac-new-pass" type="text" placeholder="Temporary password (min 6)" style="width:100%;padding:.6rem .8rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;margin-bottom:.6rem;box-sizing:border-box">' +
+        '<button onclick="acCreateAccount()" style="width:100%;padding:.65rem;border:none;border-radius:10px;background:#1F6F5C;color:#fff;font-weight:800;font-size:.82rem;cursor:pointer;font-family:inherit">Create account</button>' +
+      '</div>' +
+
+      // ── Allow-list ──
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🗝️ Allow-list (' + list.length + ')</div>' +
+        rows +
+      '</div>';
+  }).catch(function (err) {
+    var panel = document.getElementById('ac-panel');
+    if (panel) panel.innerHTML = '<div class="admin-card" style="color:var(--red)">Could not load: ' + escHtmlA(err.message) + '</div>';
+  });
+}
+
+window.acToggleLock = function (lock) {
+  if (lock && !confirm('Lock sign-in for EVERYONE except you and the allow-list?')) return;
+  api.put('/admin/access-control', { locked: lock })
+    .then(function () { toast(lock ? '🔒 Sign-in locked' : '🔓 Sign-in open'); _loadAccessControl(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.acAddAllow = function () {
+  var el = document.getElementById('ac-allow-email');
+  var email = (el.value || '').trim();
+  if (!email) { toast('Enter an email'); return; }
+  api.post('/admin/access-control', { action: 'allow', email: email })
+    .then(function () { toast('✅ Allowed ' + email); el.value = ''; _loadAccessControl(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.acRemoveAllow = function (email, btn) {
+  if (!confirm('Remove ' + email + ' from the allow-list?')) return;
+  api.del('/admin/access-control?email=' + encodeURIComponent(email))
+    .then(function () { toast('Removed'); _loadAccessControl(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.acCreateAccount = function () {
+  var email = (document.getElementById('ac-new-email').value || '').trim();
+  var nick  = (document.getElementById('ac-new-nick').value || '').trim();
+  var pass  = (document.getElementById('ac-new-pass').value || '').trim();
+  if (!email || !nick || !pass) { toast('Fill in all fields'); return; }
+  api.post('/admin/access-control', { action: 'create_account', email: email, nickname: nick, password: pass })
+    .then(function () { toast('✅ Account created for @' + nick); _loadAccessControl(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+// Used from the Users panel — kick a user out; they must sign in again.
+window.acForceLogout = function (userId, nick) {
+  if (!confirm('Kick @' + nick + ' out? They\'ll have to sign in again.')) return;
+  api.post('/admin/access-control', { action: 'force_logout', user_id: userId })
+    .then(function () { toast('👢 @' + nick + ' was signed out'); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+function escHtmlA(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttrA(s) { return String(s == null ? '' : s).replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
