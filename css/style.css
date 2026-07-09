@@ -807,6 +807,22 @@ html.dark-mode .admin-nav-row { background: #1B1C1E; border-bottom-color: #2C2D3
 .anav.active { color: #1F6F5C; border-bottom-color: #1F6F5C; font-weight: 700; }
 html.dark-mode .anav { color: #8B949E; }
 html.dark-mode .anav.active { color: #3EBFA1; border-bottom-color: #3EBFA1; }
+.anav-back { color: #1F6F5C; font-weight: 700; gap: .25rem; padding-left: .7rem; padding-right: .9rem; border-right: 1px solid var(--border); }
+html.dark-mode .anav-back { color: #3EBFA1; }
+
+/* ── Grouped admin dashboard ── */
+.admin-home { padding: 1rem .9rem 2rem; max-width: 640px; margin: 0 auto; }
+.admin-home-hdr { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 800; margin: .25rem .25rem 1rem; }
+.admin-cat-list { display: flex; flex-direction: column; gap: .7rem; }
+.admin-cat-card { display: flex; align-items: center; gap: .9rem; width: 100%; padding: 1rem 1.1rem; background: #fff; border: none; border-radius: 16px; cursor: pointer; font-family: inherit; text-align: left; box-shadow: 0 1px 8px rgba(0,0,0,.06), 0 0 0 1px rgba(0,0,0,.04); transition: transform .12s; }
+.admin-cat-card:active { transform: scale(.985); }
+html.dark-mode .admin-cat-card { background: #1B1C1E; box-shadow: 0 1px 8px rgba(0,0,0,.3), 0 0 0 1px #2C2D31; }
+.acc-ic { width: 46px; height: 46px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.acc-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
+.acc-title { font-size: .98rem; font-weight: 700; color: var(--text); }
+.acc-desc { font-size: .74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acc-meta { font-size: .72rem; font-weight: 700; color: var(--muted2); background: var(--bg3); border-radius: 999px; min-width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; padding: 0 .4rem; flex-shrink: 0; }
+.acc-chev { color: var(--muted2); flex-shrink: 0; }
 
 /* ── Admin Cards ── */
 .admin-card { background: #fff; border: none; border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 8px rgba(0,0,0,.06), 0 0 0 1px rgba(0,0,0,.04); }

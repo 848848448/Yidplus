@@ -203,16 +203,99 @@ var ADMIN_PANELS = [
   { id:'admin-settings', label:'Admin Settings',  roles:['owner'] },
 ];
 
+/* ══════════════════════════════════
+   GROUPED DASHBOARD (categories)
+══════════════════════════════════ */
+var ADMIN_CATEGORIES = [
+  { id:'overview',   label:'Overview',   desc:'Analytics and leaderboard',            color:'#185FA5', bg:'#E6F1FB', bgd:'#0C447C',
+    panels:['analytics','leaderboard'] },
+  { id:'people',     label:'People',     desc:'Users, warnings, badges, sessions',    color:'#0F6E56', bg:'#E1F5EE', bgd:'#085041',
+    panels:['users','warnings','badges','sessions','banned-devices','ad-exempt'] },
+  { id:'moderation', label:'Moderation', desc:'Reports, feedback, support, filter',   color:'#A32D2D', bg:'#FCEBEB', bgd:'#791F1F',
+    panels:['reports','feedback','support-chats','chat-watch','shorts-mod','music-mod','bad-words'] },
+  { id:'content',    label:'Content',    desc:'Announce, broadcast, channels, more',  color:'#534AB7', bg:'#EEEDFE', bgd:'#3C3489',
+    panels:['announcements','broadcast','channels-mgr','telegram'] },
+  { id:'system',     label:'System',     desc:'App, ads, maintenance, logs, export',  color:'#5F5E5A', bg:'#F1EFE8', bgd:'#2C2C2A',
+    panels:['app-settings','ads','maintenance','ip-logs','audit-logs','export','nuclear','admin-settings'] },
+];
+
+var ADMIN_CAT_ICONS = {
+  overview:   '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  people:     '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  moderation: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
+  content:    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>',
+  system:     '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+};
+
+function _adminPanelById(id) {
+  for (var i = 0; i < ADMIN_PANELS.length; i++) if (ADMIN_PANELS[i].id === id) return ADMIN_PANELS[i];
+  return null;
+}
+function _adminAccessiblePanels(cat, role) {
+  return cat.panels
+    .map(_adminPanelById)
+    .filter(function (p) { return p && p.roles.indexOf(role) !== -1; });
+}
+
+// Entry point: show the grouped category home.
 function buildAdminNav() {
+  showAdminHome();
+}
+
+function showAdminHome() {
+  clearInterval(window._adminAnalyticsTimer);
   var nav = document.getElementById('admin-nav-row');
-  if (!nav) return;
-  nav.innerHTML = '';
+  if (nav) { nav.innerHTML = ''; nav.style.display = 'none'; }
 
-  var userRole = ADMIN_gateRole || 'member';
+  var content = document.getElementById('admin-content');
+  if (!content) return;
+  var role = ADMIN_gateRole || 'member';
+  var dark = document.documentElement.classList.contains('dark-mode');
 
-  ADMIN_PANELS
-    .filter(function (p) { return p.roles.indexOf(userRole) !== -1; })
-    .forEach(function (p, i) {
+  var cards = ADMIN_CATEGORIES
+    .map(function (cat) {
+      var panels = _adminAccessiblePanels(cat, role);
+      if (!panels.length) return '';
+      var tint = dark ? cat.bgd : cat.bg;
+      var fg   = dark ? '#fff' : cat.color;
+      return '<button class="admin-cat-card" onclick="openAdminCategory(\'' + cat.id + '\')">' +
+          '<span class="acc-ic" style="background:' + tint + ';color:' + fg + '">' + ADMIN_CAT_ICONS[cat.id] + '</span>' +
+          '<span class="acc-txt">' +
+            '<span class="acc-title">' + cat.label + '</span>' +
+            '<span class="acc-desc">' + cat.desc + '</span>' +
+          '</span>' +
+          '<span class="acc-meta">' + panels.length + '</span>' +
+          '<svg class="acc-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>' +
+        '</button>';
+    }).join('');
+
+  content.innerHTML =
+    '<div class="admin-home">' +
+      '<div class="admin-home-hdr">Control panel</div>' +
+      '<div class="admin-cat-list">' + cards + '</div>' +
+    '</div>';
+}
+
+window.openAdminCategory = function (catId) {
+  var cat = null;
+  for (var i = 0; i < ADMIN_CATEGORIES.length; i++) if (ADMIN_CATEGORIES[i].id === catId) cat = ADMIN_CATEGORIES[i];
+  if (!cat) return;
+  var role = ADMIN_gateRole || 'member';
+  var panels = _adminAccessiblePanels(cat, role);
+  if (!panels.length) return;
+
+  var nav = document.getElementById('admin-nav-row');
+  if (nav) {
+    nav.style.display = 'flex';
+    nav.innerHTML = '';
+
+    var back = document.createElement('button');
+    back.className = 'anav anav-back';
+    back.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>' + cat.label;
+    back.onclick = showAdminHome;
+    nav.appendChild(back);
+
+    panels.forEach(function (p, i) {
       var btn = document.createElement('button');
       btn.className = 'anav' + (i === 0 ? ' active' : '');
       var icon = ADMIN_ICONS[p.id] || '';
@@ -224,9 +307,10 @@ function buildAdminNav() {
       };
       nav.appendChild(btn);
     });
+  }
 
-  buildAdminPanel('analytics');
-}
+  buildAdminPanel(panels[0].id);
+};
 
 window.init_admin = function () {};
 
@@ -1201,7 +1285,7 @@ window.adminUploadLogo = function (e) {
       STATE.settings.logo_url = res.value;
       applyAppSettings();
       toast('✅ Logo updated!');
-      buildAdminNav(); // re-render the app-settings panel to show the new preview
+      buildAdminPanel('app-settings'); // re-render the app-settings panel to show the new preview
     })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
