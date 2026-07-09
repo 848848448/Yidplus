@@ -23,7 +23,15 @@ export async function onRequestPost(context) {
       room = await env.DB.prepare('SELECT id, type FROM rooms WHERE invite_code = ?').bind(inviteCode).first();
       if (!room) return json({ ok: false, error: 'Invalid invite link' }, 404);
     } else if (roomId) {
-      room = await env.DB.prepare('SELECT id, type FROM rooms WHERE id = ?').bind(roomId).first();
+      room = await env.DB.prepare('SELECT id, type, visibility FROM rooms WHERE id = ?').bind(roomId).first();
+      // Joining by raw room_id (no invite code) is only allowed for PUBLIC rooms.
+      // A private group can only be joined through its invite code above.
+      if (room && room.type === 'group' && room.visibility === 'private') {
+        const isMember = await env.DB.prepare(
+          'SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?'
+        ).bind(room.id, user.id).first();
+        if (!isMember) return json({ ok: false, error: 'This group is private — you need an invite link to join.' }, 403);
+      }
     }
 
     if (!room) return json({ ok: false, error: 'room_id or invite_code is required' }, 400);

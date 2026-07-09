@@ -91,7 +91,9 @@ export async function onRequestGet(context) {
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
 
     // Fetch room type up front — needed to decide access below.
-    const roomInfo = await env.DB.prepare('SELECT type FROM rooms WHERE id = ?').bind(roomId).first().catch(() => null);
+    const roomInfo = await env.DB.prepare('SELECT type, visibility FROM rooms WHERE id = ?').bind(roomId).first().catch(() =>
+      env.DB.prepare('SELECT type FROM rooms WHERE id = ?').bind(roomId).first().catch(() => null)
+    );
 
     const isOwner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
     const isAdmin = isAdminRole(user, env.OWNER_EMAIL);
@@ -105,8 +107,12 @@ export async function onRequestGet(context) {
       // (admin_limited / admin_super) are explicitly excluded, even though
       // they can god-mode into groups/channels.
       if (!isOwner) return json({ ok: false, error: 'Forbidden' }, 403);
+    } else if (roomInfo && roomInfo.type === 'group' && roomInfo.visibility === 'private' && !isMember && !isAdmin) {
+      // Private (invite-only) group — do NOT auto-join. A non-member can only
+      // get in through the invite/join flow, which enforces the invite code.
+      return json({ ok: false, error: 'This is a private group. You need an invite to join.' }, 403);
     } else if (!isAdmin) {
-      // Regular member touching a group/channel — auto-join as before.
+      // Regular member touching a PUBLIC group/channel — auto-join as before.
       await ensureMember(env, roomId, user.id);
     }
 
@@ -268,7 +274,7 @@ export async function onRequestPost(context) {
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
 
     // For private DMs: if either side has blocked the other, sending is disallowed.
-    const room = await env.DB.prepare(`SELECT type, read_only FROM rooms WHERE id = ?`).bind(roomId).first();
+    const room = await env.DB.prepare(`SELECT type, read_only, visibility FROM rooms WHERE id = ?`).bind(roomId).first();
     if (room && room.type === 'private') {
       const { results: members } = await env.DB.prepare(
         `SELECT user_id FROM room_members WHERE room_id = ? AND user_id != ?`
@@ -280,6 +286,14 @@ export async function onRequestPost(context) {
         ).bind(user.id, otherId, otherId, user.id).first();
         if (isBlocked) return json({ ok: false, error: 'You cannot message this user.' }, 403);
       }
+    }
+
+    // Private (invite-only) group: only existing members (or admins) may post.
+    if (room && room.type === 'group' && room.visibility === 'private' && !isAdminRole(user, env.OWNER_EMAIL)) {
+      const already = await env.DB.prepare(
+        'SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?'
+      ).bind(roomId, user.id).first();
+      if (!already) return json({ ok: false, error: 'This is a private group. You need an invite to join.' }, 403);
     }
 
     await ensureMember(env, roomId, user.id);
