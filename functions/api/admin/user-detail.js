@@ -44,6 +44,31 @@ export async function onRequestGet(context) {
       env.DB.prepare('SELECT COUNT(*) AS c FROM room_members WHERE user_id = ?').bind(targetId).first().catch(() => ({ c: 0 })),
     ]);
 
+    const [followers, following] = await Promise.all([
+      env.DB.prepare('SELECT COUNT(*) AS c FROM user_follows WHERE following_id = ?').bind(targetId).first().catch(() => ({ c: 0 })),
+      env.DB.prepare('SELECT COUNT(*) AS c FROM user_follows WHERE follower_id = ?').bind(targetId).first().catch(() => ({ c: 0 })),
+    ]);
+
+    // Distinct devices/IPs this user has signed in from, with a ban flag so the
+    // owner can cut off a blocked user's device right from this view.
+    const { results: deviceRows } = await env.DB.prepare(
+      `SELECT ip, fingerprint, COUNT(*) AS hits, MAX(created_at) AS last_seen
+       FROM login_logs
+       WHERE user_id = ? AND (ip IS NOT NULL OR fingerprint IS NOT NULL)
+       GROUP BY ip, fingerprint
+       ORDER BY last_seen DESC LIMIT 15`
+    ).bind(targetId).all().catch(() => ({ results: [] }));
+
+    const { results: bans } = await env.DB.prepare(
+      'SELECT ip, fingerprint FROM device_bans'
+    ).all().catch(() => ({ results: [] }));
+    const bannedIps = new Set(bans.map(b => b.ip).filter(Boolean));
+    const bannedFps = new Set(bans.map(b => b.fingerprint).filter(Boolean));
+    const devices = deviceRows.map(d => ({
+      ip: d.ip, fingerprint: d.fingerprint, hits: d.hits, last_seen: d.last_seen,
+      banned: bannedIps.has(d.ip) || bannedFps.has(d.fingerprint),
+    }));
+
     const { results: loginHistory } = await env.DB.prepare(
       `SELECT ip, fingerprint, action, created_at FROM login_logs
        WHERE user_id = ? ORDER BY created_at DESC LIMIT 25`
@@ -71,7 +96,10 @@ export async function onRequestGet(context) {
         music: music?.c || 0,
         groups_created: groupsCreated?.c || 0,
         groups_joined: groupsJoined?.c || 0,
+        followers: followers?.c || 0,
+        following: following?.c || 0,
       },
+      devices,
       login_history: loginHistory,
       audit_as_actor: auditAsActor,
       audit_as_target: auditAsTarget,

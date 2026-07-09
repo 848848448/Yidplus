@@ -954,6 +954,8 @@ window.openUserDetailModal = function (userId) {
         '<div class="admin-card" style="margin:0 0 .75rem">' +
           '<div class="admin-card-title">📊 Activity Counts</div>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;text-align:center;font-size:.78rem">' +
+            '<div>👤<br><strong>' + (c.followers || 0) + '</strong><br>Followers</div>' +
+            '<div>➡️<br><strong>' + (c.following || 0) + '</strong><br>Following</div>' +
             '<div>💬<br><strong>' + c.messages + '</strong><br>Messages</div>' +
             '<div>🎬<br><strong>' + c.shorts + '</strong><br>Shorts</div>' +
             '<div>⭐<br><strong>' + c.statuses + '</strong><br>Statuses</div>' +
@@ -961,6 +963,28 @@ window.openUserDetailModal = function (userId) {
             '<div>👥<br><strong>' + c.groups_created + '</strong><br>Groups Made</div>' +
             '<div>🚪<br><strong>' + c.groups_joined + '</strong><br>Groups Joined</div>' +
           '</div>' +
+        '</div>';
+
+      // ── Devices & IPs — ban a blocked user's device so they can't return ──
+      var devices = res.devices || [];
+      var deviceRows = devices.length ? devices.map(function (d) {
+        var label = escHtml(d.ip || '?') + (d.fingerprint ? ' · ' + escHtml(String(d.fingerprint).slice(0, 10)) : '');
+        return '<div style="display:flex;align-items:center;gap:.5rem;padding:.45rem 0;border-bottom:.5px solid var(--border)">' +
+            '<div style="flex:1;min-width:0">' +
+              '<div style="font-size:.76rem;font-weight:700;direction:ltr;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + label + '</div>' +
+              '<div style="font-size:.66rem;color:var(--muted)">' + (d.hits || 1) + ' logins · ' + timeAgo(d.last_seen) + '</div>' +
+            '</div>' +
+            (d.banned
+              ? '<span style="font-size:.68rem;font-weight:700;color:#D32F2F">🚫 Banned</span>'
+              : '<button class="act-btn" style="background:#C62828;color:#fff;border-color:#C62828" onclick="adminBanDevice(\'' + escAttrA(d.ip || '') + '\',\'' + escAttrA(d.fingerprint || '') + '\',this)">Ban device</button>') +
+          '</div>';
+      }).join('') : '<div style="font-size:.75rem;color:var(--muted)">No device history yet</div>';
+
+      var devicesCard =
+        '<div class="admin-card" style="margin:0 0 .75rem">' +
+          '<div class="admin-card-title">📱 Devices &amp; IPs</div>' +
+          '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.5rem">Ban a device to stop this person returning with a new account from the same device/IP.</div>' +
+          deviceRows +
         '</div>';
 
       var loginRows = (res.login_history || []).slice(0, 10).map(function (l) {
@@ -975,7 +999,7 @@ window.openUserDetailModal = function (userId) {
         '</div>';
       }).join('') || '<div style="font-size:.75rem;color:var(--muted)">No moderation actions on this user</div>';
 
-      body.innerHTML = profileRows + countsGrid +
+      body.innerHTML = profileRows + countsGrid + devicesCard +
         '<div class="admin-card" style="margin:0 0 .75rem"><div class="admin-card-title">🔐 Login History (last 10)</div>' + loginRows + '</div>' +
         '<div class="admin-card" style="margin:0 0 .75rem"><div class="admin-card-title">📋 Moderation Actions Taken Against This User</div>' + auditRows + '</div>' +
         '<div class="admin-card" style="margin:0 0 .75rem">' +
@@ -3108,3 +3132,16 @@ window.acForceLogout = function (userId, nick) {
 
 function escHtmlA(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function escAttrA(s) { return String(s == null ? '' : s).replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+// Ban a device/IP straight from the 360° user view — closes the door on a
+// blocked user returning from the same device with a fresh account.
+window.adminBanDevice = function (ip, fingerprint, btn) {
+  if (!ip && !fingerprint) { toast('No device info'); return; }
+  if (!confirm('Ban this device/IP? Nobody will be able to sign in or register from it.')) return;
+  api.post('/admin/device-bans', { ip: ip || null, fingerprint: fingerprint || null, reason: 'Banned from user 360 view' })
+    .then(function () {
+      toast('🚫 Device banned');
+      if (btn) { btn.outerHTML = '<span style="font-size:.68rem;font-weight:700;color:#D32F2F">🚫 Banned</span>'; }
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
