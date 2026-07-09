@@ -141,6 +141,17 @@ export async function onRequestDelete(context) {
     const user_id = url.searchParams.get('user_id');
     if (!user_id) return json({ ok: false, error: 'user_id required' }, 400);
 
+    // Remove one of MY followers (they stop following me).
+    if (url.searchParams.get('remove')) {
+      await env.DB.prepare(
+        'DELETE FROM user_follows WHERE follower_id = ? AND following_id = ?'
+      ).bind(user_id, me.id).run().catch(() => {});
+      await env.DB.prepare(
+        'DELETE FROM follow_requests WHERE requester_id = ? AND target_id = ?'
+      ).bind(user_id, me.id).run().catch(() => {});
+      return json({ ok: true, removed: true });
+    }
+
     // Cancel my own pending request, or reject an incoming one
     if (url.searchParams.get('request')) {
       await env.DB.prepare(

@@ -52,28 +52,37 @@ export async function onRequestGet(context) {
       blockedIds = br.map(r => r.blocked_id);
     }
 
+    // Profile view: only this user's own shorts. Without this the endpoint
+    // returned the global feed for every profile, so everyone's channel
+    // showed the same videos even when they'd never posted any.
+    const ownerId = url.searchParams.get('owner_id');
+    const ownerClause = ownerId ? ' AND s.owner_id = ?' : '';
+
     let results;
     try {
-      const r = await env.DB.prepare(
+      const stmt = env.DB.prepare(
         `SELECT s.id, s.owner_id, s.media_key, s.caption, s.likes, s.views, s.created_at,
                 u.nickname, u.verified, u.photo_url
          FROM shorts s
          JOIN users u ON u.id = s.owner_id
-         WHERE (s.hidden IS NULL OR s.hidden = 0)
+         WHERE (s.hidden IS NULL OR s.hidden = 0)` + ownerClause + `
          ORDER BY s.created_at DESC
          LIMIT 50`
-      ).all();
+      );
+      const r = await (ownerId ? stmt.bind(ownerId) : stmt).all();
       results = r.results;
     } catch (e) {
       // hidden column not migrated yet
-      const r = await env.DB.prepare(
+      const stmt = env.DB.prepare(
         `SELECT s.id, s.owner_id, s.media_key, s.caption, s.likes, s.views, s.created_at,
                 u.nickname, u.verified, u.photo_url
          FROM shorts s
          JOIN users u ON u.id = s.owner_id
+         WHERE 1=1` + ownerClause + `
          ORDER BY s.created_at DESC
          LIMIT 50`
-      ).all();
+      );
+      const r = await (ownerId ? stmt.bind(ownerId) : stmt).all();
       results = r.results;
     }
 

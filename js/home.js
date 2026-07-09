@@ -1837,7 +1837,7 @@ function _channelRow(c) {
   return '<div style="display:flex;align-items:center;gap:.65rem;padding:.7rem .85rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
     av +
     '<div style="flex:1;min-width:0">' +
-      '<div style="font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext">' + escHtml(c.nickname||'Channel') + (c.verified?' ✅':'') + '</div>' +
+      '<div style="font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:left">' + escHtml(c.nickname||'Channel') + (c.verified?' ✅':'') + '</div>' +
       (bioSnippet || '<div style="font-size:.72rem;color:var(--muted)">' + fmtN(c.followers||0) + ' followers</div>') +
     '</div>' +
     '<div style="font-size:.66rem;color:var(--muted);text-align:right;flex-shrink:0">' + (bioSnippet ? fmtN(c.followers||0) + '<br>followers' : '') + '</div>' +
@@ -2222,14 +2222,15 @@ window.openDMWith = function (userId) {
 };
 
 window.openFollowersList = function (userId) {
-  _openFollowModal('Followers', '/follows?followers=1&user_id=' + encodeURIComponent(userId));
+  var isMine = STATE.user && STATE.user.id === userId;
+  _openFollowModal('Followers', '/follows?followers=1&user_id=' + encodeURIComponent(userId), isMine);
 };
 
 window.openFollowingList = function (userId) {
-  _openFollowModal('Following', '/follows?following=1&user_id=' + encodeURIComponent(userId));
+  _openFollowModal('Following', '/follows?following=1&user_id=' + encodeURIComponent(userId), false);
 };
 
-function _openFollowModal(title, path) {
+function _openFollowModal(title, path, allowManage) {
   var modal = document.createElement('div');
   modal.style.cssText = 'position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
   modal.innerHTML =
@@ -2251,17 +2252,51 @@ function _openFollowModal(title, path) {
     var users = res.users || [];
     if (!users.length) { el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.85rem">Nobody here yet</div>'; return; }
     el.innerHTML = users.map(function (u) {
-      return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem 0;border-bottom:.5px solid var(--border);cursor:pointer" onclick="this.closest(\'div[style*=fixed]\').remove();openUserProfile(\'' + u.id + '\')">' +
-        (u.photo_url
-          ? '<div style="width:42px;height:42px;border-radius:50%;background-image:url(' + u.photo_url + ');background-size:cover;flex-shrink:0"></div>'
-          : '<div style="width:42px;height:42px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">' + (u.nickname||'U').slice(0,1).toUpperCase() + '</div>') +
-        '<div>' +
-          '<div style="font-size:.88rem;font-weight:700">@' + escHtml(u.nickname) + (u.verified ? ' ✅' : '') + '</div>' +
+      var safeNick = String(u.nickname || 'User').replace(/'/g, "\\'");
+      var manageBtns = allowManage
+        ? '<div style="display:flex;gap:.4rem;flex-shrink:0" onclick="event.stopPropagation()">' +
+            '<button onclick="removeFollowerAction(\'' + u.id + '\',\'' + safeNick + '\',this)" style="padding:.35rem .7rem;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:.72rem;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit">Remove</button>' +
+            '<button onclick="blockFollowerAction(\'' + u.id + '\',\'' + safeNick + '\',this)" style="padding:.35rem .7rem;background:none;border:1px solid #E5989B;border-radius:8px;font-size:.72rem;font-weight:700;color:#D32F2F;cursor:pointer;font-family:inherit">Block</button>' +
+          '</div>'
+        : '';
+      return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem 0;border-bottom:.5px solid var(--border)">' +
+        '<div style="display:flex;align-items:center;gap:.65rem;flex:1;min-width:0;cursor:pointer" onclick="this.closest(\'div[style*=fixed]\').remove();openUserProfile(\'' + u.id + '\')">' +
+          (u.photo_url
+            ? '<div style="width:42px;height:42px;border-radius:50%;background-image:url(' + u.photo_url + ');background-size:cover;flex-shrink:0"></div>'
+            : '<div style="width:42px;height:42px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">' + (u.nickname||'U').slice(0,1).toUpperCase() + '</div>') +
+          '<div style="min-width:0;flex:1"><div style="font-size:.88rem;font-weight:700;direction:ltr;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@' + escHtml(u.nickname) + (u.verified ? ' ✅' : '') + '</div></div>' +
         '</div>' +
+        manageBtns +
       '</div>';
     }).join('');
   }).catch(function () {});
 }
+
+// Remove a follower (they stop following you); Block also stops content/messages.
+window.removeFollowerAction = function (userId, nick, btn) {
+  if (!confirm('Remove @' + nick + ' from your followers?')) return;
+  api.del('/follows?remove=1&user_id=' + encodeURIComponent(userId))
+    .then(function () {
+      toast('Removed @' + nick);
+      var row = btn.closest('div[style*="border-bottom"]');
+      if (row && row.parentElement) row.parentElement.removeChild(row);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.blockFollowerAction = function (userId, nick, btn) {
+  if (!confirm('Block @' + nick + '? They\'ll be removed as a follower and won\'t see your content or message you.')) return;
+  api.post('/blocks', { blocked_id: userId })
+    .then(function () {
+      return api.del('/follows?remove=1&user_id=' + encodeURIComponent(userId)).catch(function () {});
+    })
+    .then(function () {
+      toast('🚫 Blocked @' + nick);
+      var row = btn.closest('div[style*="border-bottom"]');
+      if (row && row.parentElement) row.parentElement.removeChild(row);
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 /* ══════════════════════════════════
    IN-APP NOTIFICATION PANEL

@@ -16,27 +16,34 @@ export async function onRequestGet(context) {
   try {
     const user = await requireUser(request, env).catch(() => null);
 
+    const url = new URL(request.url);
+    const ownerId = url.searchParams.get('owner_id');
+    const ownerClause = ownerId ? ' AND m.owner_id = ?' : '';
+
     let results;
     try {
-      const r = await env.DB.prepare(
+      const stmt = env.DB.prepare(
         `SELECT m.id, m.owner_id, m.title, m.artist, m.type, m.album_id, m.album_name,
                 m.audio_key, m.video_key, m.cover_key, m.duration_sec, m.trending, m.plays, m.created_at,
                 u.nickname as owner_nick, u.photo_url as owner_photo
          FROM music_tracks m
          LEFT JOIN users u ON u.id = m.owner_id
-         WHERE (m.hidden IS NULL OR m.hidden = 0)
+         WHERE (m.hidden IS NULL OR m.hidden = 0)` + ownerClause + `
          ORDER BY m.created_at DESC LIMIT 200`
-      ).all();
+      );
+      const r = await (ownerId ? stmt.bind(ownerId) : stmt).all();
       results = r.results;
     } catch (e) {
-      const r = await env.DB.prepare(
+      const stmt = env.DB.prepare(
         `SELECT m.id, m.owner_id, m.title, m.artist, m.type, m.album_id, m.album_name,
                 m.audio_key, m.video_key, m.cover_key, m.duration_sec, m.trending, m.plays, m.created_at,
                 u.nickname as owner_nick, u.photo_url as owner_photo
          FROM music_tracks m
          LEFT JOIN users u ON u.id = m.owner_id
+         WHERE 1=1` + ownerClause + `
          ORDER BY m.created_at DESC LIMIT 200`
-      ).all();
+      );
+      const r = await (ownerId ? stmt.bind(ownerId) : stmt).all();
       results = r.results;
     }
 
