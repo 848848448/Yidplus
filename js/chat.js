@@ -2468,12 +2468,20 @@ function _buildCtxMenu(msg) {
   var el = document.getElementById('ctx-menu-items');
   el.innerHTML = items;
 
-  // Wire clicks via event delegation to avoid inline-onclick quote hell
+  // Wire clicks via a safe dispatch map — never eval(). The data-fn values
+  // are fixed internal command names; we look them up instead of executing
+  // arbitrary strings.
+  var CTX_ACTIONS = {
+    'ctxReply()': ctxReply, 'ctxCopy()': ctxCopy, 'ctxForward()': ctxForward,
+    'ctxPin()': ctxPin, 'ctxEdit()': ctxEdit, 'ctxReport()': ctxReport,
+    'ctxDelete()': ctxDelete,
+  };
   el.querySelectorAll('.ctx-item').forEach(function (div) {
     div.addEventListener('click', function () {
       var fn = div.dataset.fn;
       document.getElementById('ctx-menu').classList.remove('open');
-      if (fn) { try { eval(fn); } catch(e) { toast('❌ ' + e.message); } }
+      var action = CTX_ACTIONS[fn];
+      if (typeof action === 'function') { try { action(); } catch (e) { toast('❌ ' + e.message); } }
     });
   });
 }
