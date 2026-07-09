@@ -19,7 +19,7 @@
 <meta name="twitter:description" content="A Yiddish social platform for the Jewish community">
 <meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>YID PLUS</title>
-<link rel="stylesheet" href="css/style.css?v=202607091430">
+<link rel="stylesheet" href="css/style.css?v=202607091540">
 <script>
 // Apply saved user theme ASAP (before paint) to avoid flash-of-default-colors
 (function () {
@@ -287,11 +287,8 @@
 
 <!-- ══ CHANNEL SCREEN ══ -->
 <div class="screen" id="screen-channel">
-  <div class="channel-cover" id="ch-cover">
-    <div class="ch-cover-emoji" id="ch-cover-emoji"></div>
-  </div>
   <div class="scroll-area" style="padding-bottom:20px">
-    <div style="padding:0 1rem;margin-top:-44px;position:relative;z-index:5;margin-bottom:.5rem">
+    <div style="padding:60px 1rem 0;position:relative;z-index:5;margin-bottom:.5rem">
       <div class="ch-avatar-big" id="ch-avatar-big"></div>
       <div style="font-size:1.25rem;font-weight:800;margin-top:.6rem;unicode-bidi:plaintext" id="ch-name"></div>
       <div style="font-size:.78rem;color:var(--muted);margin-top:.1rem" id="ch-handle"></div>
@@ -524,10 +521,10 @@
 <!-- Channel topbar — MUST be outside .screen (which has overflow:hidden + transform
      that would clip/block clicks on absolutely-positioned children) -->
 <div id="channel-topbar-fixed" style="display:none;position:fixed;top:0;left:0;right:0;z-index:200;align-items:center;justify-content:space-between;padding:.6rem .75rem;pointer-events:none">
-  <div class="icon-btn" style="background:rgba(0,0,0,.5);color:#fff;pointer-events:all" onclick="navTo(window._channelBackScreen||STATE.prevScreen||'home')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+  <div class="icon-btn" style="background:var(--surface);color:var(--text);border:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,.12);pointer-events:all" onclick="navBack()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
   <div style="display:flex;gap:.4rem;pointer-events:all">
-    <div class="icon-btn" style="background:rgba(0,0,0,.5);color:#fff" onclick="shareChannel()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
-    <div class="icon-btn" style="background:rgba(0,0,0,.5);color:#fff" onclick="openChannelOptions()"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
+    <div class="icon-btn" style="background:var(--surface);color:var(--text);border:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,.12)" onclick="shareChannel()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
+    <div class="icon-btn" style="background:var(--surface);color:var(--text);border:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,.12)" onclick="openChannelOptions()"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
   </div>
 </div>
 
@@ -544,11 +541,11 @@
 <!-- ════════════════════════════════
      SCRIPTS — ORDER MATTERS!
 ════════════════════════════════ -->
-<script src="js/state.js?v=202607091430"></script>
-<script src="js/theme.js?v=202607091430"></script>
-<script src="js/app.js?v=202607091430"></script>
-<script src="js/auth.js?v=202607091430"></script>
-<script src="js/home.js?v=202607091430"></script>
+<script src="js/state.js?v=202607091540"></script>
+<script src="js/theme.js?v=202607091540"></script>
+<script src="js/app.js?v=202607091540"></script>
+<script src="js/auth.js?v=202607091540"></script>
+<script src="js/home.js?v=202607091540"></script>
 
 <script>
 // ── POSTS FEED (Cloudflare D1 via /api/posts) ──
@@ -813,6 +810,6 @@ window._resendVerifyEmail = function (btn) {
 };
 </script>
 
-<script src="js/ads.js?v=202607091430"></script>
+<script src="js/ads.js?v=202607091540"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
       </html>

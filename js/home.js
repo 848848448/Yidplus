@@ -1634,10 +1634,9 @@ function _loadChannelPosts() {
       var posts = res.posts || [];
       var meId  = STATE.user && STATE.user.id;
       var isOwn = CHANNEL_current.owner_id === meId;
-      var isAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.role === 'admin_limited');
 
       var newPostBtn = '';
-      if (isOwn || isAdmin) {
+      if (isOwn) {
         newPostBtn = '<div style="padding:.75rem 1rem;border-bottom:1px solid var(--border)">' +
           '<div onclick="openChannelPostComposer()" style="display:flex;align-items:center;gap:.75rem;padding:.65rem 1rem;background:var(--bg3);border-radius:12px;cursor:pointer;color:var(--muted);font-size:.85rem">' +
             '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
