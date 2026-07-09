@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://yidplus.com">
 <meta property="og:type" content="website">
 <title>YID PLUS — Chats</title>
-<link rel="stylesheet" href="css/style.css?v=202607091210">
+<link rel="stylesheet" href="css/style.css?v=202607091320">
 <script>
 (function () {
   try {
@@ -633,10 +633,10 @@
 #chat-options-menu { position: fixed; }
 </style>
 
-<script src="js/state.js?v=202607091210"></script>
-<script src="js/theme.js?v=202607091210"></script>
-<script src="js/app.js?v=202607091210"></script>
-<script src="js/chat.js?v=202607091210"></script>
+<script src="js/state.js?v=202607091320"></script>
+<script src="js/theme.js?v=202607091320"></script>
+<script src="js/app.js?v=202607091320"></script>
+<script src="js/chat.js?v=202607091320"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
@@ -830,6 +830,14 @@ window.showChatRoom = function () {
   document.getElementById('screen-chats').classList.add('hidden');
   document.getElementById('screen-chatinfo').classList.add('hidden');
   document.getElementById('screen-chatroom').classList.remove('hidden');
+  // Bind the scroll-position tracker exactly once. Without this, CHAT_atBottom
+  // stays permanently true and every 8-second poll force-scrolls to the bottom,
+  // yanking the user down even while they're reading older messages.
+  var cont = document.getElementById('chat-msgs');
+  if (cont && !cont._scrollBound && typeof _onMsgsScroll === 'function') {
+    cont.addEventListener('scroll', _onMsgsScroll, { passive: true });
+    cont._scrollBound = true;
+  }
 };
 
 window.showChatInfo = function () {
@@ -979,7 +987,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="js/ads.js?v=202607091210"></script>
+<script src="js/ads.js?v=202607091320"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");</script>
 </body>
 </html>

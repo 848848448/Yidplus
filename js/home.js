@@ -1337,7 +1337,7 @@ function _renderChannelHeader(ch) {
   var initial = (ch.nickname || '?').slice(0, 1).toUpperCase();
 
   var coverEl = document.getElementById('ch-cover-emoji');
-  if (coverEl) coverEl.innerHTML = '<svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity:.2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+  if (coverEl) coverEl.innerHTML = '';
   var coverWrap = document.getElementById('ch-cover');
   if (coverWrap) {
     if (ch.banner_url) {

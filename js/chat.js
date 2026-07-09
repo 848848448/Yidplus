@@ -241,12 +241,14 @@ function renderChatList() {
     var initial  = (c.nick || '?').slice(0, 1).toUpperCase();
     var isGroup  = c.type === 'group';
     var hasPhoto = c.photo_url && typeof c.photo_url === 'string' && c.photo_url.length > 5 && !c.photo_url.startsWith('null');
-    var photoBg  = hasPhoto ? "background-image:url('" + c.photo_url + "');background-size:cover;background-position:center;" : '';
+    var _avGrad  = avatarColor(c.other_user_id || c.id);
     // Groups get rounded-square avatar like Telegram, DMs get circle
     var avClass  = 'chat-av' + (isGroup ? ' group chat-av-square' : ' chat-av-round');
     var hasStatus = !isGroup && CHAT_activeStatusUserIds && CHAT_activeStatusUserIds.has(c.other_user_id || c.id);
     if (hasStatus) avClass += ' has-status-ring';
-    var avStyle  = 'background:' + avatarColor(c.other_user_id || c.id) + ';' + photoBg;
+    var avStyle  = hasPhoto
+      ? "background-image:url('" + c.photo_url + "'), " + _avGrad + ";background-size:cover;background-position:center;"
+      : 'background:' + _avGrad + ';';
     // Always render the initial as a fallback — if the photo URL 404s, the letter
     // stays visible underneath instead of leaving a blank white circle.
     var avatarContent = initial;
@@ -1115,7 +1117,7 @@ function loadMessages(scrollToBottom) {
               lpEl.style.cssText = 'display:block;margin-top:.4rem;border-radius:12px;overflow:hidden;border:1px solid var(--border);cursor:pointer;background:var(--surface);max-width:100%;opacity:0;transition:opacity .25s ease';
               lpEl.innerHTML =
                 (res.image
-                  ? '<img src="' + escHtml(res.image) + '" style="width:100%;aspect-ratio:1.91/1;max-height:150px;object-fit:cover;display:block;background:var(--bg3)" loading="lazy">'
+                  ? '<img src="' + escHtml(res.image) + '" onerror="this.style.display=&#39;none&#39;" style="width:100%;aspect-ratio:1.91/1;max-height:150px;object-fit:cover;display:block;background:var(--bg3)" loading="lazy">'
                   : '') +
                 '<div style="padding:.5rem .65rem">' +
                   '<div style="font-size:.7rem;color:' + (isMe ? 'rgba(255,255,255,.6)' : 'var(--muted)') + ';margin-bottom:.15rem;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">' + escHtml(new URL(rawUrl).hostname) + '</div>' +
@@ -1342,7 +1344,7 @@ function renderMessages(scrollDown) {
           '</div>';
         }
       } else {
-        inner += '<img src="' + m.media_url + '" style="max-width:260px;border-radius:10px;display:block;cursor:pointer;width:100%;aspect-ratio:4/5;object-fit:cover;background:#000" loading="lazy" onclick="_openMediaViewer(\'' + m.id + '\')">';
+        inner += '<img src="' + m.media_url + '" onerror="this.style.display=&#39;none&#39;" style="max-width:260px;border-radius:10px;display:block;cursor:pointer;width:100%;aspect-ratio:4/5;object-fit:cover;background:#000" loading="lazy" onclick="_openMediaViewer(\'' + m.id + '\')">';
       }
       if (m.text && m.text !== '__once__') {
         var capRTL = /[\u0590-\u05FF]/.test(m.text);
@@ -1432,7 +1434,7 @@ function renderMessages(scrollDown) {
         '<div style="display:flex;flex-direction:column;' + (isMe ? 'align-items:flex-end' : 'align-items:flex-start') + '">' +
           '<div class="' + bubbleClass + '" data-msg-id="' + m.id + '">' +
             inner +
-            '<div class="swipe-reply-icon">↩️</div>' +
+            '<div class="swipe-reply-icon ' + (isMe ? 'sri-me' : 'sri-them') + '"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></div>' +
           '</div>' +
           reactionRow +
         '</div>' +
