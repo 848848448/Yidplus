@@ -943,7 +943,11 @@ window.openUserDetailModal = function (userId) {
           (p.phone ? '<div style="font-size:.78rem;color:var(--muted)">📞 <a href="tel:' + escHtml(p.phone) + '" style="color:var(--gold)">' + escHtml(p.phone) + '</a></div>' : '') +
           '<div style="font-size:.78rem;color:var(--muted)">📅 Joined ' + timeAgo(p.created_at) + '</div>' +
           '<div style="font-size:.78rem;color:var(--muted)">🎭 Role: ' + (p.role || 'member') + (p.verified ? ' · ✅ Verified' : '') + (p.blocked ? ' · 🚫 Blocked' : '') + '</div>' +
-          '<button class="act-btn" style="background:#637087;color:#fff;border-color:transparent;margin-top:.5rem" onclick="adminSetNewPassword(\'' + userId + '\')">🔑 Set New Password</button>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem">' +
+            '<button class="act-btn" style="background:#637087;color:#fff;border-color:transparent" onclick="adminSetNewPassword(\'' + userId + '\')">🔑 New Password</button>' +
+            '<button class="act-btn act-block" onclick="adminBlock(\'' + userId + '\',\'' + !!p.blocked + '\');document.getElementById(\'user-detail-overlay\').remove()">' + (p.blocked ? '✅ Unblock' : '🚫 Block account') + '</button>' +
+            '<button class="act-btn" style="background:#B45309;color:#fff;border-color:#B45309" onclick="acForceLogout(\'' + userId + '\',\'' + escHtml(p.nickname||'') + '\')">👢 Kick out</button>' +
+          '</div>' +
         '</div>';
 
       var countsGrid =

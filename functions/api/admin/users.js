@@ -129,6 +129,13 @@ export async function onRequestPut(context) {
     if (typeof body.blocked === 'boolean') {
       await env.DB.prepare('UPDATE users SET blocked = ? WHERE id = ?')
         .bind(body.blocked ? 1 : 0, id).run();
+      if (body.blocked) {
+        // Blocking must take effect right away — kill every active session and
+        // mark them offline, so they're booted instead of staying logged in
+        // until their next request.
+        await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id).run().catch(() => {});
+        await env.DB.prepare('UPDATE users SET online = 0 WHERE id = ?').bind(id).run().catch(() => {});
+      }
       await logAudit(env, user, body.blocked ? 'block_user' : 'unblock_user', 'user', id, `@${target.nickname}`);
     }
 

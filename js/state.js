@@ -134,6 +134,14 @@ function handleRes(res) {
     }
 
     if (!res.ok || data.ok === false) {
+      // Session died mid-use (blocked, kicked, or logged out elsewhere): a 401
+      // while we believed we were signed in means the session is gone — boot to
+      // login instead of leaving them stuck on a broken screen.
+      if (res.status === 401 && window.STATE && STATE.user && !window._ypBooting) {
+        window._ypBooting = true;
+        try { STATE.user = null; sessionStorage.removeItem('yp_logged_in'); } catch (e) {}
+        if (typeof goPage === 'function') goPage('/');
+      }
       var err2 = new Error(data.error || ('HTTP ' + res.status));
       err2.status = res.status;
       err2.data = data;
