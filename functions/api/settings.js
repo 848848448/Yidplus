@@ -4,6 +4,7 @@
 // PUT /api/settings (multipart: key, file) -> upload a file (e.g. logo) to R2 and save its URL as the setting value
 
 import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from './_helpers.js';
+import { activateDueScheduledBroadcasts } from './_scheduled.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -12,6 +13,9 @@ export async function onRequestOptions() {
 export async function onRequestGet(context) {
   const { env } = context;
   try {
+    // Lazy scheduler tick — publishes any due scheduled broadcasts. Throttled
+    // internally and fully guarded, so it never affects the settings response.
+    context.waitUntil ? context.waitUntil(activateDueScheduledBroadcasts(env)) : await activateDueScheduledBroadcasts(env);
     const { results } = await env.DB.prepare(`SELECT key, value FROM app_settings`).all();
     const settings = {};
     for (const row of results) settings[row.key] = row.value;

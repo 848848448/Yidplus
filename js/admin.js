@@ -360,13 +360,28 @@ function buildAdminPanel(id) {
       '<div class="admin-panel">' +
         '<div class="admin-card">' +
           '<div class="admin-card-title">📢 Global Broadcast</div>' +
-          '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">Sends to all registered users (shown next time they load Home).</div>' +
+          '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">Sends to all users. Leave the time empty to send now, or pick a time to schedule it.</div>' +
           '<textarea class="bc-textarea" id="bc-textarea" rows="4" placeholder="Type your announcement..."></textarea>' +
           '<label style="display:flex;align-items:center;gap:.5rem;margin:.6rem 0;font-size:.82rem;cursor:pointer">' +
             '<input type="checkbox" id="bc-push" style="width:18px;height:18px;accent-color:#1F6F5C">' +
             '🔔 Also send as a push notification to phones' +
           '</label>' +
-          '<button class="bc-send-btn" onclick="sendBroadcast()">📢 Send to All Users</button>' +
+          '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem">' +
+            '<span style="font-size:.78rem;color:var(--muted)">⏰ Schedule:</span>' +
+            '<input type="datetime-local" id="bc-when" style="flex:1;padding:.45rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.8rem">' +
+          '</div>' +
+          '<button class="bc-send-btn" onclick="sendBroadcast()">📢 Send / Schedule</button>' +
+        '</div>' +
+        '<div class="admin-card" id="bc-scheduled-card" style="display:none">' +
+          '<div class="admin-card-title">⏰ Scheduled</div>' +
+          '<div id="bc-scheduled-list"></div>' +
+        '</div>' +
+        '<div class="admin-card">' +
+          '<div class="admin-card-title">✉️ Email all users</div>' +
+          '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem">Sends a real email to every user via yidplus.com. Use sparingly.</div>' +
+          '<input id="eb-subject" type="text" placeholder="Subject" style="width:100%;padding:.6rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;margin-bottom:.5rem;box-sizing:border-box">' +
+          '<textarea id="eb-message" class="bc-textarea" rows="4" placeholder="Email message..."></textarea>' +
+          '<button class="bc-send-btn" style="margin-top:.5rem" onclick="sendEmailBlast()">✉️ Send email to all</button>' +
         '</div>' +
         '<div class="admin-card" id="bc-history-card">' +
           '<div class="admin-card-title">📜 Broadcast History</div>' +
@@ -1243,26 +1258,59 @@ window.sendBroadcast = function () {
   var ta   = document.getElementById('bc-textarea');
   var text = (ta && ta.value || '').trim();
   if (!text) return toast('⚠ Type a message first.');
-  if (!confirm('Send this to ALL users?\n\n"' + text + '"')) return;
+  var whenEl = document.getElementById('bc-when');
+  var pushCb = document.getElementById('bc-push');
+  var whenVal = whenEl && whenEl.value ? new Date(whenEl.value).toISOString() : null;
+  var isSchedule = !!whenVal && new Date(whenVal).getTime() > Date.now() + 60000;
 
-  api.post('/broadcasts', {
+  if (!confirm(isSchedule ? ('Schedule this for ' + whenEl.value + '?') : ('Send this to ALL users now?\n\n"' + text + '"'))) return;
+
+  var payload = {
     text: text,
     sender_email: ADMIN_gateEmail || (STATE.user && STATE.user.email) || '',
-  })
-    .then(function () {
+  };
+  if (isSchedule) { payload.scheduled_for = whenVal; payload.push = !!(pushCb && pushCb.checked); }
+
+  api.post('/broadcasts', payload)
+    .then(function (res) {
       ta.value = '';
-      toast('📢 Broadcast sent to all users!');
-      loadBroadcastHistory();
-      // Optional push blast to phones
-      var pushCb = document.getElementById('bc-push');
-      if (pushCb && pushCb.checked) {
-        api.post('/push/send', { title: 'YID PLUS', body: text, url: '/chat' })
-          .then(function (r) { toast('🔔 Pushed to ' + (r.sent || 0) + ' devices'); })
-          .catch(function () { toast('⚠ In-app sent, but push failed'); });
-        pushCb.checked = false;
+      if (whenEl) whenEl.value = '';
+      if (res.scheduled) {
+        toast('⏰ Scheduled!');
+      } else {
+        toast('📢 Broadcast sent to all users!');
+        if (pushCb && pushCb.checked) {
+          api.post('/push/send', { title: 'YID PLUS', body: text, url: '/chat' })
+            .then(function (r) { toast('🔔 Pushed to ' + (r.sent || 0) + ' devices'); })
+            .catch(function () { toast('⚠ In-app sent, but push failed'); });
+        }
       }
+      if (pushCb) pushCb.checked = false;
+      loadBroadcastHistory();
     })
     .catch(function (err) { toast('❌ Failed: ' + err.message); });
+};
+
+window.sendEmailBlast = function () {
+  var subject = (document.getElementById('eb-subject').value || '').trim();
+  var message = (document.getElementById('eb-message').value || '').trim();
+  if (!subject || !message) return toast('⚠ Add a subject and message.');
+  if (!confirm('Send this email to ALL users? This cannot be undone.')) return;
+  toast('✉️ Sending…');
+  api.post('/admin/email-blast', { subject: subject, message: message })
+    .then(function (res) {
+      toast('✉️ Sent to ' + (res.sent || 0) + ' / ' + (res.total || 0) + ' users');
+      document.getElementById('eb-subject').value = '';
+      document.getElementById('eb-message').value = '';
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.cancelScheduled = function (id) {
+  if (!confirm('Cancel this scheduled broadcast?')) return;
+  api.del('/broadcasts?scheduled_id=' + encodeURIComponent(id))
+    .then(function () { toast('Cancelled'); loadBroadcastHistory(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
 };
 
 function loadBroadcastHistory() {
@@ -1271,6 +1319,25 @@ function loadBroadcastHistory() {
 
   api.get('/broadcasts?limit=10')
     .then(function (res) {
+      // Upcoming scheduled broadcasts (owner only)
+      var schedCard = document.getElementById('bc-scheduled-card');
+      var schedList = document.getElementById('bc-scheduled-list');
+      var scheduled = res.scheduled || [];
+      if (schedCard && schedList) {
+        if (scheduled.length) {
+          schedCard.style.display = '';
+          schedList.innerHTML = scheduled.map(function (s) {
+            return '<div style="display:flex;align-items:center;gap:.5rem;background:var(--bg3);border:.5px solid var(--border);border-radius:8px;padding:.6rem .8rem;margin-bottom:.5rem">' +
+              '<div style="flex:1;min-width:0"><div style="font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(s.text) + '</div>' +
+              '<div style="font-size:.65rem;color:var(--muted)">' + (s.push ? '🔔 ' : '') + '⏰ ' + new Date(s.scheduled_for).toLocaleString() + '</div></div>' +
+              '<button onclick="cancelScheduled(\'' + s.id + '\')" style="padding:.3rem .6rem;background:none;border:1px solid #E5989B;border-radius:8px;font-size:.7rem;font-weight:700;color:#D32F2F;cursor:pointer;font-family:inherit">Cancel</button>' +
+            '</div>';
+          }).join('');
+        } else {
+          schedCard.style.display = 'none';
+        }
+      }
+
       var list = res.broadcasts || [];
       if (!list.length) {
         el.innerHTML = '<div style="font-size:.78rem;color:var(--muted);text-align:center;padding:1rem">No broadcasts yet</div>';
