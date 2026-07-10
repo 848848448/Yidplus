@@ -603,12 +603,23 @@ window.adminDeleteShort = function (id) {
 };
 
 /* ── CHAT WATCH ── */
+var _cwRooms = [];
+var _cwDisabled = {};
+var _cwFilter = 'all';
+
 function buildChatWatchPanel(content) {
   content.innerHTML =
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
-        '<div class="admin-card-title">💬 God-Mode Chat Access</div>' +
-        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem;padding:.5rem;background:rgba(226,75,74,.06);border:1px solid rgba(226,75,74,.2);border-radius:8px">⚠️ Admin view only. Use responsibly.</div>' +
+        '<div class="admin-card-title">💬 All Chats (God-Mode)</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.6rem">See and read every chat. View is invisible — it leaves no trace.</div>' +
+        '<div id="cw-filters" style="display:flex;gap:.4rem;margin-bottom:.6rem;flex-wrap:wrap">' +
+          '<button class="cw-fbtn on" data-f="all" onclick="_cwSetFilter(\'all\',this)">All</button>' +
+          '<button class="cw-fbtn" data-f="private" onclick="_cwSetFilter(\'private\',this)">🔒 Private</button>' +
+          '<button class="cw-fbtn" data-f="group" onclick="_cwSetFilter(\'group\',this)">👥 Groups</button>' +
+          '<button class="cw-fbtn" data-f="channel" onclick="_cwSetFilter(\'channel\',this)">📡 Channels</button>' +
+        '</div>' +
+        '<input id="cw-search" placeholder="Search names…" oninput="_cwRender()" style="width:100%;padding:.55rem .8rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;margin-bottom:.6rem;box-sizing:border-box">' +
         '<div id="chat-watch-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
       '</div>' +
     '</div>';
@@ -618,37 +629,63 @@ function buildChatWatchPanel(content) {
     api.get('/admin/room-control').catch(function () { return { disabled: [] }; }),
   ])
     .then(function (out) {
-      var res = out[0];
-      var disabled = {};
-      (out[1].disabled || []).forEach(function (id) { disabled[id] = true; });
-      var rooms = res.rooms || [];
-      var el = document.getElementById('chat-watch-list');
-      if (!el) return;
-      if (!rooms.length) {
-        el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No chat rooms yet</div>';
-        return;
-      }
-      el.innerHTML = rooms.map(function (r) {
-        var off = !!disabled[r.id];
-        var rn = r.nick || r.name || (r.type === 'private' ? 'Private chat' : 'Chat');
-        var nm = escHtml(rn).replace(/'/g, "\\'");
-        return '<div class="chat-room-row" style="flex-wrap:wrap;opacity:' + (off ? '.6' : '1') + '">' +
-          '<div class="cr-icon">' + r.emoji + '</div>' +
-          '<div class="cr-info" onclick="adminViewRoom(\'' + r.id + '\',\'' + nm + '\')" style="cursor:pointer"><div class="cr-name" dir="auto">' + escHtml(rn) + ' <span style="font-size:.63rem;color:var(--muted)">(' + r.members + ')</span>' + (off ? ' <span style="font-size:.6rem;color:#D32F2F;font-weight:700">HIDDEN</span>' : '') + '</div>' +
-          '<div class="cr-preview">' + escHtml(r.preview) + '</div></div>' +
-          '<div style="display:flex;gap:.35rem;width:100%;margin-top:.5rem">' +
-            '<button onclick="adminViewRoom(\'' + r.id + '\',\'' + nm + '\')" style="flex:1;padding:.4rem;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:.72rem;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit">👁 View</button>' +
-            '<button onclick="adminToggleRoom(\'' + r.id + '\',' + (off ? 'false' : 'true') + ')" style="flex:1;padding:.4rem;background:' + (off ? '#16A34A' : '#B45309') + ';border:none;border-radius:8px;font-size:.72rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit">' + (off ? '↩ Unhide' : '🚫 Hide') + '</button>' +
-            '<button onclick="adminDeleteRoom(\'' + r.id + '\',\'' + nm + '\')" style="flex:1;padding:.4rem;background:none;border:1px solid #E5989B;border-radius:8px;font-size:.72rem;font-weight:700;color:#D32F2F;cursor:pointer;font-family:inherit">🗑 Delete</button>' +
-          '</div>' +
-        '</div>';
-      }).join('');
+      _cwRooms = (out[0] && out[0].rooms) || [];
+      _cwDisabled = {};
+      ((out[1] && out[1].disabled) || []).forEach(function (id) { _cwDisabled[id] = true; });
+      _cwRender();
     })
     .catch(function (err) {
       var el = document.getElementById('chat-watch-list');
       if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
     });
 }
+
+window._cwSetFilter = function (f, btn) {
+  _cwFilter = f;
+  document.querySelectorAll('.cw-fbtn').forEach(function (b) { b.classList.remove('on'); });
+  if (btn) btn.classList.add('on');
+  _cwRender();
+};
+
+window._cwRender = function () {
+  var el = document.getElementById('chat-watch-list');
+  if (!el) return;
+  var q = ((document.getElementById('cw-search') || {}).value || '').toLowerCase().trim();
+
+  var rooms = _cwRooms.filter(function (r) {
+    if (_cwFilter !== 'all' && r.type !== _cwFilter) return false;
+    if (q) {
+      var nm = (r.nick || r.name || '').toLowerCase();
+      if (nm.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+
+  if (!rooms.length) {
+    el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No chats here</div>';
+    return;
+  }
+
+  el.innerHTML =
+    '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.5rem">' + rooms.length + ' ' + (_cwFilter === 'all' ? 'chats' : _cwFilter + 's') + '</div>' +
+    rooms.map(function (r) {
+      var off = !!_cwDisabled[r.id];
+      var rn = r.nick || r.name || (r.type === 'private' ? 'Private chat' : 'Chat');
+      var nm = escHtml(rn).replace(/'/g, "\\'");
+      var typeIcon = r.type === 'private' ? '🔒' : r.type === 'channel' ? '📡' : '👥';
+      var count = r.type === 'private' ? '' : ' <span style="font-size:.63rem;color:var(--muted)">(' + (r.members || 0) + ')</span>';
+      return '<div class="chat-room-row" style="flex-wrap:wrap;opacity:' + (off ? '.6' : '1') + '">' +
+        '<div class="cr-icon">' + (r.emoji || typeIcon) + '</div>' +
+        '<div class="cr-info" onclick="adminViewRoom(\'' + r.id + '\',\'' + nm + '\')" style="cursor:pointer"><div class="cr-name" dir="auto">' + escHtml(rn) + count + (off ? ' <span style="font-size:.6rem;color:#D32F2F;font-weight:700">HIDDEN</span>' : '') + '</div>' +
+        '<div class="cr-preview" dir="auto">' + escHtml(r.preview || '') + '</div></div>' +
+        '<div style="display:flex;gap:.35rem;width:100%;margin-top:.5rem">' +
+          '<button onclick="adminViewRoom(\'' + r.id + '\',\'' + nm + '\')" style="flex:1;padding:.4rem;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:.72rem;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit">👁 Read</button>' +
+          '<button onclick="adminToggleRoom(\'' + r.id + '\',' + (off ? 'false' : 'true') + ')" style="flex:1;padding:.4rem;background:' + (off ? '#16A34A' : '#B45309') + ';border:none;border-radius:8px;font-size:.72rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit">' + (off ? '↩ Unhide' : '🚫 Hide') + '</button>' +
+          '<button onclick="adminDeleteRoom(\'' + r.id + '\',\'' + nm + '\')" style="flex:1;padding:.4rem;background:none;border:1px solid #E5989B;border-radius:8px;font-size:.72rem;font-weight:700;color:#D32F2F;cursor:pointer;font-family:inherit">🗑 Delete</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+};
 
 // Hide (reversible) or unhide a group/channel from all regular users.
 window.adminToggleRoom = function (roomId, hide) {
@@ -668,15 +705,57 @@ window.adminDeleteRoom = function (roomId, name) {
 };
 
 window.adminViewRoom = function (roomId, name) {
+  var overlay = document.getElementById('gm-viewer');
+  if (overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'gm-viewer';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center';
+  overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML =
+    '<div style="background:var(--bg);width:100%;max-width:600px;height:88vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden">' +
+      '<div style="padding:.9rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem;flex-shrink:0">' +
+        '<div style="flex:1;min-width:0"><div dir="auto" style="font-weight:800;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(name) + '</div><div style="font-size:.66rem;color:var(--muted)">👁 God-mode · read-only · invisible</div></div>' +
+        '<button onclick="document.getElementById(\'gm-viewer\').remove()" style="background:var(--bg3);border:none;width:34px;height:34px;border-radius:50%;font-size:1.1rem;cursor:pointer;color:var(--text);flex-shrink:0">✕</button>' +
+      '</div>' +
+      '<div id="gm-msgs" style="flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.5rem;background:var(--bg2)"><div style="text-align:center;padding:2rem"><div class="spinner"></div></div></div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
   api.get('/chat?room_id=' + encodeURIComponent(roomId))
     .then(function (res) {
       var msgs = res.messages || [];
-      var text = msgs.slice(-15).map(function (m) {
-        return '@' + (m.sender_nick || '?') + ': ' + (m.type === 'text' ? m.text : '[' + m.type + ']');
-      }).join('\n') || '(no messages)';
-      alert('📋 God-Mode View: ' + name + '\n\n' + text);
+      var box = document.getElementById('gm-msgs');
+      if (!box) return;
+      if (!msgs.length) {
+        box.innerHTML = '<div style="text-align:center;color:var(--muted);padding:2rem">No messages in this chat</div>';
+        return;
+      }
+      box.innerHTML = msgs.map(function (m) {
+        var k = (m.media_key || '').toLowerCase();
+        var body;
+        if (m.type === 'text' || !m.type) body = escHtml(m.text || '');
+        else if (m.type === 'poll') body = '📊 Poll';
+        else if (m.type === 'voice') body = '🎤 Voice note';
+        else if (/\.(mp4|webm|mov)$/.test(k)) body = '🎬 Video';
+        else if (/\.(jpg|jpeg|png|gif|webp)$/.test(k)) body = '🖼️ Photo';
+        else if (m.media_key) body = '📎 File';
+        else body = escHtml(m.text || ('[' + (m.type || 'message') + ']'));
+
+        var media = '';
+        if (/\.(jpg|jpeg|png|gif|webp)$/.test(k)) {
+          media = '<img src="/api/media/' + encodeURIComponent(m.media_key) + '" style="max-width:200px;max-height:200px;border-radius:8px;margin-top:.35rem;display:block" onerror="this.style.display=\'none\'">';
+        }
+        return '<div style="background:var(--bg);border:.5px solid var(--border);border-radius:10px;padding:.5rem .7rem;max-width:88%">' +
+            '<div style="font-size:.72rem;font-weight:700;color:#1F6F5C;margin-bottom:.15rem">@' + escHtml(m.sender_nick || '?') + ' <span style="color:var(--muted);font-weight:400">· ' + timeAgo(m.created_at) + '</span></div>' +
+            '<div dir="auto" style="font-size:.9rem;line-height:1.4;word-break:break-word">' + body + '</div>' + media +
+          '</div>';
+      }).join('');
+      box.scrollTop = box.scrollHeight;
     })
-    .catch(function (err) { toast('❌ ' + err.message); });
+    .catch(function (err) {
+      var box = document.getElementById('gm-msgs');
+      if (box) box.innerHTML = '<div style="color:var(--red);padding:1rem">' + escHtml(err.message) + '</div>';
+    });
 };
 
 /* ── MUSIC ADMIN ── */

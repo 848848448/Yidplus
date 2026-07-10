@@ -1683,3 +1683,7 @@ img { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
   .home-hero, .hh-badge, .qt-tile, .cc-post { animation: none; transition: none; }
 }
+
+/* God-mode chat filter buttons */
+.cw-fbtn { padding: .4rem .8rem; border: 1px solid var(--border); border-radius: 999px; background: var(--bg3); color: var(--muted); font-size: .76rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+.cw-fbtn.on { background: #1F6F5C; color: #fff; border-color: #1F6F5C; }
