@@ -270,7 +270,9 @@ export async function onRequestGet(context) {
          FROM room_members rm JOIN users u ON u.id = rm.user_id
          WHERE rm.room_id IN (${pPlaceholders}) AND rm.user_id != ?`
       ).bind(...privateRoomIds, user.id).all().catch(() => ({ results: [] })));
-      for (const o of otherRows) otherUserByRoom[o.room_id] = o;
+      for (const o of otherRows) {
+        (otherUserByRoom[o.room_id] = otherUserByRoom[o.room_id] || []).push(o);
+      }
     }
 
     for (const r of dedupedRooms) {
@@ -292,8 +294,16 @@ export async function onRequestGet(context) {
       let photoUrl = null;
       let otherUserId = null;
       if (r.type === 'private') {
-        const other = otherUserByRoom[r.id];
-        if (other) { nick = other.nickname; online = !!other.online; photoUrl = other.photo_url; otherUserId = other.id; }
+        const others = otherUserByRoom[r.id] || [];
+        if (joined && others.length) {
+          // I'm one of the two people — show the other one.
+          const other = others[0];
+          nick = other.nickname; online = !!other.online; photoUrl = other.photo_url; otherUserId = other.id;
+        } else if (others.length) {
+          // Spectating a DM between two other people — show both names.
+          nick = others.map(o => o.nickname).join('  ↔  ');
+          otherUserId = others[0].id;
+        }
       }
 
       // Whether the current user is a sub-admin of this specific group

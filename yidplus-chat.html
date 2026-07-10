@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://yidplus.com">
 <meta property="og:type" content="website">
 <title>YID PLUS — Chats</title>
-<link rel="stylesheet" href="css/style.css?v=202607100630">
+<link rel="stylesheet" href="css/style.css?v=202607100730">
 <script>
 (function () {
   try {
@@ -509,11 +509,18 @@
   <div class="modal-sheet" style="max-height:85vh;overflow-y:auto">
     <div class="modal-title">📊 New Poll</div>
     <input class="field" id="poll-question" placeholder="Ask a question" maxlength="200">
+    <input class="field" id="poll-description" placeholder="Description (optional)" maxlength="300" style="margin-bottom:.5rem">
     <div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.05em">Options</div>
     <div id="poll-options-list"></div>
     <button class="poll-add-option-btn" onclick="addPollOptionRow()">+ Add Option</button>
     <div class="poll-setting-row"><div><div class="poll-setting-label">Allow Multiple Answers</div></div><div class="toggle-sw" id="poll-toggle-allow-multiple" onclick="this.classList.toggle('on')"></div></div>
     <div class="poll-setting-row"><div><div class="poll-setting-label">Allow Revoting</div></div><div class="toggle-sw on" id="poll-toggle-allow-revote" onclick="this.classList.toggle('on')"></div></div>
+    <div class="poll-setting-row"><div><div class="poll-setting-label">Show Who Voted</div></div><div class="toggle-sw" id="poll-toggle-show-who-voted" onclick="this.classList.toggle('on')"></div></div>
+    <div class="poll-setting-row"><div><div class="poll-setting-label">Let People Add Options</div></div><div class="toggle-sw" id="poll-toggle-allow-add-options" onclick="this.classList.toggle('on')"></div></div>
+    <div class="poll-setting-row"><div><div class="poll-setting-label">Shuffle Options</div></div><div class="toggle-sw" id="poll-toggle-shuffle" onclick="this.classList.toggle('on')"></div></div>
+    <div class="poll-setting-row"><div><div class="poll-setting-label">Quiz Mode</div><div style="font-size:.68rem;color:var(--muted)">Mark the correct answer(s)</div></div><div class="toggle-sw" id="poll-toggle-quiz-mode" onclick="togglePollQuizMode(this)"></div></div>
+    <div class="poll-setting-row"><div><div class="poll-setting-label">Set a Time Limit</div></div><div class="toggle-sw" id="poll-toggle-duration" onclick="togglePollDuration(this)"></div></div>
+    <div class="poll-setting-row" id="poll-duration-input-row" style="display:none"><div><div class="poll-setting-label">Minutes</div></div><input type="number" min="1" value="60" id="poll-duration-minutes" style="width:80px;padding:.45rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;text-align:center"></div>
     <button class="btn-primary" onclick="submitNewPoll()" style="margin-top:1rem;margin-bottom:.5rem">Create Poll</button>
     <button class="modal-cancel" onclick="closePollModal()">Cancel</button>
   </div>
@@ -633,10 +640,10 @@
 #chat-options-menu { position: fixed; }
 </style>
 
-<script src="js/state.js?v=202607100630"></script>
-<script src="js/theme.js?v=202607100630"></script>
-<script src="js/app.js?v=202607100630"></script>
-<script src="js/chat.js?v=202607100630"></script>
+<script src="js/state.js?v=202607100730"></script>
+<script src="js/theme.js?v=202607100730"></script>
+<script src="js/app.js?v=202607100730"></script>
+<script src="js/chat.js?v=202607100730"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
@@ -999,7 +1006,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="js/ads.js?v=202607100630"></script>
+<script src="js/ads.js?v=202607100730"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");</script>
 </body>
 </html>
