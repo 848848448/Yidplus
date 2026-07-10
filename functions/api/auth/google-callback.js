@@ -81,6 +81,21 @@ export async function onRequestGet(context) {
       if (ipBan) return Response.redirect(`${origin}/index.html?error=banned`, 302);
     }
 
+    // ── Sign-in lockdown (same rule as email login/register) ──
+    // When enabled, Google sign-in is blocked too — except the owner and any
+    // allow-listed email. Otherwise Google would be a back door around the lock.
+    const lockRow = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'signin_locked'"
+    ).first().catch(() => null);
+    if (lockRow && lockRow.value === 'true' && !isOwnerEmail) {
+      const allowed = await env.DB.prepare(
+        'SELECT email FROM access_allowlist WHERE email = ?'
+      ).bind(email).first().catch(() => null);
+      if (!allowed) {
+        return Response.redirect(`${origin}/?error=signin_disabled`, 302);
+      }
+    }
+
     // ── Find existing user by email ──
     let user = await env.DB.prepare(
       'SELECT id, email, nickname, role, verified, blocked, photo_url FROM users WHERE email = ?'

@@ -283,11 +283,11 @@ function renderChatList() {
         '<div class="' + avClass + '" style="' + avStyle + '"' + avatarClickAttr + '>' + avatarContent + onlineDot + '</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
-            '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:left;flex:1">' + escHtml(c.nick || 'Chat') + '</div>' +
+            '<div dir="auto" style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:start;flex:1">' + escHtml(c.nick || 'Chat') + '</div>' +
             '<div style="display:flex;align-items:center;gap:.3rem;flex-shrink:0">' + muteIcon + '<div style="font-size:.68rem;color:var(--muted)">' + timeText + '</div></div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">' +
-            '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:left;flex:1;font-weight:' + (c.unread ? '500' : '400') + '">' + previewHtml + '</div>' +
+            '<div dir="auto" style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:start;flex:1;font-weight:' + (c.unread ? '500' : '400') + '">' + previewHtml + '</div>' +
             unreadBadge +
           '</div>' +
         '</div>' +
@@ -1158,6 +1158,10 @@ function loadMessages(scrollToBottom) {
       // Mark as read
       if (CHAT_curRoom.joined !== false) {
         api.post('/chat/read', { room_id: CHAT_curRoom.id }).catch(function () {});
+        // Clear the list badge immediately so it doesn't flash back when you
+        // return to the chat list before the next server refresh.
+        var _cachedRoom = CHAT_rooms.find(function (r) { return r.id === CHAT_curRoom.id; });
+        if (_cachedRoom) _cachedRoom.unread = 0;
       }
 
       // Load reaction summary for this room and re-render once available.

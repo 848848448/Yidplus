@@ -142,18 +142,24 @@ export async function onRequestGet(context) {
       let photoUrl = null;
       let otherUserId = null;
       if (r.type === 'private') {
-        const other = await env.DB.prepare(
+        // Fetch BOTH members of the DM.
+        const { results: dmMembers } = await env.DB.prepare(
           `SELECT u.id, u.nickname, u.photo_url,
-                  (CASE WHEN u.online = 1 AND u.last_ping >= datetime('now','-60 seconds') THEN 1 ELSE 0 END) AS online
-           FROM room_members rm
-           JOIN users u ON u.id = rm.user_id
-           WHERE rm.room_id = ? AND rm.user_id != ?`
-        ).bind(r.id, user.id).first().catch(() => env.DB.prepare(
-          `SELECT u.id, u.nickname, u.online, u.photo_url FROM room_members rm
-           JOIN users u ON u.id = rm.user_id
-           WHERE rm.room_id = ? AND rm.user_id != ?`
-        ).bind(r.id, user.id).first());
-        if (other) { nick = other.nickname; online = !!other.online; photoUrl = other.photo_url; otherUserId = other.id; }
+                  (CASE WHEN u.online = 1 THEN 1 ELSE 0 END) AS online
+           FROM room_members rm JOIN users u ON u.id = rm.user_id
+           WHERE rm.room_id = ?`
+        ).bind(r.id).all().catch(() => ({ results: [] }));
+
+        const others = (dmMembers || []).filter(m => m.id !== user.id);
+        if (others.length && dmMembers.some(m => m.id === user.id)) {
+          // The admin is actually one of the two people — show the other.
+          nick = others[0].nickname; online = !!others[0].online;
+          photoUrl = others[0].photo_url; otherUserId = others[0].id;
+        } else if (dmMembers.length) {
+          // Admin is spectating a DM between two OTHER people — show both names.
+          nick = dmMembers.map(m => m.nickname).join('  ↔  ');
+          otherUserId = dmMembers[0] ? dmMembers[0].id : null;
+        }
       }
 
       // Whether the current user is a sub-admin of this specific group

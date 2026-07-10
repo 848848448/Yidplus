@@ -630,10 +630,11 @@ function buildChatWatchPanel(content) {
       }
       el.innerHTML = rooms.map(function (r) {
         var off = !!disabled[r.id];
-        var nm = escHtml(r.name).replace(/'/g, "\\'");
+        var rn = r.nick || r.name || (r.type === 'private' ? 'Private chat' : 'Chat');
+        var nm = escHtml(rn).replace(/'/g, "\\'");
         return '<div class="chat-room-row" style="flex-wrap:wrap;opacity:' + (off ? '.6' : '1') + '">' +
           '<div class="cr-icon">' + r.emoji + '</div>' +
-          '<div class="cr-info" onclick="adminViewRoom(\'' + r.id + '\',\'' + nm + '\')" style="cursor:pointer"><div class="cr-name">' + escHtml(r.name) + ' <span style="font-size:.63rem;color:var(--muted)">(' + r.members + ')</span>' + (off ? ' <span style="font-size:.6rem;color:#D32F2F;font-weight:700">HIDDEN</span>' : '') + '</div>' +
+          '<div class="cr-info" onclick="adminViewRoom(\'' + r.id + '\',\'' + nm + '\')" style="cursor:pointer"><div class="cr-name" dir="auto">' + escHtml(rn) + ' <span style="font-size:.63rem;color:var(--muted)">(' + r.members + ')</span>' + (off ? ' <span style="font-size:.6rem;color:#D32F2F;font-weight:700">HIDDEN</span>' : '') + '</div>' +
           '<div class="cr-preview">' + escHtml(r.preview) + '</div></div>' +
           '<div style="display:flex;gap:.35rem;width:100%;margin-top:.5rem">' +
             '<button onclick="adminViewRoom(\'' + r.id + '\',\'' + nm + '\')" style="flex:1;padding:.4rem;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:.72rem;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit">👁 View</button>' +
