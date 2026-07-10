@@ -3395,7 +3395,19 @@ function buildFeaturesPanel(content) {
           '<span style="font-size:.82rem">reports</span>' +
           '<button onclick="saveAutomod()" style="margin-left:auto;padding:.5rem 1rem;border:none;border-radius:10px;background:#1F6F5C;color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;font-family:inherit">Save</button>' +
         '</div>' +
+      '</div>' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">⚡ Performance</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.6rem">Adds database indexes so the app stays fast as it grows to thousands of users. Safe to run anytime — it only adds what\'s missing.</div>' +
+        '<div id="opt-status" style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem"></div>' +
+        '<button onclick="runOptimize(this)" style="width:100%;padding:.65rem;border:none;border-radius:10px;background:#185FA5;color:#fff;font-weight:800;font-size:.82rem;cursor:pointer;font-family:inherit">⚡ Optimize database</button>' +
       '</div>';
+
+    // Show current index count
+    api.get('/admin/optimize').then(function (r) {
+      var st = document.getElementById('opt-status');
+      if (st) st.textContent = '📊 ' + ((r.indexes || []).length) + ' performance indexes currently active.';
+    }).catch(function () {});
   }).catch(function (err) {
     var p = document.getElementById('features-panel');
     if (p) p.innerHTML = '<div class="admin-card" style="color:var(--red)">Could not load: ' + escHtmlA(err.message) + '</div>';
@@ -3416,6 +3428,21 @@ window.saveAutomod = function () {
   api.put('/settings', { key: 'automod_threshold', value: String(v) })
     .then(function () { toast(v > 0 ? '🛡️ Auto-hide after ' + v + ' reports' : 'Auto-moderation off'); })
     .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.runOptimize = function (btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⚡ Optimizing…'; }
+  api.post('/admin/optimize', {})
+    .then(function (r) {
+      toast('⚡ ' + r.created + ' indexes ready');
+      var st = document.getElementById('opt-status');
+      if (st) st.textContent = '✅ ' + r.created + ' indexes active' + (r.skipped ? ' (' + r.skipped + ' skipped — columns not present)' : '') + '. The app is now optimized for scale.';
+      if (btn) { btn.disabled = false; btn.textContent = '⚡ Optimize database'; }
+    })
+    .catch(function (err) {
+      toast('❌ ' + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = '⚡ Optimize database'; }
+    });
 };
 
 /* ══════════════════════════════════

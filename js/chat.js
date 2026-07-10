@@ -742,7 +742,12 @@ window.openChatRoom = function (roomId, topicId, topicName) {
   _applyChannelInputState(room);
   loadMessages(true);
   clearInterval(CHAT_pollTimer);
-  CHAT_pollTimer = setInterval(function () { loadMessages(false); }, 8000);
+  CHAT_pollTimer = setInterval(function () {
+    // Don't poll while the tab is in the background — saves a huge amount of
+    // server load at scale. We refresh instantly when the user comes back.
+    if (document.hidden) return;
+    loadMessages(false);
+  }, 8000);
 
   // Load members list for groups
   if (isGroup) loadGroupMembers(roomId);
@@ -1695,6 +1700,7 @@ function _startTypingPoll() {
   clearInterval(CHAT_typingPollInterval);
   CHAT_typingPollInterval = setInterval(function () {
     if (!CHAT_curRoom) return;
+    if (document.hidden) return;
     api.get('/chat/typing?room_id=' + encodeURIComponent(CHAT_curRoom.id))
       .then(function (res) { _renderTypingBar(res.typing || []); })
       .catch(function () {});
@@ -5009,3 +5015,14 @@ window.loadStatuses = function () {
     setTimeout(function () { fab.style.boxShadow = ''; }, 1500);
   }
 };
+
+// When the user returns to the tab, refresh the open room immediately so they
+// see anything that arrived while polling was paused. Bound once.
+if (!window._chatVisBound) {
+  window._chatVisBound = true;
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && typeof CHAT_curRoom !== 'undefined' && CHAT_curRoom && typeof loadMessages === 'function') {
+      loadMessages(false);
+    }
+  });
+}
