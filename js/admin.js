@@ -170,6 +170,8 @@ var ADMIN_ICONS = {
   badges:         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>',
   warnings:       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
   'access-control': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  'invite-codes': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" opacity="0"/><path d="M15 7h5v5"/><path d="M20 7l-8 8"/><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>',
+  'verify-requests': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
   now:            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>',
   features:       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>',
 };
@@ -192,6 +194,8 @@ var ADMIN_PANELS = [
   // extra personal information beyond what's needed to moderate — owner only.
   { id:'channels-mgr',   label:'Channels',        roles:['owner'] },
   { id:'access-control', label:'Access',          roles:['owner'] },
+  { id:'invite-codes',   label:'Invites',         roles:['owner'] },
+  { id:'verify-requests',label:'Verify',          roles:['admin_limited','admin_super','owner'] },
   { id:'broadcast',      label:'Broadcast',       roles:['owner'] },
   { id:'banned-devices', label:'Banned',          roles:['owner'] },
   { id:'ip-logs',        label:'IP Logs',         roles:['owner'] },
@@ -215,8 +219,8 @@ var ADMIN_PANELS = [
 var ADMIN_CATEGORIES = [
   { id:'overview',   label:'Overview',   desc:'Now, analytics and leaderboard',       color:'#185FA5', bg:'#E6F1FB', bgd:'#0C447C',
     panels:['now','analytics','leaderboard'] },
-  { id:'people',     label:'People',     desc:'Access, users, warnings, sessions',    color:'#0F6E56', bg:'#E1F5EE', bgd:'#085041',
-    panels:['access-control','users','warnings','badges','sessions','banned-devices','ad-exempt'] },
+  { id:'people',     label:'People',     desc:'Access, verify, users, invites',       color:'#0F6E56', bg:'#E1F5EE', bgd:'#085041',
+    panels:['access-control','verify-requests','invite-codes','users','warnings','badges','sessions','banned-devices','ad-exempt'] },
   { id:'moderation', label:'Moderation', desc:'Reports, feedback, support, filter',   color:'#A32D2D', bg:'#FCEBEB', bgd:'#791F1F',
     panels:['reports','feedback','support-chats','chat-watch','shorts-mod','music-mod','bad-words'] },
   { id:'content',    label:'Content',    desc:'Announce, broadcast, channels, more',  color:'#534AB7', bg:'#EEEDFE', bgd:'#3C3489',
@@ -490,6 +494,12 @@ function buildAdminPanel(id) {
 
   } else if (id === 'access-control') {
     buildAccessControlPanel(content);
+
+  } else if (id === 'invite-codes') {
+    buildInviteCodesPanel(content);
+
+  } else if (id === 'verify-requests') {
+    buildVerifyRequestsPanel(content);
 
   } else if (id === 'now') {
     buildNowPanel(content);
@@ -3279,6 +3289,114 @@ window.toggleFeature = function (key, turnOn, btn) {
     .then(function () {
       toast(turnOn ? '✅ Enabled' : '🚫 Disabled');
       buildFeaturesPanel(document.getElementById('admin-content'));
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   INVITE CODES  (owner only)
+══════════════════════════════════ */
+function buildInviteCodesPanel(content) {
+  content.innerHTML = '<div class="admin-panel" id="inv-panel"><div class="admin-card" style="text-align:center;padding:2rem"><div class="spinner"></div></div></div>';
+  _loadInvites();
+}
+function _loadInvites() {
+  api.get('/admin/invite-codes').then(function (res) {
+    var p = document.getElementById('inv-panel');
+    if (!p) return;
+    var codes = res.codes || [];
+    var rows = codes.length ? codes.map(function (c) {
+      var expired = c.expires_at && new Date(c.expires_at) < new Date();
+      var dead = expired || (c.uses_left != null && c.uses_left <= 0);
+      return '<div style="display:flex;align-items:center;gap:.6rem;padding:.6rem 0;border-bottom:.5px solid var(--border);opacity:' + (dead ? '.5' : '1') + '">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:1rem;font-weight:800;letter-spacing:.08em;font-family:monospace">' + escHtmlA(c.code) + '</div>' +
+            '<div style="font-size:.68rem;color:var(--muted)">' +
+              (c.used_count || 0) + '/' + (c.max_uses || 1) + ' used' +
+              (c.expires_at ? ' · ' + (expired ? 'expired' : 'expires ' + c.expires_at.slice(0,10)) : ' · no expiry') +
+              (c.note ? ' · ' + escHtmlA(c.note) : '') +
+            '</div>' +
+          '</div>' +
+          '<button onclick="copyInvite(\'' + escAttrA(c.code) + '\')" style="padding:.35rem .6rem;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:.72rem;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit">Copy link</button>' +
+          '<button onclick="revokeInvite(\'' + escAttrA(c.code) + '\')" style="padding:.35rem .6rem;background:none;border:1px solid #E5989B;border-radius:8px;font-size:.72rem;font-weight:700;color:#D32F2F;cursor:pointer;font-family:inherit">✕</button>' +
+        '</div>';
+    }).join('') : '<div style="font-size:.8rem;color:var(--muted);padding:.5rem 0">No invite codes yet.</div>';
+
+    p.innerHTML =
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🎟️ Generate an invite</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.6rem">A code lets someone sign up even while sign-in is locked. Share the code or the copied link.</div>' +
+        '<div style="display:flex;gap:.5rem;margin-bottom:.5rem">' +
+          '<input id="inv-uses" type="number" min="1" value="1" placeholder="Uses" style="width:80px;padding:.55rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem">' +
+          '<input id="inv-days" type="number" min="0" value="30" placeholder="Days (0=never)" style="flex:1;padding:.55rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem">' +
+        '</div>' +
+        '<input id="inv-note" type="text" placeholder="Note (optional)" style="width:100%;padding:.55rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;margin-bottom:.6rem;box-sizing:border-box">' +
+        '<button onclick="genInvite()" style="width:100%;padding:.65rem;border:none;border-radius:10px;background:#1F6F5C;color:#fff;font-weight:800;font-size:.82rem;cursor:pointer;font-family:inherit">Generate code</button>' +
+      '</div>' +
+      '<div class="admin-card"><div class="admin-card-title">🎫 Active codes (' + codes.length + ')</div>' + rows + '</div>';
+  }).catch(function (err) {
+    var p = document.getElementById('inv-panel');
+    if (p) p.innerHTML = '<div class="admin-card" style="color:var(--red)">Could not load: ' + escHtmlA(err.message) + '</div>';
+  });
+}
+window.genInvite = function () {
+  var uses = parseInt(document.getElementById('inv-uses').value, 10) || 1;
+  var days = parseInt(document.getElementById('inv-days').value, 10) || 0;
+  var note = document.getElementById('inv-note').value || '';
+  api.post('/admin/invite-codes', { max_uses: uses, expires_days: days, note: note })
+    .then(function (res) { toast('🎟️ Code: ' + res.code); _loadInvites(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+window.copyInvite = function (code) {
+  var link = location.origin + '/?invite=' + code;
+  if (navigator.clipboard) navigator.clipboard.writeText(link);
+  toast('📋 Copied: ' + link);
+};
+window.revokeInvite = function (code) {
+  if (!confirm('Revoke code ' + code + '?')) return;
+  api.del('/admin/invite-codes?code=' + encodeURIComponent(code))
+    .then(function () { toast('Revoked'); _loadInvites(); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   VERIFY REQUESTS
+══════════════════════════════════ */
+function buildVerifyRequestsPanel(content) {
+  content.innerHTML = '<div class="admin-panel" id="vr-panel"><div class="admin-card" style="text-align:center;padding:2rem"><div class="spinner"></div></div></div>';
+  _loadVerifyRequests();
+}
+function _loadVerifyRequests() {
+  api.get('/verify-request').then(function (res) {
+    var p = document.getElementById('vr-panel');
+    if (!p) return;
+    var reqs = res.requests || [];
+    var rows = reqs.length ? reqs.map(function (r) {
+      return '<div style="display:flex;align-items:center;gap:.65rem;padding:.7rem 0;border-bottom:.5px solid var(--border)">' +
+          (r.photo_url
+            ? '<div style="width:42px;height:42px;border-radius:50%;background-image:url(' + r.photo_url + ');background-size:cover;flex-shrink:0"></div>'
+            : '<div style="width:42px;height:42px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">' + (r.nickname||'U').slice(0,1).toUpperCase() + '</div>') +
+          '<div style="flex:1;min-width:0" onclick="openUserDetailModal(\'' + r.user_id + '\')">' +
+            '<div style="font-size:.88rem;font-weight:700;cursor:pointer">@' + escHtmlA(r.nickname) + '</div>' +
+            (r.note ? '<div style="font-size:.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtmlA(r.note) + '</div>' : '') +
+          '</div>' +
+          '<button onclick="decideVerify(\'' + r.id + '\',\'approve\',this)" style="padding:.4rem .8rem;background:#16A34A;color:#fff;border:none;border-radius:8px;font-size:.74rem;font-weight:700;cursor:pointer;font-family:inherit">Approve</button>' +
+          '<button onclick="decideVerify(\'' + r.id + '\',\'deny\',this)" style="padding:.4rem .7rem;background:none;border:1px solid var(--border);border-radius:8px;font-size:.74rem;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit">Deny</button>' +
+        '</div>';
+    }).join('') : '<div style="font-size:.82rem;color:var(--muted);padding:.5rem 0;text-align:center">No pending requests 👍</div>';
+
+    p.innerHTML = '<div class="admin-card"><div class="admin-card-title">✅ Verification requests (' + reqs.length + ')</div>' + rows + '</div>';
+  }).catch(function (err) {
+    var p = document.getElementById('vr-panel');
+    if (p) p.innerHTML = '<div class="admin-card" style="color:var(--red)">Could not load: ' + escHtmlA(err.message) + '</div>';
+  });
+}
+window.decideVerify = function (id, action, btn) {
+  api.put('/verify-request', { id: id, action: action })
+    .then(function () {
+      toast(action === 'approve' ? '✅ Verified' : 'Denied');
+      var row = btn.closest('div[style*="border-bottom"]');
+      if (row && row.parentElement) row.parentElement.removeChild(row);
     })
     .catch(function (err) { toast('❌ ' + err.message); });
 };

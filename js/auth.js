@@ -144,6 +144,7 @@ window.doRegister = function () {
     password: pass,
     nickname: nick,
     phone: phone,
+    invite_code: (new URLSearchParams(location.search).get('invite') || '').trim(),
   })
     .then(function () {
       setLoad('r', false);
@@ -227,3 +228,17 @@ window.checkNickAvail = function () {
 window.signInWithGoogle = function () {
   window.location.href = '/api/auth/google-login?return_to=' + encodeURIComponent('/');
 };
+
+// If someone opens an invite link (?invite=CODE), jump straight to the Register
+// tab and show that the invite was applied.
+document.addEventListener('DOMContentLoaded', function () {
+  try {
+    var code = new URLSearchParams(location.search).get('invite');
+    if (!code) return;
+    setTimeout(function () {
+      if (typeof authTab === 'function') authTab('register');
+      var hint = document.getElementById('invite-hint');
+      if (hint) hint.style.display = 'block';
+    }, 400);
+  } catch (e) {}
+});

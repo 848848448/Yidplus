@@ -19,7 +19,7 @@
 <meta name="twitter:description" content="A Yiddish social platform for the Jewish community">
 <meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>YID PLUS</title>
-<link rel="stylesheet" href="css/style.css?v=202607092330">
+<link rel="stylesheet" href="css/style.css?v=202607100030">
 <script>
 // Apply saved user theme ASAP (before paint) to avoid flash-of-default-colors
 (function () {
@@ -95,6 +95,7 @@
         </button>
       </div>
       <div id="auth-register" style="display:none">
+        <div id="invite-hint" style="display:none;margin-bottom:.75rem;padding:.6rem .8rem;background:rgba(31,111,92,.12);border:1px solid rgba(31,111,92,.35);border-radius:10px;font-size:.78rem;color:var(--text);text-align:center">🎟️ Invite applied — you can create an account</div>
         <input class="field" type="email" id="r-email" placeholder="Email address" autocomplete="email">
         <div style="position:relative;margin-bottom:.85rem">
           <input class="field" type="text" id="r-nick" placeholder="Nickname (cannot be changed later)" style="margin-bottom:0;padding-right:2.5rem" oninput="checkNickAvail()" autocomplete="username">
@@ -541,11 +542,11 @@
 <!-- ════════════════════════════════
      SCRIPTS — ORDER MATTERS!
 ════════════════════════════════ -->
-<script src="js/state.js?v=202607092330"></script>
-<script src="js/theme.js?v=202607092330"></script>
-<script src="js/app.js?v=202607092330"></script>
-<script src="js/auth.js?v=202607092330"></script>
-<script src="js/home.js?v=202607092330"></script>
+<script src="js/state.js?v=202607100030"></script>
+<script src="js/theme.js?v=202607100030"></script>
+<script src="js/app.js?v=202607100030"></script>
+<script src="js/auth.js?v=202607100030"></script>
+<script src="js/home.js?v=202607100030"></script>
 
 <script>
 // ── POSTS FEED (Cloudflare D1 via /api/posts) ──
@@ -810,6 +811,6 @@ window._resendVerifyEmail = function (btn) {
 };
 </script>
 
-<script src="js/ads.js?v=202607092330"></script>
+<script src="js/ads.js?v=202607100030"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
       </html>

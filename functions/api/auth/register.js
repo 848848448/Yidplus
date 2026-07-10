@@ -42,8 +42,28 @@ export async function onRequestPost(context) {
       const preAllowed = await env.DB.prepare(
         'SELECT email FROM access_allowlist WHERE email = ?'
       ).bind(email).first().catch(() => null);
-      if (!OWNER_EMAILS.includes(email) && !preAllowed) {
-        return json({ ok: false, error: 'Sign-up is currently disabled.' }, 403);
+
+      // A valid invite code also gets you in while sign-up is locked.
+      const inviteCode = (body.invite_code || '').trim().toUpperCase();
+      let inviteOk = false;
+      if (inviteCode) {
+        const inv = await env.DB.prepare(
+          'SELECT code, uses_left, expires_at FROM invite_codes WHERE code = ?'
+        ).bind(inviteCode).first().catch(() => null);
+        if (inv && (inv.uses_left == null || inv.uses_left > 0) &&
+            (!inv.expires_at || new Date(inv.expires_at) > new Date())) {
+          inviteOk = true;
+        }
+      }
+
+      if (!OWNER_EMAILS.includes(email) && !preAllowed && !inviteOk) {
+        return json({ ok: false, error: 'Sign-up is currently disabled. An invite is required.' }, 403);
+      }
+      // Consume one use of the invite code.
+      if (inviteOk) {
+        await env.DB.prepare(
+          'UPDATE invite_codes SET uses_left = uses_left - 1, used_count = used_count + 1 WHERE code = ?'
+        ).bind(inviteCode).run().catch(() => {});
       }
     }
 

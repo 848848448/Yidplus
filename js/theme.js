@@ -163,6 +163,11 @@ window.buildSettingsPage = function () {
       }).join('') +
       (sessions.length > 1 ? '<button class="theme-reset-btn" style="color:#E11D48;border-color:#FFCDD2;margin-top:.5rem" onclick="logoutAllSessions()">Logout All Devices</button>' : ''),
     ]) +
+    _section('Verification', [
+      p.verified
+        ? _row('✅', 'Verified account', '<span style="font-size:.72rem;color:var(--green);font-weight:700">Active</span>')
+        : _row('✅', 'Get verified', '<button class="settings-edit-btn" onclick="requestVerification(this)">Request</button>'),
+    ]) +
     _section('Share Profile', [
       _row(_svg_share(), 'Share my profile', '<button class="settings-edit-btn" onclick="shareProfile()">Share</button>'),
       _row('🔗', 'Copy link', '<button class="settings-edit-btn" onclick="copyProfileLink()">Copy</button>'),
@@ -436,4 +441,18 @@ window._updateFollowReqBadge = function () {
       if (btn && count > 0) btn.textContent = 'View (' + count + ')';
     })
     .catch(function () {});
+};
+
+// Request the blue check. Shows current state (pending) after submitting.
+window.requestVerification = function (btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  api.post('/verify-request', {})
+    .then(function () {
+      toast('✅ Request sent — an admin will review it');
+      if (btn) { btn.textContent = 'Pending'; btn.style.color = 'var(--muted)'; }
+    })
+    .catch(function (err) {
+      toast('❌ ' + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Request'; }
+    });
 };
