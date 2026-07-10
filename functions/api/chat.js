@@ -166,9 +166,20 @@ export async function onRequestGet(context) {
     // These use the scheduled_for / expires_at columns, which may be absent on
     // an un-migrated DB — in that case the fields are simply undefined and the
     // checks below are no-ops, so normal chat is unaffected.
+    // Auto-moderated / hidden messages: fetched separately so we never touch the
+    // main SELECTs (keeps un-migrated DBs working). Admins still see them for review.
+    let hiddenIds = new Set();
+    if (!isAdmin) {
+      const hr = await env.DB.prepare(
+        'SELECT id FROM messages WHERE room_id = ? AND hidden = 1'
+      ).bind(roomId).all().catch(() => ({ results: [] }));
+      hiddenIds = new Set((hr.results || []).map(function (r) { return r.id; }));
+    }
+
     const nowMs = Date.now();
     const senderId = user.id;
     results = results.filter(function (m) {
+      if (hiddenIds.has(m.id)) return false;
       // A scheduled message stays hidden until its time — but its own author
       // always sees it (so they can tell it's queued).
       if (m.scheduled_for) {

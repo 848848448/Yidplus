@@ -48,6 +48,26 @@ export async function onRequestPost(context) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`
     ).bind(id, user.id, reportedId, body.reported_nick || '', body.room_id || null, body.message_id || null, reason, body.details || '', now).run();
 
+    // ── Auto-moderation ──
+    // When a message is reported by at least N DISTINCT users (threshold set by
+    // the owner in Admin → Features; 0 = off), auto-hide it pending review.
+    // Counting distinct reporters — not raw reports — resists brigading, and
+    // hiding is fully reversible (admins still see it).
+    if (body.message_id) {
+      const thRow = await env.DB.prepare(
+        "SELECT value FROM app_settings WHERE key = 'automod_threshold'"
+      ).first().catch(() => null);
+      const threshold = parseInt((thRow && thRow.value) || '0', 10);
+      if (threshold > 0) {
+        const cnt = await env.DB.prepare(
+          'SELECT COUNT(DISTINCT reporter_id) AS c FROM reports WHERE message_id = ?'
+        ).bind(body.message_id).first().catch(() => ({ c: 0 }));
+        if ((cnt && cnt.c || 0) >= threshold) {
+          await env.DB.prepare('UPDATE messages SET hidden = 1 WHERE id = ?').bind(body.message_id).run().catch(() => {});
+        }
+      }
+    }
+
     return json({ ok: true }, 201);
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);

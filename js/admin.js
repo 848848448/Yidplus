@@ -362,6 +362,10 @@ function buildAdminPanel(id) {
           '<div class="admin-card-title">📢 Global Broadcast</div>' +
           '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">Sends to all registered users (shown next time they load Home).</div>' +
           '<textarea class="bc-textarea" id="bc-textarea" rows="4" placeholder="Type your announcement..."></textarea>' +
+          '<label style="display:flex;align-items:center;gap:.5rem;margin:.6rem 0;font-size:.82rem;cursor:pointer">' +
+            '<input type="checkbox" id="bc-push" style="width:18px;height:18px;accent-color:#1F6F5C">' +
+            '🔔 Also send as a push notification to phones' +
+          '</label>' +
           '<button class="bc-send-btn" onclick="sendBroadcast()">📢 Send to All Users</button>' +
         '</div>' +
         '<div class="admin-card" id="bc-history-card">' +
@@ -1249,6 +1253,14 @@ window.sendBroadcast = function () {
       ta.value = '';
       toast('📢 Broadcast sent to all users!');
       loadBroadcastHistory();
+      // Optional push blast to phones
+      var pushCb = document.getElementById('bc-push');
+      if (pushCb && pushCb.checked) {
+        api.post('/push/send', { title: 'YID PLUS', body: text, url: '/chat' })
+          .then(function (r) { toast('🔔 Pushed to ' + (r.sent || 0) + ' devices'); })
+          .catch(function () { toast('⚠ In-app sent, but push failed'); });
+        pushCb.checked = false;
+      }
     })
     .catch(function (err) { toast('❌ Failed: ' + err.message); });
 };
@@ -3277,6 +3289,16 @@ function buildFeaturesPanel(content) {
         '<div class="admin-card-title">🎛️ Feature toggles</div>' +
         '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem">Turn a section off for the whole app. Off = hidden from the bottom nav and its page is blocked. You (owner/admins) are never affected.</div>' +
         rows +
+      '</div>' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🛡️ Auto-moderation</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.6rem">Automatically hide a message once this many <b>different</b> people report it. Hiding is reversible — admins still see it. Set 0 to turn off.</div>' +
+        '<div style="display:flex;gap:.5rem;align-items:center">' +
+          '<span style="font-size:.82rem">Hide after</span>' +
+          '<input id="automod-threshold" type="number" min="0" value="' + (parseInt(s.automod_threshold, 10) || 0) + '" style="width:70px;padding:.5rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.9rem;text-align:center">' +
+          '<span style="font-size:.82rem">reports</span>' +
+          '<button onclick="saveAutomod()" style="margin-left:auto;padding:.5rem 1rem;border:none;border-radius:10px;background:#1F6F5C;color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;font-family:inherit">Save</button>' +
+        '</div>' +
       '</div>';
   }).catch(function (err) {
     var p = document.getElementById('features-panel');
@@ -3290,6 +3312,13 @@ window.toggleFeature = function (key, turnOn, btn) {
       toast(turnOn ? '✅ Enabled' : '🚫 Disabled');
       buildFeaturesPanel(document.getElementById('admin-content'));
     })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+window.saveAutomod = function () {
+  var v = Math.max(0, parseInt(document.getElementById('automod-threshold').value, 10) || 0);
+  api.put('/settings', { key: 'automod_threshold', value: String(v) })
+    .then(function () { toast(v > 0 ? '🛡️ Auto-hide after ' + v + ' reports' : 'Auto-moderation off'); })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
 
