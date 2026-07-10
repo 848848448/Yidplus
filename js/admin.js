@@ -170,9 +170,13 @@ var ADMIN_ICONS = {
   badges:         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>',
   warnings:       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
   'access-control': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  now:            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>',
+  features:       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>',
 };
 
 var ADMIN_PANELS = [
+  { id:'now',            label:'Now',             roles:['admin_limited','admin_super','owner'] },
+  { id:'features',       label:'Features',        roles:['owner'] },
   { id:'analytics',      label:'Analytics',      roles:['admin_limited','admin_super','owner'] },
   { id:'users',          label:'Users',           roles:['admin_limited','admin_super','owner'] },
   { id:'reports',        label:'Reports',         roles:['admin_limited','admin_super','owner'] },
@@ -209,16 +213,16 @@ var ADMIN_PANELS = [
    GROUPED DASHBOARD (categories)
 ══════════════════════════════════ */
 var ADMIN_CATEGORIES = [
-  { id:'overview',   label:'Overview',   desc:'Analytics and leaderboard',            color:'#185FA5', bg:'#E6F1FB', bgd:'#0C447C',
-    panels:['analytics','leaderboard'] },
+  { id:'overview',   label:'Overview',   desc:'Now, analytics and leaderboard',       color:'#185FA5', bg:'#E6F1FB', bgd:'#0C447C',
+    panels:['now','analytics','leaderboard'] },
   { id:'people',     label:'People',     desc:'Access, users, warnings, sessions',    color:'#0F6E56', bg:'#E1F5EE', bgd:'#085041',
     panels:['access-control','users','warnings','badges','sessions','banned-devices','ad-exempt'] },
   { id:'moderation', label:'Moderation', desc:'Reports, feedback, support, filter',   color:'#A32D2D', bg:'#FCEBEB', bgd:'#791F1F',
     panels:['reports','feedback','support-chats','chat-watch','shorts-mod','music-mod','bad-words'] },
   { id:'content',    label:'Content',    desc:'Announce, broadcast, channels, more',  color:'#534AB7', bg:'#EEEDFE', bgd:'#3C3489',
     panels:['announcements','broadcast','channels-mgr','telegram'] },
-  { id:'system',     label:'System',     desc:'App, ads, maintenance, logs, export',  color:'#5F5E5A', bg:'#F1EFE8', bgd:'#2C2C2A',
-    panels:['app-settings','ads','maintenance','ip-logs','audit-logs','export','nuclear','admin-settings'] },
+  { id:'system',     label:'System',     desc:'Features, app, ads, logs, export',     color:'#5F5E5A', bg:'#F1EFE8', bgd:'#2C2C2A',
+    panels:['features','app-settings','ads','maintenance','ip-logs','audit-logs','export','nuclear','admin-settings'] },
 ];
 
 var ADMIN_CAT_ICONS = {
@@ -486,6 +490,12 @@ function buildAdminPanel(id) {
 
   } else if (id === 'access-control') {
     buildAccessControlPanel(content);
+
+  } else if (id === 'now') {
+    buildNowPanel(content);
+
+  } else if (id === 'features') {
+    buildFeaturesPanel(content);
 
   } else if (id === 'maintenance') {
     buildMaintenancePanel(content);
@@ -3142,6 +3152,133 @@ window.adminBanDevice = function (ip, fingerprint, btn) {
     .then(function () {
       toast('🚫 Device banned');
       if (btn) { btn.outerHTML = '<span style="font-size:.68rem;font-weight:700;color:#D32F2F">🚫 Banned</span>'; }
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+/* ══════════════════════════════════
+   NOW — live dashboard
+══════════════════════════════════ */
+function buildNowPanel(content) {
+  content.innerHTML = '<div class="admin-panel" id="now-panel"><div class="admin-card" style="text-align:center;padding:2rem"><div class="spinner"></div></div></div>';
+  clearInterval(window._nowTimer);
+  _loadNow();
+  window._nowTimer = setInterval(function () {
+    if (!document.getElementById('now-panel')) { clearInterval(window._nowTimer); return; }
+    _loadNow();
+  }, 20000);
+}
+
+function _loadNow() {
+  api.get('/admin/insights').then(function (res) {
+    var p = document.getElementById('now-panel');
+    if (!p) return;
+
+    var stat = function (n, label, color) {
+      return '<div style="flex:1;text-align:center;padding:.5rem"><div style="font-size:1.5rem;font-weight:800;color:' + (color || 'var(--text)') + '">' + fmtN(n) + '</div><div style="font-size:.68rem;color:var(--muted)">' + label + '</div></div>';
+    };
+
+    // Growth mini bar-chart
+    var g = res.growth || [];
+    var max = Math.max(1, Math.max.apply(null, g.map(function (d) { return d.count; })));
+    var bars = g.map(function (d) {
+      var h = Math.round((d.count / max) * 60);
+      var dd = d.day.slice(8) + '/' + d.day.slice(5, 7);
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px" title="' + dd + ': ' + d.count + '">' +
+          '<div style="font-size:.6rem;color:var(--muted)">' + (d.count || '') + '</div>' +
+          '<div style="width:70%;height:' + Math.max(h, 2) + 'px;background:linear-gradient(180deg,#2B8A73,#14503F);border-radius:3px 3px 0 0"></div>' +
+          '<div style="font-size:.55rem;color:var(--muted2)">' + d.day.slice(8) + '</div>' +
+        '</div>';
+    }).join('');
+
+    // Duplicate account clusters
+    var dups = res.duplicates || [];
+    var dupHtml = dups.length ? dups.map(function (d) {
+      return '<div style="padding:.55rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.25rem">' + (d.type === 'IP' ? '🌐 ' : '📱 ') + escHtmlA(d.key) + ' · ' + d.count + ' accounts</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:.35rem">' +
+            d.users.map(function (u) {
+              return '<button onclick="openUserDetailModal(\'' + u.id + '\')" style="padding:.25rem .6rem;background:var(--bg3);border:1px solid var(--border);border-radius:999px;font-size:.72rem;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit">@' + escHtmlA(u.nickname) + '</button>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+    }).join('') : '<div style="font-size:.78rem;color:var(--muted);padding:.5rem 0">No shared devices/IPs detected 👍</div>';
+
+    p.innerHTML =
+      '<div class="admin-card"><div class="admin-card-title">🟢 Right now</div>' +
+        '<div style="display:flex">' +
+          stat(res.online_now, 'Online', '#16A34A') +
+          stat(res.active_sessions, 'Sessions') +
+          stat(res.total_users, 'Total users') +
+        '</div>' +
+      '</div>' +
+      '<div class="admin-card"><div class="admin-card-title">📅 Today</div>' +
+        '<div style="display:flex">' +
+          stat(res.today.users, 'New users', '#185FA5') +
+          stat(res.today.messages, 'Messages') +
+          stat(res.today.shorts, 'Shorts') +
+        '</div>' +
+      '</div>' +
+      '<div class="admin-card"><div class="admin-card-title">📈 New users (14 days)</div>' +
+        '<div style="display:flex;align-items:flex-end;gap:2px;height:90px;padding-top:.5rem">' + bars + '</div>' +
+      '</div>' +
+      '<div class="admin-card"><div class="admin-card-title">👥 Possible duplicate accounts</div>' +
+        '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.4rem">Accounts sharing the same IP or device. Tap a name to inspect.</div>' +
+        dupHtml +
+      '</div>';
+  }).catch(function (err) {
+    var p = document.getElementById('now-panel');
+    if (p) p.innerHTML = '<div class="admin-card" style="color:var(--red)">Could not load: ' + escHtmlA(err.message) + '</div>';
+  });
+}
+
+/* ══════════════════════════════════
+   FEATURES — global on/off toggles
+══════════════════════════════════ */
+var FEATURE_FLAGS = [
+  { key:'feat_shorts',  label:'Shorts',      desc:'The Shorts tab and video feed',          icon:'🎬' },
+  { key:'feat_music',   label:'Music',       desc:'The Music tab and player',               icon:'🎵' },
+  { key:'feat_status',  label:'Status',      desc:'Status / stories posting and viewing',   icon:'⭐' },
+  { key:'feat_channels',label:'Channels',    desc:'The Channels / explore tab',             icon:'📡' },
+  { key:'feat_guest',   label:'Guest mode',  desc:'Let people browse without an account',   icon:'👤' },
+];
+
+function buildFeaturesPanel(content) {
+  content.innerHTML = '<div class="admin-panel" id="features-panel"><div class="admin-card" style="text-align:center;padding:2rem"><div class="spinner"></div></div></div>';
+  api.get('/settings').then(function (res) {
+    var s = res.settings || {};
+    var p = document.getElementById('features-panel');
+    if (!p) return;
+    var rows = FEATURE_FLAGS.map(function (f) {
+      // Default ON unless explicitly set to 'off'
+      var on = s[f.key] !== 'off';
+      return '<div style="display:flex;align-items:center;gap:.75rem;padding:.85rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div style="font-size:1.4rem">' + f.icon + '</div>' +
+          '<div style="flex:1"><div style="font-size:.9rem;font-weight:700">' + f.label + '</div>' +
+          '<div style="font-size:.72rem;color:var(--muted)">' + f.desc + '</div></div>' +
+          '<button id="ff-' + f.key + '" onclick="toggleFeature(\'' + f.key + '\',' + (on ? 'false' : 'true') + ',this)" ' +
+            'style="width:52px;height:30px;border-radius:999px;border:none;cursor:pointer;position:relative;transition:background .15s;background:' + (on ? '#16A34A' : '#9AA0A6') + '">' +
+            '<span style="position:absolute;top:3px;left:' + (on ? '25px' : '3px') + ';width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s"></span>' +
+          '</button>' +
+        '</div>';
+    }).join('');
+    p.innerHTML =
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🎛️ Feature toggles</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem">Turn a section off for the whole app. Off = hidden from the bottom nav and its page is blocked. You (owner/admins) are never affected.</div>' +
+        rows +
+      '</div>';
+  }).catch(function (err) {
+    var p = document.getElementById('features-panel');
+    if (p) p.innerHTML = '<div class="admin-card" style="color:var(--red)">Could not load: ' + escHtmlA(err.message) + '</div>';
+  });
+}
+
+window.toggleFeature = function (key, turnOn, btn) {
+  api.put('/settings', { key: key, value: turnOn ? 'on' : 'off' })
+    .then(function () {
+      toast(turnOn ? '✅ Enabled' : '🚫 Disabled');
+      buildFeaturesPanel(document.getElementById('admin-content'));
     })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
