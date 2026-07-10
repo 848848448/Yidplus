@@ -445,12 +445,27 @@ window._mvDownload = function () {
   document.getElementById('mv-options-menu').classList.remove('open');
   var item = _mediaList[_mediaIdx];
   if (!item) return;
-  var a = document.createElement('a');
-  a.href = item.url;
-  a.download = item.key.split('/').pop() || 'media';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  var name = (item.key.split('/').pop()) || (item.isVideo ? 'video.mp4' : 'image.jpg');
+  toast('⬇️ Downloading…');
+  // Fetch as a blob (with the session cookie — chat media is member-only) then
+  // save via an object URL. Plain <a download> is ignored by mobile browsers for
+  // videos, which just open the file instead of saving it.
+  fetch(item.url, { credentials: 'include' })
+    .then(function (r) { if (!r.ok) throw new Error('Download failed'); return r.blob(); })
+    .then(function (blob) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    })
+    .catch(function () {
+      // Last-resort fallback: open in a new tab so the user can long-press to save.
+      window.open(item.url, '_blank');
+    });
 };
 
 // Swipe gestures on the media viewer body
