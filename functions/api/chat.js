@@ -95,14 +95,15 @@ export async function onRequestGet(context) {
       env.DB.prepare('SELECT type FROM rooms WHERE id = ?').bind(roomId).first().catch(() => null)
     );
 
+    const isOwner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
+    const isAdmin = isAdminRole(user, env.OWNER_EMAIL);
+
     // Admin-disabled rooms are invisible to regular users.
     if (!isAdmin) {
       const off = await env.DB.prepare('SELECT 1 FROM disabled_rooms WHERE room_id = ?').bind(roomId).first().catch(() => null);
       if (off) return json({ ok: false, error: 'This group is unavailable.' }, 403);
     }
 
-    const isOwner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
-    const isAdmin = isAdminRole(user, env.OWNER_EMAIL);
     const isMember = await env.DB.prepare(
       'SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?'
     ).bind(roomId, user.id).first();
