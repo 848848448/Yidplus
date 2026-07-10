@@ -2506,6 +2506,8 @@ function _buildCtxMenu(msg) {
 window.closeCtxMenu = function () {
   var m = document.getElementById('ctx-menu');
   if (m) m.classList.remove('open');
+  var qr = document.getElementById('quick-react-bar');
+  if (qr) qr.style.display = 'none';
 };
 
 window.showCtx = function (e, msgId) {
@@ -2530,7 +2532,41 @@ window.showCtx = function (e, msgId) {
 
   menu.style.left = leftPos + 'px';
   menu.style.top  = topPos  + 'px';
+
+  // Keep the reaction bar pinned above the menu (never overlapping it).
+  requestAnimationFrame(_layoutMsgActions);
 };
+
+// Position the quick-react bar directly above the context menu whenever both
+// are open, so the emoji row is always on top and never lands in the middle of
+// the menu (Android fires the long-press context menu + our react timer together).
+function _layoutMsgActions() {
+  var menu = document.getElementById('ctx-menu');
+  var bar  = document.getElementById('quick-react-bar');
+  if (!menu || !bar) return;
+  var menuOpen = menu.classList.contains('open');
+  var barOpen  = bar.style.display === 'flex';
+  if (!menuOpen || !barOpen) return;
+
+  var mTop  = parseFloat(menu.style.top)  || 0;
+  var mLeft = parseFloat(menu.style.left) || 0;
+  var bh = bar.offsetHeight || 46;
+  var bw = bar.offsetWidth  || 250;
+
+  var barTop = mTop - bh - 10;
+  if (barTop < 10) {
+    // No room above the menu — pin the bar to the top and push the menu down.
+    barTop = 10;
+    var mh = menu.offsetHeight || 220;
+    var newMenuTop = barTop + bh + 10;
+    if (newMenuTop + mh > window.innerHeight - 10) {
+      newMenuTop = Math.max(window.innerHeight - mh - 10, barTop + bh + 10);
+    }
+    menu.style.top = newMenuTop + 'px';
+  }
+  bar.style.top  = barTop + 'px';
+  bar.style.left = Math.min(mLeft, window.innerWidth - bw - 10) + 'px';
+}
 
 window.toggleReaction = function (msgId, emoji) {
   api.post('/chat/reactions', { message_id: msgId, emoji: emoji })
@@ -2541,6 +2577,8 @@ window.toggleReaction = function (msgId, emoji) {
     .catch(function (err) { toast('❌ ' + err.message); });
   var qr = document.getElementById('quick-react-bar');
   if (qr) qr.style.display = 'none';
+  var cm = document.getElementById('ctx-menu');
+  if (cm) cm.classList.remove('open');
 };
 
 window.showQuickReact = function (e, msgId) {
@@ -2553,6 +2591,8 @@ window.showQuickReact = function (e, msgId) {
   bar.style.left = Math.min(x, window.innerWidth - 240) + 'px';
   bar.style.top  = Math.max(y - 50, 10) + 'px';
   bar.style.display = 'flex';
+  // If the context menu also opened (mobile long-press), snap the bar above it.
+  requestAnimationFrame(_layoutMsgActions);
 };
 
 document.addEventListener('click', function (e) {
