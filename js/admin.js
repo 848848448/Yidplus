@@ -613,8 +613,14 @@ function buildChatWatchPanel(content) {
       '</div>' +
     '</div>';
 
-  api.get('/admin/rooms')
-    .then(function (res) {
+  Promise.all([
+    api.get('/admin/rooms'),
+    api.get('/admin/room-control').catch(function () { return { disabled: [] }; }),
+  ])
+    .then(function (out) {
+      var res = out[0];
+      var disabled = {};
+      (out[1].disabled || []).forEach(function (id) { disabled[id] = true; });
       var rooms = res.rooms || [];
       var el = document.getElementById('chat-watch-list');
       if (!el) return;
@@ -623,11 +629,17 @@ function buildChatWatchPanel(content) {
         return;
       }
       el.innerHTML = rooms.map(function (r) {
-        return '<div class="chat-room-row" onclick="adminViewRoom(\'' + r.id + '\',\'' + escHtml(r.name).replace(/'/g, "\\'") + '\')">' +
+        var off = !!disabled[r.id];
+        var nm = escHtml(r.name).replace(/'/g, "\\'");
+        return '<div class="chat-room-row" style="flex-wrap:wrap;opacity:' + (off ? '.6' : '1') + '">' +
           '<div class="cr-icon">' + r.emoji + '</div>' +
-          '<div class="cr-info"><div class="cr-name">' + escHtml(r.name) + ' <span style="font-size:.63rem;color:var(--muted)">(' + r.members + ' members)</span></div>' +
+          '<div class="cr-info" onclick="adminViewRoom(\'' + r.id + '\',\'' + nm + '\')" style="cursor:pointer"><div class="cr-name">' + escHtml(r.name) + ' <span style="font-size:.63rem;color:var(--muted)">(' + r.members + ')</span>' + (off ? ' <span style="font-size:.6rem;color:#D32F2F;font-weight:700">HIDDEN</span>' : '') + '</div>' +
           '<div class="cr-preview">' + escHtml(r.preview) + '</div></div>' +
-          '<button class="cr-view-btn">👁 View</button>' +
+          '<div style="display:flex;gap:.35rem;width:100%;margin-top:.5rem">' +
+            '<button onclick="adminViewRoom(\'' + r.id + '\',\'' + nm + '\')" style="flex:1;padding:.4rem;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:.72rem;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit">👁 View</button>' +
+            '<button onclick="adminToggleRoom(\'' + r.id + '\',' + (off ? 'false' : 'true') + ')" style="flex:1;padding:.4rem;background:' + (off ? '#16A34A' : '#B45309') + ';border:none;border-radius:8px;font-size:.72rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit">' + (off ? '↩ Unhide' : '🚫 Hide') + '</button>' +
+            '<button onclick="adminDeleteRoom(\'' + r.id + '\',\'' + nm + '\')" style="flex:1;padding:.4rem;background:none;border:1px solid #E5989B;border-radius:8px;font-size:.72rem;font-weight:700;color:#D32F2F;cursor:pointer;font-family:inherit">🗑 Delete</button>' +
+          '</div>' +
         '</div>';
       }).join('');
     })
@@ -636,6 +648,23 @@ function buildChatWatchPanel(content) {
       if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
     });
 }
+
+// Hide (reversible) or unhide a group/channel from all regular users.
+window.adminToggleRoom = function (roomId, hide) {
+  if (hide && !confirm('Hide this group/channel? Regular users won\'t see it. You can unhide anytime.')) return;
+  api.post('/admin/room-control', { room_id: roomId, action: hide ? 'hide' : 'unhide' })
+    .then(function () { toast(hide ? '🚫 Hidden' : '↩ Unhidden'); buildChatWatchPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+// Permanently delete a group/channel and all its messages.
+window.adminDeleteRoom = function (roomId, name) {
+  if (!confirm('PERMANENTLY delete "' + name + '"?\nAll its messages will be gone. This cannot be undone.')) return;
+  if (!confirm('Are you absolutely sure? This is permanent.')) return;
+  api.del('/admin/room-control?room_id=' + encodeURIComponent(roomId))
+    .then(function () { toast('🗑 Deleted'); buildChatWatchPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 window.adminViewRoom = function (roomId, name) {
   api.get('/chat?room_id=' + encodeURIComponent(roomId))

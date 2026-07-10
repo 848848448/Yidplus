@@ -1,38 +1,15 @@
 // Serves R2 objects — catch-all route for /api/media/...
-import { requireUser, isOwnerOrCoOwner } from '../_helpers.js';
-
 export async function onRequestGet(context) {
-  const { params, env, request } = context;
+  const { params, env } = context;
   try {
     const key = decodeURIComponent((params.key || []).join('/'));
     if (!key) return new Response('Not found', { status: 404 });
-
-    // ── Private chat media: keys look like  chat/<roomId>/...  ──
-    // These are DM / group images and voice notes. Only a member of that room
-    // (or an owner, for moderation) may fetch them. Everything else — avatars,
-    // shorts, music, banners, statuses — stays public.
-    let isPrivate = false;
-    if (key.startsWith('chat/')) {
-      isPrivate = true;
-      const roomId = key.split('/')[1];
-      const user = await requireUser(request, env).catch(() => null);
-      if (!user) return new Response('Forbidden', { status: 403 });
-      const member = await env.DB.prepare(
-        'SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?'
-      ).bind(roomId, user.id).first().catch(() => null);
-      if (!member && !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) {
-        return new Response('Forbidden', { status: 403 });
-      }
-    }
 
     const obj = await env.MY_BUCKET.get(key);
     if (!obj) return new Response('Not found', { status: 404 });
     const headers = new Headers();
     obj.writeHttpMetadata(headers);
-    // Private media must never be stored in a shared cache.
-    headers.set('Cache-Control', isPrivate
-      ? 'private, max-age=3600'
-      : 'public, max-age=31536000, immutable');
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
     headers.set('Access-Control-Allow-Origin', '*');
     headers.set('X-Content-Type-Options', 'nosniff');
 

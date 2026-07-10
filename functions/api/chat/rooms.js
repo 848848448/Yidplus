@@ -156,6 +156,17 @@ export async function onRequestGet(context) {
       dedupedRooms.push(r);
     }
 
+    // Admin-disabled groups/channels vanish for regular users (reversible).
+    if (!isAdmin && dedupedRooms.length) {
+      const dr = await env.DB.prepare('SELECT room_id FROM disabled_rooms').all().catch(() => ({ results: [] }));
+      if (dr.results && dr.results.length) {
+        const off = new Set(dr.results.map(x => x.room_id));
+        for (let i = dedupedRooms.length - 1; i >= 0; i--) {
+          if (off.has(dedupedRooms[i].id)) dedupedRooms.splice(i, 1);
+        }
+      }
+    }
+
     const allRoomIds = dedupedRooms.map(r => r.id);
     const groupRoomIds = dedupedRooms.filter(r => r.type === 'group').map(r => r.id);
     const privateRoomIds = dedupedRooms.filter(r => r.type === 'private').map(r => r.id);
