@@ -93,77 +93,85 @@ export async function onRequestGet(context) {
     const rooms = [];
     const seen = new Set();
 
+    // Dedupe first, then batch-fetch everything in a handful of chunked queries
+    // instead of running ~5 queries PER room (which times out / hits Cloudflare's
+    // subrequest limit once an owner has many rooms — the reason not all chats showed).
+    const dedup = [];
     for (const r of [...myRooms, ...publicRooms, ...adminVisibleRooms]) {
       if (seen.has(r.id)) continue;
       seen.add(r.id);
+      dedup.push(r);
+    }
 
+    const ids = dedup.map(r => r.id);
+    const chunk = (arr, n) => { const o = []; for (let i = 0; i < arr.length; i += n) o.push(arr.slice(i, i + n)); return o; };
+
+    const lastMsgByRoom = {}, unreadByRoom = {}, memberCountByRoom = {}, membersByRoom = {};
+
+    for (const c of chunk(ids, 400)) {
+      const ph = c.map(() => '?').join(',');
+
+      // Latest message per room
+      const lms = await env.DB.prepare(
+        `SELECT m.room_id, m.text, m.type, m.sender_nick, m.created_at
+         FROM messages m
+         JOIN (SELECT room_id, MAX(created_at) AS mx FROM messages WHERE room_id IN (${ph}) GROUP BY room_id) t
+           ON t.room_id = m.room_id AND t.mx = m.created_at`
+      ).bind(...c).all().catch(() => ({ results: [] }));
+      for (const m of (lms.results || [])) if (!lastMsgByRoom[m.room_id]) lastMsgByRoom[m.room_id] = m;
+
+      // Unread per room
+      const urs = await env.DB.prepare(
+        `SELECT room_id, COUNT(*) AS c FROM messages WHERE room_id IN (${ph}) AND sender_id != ? AND read = 0 GROUP BY room_id`
+      ).bind(...c, user.id).all().catch(() => ({ results: [] }));
+      for (const u of (urs.results || [])) unreadByRoom[u.room_id] = u.c;
+
+      // Member counts
+      const mcs = await env.DB.prepare(
+        `SELECT room_id, COUNT(*) AS c FROM room_members WHERE room_id IN (${ph}) GROUP BY room_id`
+      ).bind(...c).all().catch(() => ({ results: [] }));
+      for (const m of (mcs.results || [])) memberCountByRoom[m.room_id] = m.c;
+
+      // All members (used for group lists + DM participant names)
+      const mems = await env.DB.prepare(
+        `SELECT rm.room_id, u.id, u.nickname, u.photo_url, u.role, rm.is_group_admin,
+                (CASE WHEN u.online = 1 THEN 1 ELSE 0 END) AS online
+         FROM room_members rm JOIN users u ON u.id = rm.user_id
+         WHERE rm.room_id IN (${ph})`
+      ).bind(...c).all().catch(() => ({ results: [] }));
+      for (const m of (mems.results || [])) (membersByRoom[m.room_id] = membersByRoom[m.room_id] || []).push(m);
+    }
+
+    for (const r of dedup) {
       const joined = myRooms.some(m => m.id === r.id);
       const isAdminSpectating = !joined && isAdmin;
+      const lastMsg = lastMsgByRoom[r.id] || null;
+      const allMembers = membersByRoom[r.id] || [];
 
-      // Last message preview
-      const lastMsg = await env.DB.prepare(
-        `SELECT text, type, sender_nick, created_at FROM messages
-         WHERE room_id = ? ORDER BY created_at DESC LIMIT 1`
-      ).bind(r.id).first();
-
-      // Unread count (messages after user joined, not sent by user, not read)
-      const unreadRow = await env.DB.prepare(
-        `SELECT COUNT(*) AS c FROM messages
-         WHERE room_id = ? AND sender_id != ? AND read = 0`
-      ).bind(r.id, user.id).first();
-
-      // Member count + list for groups
       let members = null;
       let memberList = null;
       if (r.type === 'group') {
-        const mc = await env.DB.prepare(
-          `SELECT COUNT(*) AS c FROM room_members WHERE room_id = ?`
-        ).bind(r.id).first();
-        members = mc ? mc.c : 0;
-
-        const { results: memRows } = await env.DB.prepare(
-          `SELECT u.id, u.nickname, u.role, u.photo_url, rm.is_group_admin,
-                  (CASE WHEN u.online = 1 AND u.last_ping >= datetime('now','-60 seconds') THEN 1 ELSE 0 END) AS online
-           FROM room_members rm
-           JOIN users u ON u.id = rm.user_id
-           WHERE rm.room_id = ?`
-        ).bind(r.id).all().catch(() => env.DB.prepare(
-          `SELECT u.id, u.nickname, u.online, u.role, u.photo_url, rm.is_group_admin
-           FROM room_members rm
-           JOIN users u ON u.id = rm.user_id
-           WHERE rm.room_id = ?`
-        ).bind(r.id).all());
-        memberList = memRows;
+        members = memberCountByRoom[r.id] || 0;
+        memberList = allMembers;
       }
 
-      // For DMs, resolve the other user's nickname + online status
       let nick = r.name;
       let online = false;
       let photoUrl = null;
       let otherUserId = null;
       if (r.type === 'private') {
-        // Fetch BOTH members of the DM.
-        const { results: dmMembers } = await env.DB.prepare(
-          `SELECT u.id, u.nickname, u.photo_url,
-                  (CASE WHEN u.online = 1 THEN 1 ELSE 0 END) AS online
-           FROM room_members rm JOIN users u ON u.id = rm.user_id
-           WHERE rm.room_id = ?`
-        ).bind(r.id).all().catch(() => ({ results: [] }));
-
-        const others = (dmMembers || []).filter(m => m.id !== user.id);
-        if (others.length && dmMembers.some(m => m.id === user.id)) {
-          // The admin is actually one of the two people — show the other.
+        const others = allMembers.filter(m => m.id !== user.id);
+        if (joined && others.length) {
           nick = others[0].nickname; online = !!others[0].online;
           photoUrl = others[0].photo_url; otherUserId = others[0].id;
-        } else if (dmMembers.length) {
-          // Admin is spectating a DM between two OTHER people — show both names.
-          nick = dmMembers.map(m => m.nickname).join('  ↔  ');
-          otherUserId = dmMembers[0] ? dmMembers[0].id : null;
+        } else if (allMembers.length) {
+          // Spectating a DM between two other people — show both names.
+          nick = allMembers.map(m => m.nickname).join('  ↔  ');
+          otherUserId = allMembers[0] ? allMembers[0].id : null;
         }
       }
 
-      // Whether the current user is a sub-admin of this specific group
-      const myMembership = (memberList || []).find(m => m.id === user.id);
+      const myMembership = allMembers.find(m => m.id === user.id);
       const isGroupAdmin = !!(myMembership && myMembership.is_group_admin);
 
       rooms.push({
@@ -187,7 +195,7 @@ export async function onRequestGet(context) {
         channel_admins: r.channel_admins || '[]',
         description: r.description || null,
         preview: lastMsg ? (lastMsg.type === 'text' ? lastMsg.text : '[' + lastMsg.type + ']') : '',
-        unread: unreadRow ? unreadRow.c : 0,
+        unread: unreadByRoom[r.id] || 0,
         last_time: lastMsg ? lastMsg.created_at : r.created_at,
       });
     }
