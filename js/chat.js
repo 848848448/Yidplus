@@ -483,10 +483,12 @@ window._mvDownload = function () {
       var dx = e.changedTouches[0].clientX - startX;
       var dy = e.changedTouches[0].clientY - startY;
       var dt = Date.now() - startT;
-      if (dt > 500) return; // too slow
-      if (Math.abs(dy) > Math.abs(dx) && dy > 80) { _mediaViewerClose(); return; } // swipe down
-      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
-        if (dx < 0) _mvNext(); else _mvPrev(); // swipe left/right
+      // Swipe down to close — only a quick flick, so it doesn't fight scrolling.
+      if (Math.abs(dy) > Math.abs(dx) && dy > 90 && dt < 600) { _mediaViewerClose(); return; }
+      // Horizontal swipe to move between photos/videos — no strict time limit,
+      // so a natural, slightly-slower gallery swipe still registers.
+      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) {
+        if (dx < 0) _mvNext(); else _mvPrev();
       }
     });
   });
@@ -1268,7 +1270,7 @@ function renderMessages(scrollDown) {
     // Content
     if (m.type === 'poll') {
       return dateSep + '<div class="msg-wrap' + (isMe ? ' me' : '') + '" id="msg-' + m.id + '" data-id="' + m.id + '">' +
-        '<div class="bubble ' + (isMe ? 'me' : 'them') + ' poll-bubble-wrap">' +
+        '<div class="bubble ' + (isMe ? 'me' : 'them') + ' poll-bubble-wrap" data-msg-id="' + m.id + '" oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')">' +
           '<div id="poll-' + m.text + '">' + _renderPollBubble(m, isMe) + '</div>' +
           '<div class="bubble-meta"><span class="bubble-time">' + (m.created_at ? _fmt12(m.created_at) : '') + '</span></div>' +
         '</div>' +
@@ -1378,10 +1380,23 @@ function renderMessages(scrollDown) {
       }
 
     } else if (m.type === 'file' && m.media_url) {
-      inner += '<a href="' + m.media_url + '" target="_blank" style="display:flex;align-items:center;gap:.5rem;text-decoration:none;color:var(--text)">' +
-        '<div style="font-size:1.5rem">📄</div>' +
-        '<div style="font-size:.82rem;overflow:hidden;text-overflow:ellipsis;max-width:160px">' + escHtml(m.text || 'File') + '</div>' +
-      '</a>';
+      var fk = (m.media_key || m.media_url || '').toLowerCase();
+      var fname = escHtml(m.text || 'File');
+      var isAudioFile = /\.(mp3|m4a|aac|ogg|wav|flac|opus)$/i.test(fk);
+      if (isAudioFile) {
+        inner += '<div style="min-width:210px">' +
+          '<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.3rem"><span style="font-size:1.1rem">🎵</span>' +
+          '<span style="font-size:.8rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px" dir="auto">' + fname + '</span></div>' +
+          '<audio src="' + m.media_url + '" controls preload="none" style="width:230px;max-width:60vw;height:36px"></audio>' +
+        '</div>';
+      } else {
+        var ficon = /\.pdf$/i.test(fk) ? '📕' : /\.(zip|rar|7z)$/i.test(fk) ? '🗜️' : /\.(doc|docx)$/i.test(fk) ? '📘' : /\.(xls|xlsx|csv)$/i.test(fk) ? '📊' : /\.(ppt|pptx)$/i.test(fk) ? '📙' : '📄';
+        inner += '<a href="' + m.media_url + '" target="_blank" download style="display:flex;align-items:center;gap:.6rem;text-decoration:none;color:inherit;min-width:180px">' +
+          '<div style="font-size:2rem;flex-shrink:0">' + ficon + '</div>' +
+          '<div style="min-width:0"><div style="font-size:.83rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px" dir="auto">' + fname + '</div>' +
+          '<div style="font-size:.68rem;opacity:.65;margin-top:.1rem">Tap to download</div></div>' +
+        '</a>';
+      }
 
     } else if (m.type === 'text' || !m.type) {
       // Text — detect links, auto-detect RTL for Hebrew/Yiddish
@@ -2271,7 +2286,26 @@ function _showSingleMediaPreview(file, isOnce) {
   if (existing) { existing._pendingFiles = null; existing.remove(); }
 
   var isVideo = file.type.startsWith('video/');
+  var isImage = file.type.startsWith('image/');
+  var isAudio = file.type.startsWith('audio/');
   var objectUrl = URL.createObjectURL(file);
+
+  function fmtSize(b) { return b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB'; }
+  var previewInner;
+  if (isVideo) {
+    previewInner = '<video src="' + objectUrl + '" controls playsinline style="max-width:100%;max-height:100%;border-radius:10px"></video>';
+  } else if (isImage) {
+    previewInner = '<img src="' + objectUrl + '" style="max-width:100%;max-height:100%;border-radius:10px;object-fit:contain">';
+  } else {
+    // Any other file (music, PDF, doc, zip…) — show a clean file card, not a broken image.
+    var icon = isAudio ? '🎵' : /\.pdf$/i.test(file.name) ? '📕' : /\.(zip|rar|7z)$/i.test(file.name) ? '🗜️' : /\.(doc|docx)$/i.test(file.name) ? '📘' : /\.(xls|xlsx|csv)$/i.test(file.name) ? '📊' : '📄';
+    previewInner = '<div style="text-align:center;color:#fff;padding:2rem">' +
+      '<div style="font-size:4.5rem;margin-bottom:1rem">' + icon + '</div>' +
+      '<div style="font-size:1rem;font-weight:700;word-break:break-all;max-width:280px;margin:0 auto">' + escHtml(file.name) + '</div>' +
+      '<div style="font-size:.8rem;opacity:.7;margin-top:.4rem">' + fmtSize(file.size) + '</div>' +
+      (isAudio ? '<audio src="' + objectUrl + '" controls style="margin-top:1.2rem;width:260px;max-width:80vw"></audio>' : '') +
+    '</div>';
+  }
 
   var modal = document.createElement('div');
   modal.id = 'media-preview-modal';
@@ -2283,12 +2317,10 @@ function _showSingleMediaPreview(file, isOnce) {
       '<button onclick="_closeMediaPreview()" style="background:none;border:none;color:#fff;cursor:pointer;padding:.35rem;display:flex;align-items:center">' +
         '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
       '</button>' +
-      '<div style="flex:1;text-align:center;font-size:.82rem;color:rgba(255,255,255,.85)">1 ' + (isVideo ? 'video' : 'photo') + '</div>' +
+      '<div style="flex:1;text-align:center;font-size:.82rem;color:rgba(255,255,255,.85)">' + (isVideo ? 'Video' : isImage ? 'Photo' : isAudio ? 'Audio' : 'File') + '</div>' +
     '</div>' +
     '<div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:.5rem">' +
-      (isVideo
-        ? '<video src="' + objectUrl + '" controls playsinline style="max-width:100%;max-height:100%;border-radius:10px"></video>'
-        : '<img src="' + objectUrl + '" style="max-width:100%;max-height:100%;border-radius:10px;object-fit:contain">') +
+      previewInner +
     '</div>' +
     '<div style="padding:.5rem .85rem max(.75rem,env(safe-area-inset-bottom));flex-shrink:0">' +
       '<div style="display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.13);border-radius:22px;padding:.4rem .85rem;margin-bottom:.55rem">' +
@@ -2377,12 +2409,15 @@ window._sendMultiMedia = function () {
 function _uploadOneFile(file, caption) {
   var isVideo = file.type.startsWith('video/');
   var type = (isVideo || file.type.startsWith('image/')) ? 'media' : 'file';
+  // For non-media files, show the filename if the user didn't add a caption.
+  var text = caption || '';
+  if (type === 'file' && (!text || text === '__once__') && file.name) text = file.name;
   if (type === 'media') toast('📤 Preparing...');
   watermarkFile(file).then(function (watermarked) {
     var form = new FormData();
     form.append('room_id', CHAT_curRoom.id);
     form.append('type', type);
-    form.append('text', caption || '');
+    form.append('text', text);
     form.append('file', watermarked);
     if (CHAT_curTopicId) form.append('topic_id', CHAT_curTopicId);
     return api.post('/chat', form, true);
