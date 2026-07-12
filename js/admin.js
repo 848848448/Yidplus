@@ -3137,6 +3137,15 @@ function buildTelegramPanel(content) {
         '<div style="font-size:.68rem;color:var(--muted);margin-top:.5rem">Tip: to use "Get Updates" below (to find a Chat ID), Disconnect first — Telegram won\'t allow both at once. Reconnect when done.</div>' +
       '</div>' +
       '<div class="admin-card">' +
+        '<div class="admin-card-title">📤 Publishing Bot</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">A personal bot: anyone links their account (once, by email + code), then sends it a photo/video/text and picks where to post — channel, short, status, or a group — all under <strong>their own name</strong>. Needs a <strong>second</strong> bot token saved in Cloudflare as <code>TELEGRAM_POST_BOT_TOKEN</code>.</div>' +
+        '<div id="tg-post-status" style="font-size:.75rem;background:var(--bg3);border-radius:8px;padding:.6rem;margin-bottom:.6rem">Checking…</div>' +
+        '<div style="display:flex;gap:.5rem">' +
+          '<button class="save-pill" style="flex:1" onclick="tgPostConnect(this)">📤 Connect publishing bot</button>' +
+          '<button class="save-pill" style="flex:1;background:var(--bg3);color:var(--text);border:1px solid var(--border)" onclick="tgPostDisconnect(this)">Disconnect</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="admin-card">' +
         '<div class="admin-card-title">🤖 Telegram Bridge</div>' +
         '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">' +
           'Link a Telegram group to a YID PLUS room. Every message sent in the Telegram group will automatically appear in the linked YID PLUS room.' +
@@ -3170,7 +3179,41 @@ function buildTelegramPanel(content) {
 
   loadTelegramBridges();
   tgWebhookStatus();
+  tgPostStatus();
 }
+
+window.tgPostStatus = function () {
+  var el = document.getElementById('tg-post-status');
+  if (!el) return;
+  api.get('/telegram/post-bot-setup', true)
+    .then(function (r) {
+      if (r.connected) {
+        var warn = r.last_error_message ? '<div style="color:#D32F2F;margin-top:.35rem">⚠ ' + escHtml(r.last_error_message) + '</div>' : '';
+        el.innerHTML = '<div style="color:#16A34A;font-weight:700">✅ Connected</div>' +
+          '<div style="color:var(--muted);margin-top:.25rem;word-break:break-all">' + escHtml(r.url || '') + '</div>' + warn;
+      } else {
+        el.innerHTML = '<div style="color:#B45309;font-weight:700">⚠ Not connected</div><div style="color:var(--muted);margin-top:.25rem">Save TELEGRAM_POST_BOT_TOKEN in Cloudflare, then tap Connect.</div>';
+      }
+    })
+    .catch(function (err) { el.innerHTML = '<div style="color:#D32F2F">' + escHtml(err.message || 'Could not check') + '</div>'; });
+};
+
+window.tgPostConnect = function (btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
+  api.post('/telegram/post-bot-setup', {})
+    .then(function () { toast('📤 Publishing bot connected!'); tgPostStatus(); })
+    .catch(function (err) { toast('❌ ' + (err.message || 'Failed')); })
+    .then(function () { if (btn) { btn.disabled = false; btn.textContent = '📤 Connect publishing bot'; } });
+};
+
+window.tgPostDisconnect = function (btn) {
+  if (!confirm('Disconnect the publishing bot?')) return;
+  if (btn) btn.disabled = true;
+  api.del('/telegram/post-bot-setup')
+    .then(function () { toast('Disconnected'); tgPostStatus(); })
+    .catch(function (err) { toast('❌ ' + (err.message || 'Failed')); })
+    .then(function () { if (btn) btn.disabled = false; });
+};
 
 window.tgWebhookStatus = function () {
   var el = document.getElementById('tg-webhook-status');
