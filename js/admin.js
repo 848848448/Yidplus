@@ -180,6 +180,8 @@ var ADMIN_PANELS = [
   { id:'now',            label:'Now',             roles:['admin_limited','admin_super','owner'] },
   { id:'features',       label:'Features',        roles:['owner'] },
   { id:'analytics',      label:'Analytics',      roles:['admin_limited','admin_super','owner'] },
+  { id:'growth',         label:'Growth',          roles:['admin_limited','admin_super','owner'] },
+  { id:'health',         label:'Storage',         roles:['owner'] },
   { id:'users',          label:'Users',           roles:['admin_limited','admin_super','owner'] },
   { id:'reports',        label:'Reports',         roles:['admin_limited','admin_super','owner'] },
   { id:'warnings',       label:'Warnings',        roles:['admin_limited','admin_super','owner'] },
@@ -218,7 +220,7 @@ var ADMIN_PANELS = [
 ══════════════════════════════════ */
 var ADMIN_CATEGORIES = [
   { id:'overview',   label:'Overview',   desc:'Now, analytics and leaderboard',       color:'#185FA5', bg:'#E6F1FB', bgd:'#0C447C',
-    panels:['now','analytics','leaderboard'] },
+    panels:['now','analytics','growth','leaderboard'] },
   { id:'people',     label:'People',     desc:'Access, verify, users, invites',       color:'#0F6E56', bg:'#E1F5EE', bgd:'#085041',
     panels:['access-control','verify-requests','invite-codes','users','warnings','badges','sessions','banned-devices','ad-exempt'] },
   { id:'moderation', label:'Moderation', desc:'Reports, feedback, support, filter',   color:'#A32D2D', bg:'#FCEBEB', bgd:'#791F1F',
@@ -226,7 +228,7 @@ var ADMIN_CATEGORIES = [
   { id:'content',    label:'Content',    desc:'Announce, broadcast, channels, more',  color:'#534AB7', bg:'#EEEDFE', bgd:'#3C3489',
     panels:['announcements','broadcast','channels-mgr','telegram'] },
   { id:'system',     label:'System',     desc:'Features, app, ads, logs, export',     color:'#5F5E5A', bg:'#F1EFE8', bgd:'#2C2C2A',
-    panels:['features','app-settings','ads','maintenance','ip-logs','audit-logs','export','nuclear','admin-settings'] },
+    panels:['features','app-settings','ads','maintenance','health','ip-logs','audit-logs','export','nuclear','admin-settings'] },
 ];
 
 var ADMIN_CAT_ICONS = {
@@ -331,6 +333,12 @@ function buildAdminPanel(id) {
   var content = document.getElementById('admin-content');
   if (!content) return;
 
+  if (id === 'growth') {
+    buildGrowthPanel(content); return;
+  }
+  if (id === 'health') {
+    buildHealthPanel(content); return;
+  }
   if (id === 'analytics') {
     content.innerHTML =
       '<div class="admin-panel">' +
@@ -2671,6 +2679,73 @@ window.adminDownloadCSV = function () {
   a.click();
   toast('Downloading...');
 };
+
+/* ══════════════════════════════════
+   GROWTH ANALYTICS
+══════════════════════════════════ */
+function buildGrowthPanel(content) {
+  content.innerHTML = '<div class="admin-panel"><div class="admin-card"><div class="admin-card-title">📈 Growth</div>' +
+    '<div style="color:var(--muted);font-size:.8rem">Loading…</div></div></div>';
+  api.get('/admin/growth').then(function (d) {
+    if (!d.ok) { content.innerHTML = '<div class="admin-panel"><div class="admin-card">❌ ' + (d.error || 'Error') + '</div></div>'; return; }
+    function stat(label, val) {
+      return '<div style="flex:1;min-width:90px;background:var(--bg3);border-radius:12px;padding:.7rem .5rem;text-align:center">' +
+        '<div style="font-size:1.4rem;font-weight:800">' + (val == null ? '—' : val.toLocaleString()) + '</div>' +
+        '<div style="font-size:.66rem;color:var(--muted);margin-top:.15rem">' + label + '</div></div>';
+    }
+    var per = d.per_day || [];
+    var max = per.reduce(function (m, x) { return Math.max(m, x.count); }, 1);
+    var bars = per.map(function (x) {
+      var h = Math.round((x.count / max) * 90) + 4;
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px" title="' + x.day + ': ' + x.count + '">' +
+        '<div style="width:100%;max-width:16px;height:' + h + 'px;background:#185FA5;border-radius:3px 3px 0 0"></div>' +
+        '<div style="font-size:.5rem;color:var(--muted);transform:rotate(-45deg);white-space:nowrap;margin-top:2px">' + x.day.slice(5) + '</div></div>';
+    }).join('');
+    content.innerHTML = '<div class="admin-panel">' +
+      '<div class="admin-card"><div class="admin-card-title">📈 Growth</div>' +
+        '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem">' +
+          stat('Total users', d.total) + stat('New 24h', d.new_24h) + stat('New 7d', d.new_7d) +
+        '</div>' +
+        '<div style="display:flex;gap:.5rem;flex-wrap:wrap">' +
+          stat('Active today', d.dau) + stat('Active 7d', d.wau) + stat('Active 30d', d.mau) +
+        '</div>' +
+      '</div>' +
+      '<div class="admin-card"><div class="admin-card-title">New users / day (30d)</div>' +
+        (per.length ? '<div style="display:flex;align-items:flex-end;gap:2px;height:120px;padding-top:.5rem;overflow-x:auto">' + bars + '</div>'
+                    : '<div style="color:var(--muted);font-size:.8rem">No signups in the last 30 days.</div>') +
+      '</div>' +
+    '</div>';
+  }).catch(function (e) { content.innerHTML = '<div class="admin-panel"><div class="admin-card">❌ ' + e.message + '</div></div>'; });
+}
+
+/* ══════════════════════════════════
+   STORAGE & HEALTH
+══════════════════════════════════ */
+function buildHealthPanel(content) {
+  content.innerHTML = '<div class="admin-panel"><div class="admin-card"><div class="admin-card-title">💾 Storage</div>' +
+    '<div style="color:var(--muted);font-size:.8rem">Loading…</div></div></div>';
+  api.get('/admin/health').then(function (d) {
+    if (!d.ok) { content.innerHTML = '<div class="admin-panel"><div class="admin-card">❌ ' + (d.error || 'Error') + '</div></div>'; return; }
+    function fmtBytes(b) { return b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : b < 1073741824 ? (b / 1048576).toFixed(1) + ' MB' : (b / 1073741824).toFixed(2) + ' GB'; }
+    var rows = Object.keys(d.counts || {}).map(function (t) {
+      var c = d.counts[t];
+      return '<div style="display:flex;justify-content:space-between;padding:.42rem .1rem;border-bottom:1px solid var(--border)">' +
+        '<span style="font-size:.82rem">' + t + '</span>' +
+        '<span style="font-weight:700;font-size:.82rem">' + (c == null ? '—' : c.toLocaleString()) + '</span></div>';
+    }).join('');
+    var r2 = d.r2 || {};
+    content.innerHTML = '<div class="admin-panel">' +
+      '<div class="admin-card"><div class="admin-card-title">📦 R2 media storage</div>' +
+        '<div style="display:flex;gap:.5rem">' +
+          '<div style="flex:1;background:var(--bg3);border-radius:12px;padding:.7rem;text-align:center"><div style="font-size:1.3rem;font-weight:800">' + (r2.objects || 0).toLocaleString() + (r2.truncated ? '+' : '') + '</div><div style="font-size:.66rem;color:var(--muted)">files</div></div>' +
+          '<div style="flex:1;background:var(--bg3);border-radius:12px;padding:.7rem;text-align:center"><div style="font-size:1.3rem;font-weight:800">' + fmtBytes(r2.bytes || 0) + (r2.truncated ? '+' : '') + '</div><div style="font-size:.66rem;color:var(--muted)">used</div></div>' +
+        '</div>' +
+        (r2.truncated ? '<div style="font-size:.66rem;color:var(--muted);margin-top:.5rem">Showing first ~10k files.</div>' : '') +
+      '</div>' +
+      '<div class="admin-card"><div class="admin-card-title">🗄 Database rows</div>' + rows + '</div>' +
+    '</div>';
+  }).catch(function (e) { content.innerHTML = '<div class="admin-panel"><div class="admin-card">❌ ' + e.message + '</div></div>'; });
+}
 
 /* ══════════════════════════════════
    LEADERBOARD
