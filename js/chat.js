@@ -404,8 +404,10 @@ function _mediaViewerLoad(idx) {
   var body = document.getElementById('mv-body');
   if (item.isVideo) {
     body.innerHTML = '<video src="' + item.url + '" controls autoplay playsinline style="max-width:100%;max-height:80vh;object-fit:contain"></video>';
+    _mvZoom = 1;
   } else {
-    body.innerHTML = '<img src="' + item.url + '" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:4px">';
+    body.innerHTML = '<img id="mv-img" src="' + item.url + '" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:4px;touch-action:none;will-change:transform" draggable="false">';
+    _setupImageZoom();
   }
 
   document.getElementById('mv-sender').textContent = item.sender;
@@ -429,6 +431,75 @@ window._mediaViewerClose = function () {
 
 window._mvPrev = function () { if (_mediaIdx > 0) _mediaViewerLoad(_mediaIdx - 1); };
 window._mvNext = function () { if (_mediaIdx < _mediaList.length - 1) _mediaViewerLoad(_mediaIdx + 1); };
+
+// ── Pinch / double-tap / pan zoom for the full-screen image viewer.
+// _mvZoom > 1 means we're zoomed in; the viewer's left/right swipe-navigation
+// checks this so panning a zoomed photo doesn't flip to the next one.
+var _mvZoom = 1, _mvTX = 0, _mvTY = 0;
+function _setupImageZoom() {
+  _mvZoom = 1; _mvTX = 0; _mvTY = 0;
+  var img = document.getElementById('mv-img');
+  if (!img) return;
+  function apply() { img.style.transform = 'translate(' + _mvTX + 'px,' + _mvTY + 'px) scale(' + _mvZoom + ')'; }
+
+  var startDist = 0, startZoom = 1, panX = 0, panY = 0, startTX = 0, startTY = 0, lastTap = 0;
+
+  img.addEventListener('touchstart', function (e) {
+    if (e.touches.length === 2) {
+      // pinch start
+      var dx = e.touches[0].clientX - e.touches[1].clientX;
+      var dy = e.touches[0].clientY - e.touches[1].clientY;
+      startDist = Math.hypot(dx, dy);
+      startZoom = _mvZoom;
+      e.stopPropagation();
+    } else if (e.touches.length === 1) {
+      // double-tap detection
+      var now = Date.now();
+      if (now - lastTap < 300) {
+        _mvZoom = _mvZoom > 1 ? 1 : 2.5;
+        if (_mvZoom === 1) { _mvTX = 0; _mvTY = 0; }
+        apply();
+        e.preventDefault();
+      }
+      lastTap = now;
+      // pan start (only meaningful when zoomed)
+      panX = e.touches[0].clientX; panY = e.touches[0].clientY;
+      startTX = _mvTX; startTY = _mvTY;
+    }
+  }, { passive: false });
+
+  img.addEventListener('touchmove', function (e) {
+    if (e.touches.length === 2) {
+      var dx = e.touches[0].clientX - e.touches[1].clientX;
+      var dy = e.touches[0].clientY - e.touches[1].clientY;
+      var dist = Math.hypot(dx, dy);
+      if (startDist > 0) {
+        _mvZoom = Math.min(5, Math.max(1, startZoom * (dist / startDist)));
+        if (_mvZoom === 1) { _mvTX = 0; _mvTY = 0; }
+        apply();
+      }
+      e.preventDefault(); e.stopPropagation();
+    } else if (e.touches.length === 1 && _mvZoom > 1) {
+      // pan the zoomed image; stop the event from reaching the swipe-navigate
+      _mvTX = startTX + (e.touches[0].clientX - panX);
+      _mvTY = startTY + (e.touches[0].clientY - panY);
+      apply();
+      e.preventDefault(); e.stopPropagation();
+    }
+  }, { passive: false });
+
+  img.addEventListener('touchend', function (e) {
+    if (e.touches.length === 0) startDist = 0;
+  });
+
+  // Desktop: double-click to toggle zoom.
+  img.addEventListener('dblclick', function (e) {
+    _mvZoom = _mvZoom > 1 ? 1 : 2.5;
+    if (_mvZoom === 1) { _mvTX = 0; _mvTY = 0; }
+    apply();
+    e.preventDefault();
+  });
+}
 
 window._mvOptions = function () {
   var item = _mediaList[_mediaIdx];
@@ -484,6 +555,7 @@ window._mvDownload = function () {
       startT = Date.now();
     }, { passive: true });
     mv.addEventListener('touchend', function (e) {
+      if (_mvZoom > 1) return; // panning a zoomed photo — don't navigate/close
       var dx = e.changedTouches[0].clientX - startX;
       var dy = e.changedTouches[0].clientY - startY;
       var dt = Date.now() - startT;
@@ -1532,6 +1604,9 @@ function _attachMessageGestures(cont) {
         moved = true;
         clearTimeout(longPressTimer);
       }
+      // If the user is selecting text, let the native selection happen — don't
+      // hijack the drag for swipe-reply.
+      if (window.getSelection && String(window.getSelection()).length > 0) return;
       // Only allow rightward swipe (reply gesture), clamp the drag distance.
       if (dx > 0 && Math.abs(dy) < 40) {
         var clamped = Math.min(dx, 70);
@@ -1556,6 +1631,7 @@ function _attachMessageGestures(cont) {
       if (icon) icon.style.opacity = '0';
 
       if (dx > 45) {
+        if (window.getSelection && String(window.getSelection()).length > 0) return;
         var msg = CHAT_messages.find(function (m) { return m.id === msgId; });
         if (msg) _setReply(msg);
       }
