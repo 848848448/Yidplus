@@ -3127,6 +3127,16 @@ function buildTelegramPanel(content) {
   content.innerHTML =
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
+        '<div class="admin-card-title">🔌 Bot Connection</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">The bot only receives messages once it\'s <strong>connected</strong> here. Do this first — without it, nothing comes through.</div>' +
+        '<div id="tg-webhook-status" style="font-size:.75rem;background:var(--bg3);border-radius:8px;padding:.6rem;margin-bottom:.6rem">Checking…</div>' +
+        '<div style="display:flex;gap:.5rem">' +
+          '<button class="save-pill" style="flex:1" onclick="tgConnectBot(this)">🔌 Connect bot</button>' +
+          '<button class="save-pill" style="flex:1;background:var(--bg3);color:var(--text);border:1px solid var(--border)" onclick="tgDisconnectBot(this)">Disconnect</button>' +
+        '</div>' +
+        '<div style="font-size:.68rem;color:var(--muted);margin-top:.5rem">Tip: to use "Get Updates" below (to find a Chat ID), Disconnect first — Telegram won\'t allow both at once. Reconnect when done.</div>' +
+      '</div>' +
+      '<div class="admin-card">' +
         '<div class="admin-card-title">🤖 Telegram Bridge</div>' +
         '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">' +
           'Link a Telegram group to a YID PLUS room. Every message sent in the Telegram group will automatically appear in the linked YID PLUS room.' +
@@ -3159,7 +3169,42 @@ function buildTelegramPanel(content) {
     '</div>';
 
   loadTelegramBridges();
+  tgWebhookStatus();
 }
+
+window.tgWebhookStatus = function () {
+  var el = document.getElementById('tg-webhook-status');
+  if (!el) return;
+  api.get('/telegram/set-webhook', true)
+    .then(function (r) {
+      if (r.connected) {
+        var warn = r.last_error_message ? '<div style="color:#D32F2F;margin-top:.35rem">⚠ Last error: ' + escHtml(r.last_error_message) + '</div>' : '';
+        el.innerHTML = '<div style="color:#16A34A;font-weight:700">✅ Connected</div>' +
+          '<div style="color:var(--muted);margin-top:.25rem;word-break:break-all">' + escHtml(r.url || '') + '</div>' +
+          (r.pending_update_count ? '<div style="color:var(--muted);margin-top:.25rem">' + r.pending_update_count + ' pending</div>' : '') + warn;
+      } else {
+        el.innerHTML = '<div style="color:#B45309;font-weight:700">⚠ Not connected</div><div style="color:var(--muted);margin-top:.25rem">Tap "Connect bot" to start receiving Telegram messages.</div>';
+      }
+    })
+    .catch(function (err) { el.innerHTML = '<div style="color:#D32F2F">' + escHtml(err.message || 'Could not check status') + '</div>'; });
+};
+
+window.tgConnectBot = function (btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
+  api.post('/telegram/set-webhook', {})
+    .then(function () { toast('🔌 Bot connected!'); tgWebhookStatus(); })
+    .catch(function (err) { toast('❌ ' + (err.message || 'Failed')); })
+    .then(function () { if (btn) { btn.disabled = false; btn.textContent = '🔌 Connect bot'; } });
+};
+
+window.tgDisconnectBot = function (btn) {
+  if (!confirm('Disconnect the bot? Telegram messages will stop mirroring until you reconnect.')) return;
+  if (btn) btn.disabled = true;
+  api.del('/telegram/set-webhook')
+    .then(function () { toast('Disconnected'); tgWebhookStatus(); })
+    .catch(function (err) { toast('❌ ' + (err.message || 'Failed')); })
+    .then(function () { if (btn) btn.disabled = false; });
+};
 
 window.loadTelegramBridges = function () {
   api.get('/admin/telegram-bridges', true)
