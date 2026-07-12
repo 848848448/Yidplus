@@ -1,4 +1,8 @@
 // ============================================================
+
+// Null-safe classList toggle — some status/media modals live only on the home
+// page, so referencing them from the chat page must not crash.
+function _safeCls(id, action, cls) { var e = document.getElementById(id); if (e) e.classList[action](cls); }
 // js/chat.js  —  Telegram-style Chat (Cloudflare D1 + R2)
 // Features:
 //   • Real-time polling every 3s
@@ -434,7 +438,7 @@ window._mvOptions = function () {
 };
 
 window._mvForward = function () {
-  document.getElementById('mv-options-menu').classList.remove('open');
+  _safeCls('mv-options-menu','remove','open');
   if (!_mediaList[_mediaIdx]) return;
   CHAT_ctxMsg = CHAT_messages.find(function (m) { return m.id === _mediaList[_mediaIdx].id; });
   _mediaViewerClose();
@@ -442,7 +446,7 @@ window._mvForward = function () {
 };
 
 window._mvDownload = function () {
-  document.getElementById('mv-options-menu').classList.remove('open');
+  _safeCls('mv-options-menu','remove','open');
   var item = _mediaList[_mediaIdx];
   if (!item) return;
   var name = (item.key.split('/').pop()) || (item.isVideo ? 'video.mp4' : 'image.jpg');
@@ -3506,8 +3510,8 @@ window.setChatFont = function (size, btn) {
   btn.classList.add('active');
   var sizes = { sm: '.88rem', md: '1rem', lg: '1.12rem' };
   var sz = sizes[size] || '1rem';
-  // Apply to messages area
-  var msgs = document.getElementById('chat-messages');
+  // Apply to messages area (container id is 'chat-msgs')
+  var msgs = document.getElementById('chat-msgs');
   if (msgs) msgs.style.fontSize = sz;
   try { localStorage.setItem('yp_chat_font', size); } catch (e) {}
   toast('Font size: ' + size);
@@ -4855,7 +4859,7 @@ window.openHighlightsModal = function () {
       '</div>';
     }).join('');
   }
-  document.getElementById('sv-highlights-modal').classList.add('open');
+  _safeCls('sv-highlights-modal','add','open');
 };
 
 window.removeHighlight = function (i) {
@@ -4874,13 +4878,13 @@ window.svEditPrivacy = function () {
   document.getElementById('sv-more-menu').style.display = 'none';
   var sel = document.querySelector('input[name="sv-privacy"][value="' + HOME_svPrivacy + '"]');
   if (sel) sel.checked = true;
-  document.getElementById('sv-privacy-modal').classList.add('open');
+  _safeCls('sv-privacy-modal','add','open');
 };
 window.setSVPrivacy = function (val) {
   HOME_svPrivacy = val;
 };
 window.saveSVPrivacy = function () {
-  document.getElementById('sv-privacy-modal').classList.remove('open');
+  _safeCls('sv-privacy-modal','remove','open');
   toast('🔒 Privacy saved: ' + HOME_svPrivacy);
   svResume();
 };
