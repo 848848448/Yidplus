@@ -1190,37 +1190,11 @@ function loadMessages(scrollToBottom) {
       }).join('|');
 
       if (newSig === CHAT_lastRenderSig && !scrollToBottom) {
-        // Nothing visible changed — skip the rebuild entirely (keeps audio playing).
+        // Nothing visible changed — skip the rebuild entirely.
       } else {
-        // If audio is playing, remember where, then restore after the rebuild so
-        // an incoming message doesn't cut off the voice note / song.
-        var playing = null;
-        document.querySelectorAll('#chat-msgs audio').forEach(function (a) {
-          if (!a.paused) playing = { id: a.id, t: a.currentTime, music: a.id.indexOf('maud-') === 0 };
-        });
-
         renderMessages(scrollToBottom || CHAT_atBottom);
         CHAT_lastRenderSig = newSig;
-
-        if (playing) {
-          var a2 = document.getElementById(playing.id);
-          if (a2) {
-            try { a2.currentTime = playing.t; } catch (e) {}
-            a2.play().catch(function () {});
-            var mid = playing.id.replace('maud-', '').replace('aud-', '');
-            var b2 = document.getElementById((playing.music ? 'mplay-' : 'pbtn-') + mid);
-            if (b2) b2.innerHTML = ICON_PAUSE_SM;
-            if (playing.music) {
-              a2.ontimeupdate = function () {
-                var fill = document.getElementById('mfill-' + mid);
-                var time = document.getElementById('mtime-' + mid);
-                var pct = (isFinite(a2.duration) && a2.duration) ? (a2.currentTime / a2.duration) : 0;
-                if (fill) fill.style.width = (pct * 100) + '%';
-                if (time) time.textContent = _fmtClock(a2.currentTime) + (isFinite(a2.duration) && a2.duration ? ' / ' + _fmtClock(a2.duration) : '');
-              };
-            }
-          }
-        }
+        _ypRestoreUI(); // re-assert play/pause icon for any audio still playing
       }
 
       // Update pinned bar text now that messages are loaded
@@ -1433,7 +1407,6 @@ function renderMessages(scrollDown) {
           '</div>';
         } else {
           inner += '<div class="voice-msg">' +
-            '<audio src="' + m.media_url + '" id="aud-' + m.id + '" preload="metadata"></audio>' +
             '<button class="play-voice" id="pbtn-' + m.id + '" onclick="_playVoice(\'' + m.id + '\',this)">' + ICON_PLAY_SM + '</button>' +
             '<div class="voice-body">' +
               '<div class="voice-bars" id="vbars-' + m.id + '" onclick="_seekVoice(event,\'' + m.id + '\')">' + bars + '</div>' +
@@ -3151,18 +3124,19 @@ function _renderWaveBars(peaks) {
 }
 
 window._seekVoice = function (e, msgId) {
-  var aud = document.getElementById('aud-' + msgId);
+  if (YP_play.msgId !== msgId) return;
+  var aud = _ypAudioEl();
   var barsEl = document.getElementById('vbars-' + msgId);
-  if (!aud || !barsEl || !aud.duration) return;
+  if (!barsEl || !isFinite(aud.duration) || !aud.duration) return;
   var rect = barsEl.getBoundingClientRect();
   var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
   aud.currentTime = pct * aud.duration;
 };
 
 window._toggleVoiceSpeed = function (msgId) {
-  var aud = document.getElementById('aud-' + msgId);
+  var aud = _ypAudioEl();
   var btn = document.getElementById('vspeed-' + msgId);
-  if (!aud || !btn) return;
+  if (YP_play.msgId !== msgId || !btn) return;
   var newRate = aud.playbackRate >= 2 ? 1 : 2;
   aud.playbackRate = newRate;
   btn.textContent = newRate + 'x';
@@ -3184,122 +3158,109 @@ window._openOnceVoice = function (msgId, mediaUrl) {
 var ICON_PLAY_SM  = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 var ICON_PAUSE_SM = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
 
-// ── Music/audio-file card playback (Telegram-style) ──
+// ── ONE global audio player that lives OUTSIDE #chat-msgs. Because the message
+//    list rebuilds on every poll, any <audio> inside it gets destroyed mid-play
+//    (the "shockt zich op" glitch). This element is appended to <body> once and
+//    never re-rendered, so voice notes and music play through smoothly — the
+//    bubbles only drive it and read its progress. ──
 function _fmtClock(sec) {
   if (!isFinite(sec) || sec < 0) sec = 0;
   var m = Math.floor(sec / 60), s = Math.floor(sec % 60);
   return m + ':' + (s < 10 ? '0' : '') + s;
 }
-window._playMusicFile = function (msgId, btn) {
-  var aud = document.getElementById('maud-' + msgId);
-  if (!aud) return;
-  // Pause any other playing audio (voice notes + other music cards).
-  document.querySelectorAll('#chat-msgs audio').forEach(function (other) {
-    if (other !== aud && !other.paused) {
-      other.pause();
-      var oid = other.id.replace('maud-', '').replace('aud-', '');
-      var ob = document.getElementById('mplay-' + oid) || document.getElementById('pbtn-' + oid);
-      if (ob) ob.innerHTML = ICON_PLAY_SM;
-    }
-  });
-  if (aud.paused) {
-    aud.play().catch(function (e) { toast('⚠ Audio error: ' + e.message); });
-    btn.innerHTML = ICON_PAUSE_SM;
-    aud.ontimeupdate = function () {
-      var fill = document.getElementById('mfill-' + msgId);
-      var time = document.getElementById('mtime-' + msgId);
-      var pct = (isFinite(aud.duration) && aud.duration) ? (aud.currentTime / aud.duration) : 0;
-      if (fill) fill.style.width = (pct * 100) + '%';
-      if (time) time.textContent = _fmtClock(aud.currentTime) + (isFinite(aud.duration) && aud.duration ? ' / ' + _fmtClock(aud.duration) : '');
-    };
-    aud.onended = function () {
-      btn.innerHTML = ICON_PLAY_SM;
-      var fill = document.getElementById('mfill-' + msgId);
-      if (fill) fill.style.width = '0%';
-      var time = document.getElementById('mtime-' + msgId);
-      if (time) time.textContent = _fmtClock(aud.duration || 0);
-    };
-  } else {
-    aud.pause();
-    btn.innerHTML = ICON_PLAY_SM;
+var YP_play = { msgId: null, type: null };
+function _ypAudioEl() {
+  var a = document.getElementById('yp-global-audio');
+  if (!a) {
+    a = document.createElement('audio');
+    a.id = 'yp-global-audio';
+    a.preload = 'metadata';
+    document.body.appendChild(a);
+    a.addEventListener('timeupdate', _ypOnTime);
+    a.addEventListener('ended', _ypOnEnded);
   }
-};
-window._seekMusic = function (e, msgId) {
-  var aud = document.getElementById('maud-' + msgId);
-  var prog = document.getElementById('mprog-' + msgId);
-  if (!aud || !prog || !isFinite(aud.duration) || !aud.duration) return;
-  var rect = prog.getBoundingClientRect();
-  var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-  aud.currentTime = pct * aud.duration;
-  var fill = document.getElementById('mfill-' + msgId);
-  if (fill) fill.style.width = (pct * 100) + '%';
-};
-
-window._playVoice = function (msgId, btn) {
-  var aud = document.getElementById('aud-' + msgId);
-  if (!aud) return;
-
-  // Stop any other playing voice notes first
-  document.querySelectorAll('#chat-msgs audio').forEach(function (other) {
-    if (other !== aud && !other.paused) {
-      other.pause();
-      var otherId = other.id.replace('aud-', '');
-      var otherBtn = document.getElementById('pbtn-' + otherId);
-      if (otherBtn) otherBtn.innerHTML = ICON_PLAY_SM;
+  return a;
+}
+function _msgUrl(msgId) {
+  var m = CHAT_messages.find(function (x) { return x.id === msgId; });
+  return m ? m.media_url : null;
+}
+function _ypSetBtn(msgId, type, playing) {
+  var b = document.getElementById((type === 'music' ? 'mplay-' : 'pbtn-') + msgId);
+  if (b) b.innerHTML = playing ? ICON_PAUSE_SM : ICON_PLAY_SM;
+}
+function _ypClearUI(msgId, type) {
+  _ypSetBtn(msgId, type, false);
+  if (type === 'music') {
+    var fill = document.getElementById('mfill-' + msgId);
+    if (fill) fill.style.width = '0%';
+    var time = document.getElementById('mtime-' + msgId);
+    var a = _ypAudioEl();
+    if (time && isFinite(a.duration)) time.textContent = _fmtClock(a.duration);
+  } else {
+    var barsEl = document.getElementById('vbars-' + msgId);
+    if (barsEl) barsEl.querySelectorAll('.vbar').forEach(function (b) { b.classList.remove('played'); });
+  }
+}
+function _ypOnTime() {
+  var a = _ypAudioEl();
+  if (!YP_play.msgId || !isFinite(a.duration) || !a.duration) return;
+  var pct = a.currentTime / a.duration;
+  if (YP_play.type === 'music') {
+    var fill = document.getElementById('mfill-' + YP_play.msgId);
+    var time = document.getElementById('mtime-' + YP_play.msgId);
+    if (fill) fill.style.width = (pct * 100) + '%';
+    if (time) time.textContent = _fmtClock(a.currentTime) + ' / ' + _fmtClock(a.duration);
+  } else {
+    var barsEl = document.getElementById('vbars-' + YP_play.msgId);
+    if (barsEl) {
+      var bars = barsEl.querySelectorAll('.vbar');
+      var played = Math.floor(pct * bars.length);
+      bars.forEach(function (b, i) { b.classList.toggle('played', i < played); });
     }
-  });
-
-  // webm/opus recordings from MediaRecorder frequently report duration as
-  // Infinity or NaN until the whole file has been decoded, which makes the
-  // progress bar jump around and seeking fail (the "shockt zich op" jank).
-  // Force the browser to resolve the real duration once before first play.
-  if (aud.paused && (!isFinite(aud.duration) || aud.duration === 0) && !aud._durFixed) {
-    aud._durFixed = true;
-    aud.currentTime = 1e101; // seek way past the end
-    aud.addEventListener('durationchange', function onceDur() {
-      if (isFinite(aud.duration)) {
-        aud.removeEventListener('durationchange', onceDur);
-        aud.currentTime = 0;
-        _startVoicePlayback(msgId, btn, aud);
-      }
-    });
+    var durEl = document.getElementById('vdur-' + YP_play.msgId);
+    if (durEl) durEl.textContent = _fmtClock(a.duration - a.currentTime);
+  }
+}
+function _ypOnEnded() {
+  var finishedId = YP_play.msgId, wasVoice = YP_play.type === 'voice';
+  if (YP_play.msgId) _ypClearUI(YP_play.msgId, YP_play.type);
+  YP_play = { msgId: null, type: null };
+  if (wasVoice) _autoPlayNextVoice(finishedId);
+}
+// Re-assert the play/pause icon after a re-render (the fresh HTML starts at ▶).
+function _ypRestoreUI() {
+  var a = _ypAudioEl();
+  if (YP_play.msgId && !a.paused) _ypSetBtn(YP_play.msgId, YP_play.type, true);
+}
+function _ypToggle(msgId, type) {
+  var a = _ypAudioEl();
+  if (YP_play.msgId === msgId) {              // same clip → pause / resume
+    if (a.paused) { a.play().catch(function () {}); _ypSetBtn(msgId, type, true); }
+    else { a.pause(); _ypSetBtn(msgId, type, false); }
     return;
   }
-
-  _startVoicePlayback(msgId, btn, aud);
+  if (YP_play.msgId) _ypClearUI(YP_play.msgId, YP_play.type); // stop previous clip's UI
+  var url = _msgUrl(msgId);
+  if (!url) { toast('⚠ Audio unavailable'); return; }
+  YP_play = { msgId: msgId, type: type };
+  a.playbackRate = 1;
+  if (type === 'voice') { var sp = document.getElementById('vspeed-' + msgId); if (sp) sp.textContent = '1x'; }
+  a.src = url;
+  a.play().catch(function (e) { toast('⚠ ' + e.message); });
+  _ypSetBtn(msgId, type, true);
+}
+window._playMusicFile = function (msgId) { _ypToggle(msgId, 'music'); };
+window._seekMusic = function (e, msgId) {
+  if (YP_play.msgId !== msgId) return;
+  var a = _ypAudioEl();
+  var prog = document.getElementById('mprog-' + msgId);
+  if (!prog || !isFinite(a.duration) || !a.duration) return;
+  var rect = prog.getBoundingClientRect();
+  a.currentTime = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * a.duration;
 };
 
-function _startVoicePlayback(msgId, btn, aud) {
-  if (aud.paused) {
-    aud.play().catch(function (e) { toast('\u26a0 Audio error: ' + e.message); });
-    btn.innerHTML = ICON_PAUSE_SM;
-
-    aud.ontimeupdate = function () {
-      var barsEl = document.getElementById('vbars-' + msgId);
-      if (!barsEl || !isFinite(aud.duration) || !aud.duration) return;
-      var pct = aud.currentTime / aud.duration;
-      var bars = barsEl.querySelectorAll('.vbar');
-      var playedCount = Math.floor(pct * bars.length);
-      bars.forEach(function (b, i) { b.classList.toggle('played', i < playedCount); });
-      var durEl = document.getElementById('vdur-' + msgId);
-      if (durEl) {
-        var rem = aud.duration - aud.currentTime;
-        var m = Math.floor(rem / 60), s = Math.floor(rem % 60);
-        durEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
-      }
-    };
-
-    aud.onended = function () {
-      btn.innerHTML = ICON_PLAY_SM;
-      var barsEl = document.getElementById('vbars-' + msgId);
-      if (barsEl) barsEl.querySelectorAll('.vbar').forEach(function (b) { b.classList.remove('played'); });
-      _autoPlayNextVoice(msgId);
-    };
-  } else {
-    aud.pause();
-    btn.innerHTML = ICON_PLAY_SM;
-  }
-};
+window._playVoice = function (msgId, btn) { _ypToggle(msgId, 'voice'); };
 
 // When a voice note finishes, auto-advance to the next voice note in the
 // chat (Telegram/WhatsApp-style continuous playback), if there is one.
@@ -3308,8 +3269,7 @@ function _autoPlayNextVoice(msgId) {
   if (idx === -1) return;
   for (var i = idx + 1; i < CHAT_messages.length; i++) {
     if (CHAT_messages[i].type === 'voice') {
-      var nextBtn = document.getElementById('pbtn-' + CHAT_messages[i].id);
-      if (nextBtn) _playVoice(CHAT_messages[i].id, nextBtn);
+      _playVoice(CHAT_messages[i].id);
       return;
     }
   }
