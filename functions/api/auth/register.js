@@ -6,8 +6,13 @@ export async function onRequestOptions() { return new Response(null, { status: 2
 export async function onRequestPost(context) {
   const { request, env } = context;
   try {
-    // Cap automated mass-signups: at most 5 new accounts per IP per hour.
-    const allowed = await checkRateLimit(env, request, 'register', 5, 60);
+    // Cap automated mass-signups (configurable in Admin → Anti-spam; default 5/hr per IP).
+    let _regMax = 5;
+    try {
+      const rl = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'register_rate_max'").first();
+      if (rl && rl.value && !isNaN(parseInt(rl.value))) _regMax = Math.max(1, parseInt(rl.value));
+    } catch (e) {}
+    const allowed = await checkRateLimit(env, request, 'register', _regMax, 60);
     if (!allowed) return json({ ok: false, error: 'Too many sign-up attempts. Please try again later.' }, 429);
 
     const body = await request.json();
@@ -157,6 +162,12 @@ export async function onRequestPost(context) {
     const sessionId = generateSessionToken();
     await env.DB.prepare('INSERT INTO sessions (id, user_id, created_at) VALUES (?, ?, ?)').bind(sessionId, userId, now).run();
     await env.DB.prepare('UPDATE users SET online = 1 WHERE id = ?').bind(userId).run();
+
+    // Best-effort welcome DM to the new member (configurable in admin).
+    try {
+      const { sendWelcomeMessage } = await import('../_welcome.js');
+      await sendWelcomeMessage(env, userId, nickname);
+    } catch (e) {}
 
     // Log registration
     await env.DB.prepare(

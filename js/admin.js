@@ -182,6 +182,7 @@ var ADMIN_PANELS = [
   { id:'analytics',      label:'Analytics',      roles:['admin_limited','admin_super','owner'] },
   { id:'growth',         label:'Growth',          roles:['admin_limited','admin_super','owner'] },
   { id:'health',         label:'Storage',         roles:['owner'] },
+  { id:'antispam',       label:'Anti-spam',       roles:['owner'] },
   { id:'users',          label:'Users',           roles:['admin_limited','admin_super','owner'] },
   { id:'reports',        label:'Reports',         roles:['admin_limited','admin_super','owner'] },
   { id:'warnings',       label:'Warnings',        roles:['admin_limited','admin_super','owner'] },
@@ -228,7 +229,7 @@ var ADMIN_CATEGORIES = [
   { id:'content',    label:'Content',    desc:'Announce, broadcast, channels, more',  color:'#534AB7', bg:'#EEEDFE', bgd:'#3C3489',
     panels:['announcements','broadcast','channels-mgr','telegram'] },
   { id:'system',     label:'System',     desc:'Features, app, ads, logs, export',     color:'#5F5E5A', bg:'#F1EFE8', bgd:'#2C2C2A',
-    panels:['features','app-settings','ads','maintenance','health','ip-logs','audit-logs','export','nuclear','admin-settings'] },
+    panels:['features','app-settings','ads','maintenance','antispam','health','ip-logs','audit-logs','export','nuclear','admin-settings'] },
 ];
 
 var ADMIN_CAT_ICONS = {
@@ -338,6 +339,9 @@ function buildAdminPanel(id) {
   }
   if (id === 'health') {
     buildHealthPanel(content); return;
+  }
+  if (id === 'antispam') {
+    buildAntispamPanel(content); return;
   }
   if (id === 'analytics') {
     content.innerHTML =
@@ -2719,8 +2723,46 @@ function buildGrowthPanel(content) {
 }
 
 /* ══════════════════════════════════
-   STORAGE & HEALTH
+   ANTI-SPAM & WELCOME
 ══════════════════════════════════ */
+function buildAntispamPanel(content) {
+  var s = STATE.settings || {};
+  var rateMax = s.register_rate_max || '5';
+  var welEnabled = s.welcome_enabled === 'true';
+  var welMsg = s.welcome_message || '';
+  content.innerHTML = '<div class="admin-panel">' +
+    '<div class="admin-card">' +
+      '<div class="admin-card-title">🛡 Anti-spam</div>' +
+      '<div style="font-size:.76rem;color:var(--muted);margin-bottom:.8rem">Cap how many new accounts one IP can create per hour. Stops bot floods when you open to the public.</div>' +
+      '<div style="display:flex;align-items:center;gap:.6rem">' +
+        '<span style="font-size:.85rem">Max sign-ups / IP / hour:</span>' +
+        '<input id="as-reg-max" type="number" min="1" value="' + escHtml(rateMax) + '" style="width:80px;padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit">' +
+        '<button class="save-pill" onclick="asSaveRate()">Save</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="admin-card">' +
+      '<div class="admin-card-title">👋 Welcome message</div>' +
+      '<div style="font-size:.76rem;color:var(--muted);margin-bottom:.8rem">Automatically DM every new member from your account. Use <code>{name}</code> to insert their name.</div>' +
+      '<label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.7rem;cursor:pointer">' +
+        '<input type="checkbox" id="as-wel-on" ' + (welEnabled ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer">' +
+        '<span style="font-size:.85rem;font-weight:700">Send a welcome DM to new members</span>' +
+      '</label>' +
+      '<textarea id="as-wel-msg" dir="auto" rows="4" placeholder="ברוך הבא {name}! מיר פרייען זיך דיך צו האבן דא..." style="width:100%;box-sizing:border-box;padding:.7rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;resize:vertical">' + escHtml(welMsg) + '</textarea>' +
+      '<button class="bc-send-btn" style="margin-top:.7rem" onclick="asSaveWelcome()">Save welcome message</button>' +
+    '</div>' +
+  '</div>';
+}
+window.asSaveRate = function () {
+  var v = (document.getElementById('as-reg-max') || {}).value || '5';
+  saveSetting('register_rate_max', String(Math.max(1, parseInt(v) || 5)));
+};
+window.asSaveWelcome = function () {
+  var on = (document.getElementById('as-wel-on') || {}).checked;
+  var msg = (document.getElementById('as-wel-msg') || {}).value || '';
+  saveSetting('welcome_enabled', on ? 'true' : 'false');
+  saveSetting('welcome_message', msg);
+};
+
 function buildHealthPanel(content) {
   content.innerHTML = '<div class="admin-panel"><div class="admin-card"><div class="admin-card-title">💾 Storage</div>' +
     '<div style="color:var(--muted);font-size:.8rem">Loading…</div></div></div>';
