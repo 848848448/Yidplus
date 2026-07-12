@@ -504,22 +504,24 @@ window._handleInviteJoin = function (code) {
         ? '🔒 "' + (room.name || 'Group') + '" is a private group.\n\nSend a join request?'
         : 'Join "' + (room.name || 'Group') + '"?\n(' + (room.members || 0) + ' members)';
 
-      if (!confirm(msg)) { closeChatRoom(); return; }
+      ypConfirm(msg, { title: isPrivate ? 'Private group' : 'Join group', okText: isPrivate ? 'Send request' : 'Join' }).then(function (ok) {
+        if (!ok) { closeChatRoom(); return; }
 
-      api.post('/invite', { code: code })
-        .then(function (joinRes) {
-          if (joinRes.status === 'joined' || joinRes.status === 'already_member') {
-            toast('✅ Joined! Opening chat...');
-            loadChatRooms();
-            setTimeout(function () { openChatRoom(joinRes.room_id); }, 600);
-          } else if (joinRes.status === 'pending') {
-            toast('📨 Join request sent! Waiting for admin approval.');
-            navTo('chats');
-          } else {
-            navTo('chats');
-          }
-        })
-        .catch(function (err) { toast('❌ ' + err.message); navTo('chats'); });
+        api.post('/invite', { code: code })
+          .then(function (joinRes) {
+            if (joinRes.status === 'joined' || joinRes.status === 'already_member') {
+              toast('✅ Joined! Opening chat...');
+              loadChatRooms();
+              setTimeout(function () { openChatRoom(joinRes.room_id); }, 600);
+            } else if (joinRes.status === 'pending') {
+              toast('📨 Join request sent! Waiting for admin approval.');
+              navTo('chats');
+            } else {
+              navTo('chats');
+            }
+          })
+          .catch(function (err) { toast('❌ ' + err.message); navTo('chats'); });
+      });
     })
     .catch(function (err) { toast('❌ Invalid invite link'); navTo('chats'); });
 };

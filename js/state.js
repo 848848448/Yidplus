@@ -1758,3 +1758,38 @@ window.exitImpersonation = function () {
     .then(function () { location.href = '/admin'; })
     .catch(function () { location.href = '/admin'; });
 };
+
+// ── Pretty confirm dialog (replaces the ugly native confirm "yidplus.com says…")
+// Returns a Promise<boolean>. Usage: if (await ypConfirm('Delete this?')) {...}
+window.ypConfirm = function (message, opts) {
+  opts = opts || {};
+  return new Promise(function (resolve) {
+    var prev = document.getElementById('yp-confirm-overlay');
+    if (prev) prev.remove();
+    var ov = document.createElement('div');
+    ov.id = 'yp-confirm-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:24px;font-family:inherit;backdrop-filter:blur(2px);animation:ypcfade .15s ease';
+    var danger = !!opts.danger;
+    var okBg = danger ? '#D32F2F' : '#1F6F5C';
+    ov.innerHTML =
+      '<div style="background:var(--bg,#fff);color:var(--text,#111);border-radius:18px;max-width:340px;width:100%;padding:22px 20px 16px;box-shadow:0 12px 40px rgba(0,0,0,.3);animation:ypcpop .18s cubic-bezier(.2,.9,.3,1.2)">' +
+        (opts.title ? '<div style="font-weight:800;font-size:1.05rem;margin-bottom:.5rem" dir="auto">' + opts.title + '</div>' : '') +
+        '<div dir="auto" style="font-size:.95rem;line-height:1.5;white-space:pre-wrap;color:var(--text,#111)">' + (message || '') + '</div>' +
+        '<div style="display:flex;gap:.6rem;margin-top:20px">' +
+          '<button id="ypc-no" style="flex:1;padding:.7rem;border:1px solid var(--border,#ddd);background:var(--bg3,#f2f2f2);color:var(--text,#333);border-radius:12px;font-weight:700;font-size:.9rem;cursor:pointer;font-family:inherit">' + (opts.cancelText || 'Cancel') + '</button>' +
+          '<button id="ypc-yes" style="flex:1;padding:.7rem;border:none;background:' + okBg + ';color:#fff;border-radius:12px;font-weight:800;font-size:.9rem;cursor:pointer;font-family:inherit">' + (opts.okText || 'OK') + '</button>' +
+        '</div>' +
+      '</div>';
+    if (!document.getElementById('yp-confirm-style')) {
+      var st = document.createElement('style');
+      st.id = 'yp-confirm-style';
+      st.textContent = '@keyframes ypcfade{from{opacity:0}to{opacity:1}}@keyframes ypcpop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}';
+      document.head.appendChild(st);
+    }
+    document.body.appendChild(ov);
+    function done(v) { ov.remove(); resolve(v); }
+    ov.querySelector('#ypc-yes').onclick = function () { done(true); };
+    ov.querySelector('#ypc-no').onclick = function () { done(false); };
+    ov.onclick = function (e) { if (e.target === ov) done(false); };
+  });
+};
