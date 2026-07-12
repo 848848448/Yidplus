@@ -118,6 +118,11 @@ export async function onRequestPost(context) {
 
       if (data.startsWith('grp:')) {
         const roomId = data.slice(4);
+        // Defense-in-depth: only post to a group the user is actually in.
+        const member = await env.DB.prepare(
+          "SELECT 1 FROM room_members m JOIN rooms r ON r.id = m.room_id WHERE m.room_id = ? AND m.user_id = ? AND r.type = 'group'"
+        ).bind(roomId, user.id).first().catch(() => null);
+        if (!member) { await say(env, chatId, 'You are not a member of that group.'); return json({ ok: true }); }
         await env.DB.prepare(
           `INSERT INTO messages (id, room_id, sender_id, sender_nick, type, text, media_key, created_at, read) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`
         ).bind(crypto.randomUUID(), roomId, user.id, user.nickname || '', p.mediaKey ? 'media' : 'text', p.text || null, p.mediaKey || null, now).run().catch(() => {});
@@ -170,12 +175,18 @@ export async function onRequestPost(context) {
         const u = await env.DB.prepare('SELECT id, nickname FROM users WHERE lower(email) = ?').bind(email).first().catch(() => null);
         if (!u) { await say(env, chatId, 'No YID PLUS account has that email. Check the spelling and try again:'); return json({ ok: true }); }
         const code = String(Math.floor(100000 + Math.random() * 900000));
-        await setState(env, tgId, 'await_code', { email, code, user_id: u.id });
+        await setState(env, tgId, 'await_code', { email, code, user_id: u.id, expires: Date.now() + 15 * 60 * 1000, attempts: 0 });
         const sent = await sendCodeEmail(env, email, code, u.nickname);
-        await say(env, chatId, sent ? `📧 I sent a 6-digit code to ${email}. Send it here to finish linking.` : 'Could not send the email right now. Try again later.');
+        await say(env, chatId, sent ? `📧 I sent a 6-digit code to ${email}. Send it here within 15 minutes to finish linking.` : 'Could not send the email right now. Try again later.');
         return json({ ok: true });
       }
       if (st.step === 'await_code') {
+        // Expired code → make them restart (stops indefinite brute-forcing).
+        if (!st.data.expires || Date.now() > st.data.expires) {
+          await setState(env, tgId, 'await_email', {});
+          await say(env, chatId, '⌛ That code expired. Send your email again to get a new one.');
+          return json({ ok: true });
+        }
         if (text.replace(/\s/g, '') === String(st.data.code)) {
           await env.DB.prepare(
             'INSERT INTO telegram_links (telegram_user_id, user_id, linked_at) VALUES (?, ?, ?) ' +
@@ -184,7 +195,15 @@ export async function onRequestPost(context) {
           await clearState(env, tgId);
           await say(env, chatId, '✅ Linked! Now send me a photo, video, or text and I\'ll ask where to post it.');
         } else {
-          await say(env, chatId, 'Wrong code. Try again, or send your email to restart.');
+          // Cap wrong guesses so the 6-digit code can't be brute-forced.
+          const attempts = (st.data.attempts || 0) + 1;
+          if (attempts >= 5) {
+            await setState(env, tgId, 'await_email', {});
+            await say(env, chatId, '🚫 Too many wrong codes. Send your email again to start over.');
+          } else {
+            await setState(env, tgId, 'await_code', Object.assign({}, st.data, { attempts: attempts }));
+            await say(env, chatId, 'Wrong code (' + (5 - attempts) + ' left). Try again, or send your email to restart.');
+          }
         }
         return json({ ok: true });
       }
