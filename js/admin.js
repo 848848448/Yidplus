@@ -596,10 +596,12 @@ function buildShortsModPanel(content) {
 }
 
 window.adminDeleteShort = function (id) {
-  if (!confirm('Delete this short?')) return;
-  api.del('/shorts?id=' + encodeURIComponent(id))
-    .then(function () { toast('🗑 Deleted.'); buildShortsModPanel(document.getElementById('admin-content')); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Delete this short?', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.del('/shorts?id=' + encodeURIComponent(id))
+      .then(function () { toast('🗑 Deleted.'); buildShortsModPanel(document.getElementById('admin-content')); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 /* ── CHAT WATCH ── */
@@ -689,19 +691,26 @@ window._cwRender = function () {
 
 // Hide (reversible) or unhide a group/channel from all regular users.
 window.adminToggleRoom = function (roomId, hide) {
-  if (hide && !confirm('Hide this group/channel? Regular users won\'t see it. You can unhide anytime.')) return;
-  api.post('/admin/room-control', { room_id: roomId, action: hide ? 'hide' : 'unhide' })
-    .then(function () { toast(hide ? '🚫 Hidden' : '↩ Unhidden'); buildChatWatchPanel(document.getElementById('admin-content')); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  function _go() {
+    api.post('/admin/room-control', { room_id: roomId, action: hide ? 'hide' : 'unhide' })
+      .then(function () { toast(hide ? '🚫 Hidden' : '↩ Unhidden'); buildChatWatchPanel(document.getElementById('admin-content')); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  }
+  if (hide) ypConfirm('Hide this group/channel? Regular users won\'t see it. You can unhide anytime.').then(function (ok) { if (ok) _go(); });
+  else _go();
 };
 
 // Permanently delete a group/channel and all its messages.
 window.adminDeleteRoom = function (roomId, name) {
-  if (!confirm('PERMANENTLY delete "' + name + '"?\nAll its messages will be gone. This cannot be undone.')) return;
-  if (!confirm('Are you absolutely sure? This is permanent.')) return;
-  api.del('/admin/room-control?room_id=' + encodeURIComponent(roomId))
-    .then(function () { toast('🗑 Deleted'); buildChatWatchPanel(document.getElementById('admin-content')); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('PERMANENTLY delete "' + name + '"?\nAll its messages will be gone. This cannot be undone.', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    ypConfirm('Are you absolutely sure? This is permanent.', { danger: true }).then(function (ok) {
+      if (!ok) return;
+      api.del('/admin/room-control?room_id=' + encodeURIComponent(roomId))
+        .then(function () { toast('🗑 Deleted'); buildChatWatchPanel(document.getElementById('admin-content')); })
+        .catch(function (err) { toast('❌ ' + err.message); });
+    });
+  });
 };
 
 window.adminViewRoom = function (roomId, name) {
@@ -799,10 +808,12 @@ window.toggleMusicTrending = function (i) {
   toast(MUSIC_ADMIN_DATA[i].trending ? '⭐ Set as Trending!' : 'Removed from Trending.');
 };
 window.deleteMusicAdmin = function (i) {
-  if (!confirm('Remove "' + MUSIC_ADMIN_DATA[i].name + '" from the platform?')) return;
-  MUSIC_ADMIN_DATA.splice(i, 1);
-  renderMusicMod();
-  toast('🗑 Track removed.');
+  ypConfirm('Remove "' + MUSIC_ADMIN_DATA[i].name + '" from the platform?', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    MUSIC_ADMIN_DATA.splice(i, 1);
+    renderMusicMod();
+    toast('🗑 Track removed.');
+  });
 };
 
 /* ── FEEDBACK INBOX ── */
@@ -858,10 +869,12 @@ window.resolveFeedback = function (id) {
     .catch(function (err) { toast('❌ ' + err.message); });
 };
 window.deleteFeedback = function (id) {
-  if (!confirm('Delete this feedback?')) return;
-  api.del('/feedback?id=' + encodeURIComponent(id))
-    .then(function () { toast('🗑 Deleted.'); buildFeedbackPanel(document.getElementById('admin-content')); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Delete this feedback?', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.del('/feedback?id=' + encodeURIComponent(id))
+      .then(function () { toast('🗑 Deleted.'); buildFeedbackPanel(document.getElementById('admin-content')); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 /* ── ANALYTICS ── */
@@ -1026,12 +1039,13 @@ function renderUsersList(users) {
 }
 
 window.adminSetNewPassword = function (userId) {
-  var pass = prompt('Enter a new temporary password for this user (they should change it after logging in):');
-  if (pass === null) return;
-  if (pass.trim().length < 6) return toast('⚠️ Password must be at least 6 characters.');
-  api.put('/admin/users', { id: userId, password: pass.trim() })
-    .then(function () { toast('🔑 New password set! Let them know to change it once they sign in.'); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypPrompt('Enter a new temporary password for this user (they should change it after logging in):', { title: 'New password', okText: 'Set' }).then(function (pass) {
+    if (pass === null) return;
+    if (pass.trim().length < 6) return toast('⚠️ Password must be at least 6 characters.');
+    api.put('/admin/users', { id: userId, password: pass.trim() })
+      .then(function () { toast('🔑 New password set! Let them know to change it once they sign in.'); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 window.adminMuteUser = function (id, currentlyMuted) {
@@ -1041,13 +1055,14 @@ window.adminMuteUser = function (id, currentlyMuted) {
       .catch(function (err) { toast('❌ ' + err.message); });
     return;
   }
-  var hoursStr = prompt('Mute for how many hours? (e.g. 1, 24, 168 for a week)', '24');
-  if (hoursStr === null) return;
-  var hours = parseFloat(hoursStr);
-  if (!hours || hours <= 0) return toast('⚠️ Enter a positive number of hours.');
-  api.post('/admin/mute', { user_id: id, hours: hours })
-    .then(function () { toast('🔇 Muted for ' + hours + 'h!'); buildUsersPanel(document.getElementById('admin-content')); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypPrompt('Mute for how many hours? (e.g. 1, 24, 168 for a week)', { title: 'Mute user', value: '24', okText: 'Mute' }).then(function (hoursStr) {
+    if (hoursStr === null) return;
+    var hours = parseFloat(hoursStr);
+    if (!hours || hours <= 0) return toast('⚠️ Enter a positive number of hours.');
+    api.post('/admin/mute', { user_id: id, hours: hours })
+      .then(function () { toast('🔇 Muted for ' + hours + 'h!'); buildUsersPanel(document.getElementById('admin-content')); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 window.filterAdminUsers = function () {
@@ -1334,13 +1349,15 @@ function _editField(id, label, val, type) {
 }
 
 window.adminDeleteUser = function (id, nick) {
-  if (!confirm('⚠️ DELETE @' + nick + '?\n\nThis will permanently remove the user and all their data from the platform. This CANNOT be undone!')) return;
-  api.del('/admin/users?id=' + encodeURIComponent(id))
-    .then(function () {
-      toast('🗑 @' + nick + ' deleted permanently.');
-      buildUsersPanel(document.getElementById('admin-content'));
-    })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('⚠️ DELETE @' + nick + '?\n\nThis will permanently remove the user and all their data from the platform. This CANNOT be undone!', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.del('/admin/users?id=' + encodeURIComponent(id))
+      .then(function () {
+        toast('🗑 @' + nick + ' deleted permanently.');
+        buildUsersPanel(document.getElementById('admin-content'));
+      })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 
@@ -1375,54 +1392,60 @@ window.sendBroadcast = function () {
   var whenVal = whenEl && whenEl.value ? new Date(whenEl.value).toISOString() : null;
   var isSchedule = !!whenVal && new Date(whenVal).getTime() > Date.now() + 60000;
 
-  if (!confirm(isSchedule ? ('Schedule this for ' + whenEl.value + '?') : ('Send this to ALL users now?\n\n"' + text + '"'))) return;
+  ypConfirm(isSchedule ? ('Schedule this for ' + whenEl.value + '?') : ('Send this to ALL users now?\n\n"' + text + '"'), { danger: true }).then(function (ok) {
+    if (!ok) return;
 
-  var payload = {
-    text: text,
-    sender_email: ADMIN_gateEmail || (STATE.user && STATE.user.email) || '',
-  };
-  if (isSchedule) { payload.scheduled_for = whenVal; payload.push = !!(pushCb && pushCb.checked); }
+    var payload = {
+      text: text,
+      sender_email: ADMIN_gateEmail || (STATE.user && STATE.user.email) || '',
+    };
+    if (isSchedule) { payload.scheduled_for = whenVal; payload.push = !!(pushCb && pushCb.checked); }
 
-  api.post('/broadcasts', payload)
-    .then(function (res) {
-      ta.value = '';
-      if (whenEl) whenEl.value = '';
-      if (res.scheduled) {
-        toast('⏰ Scheduled!');
-      } else {
-        toast('📢 Broadcast sent to all users!');
-        if (pushCb && pushCb.checked) {
-          api.post('/push/send', { title: 'YID PLUS', body: text, url: '/chat' })
-            .then(function (r) { toast('🔔 Pushed to ' + (r.sent || 0) + ' devices'); })
-            .catch(function () { toast('⚠ In-app sent, but push failed'); });
+    api.post('/broadcasts', payload)
+      .then(function (res) {
+        ta.value = '';
+        if (whenEl) whenEl.value = '';
+        if (res.scheduled) {
+          toast('⏰ Scheduled!');
+        } else {
+          toast('📢 Broadcast sent to all users!');
+          if (pushCb && pushCb.checked) {
+            api.post('/push/send', { title: 'YID PLUS', body: text, url: '/chat' })
+              .then(function (r) { toast('🔔 Pushed to ' + (r.sent || 0) + ' devices'); })
+              .catch(function () { toast('⚠ In-app sent, but push failed'); });
+          }
         }
-      }
-      if (pushCb) pushCb.checked = false;
-      loadBroadcastHistory();
-    })
-    .catch(function (err) { toast('❌ Failed: ' + err.message); });
+        if (pushCb) pushCb.checked = false;
+        loadBroadcastHistory();
+      })
+      .catch(function (err) { toast('❌ Failed: ' + err.message); });
+  });
 };
 
 window.sendEmailBlast = function () {
   var subject = (document.getElementById('eb-subject').value || '').trim();
   var message = (document.getElementById('eb-message').value || '').trim();
   if (!subject || !message) return toast('⚠ Add a subject and message.');
-  if (!confirm('Send this email to ALL users? This cannot be undone.')) return;
-  toast('✉️ Sending…');
-  api.post('/admin/email-blast', { subject: subject, message: message })
-    .then(function (res) {
-      toast('✉️ Sent to ' + (res.sent || 0) + ' / ' + (res.total || 0) + ' users');
-      document.getElementById('eb-subject').value = '';
-      document.getElementById('eb-message').value = '';
-    })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Send this email to ALL users? This cannot be undone.', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    toast('✉️ Sending…');
+    api.post('/admin/email-blast', { subject: subject, message: message })
+      .then(function (res) {
+        toast('✉️ Sent to ' + (res.sent || 0) + ' / ' + (res.total || 0) + ' users');
+        document.getElementById('eb-subject').value = '';
+        document.getElementById('eb-message').value = '';
+      })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 window.cancelScheduled = function (id) {
-  if (!confirm('Cancel this scheduled broadcast?')) return;
-  api.del('/broadcasts?scheduled_id=' + encodeURIComponent(id))
-    .then(function () { toast('Cancelled'); loadBroadcastHistory(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Cancel this scheduled broadcast?', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.del('/broadcasts?scheduled_id=' + encodeURIComponent(id))
+      .then(function () { toast('Cancelled'); loadBroadcastHistory(); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 function loadBroadcastHistory() {
@@ -1910,21 +1933,24 @@ window.createAd = function () {
 };
 
 window.adminEditAdInterval = function (id) {
-  var mins = prompt('Show every how many minutes?', '60');
-  if (!mins) return;
-  var secs = prompt('Countdown seconds before Skip?', '5');
-  if (!secs) return;
-  api.put('/admin/ads', { id: id, interval_minutes: parseInt(mins), countdown_seconds: parseInt(secs) })
-    .then(function () { toast('✅ Updated!'); loadAdsList(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypPrompt('Show every how many minutes?', { title: 'Ad interval', value: '60', okText: 'Next' }).then(function (mins) {
+    if (!mins) return;
+    ypPrompt('Countdown seconds before Skip?', { title: 'Skip countdown', value: '5', okText: 'Save' }).then(function (secs) {
+      if (!secs) return;
+      api.put('/admin/ads', { id: id, interval_minutes: parseInt(mins), countdown_seconds: parseInt(secs) })
+        .then(function () { toast('✅ Updated!'); loadAdsList(); })
+        .catch(function (err) { toast('❌ ' + err.message); });
+    });
+  });
 };
 
 window.adminEditAdPages = function (id) {
-  var p = prompt('Pages (all / home / chat / shorts / music or comma-separated):', 'all');
-  if (!p) return;
-  api.put('/admin/ads', { id: id, pages: p.trim() })
-    .then(function () { toast('✅ Updated!'); loadAdsList(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypPrompt('Pages (all / home / chat / shorts / music or comma-separated):', { title: 'Ad pages', value: 'all', okText: 'Save' }).then(function (p) {
+    if (!p) return;
+    api.put('/admin/ads', { id: id, pages: p.trim() })
+      .then(function () { toast('✅ Updated!'); loadAdsList(); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 window.adminEditExemptUsers = function (adId, currentJson) {
@@ -2047,10 +2073,12 @@ function loadAdsList() {
 // (old createAd removed)
 
 window.deleteAd = function (id) {
-  if (!confirm('Delete this ad?')) return;
-  api.del('/admin/ads?id=' + encodeURIComponent(id))
-    .then(function () { toast('🗑 Deleted.'); loadAdsList(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Delete this ad?', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.del('/admin/ads?id=' + encodeURIComponent(id))
+      .then(function () { toast('🗑 Deleted.'); loadAdsList(); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 /* ══════════════════════════════════
@@ -2097,10 +2125,12 @@ function buildReportsPanel(content) {
 }
 
 window.adminBanFromReport = function (userId, nick) {
-  if (!confirm('Ban @' + nick + '? This will also block their device.')) return;
-  api.put('/admin/users', { id: userId, blocked: true })
-    .then(function () { toast('🚫 @' + nick + ' banned!'); buildReportsPanel(document.getElementById('admin-content')); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Ban @' + nick + '? This will also block their device.', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.put('/admin/users', { id: userId, blocked: true })
+      .then(function () { toast('🚫 @' + nick + ' banned!'); buildReportsPanel(document.getElementById('admin-content')); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 window.adminDismissReport = function (id) {
@@ -2162,10 +2192,12 @@ window.adminAddDeviceBan = function () {
 };
 
 window.adminUnban = function (id) {
-  if (!confirm('Remove this ban?')) return;
-  api.del('/admin/device-bans?id=' + encodeURIComponent(id))
-    .then(function () { toast('✓ Ban removed'); loadBansList(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Remove this ban?', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.del('/admin/device-bans?id=' + encodeURIComponent(id))
+      .then(function () { toast('✓ Ban removed'); loadBansList(); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 /* ══════════════════════════════════
@@ -2208,10 +2240,12 @@ function buildIpLogsPanel(content) {
 
 window.adminQuickBanIp = function (ip) {
   if (!ip || ip === '0.0.0.0') { toast('No valid IP'); return; }
-  if (!confirm('Ban IP: ' + ip + '?')) return;
-  api.post('/admin/device-bans', { ip: ip, reason: 'Banned from IP Logs' })
-    .then(function () { toast('🚫 IP banned!'); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Ban IP: ' + ip + '?', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.post('/admin/device-bans', { ip: ip, reason: 'Banned from IP Logs' })
+      .then(function () { toast('🚫 IP banned!'); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 /* ══════════════════════════════════
@@ -2261,10 +2295,12 @@ window.adminVerifyChannel = function (ownerId, verify) {
 };
 
 window.adminDeleteChannel = function (id, nick) {
-  if (!confirm('Delete channel @' + nick + '? This cannot be undone.')) return;
-  api.del('/channels?id=' + encodeURIComponent(id))
-    .then(function () { toast('🗑 Deleted'); buildChannelsMgrPanel(document.getElementById('admin-content')); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Delete channel @' + nick + '? This cannot be undone.', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.del('/channels?id=' + encodeURIComponent(id))
+      .then(function () { toast('🗑 Deleted'); buildChannelsMgrPanel(document.getElementById('admin-content')); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 /* ══════════════════════════════════
@@ -2500,10 +2536,12 @@ function buildNuclearPanel(content) {
 
 window.nuclearAction = function (category, action) {
   var label = action === 'hide' ? 'HIDE ALL' : 'RESTORE ALL';
-  if (!confirm('⚠️ ' + label + ' ' + category + '?\n\nAre you sure?')) return;
-  api.post('/admin/nuclear', { category: category, action: action })
-    .then(function () { toast(action === 'hide' ? '🔴 Hidden!' : '🟢 Restored!'); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('⚠️ ' + label + ' ' + category + '?\n\nAre you sure?', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.post('/admin/nuclear', { category: category, action: action })
+      .then(function () { toast(action === 'hide' ? '🔴 Hidden!' : '🟢 Restored!'); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 function loadNuclearPermList() {
@@ -2559,10 +2597,12 @@ window.adminGrantNuclear = function (id) {
 };
 
 window.adminRevokeNuclear = function (id) {
-  if (!confirm('Remove Nuclear access?')) return;
-  api.del('/admin/nuclear?permissions=1&id=' + encodeURIComponent(id))
-    .then(function () { toast('✓ Access revoked'); loadNuclearPermList(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Remove Nuclear access?', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.del('/admin/nuclear?permissions=1&id=' + encodeURIComponent(id))
+      .then(function () { toast('✓ Access revoked'); loadNuclearPermList(); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 /* ══════════════════════════════════
@@ -2598,10 +2638,12 @@ function buildSessionsPanel(content) {
     .catch(function (err) { var el = document.getElementById('sessions-list'); if (el) el.innerHTML = '<div style="padding:1rem;color:#E11D48;font-size:.8rem">' + escHtml(err.message) + '</div>'; });
 }
 window.adminForceLogoutAll = function () {
-  if (!confirm('Force logout ALL users? (You will also be logged out)')) return;
-  api.del('/admin/sessions-mgr?all=1')
-    .then(function () { toast('Done — all sessions cleared'); buildSessionsPanel(document.getElementById('admin-content')); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Force logout ALL users? (You will also be logged out)', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.del('/admin/sessions-mgr?all=1')
+      .then(function () { toast('Done — all sessions cleared'); buildSessionsPanel(document.getElementById('admin-content')); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 window.adminKickSession = function (userId) {
   api.del('/admin/sessions-mgr?user_id=' + encodeURIComponent(userId))
@@ -3207,12 +3249,14 @@ window.tgPostConnect = function (btn) {
 };
 
 window.tgPostDisconnect = function (btn) {
-  if (!confirm('Disconnect the publishing bot?')) return;
-  if (btn) btn.disabled = true;
-  api.del('/telegram/post-bot-setup')
-    .then(function () { toast('Disconnected'); tgPostStatus(); })
-    .catch(function (err) { toast('❌ ' + (err.message || 'Failed')); })
-    .then(function () { if (btn) btn.disabled = false; });
+  ypConfirm('Disconnect the publishing bot?', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    if (btn) btn.disabled = true;
+    api.del('/telegram/post-bot-setup')
+      .then(function () { toast('Disconnected'); tgPostStatus(); })
+      .catch(function (err) { toast('❌ ' + (err.message || 'Failed')); })
+      .then(function () { if (btn) btn.disabled = false; });
+  });
 };
 
 window.tgWebhookStatus = function () {
@@ -3241,12 +3285,14 @@ window.tgConnectBot = function (btn) {
 };
 
 window.tgDisconnectBot = function (btn) {
-  if (!confirm('Disconnect the bot? Telegram messages will stop mirroring until you reconnect.')) return;
-  if (btn) btn.disabled = true;
-  api.del('/telegram/set-webhook')
-    .then(function () { toast('Disconnected'); tgWebhookStatus(); })
-    .catch(function (err) { toast('❌ ' + (err.message || 'Failed')); })
-    .then(function () { if (btn) btn.disabled = false; });
+  ypConfirm('Disconnect the bot? Telegram messages will stop mirroring until you reconnect.', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    if (btn) btn.disabled = true;
+    api.del('/telegram/set-webhook')
+      .then(function () { toast('Disconnected'); tgWebhookStatus(); })
+      .catch(function (err) { toast('❌ ' + (err.message || 'Failed')); })
+      .then(function () { if (btn) btn.disabled = false; });
+  });
 };
 
 window.loadTelegramBridges = function () {
@@ -3290,10 +3336,12 @@ window.addTelegramBridge = function () {
 };
 
 window.removeTelegramBridge = function (id) {
-  if (!confirm('Remove this bridge?')) return;
-  api.del('/admin/telegram-bridges?id=' + encodeURIComponent(id))
-    .then(function () { toast('Removed'); loadTelegramBridges(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Remove this bridge?', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.del('/admin/telegram-bridges?id=' + encodeURIComponent(id))
+      .then(function () { toast('Removed'); loadTelegramBridges(); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 window.getTelegramUpdates = function () {
@@ -3389,10 +3437,13 @@ function _loadAccessControl() {
 }
 
 window.acToggleLock = function (lock) {
-  if (lock && !confirm('Lock sign-in for EVERYONE except you and the allow-list?')) return;
-  api.put('/admin/access-control', { locked: lock })
-    .then(function () { toast(lock ? '🔒 Sign-in locked' : '🔓 Sign-in open'); _loadAccessControl(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  function _go() {
+    api.put('/admin/access-control', { locked: lock })
+      .then(function () { toast(lock ? '🔒 Sign-in locked' : '🔓 Sign-in open'); _loadAccessControl(); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  }
+  if (lock) ypConfirm('Lock sign-in for EVERYONE except you and the allow-list?', { danger: true }).then(function (ok) { if (ok) _go(); });
+  else _go();
 };
 
 window.acAddAllow = function () {
@@ -3405,10 +3456,12 @@ window.acAddAllow = function () {
 };
 
 window.acRemoveAllow = function (email, btn) {
-  if (!confirm('Remove ' + email + ' from the allow-list?')) return;
-  api.del('/admin/access-control?email=' + encodeURIComponent(email))
-    .then(function () { toast('Removed'); _loadAccessControl(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Remove ' + email + ' from the allow-list?', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.del('/admin/access-control?email=' + encodeURIComponent(email))
+      .then(function () { toast('Removed'); _loadAccessControl(); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 window.acCreateAccount = function () {
@@ -3423,10 +3476,12 @@ window.acCreateAccount = function () {
 
 // Used from the Users panel — kick a user out; they must sign in again.
 window.acForceLogout = function (userId, nick) {
-  if (!confirm('Kick @' + nick + ' out? They\'ll have to sign in again.')) return;
-  api.post('/admin/access-control', { action: 'force_logout', user_id: userId })
-    .then(function () { toast('👢 @' + nick + ' was signed out'); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Kick @' + nick + ' out? They\'ll have to sign in again.', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.post('/admin/access-control', { action: 'force_logout', user_id: userId })
+      .then(function () { toast('👢 @' + nick + ' was signed out'); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 function escHtmlA(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -3436,13 +3491,15 @@ function escAttrA(s) { return String(s == null ? '' : s).replace(/'/g,"\\'").rep
 // blocked user returning from the same device with a fresh account.
 window.adminBanDevice = function (ip, fingerprint, btn) {
   if (!ip && !fingerprint) { toast('No device info'); return; }
-  if (!confirm('Ban this device/IP? Nobody will be able to sign in or register from it.')) return;
-  api.post('/admin/device-bans', { ip: ip || null, fingerprint: fingerprint || null, reason: 'Banned from user 360 view' })
-    .then(function () {
-      toast('🚫 Device banned');
-      if (btn) { btn.outerHTML = '<span style="font-size:.68rem;font-weight:700;color:#D32F2F">🚫 Banned</span>'; }
-    })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Ban this device/IP? Nobody will be able to sign in or register from it.', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.post('/admin/device-bans', { ip: ip || null, fingerprint: fingerprint || null, reason: 'Banned from user 360 view' })
+      .then(function () {
+        toast('🚫 Device banned');
+        if (btn) { btn.outerHTML = '<span style="font-size:.68rem;font-weight:700;color:#D32F2F">🚫 Banned</span>'; }
+      })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 /* ══════════════════════════════════
@@ -3690,10 +3747,12 @@ window.copyInvite = function (code) {
   toast('📋 Copied: ' + link);
 };
 window.revokeInvite = function (code) {
-  if (!confirm('Revoke code ' + code + '?')) return;
-  api.del('/admin/invite-codes?code=' + encodeURIComponent(code))
-    .then(function () { toast('Revoked'); _loadInvites(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Revoke code ' + code + '?', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.del('/admin/invite-codes?code=' + encodeURIComponent(code))
+      .then(function () { toast('Revoked'); _loadInvites(); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 /* ══════════════════════════════════
