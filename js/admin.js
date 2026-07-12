@@ -1093,6 +1093,9 @@ window.openUserDetailModal = function (userId) {
           '<div style="font-size:.78rem;color:var(--muted)">🎭 Role: ' + (p.role || 'member') + (p.verified ? ' · ✅ Verified' : '') + (p.blocked ? ' · 🚫 Blocked' : '') + '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem">' +
             '<button class="act-btn" style="background:#637087;color:#fff;border-color:transparent" onclick="adminSetNewPassword(\'' + userId + '\')">🔑 New Password</button>' +
+            (STATE.user && STATE.user.is_owner
+              ? '<button class="act-btn" style="background:#1F6F5C;color:#fff;border-color:transparent" onclick="document.getElementById(\'user-detail-overlay\').remove();startImpersonation(\'' + userId + '\',\'' + escAttrA(p.nickname || '') + '\')">👁 View as user</button>'
+              : '') +
             '<button class="act-btn act-block" onclick="adminBlock(\'' + userId + '\',\'' + !!p.blocked + '\');document.getElementById(\'user-detail-overlay\').remove()">' + (p.blocked ? '✅ Unblock' : '🚫 Block account') + '</button>' +
             '<button class="act-btn" style="background:#B45309;color:#fff;border-color:#B45309" onclick="acForceLogout(\'' + userId + '\',\'' + escHtml(p.nickname||'') + '\')">👢 Kick out</button>' +
           '</div>' +

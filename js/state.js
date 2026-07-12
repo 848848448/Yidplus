@@ -573,6 +573,8 @@ window.AUTH = {
   restore: function () {
     return api.get('/auth/me').then(function (res) {
       STATE.user = res.user;
+      STATE.impersonating = !!res.impersonating;
+      _renderImpersonationBanner();
       Presence.start();
       return res.user;
     }).catch(function () {
@@ -1728,3 +1730,31 @@ window.FeatureBlock = {
   }
 };
 
+
+// ── "View as user" (impersonation) — owner-only, read-only preview ──────────
+function _renderImpersonationBanner() {
+  var existing = document.getElementById('yp-imp-banner');
+  if (!STATE.impersonating) { if (existing) existing.remove(); document.body.style.paddingTop = ''; return; }
+  if (existing) return;
+  var bar = document.createElement('div');
+  bar.id = 'yp-imp-banner';
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#B45309;color:#fff;display:flex;align-items:center;gap:.6rem;padding:.5rem .9rem;font-family:inherit;font-size:.82rem;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.25)';
+  bar.innerHTML =
+    '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">👁 Viewing as @' +
+      ((STATE.user && STATE.user.nickname) || 'user') + ' · read-only</span>' +
+    '<button onclick="exitImpersonation()" style="flex-shrink:0;background:#fff;color:#B45309;border:none;border-radius:8px;padding:.35rem .8rem;font-weight:800;font-size:.78rem;cursor:pointer;font-family:inherit">Exit</button>';
+  document.body.appendChild(bar);
+}
+
+window.startImpersonation = function (userId, nickname) {
+  if (!confirm('View the app as @' + (nickname || 'this user') + '?\n\nYou\'ll see exactly what they see (read-only). Tap Exit anytime to return to your account.')) return;
+  api.post('/admin/impersonate', { user_id: userId })
+    .then(function () { location.href = '/'; })
+    .catch(function (err) { toast('❌ ' + (err.message || 'Failed')); });
+};
+
+window.exitImpersonation = function () {
+  api.del('/admin/impersonate')
+    .then(function () { location.href = '/admin'; })
+    .catch(function () { location.href = '/admin'; });
+};

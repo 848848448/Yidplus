@@ -45,6 +45,26 @@ export async function onRequest(context) {
   const clen = parseInt(request.headers.get('content-length') || '0', 10);
   if (clen > 105 * 1024 * 1024) return _deny(413);
 
+  // ── Read-only impersonation guard ──
+  // If this session is an owner "viewing as" a user, block every write. The
+  // only write allowed is exiting the preview (DELETE /api/admin/impersonate).
+  if (['POST', 'PUT', 'DELETE'].includes(request.method)) {
+    const isExit = (path === '/api/admin/impersonate' && request.method === 'DELETE');
+    if (!isExit) {
+      const tok = _cookie(request, 'yp_session');
+      if (tok) {
+        try {
+          const s = await context.env.DB.prepare('SELECT impersonator_id FROM sessions WHERE id = ?').bind(tok).first();
+          if (s && s.impersonator_id) {
+            return new Response(JSON.stringify({ ok: false, error: "You're viewing as a user (read-only). Exit to make changes." }), {
+              status: 403, headers: { 'Content-Type': 'application/json' },
+            });
+          }
+        } catch (e) { /* column may not exist yet — nothing to enforce */ }
+      }
+    }
+  }
+
   // ── Run the actual endpoint, masking any uncaught internal error ──
   let response;
   try {
@@ -76,4 +96,10 @@ function _deny(status) {
   return new Response(JSON.stringify({ ok: false, error: status === 500 ? 'Server error' : 'Blocked' }), {
     status, headers: { 'Content-Type': 'application/json', 'X-Content-Type-Options': 'nosniff' },
   });
+}
+
+function _cookie(request, name) {
+  const c = request.headers.get('Cookie') || '';
+  const m = c.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return m ? decodeURIComponent(m[1]) : null;
 }

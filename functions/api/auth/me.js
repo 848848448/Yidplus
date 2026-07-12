@@ -10,7 +10,7 @@ export async function onRequestGet(context) {
     // Computed server-side so the client never needs to know WHICH emails
     // are the owners' — keeps them out of the downloadable JS source.
     user.is_owner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
-    return json({ ok: true, user });
+    return json({ ok: true, user, impersonating: !!user._impersonatorId });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }

@@ -186,8 +186,10 @@ export async function requireUser(request, env) {
   if (!token) return null;
 
   const session = await env.DB.prepare(
-    `SELECT user_id FROM sessions WHERE id = ?`
-  ).bind(token).first();
+    `SELECT user_id, impersonator_id FROM sessions WHERE id = ?`
+  ).bind(token).first().catch(() =>
+    env.DB.prepare(`SELECT user_id FROM sessions WHERE id = ?`).bind(token).first()
+  );
 
   if (!session) return null;
 
@@ -196,6 +198,8 @@ export async function requireUser(request, env) {
   ).bind(session.user_id).first();
 
   if (!user || user.blocked) return null;
+  // When set, this session is an owner "viewing as" this user — read-only.
+  if (session.impersonator_id) user._impersonatorId = session.impersonator_id;
   return user;
 }
 
