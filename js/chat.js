@@ -1467,10 +1467,17 @@ function renderMessages(scrollDown) {
       var fname = escHtml(m.text || 'File');
       var isAudioFile = /\.(mp3|m4a|aac|ogg|wav|flac|opus)$/i.test(fk);
       if (isAudioFile) {
-        inner += '<div style="min-width:210px">' +
-          '<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.3rem"><span style="font-size:1.1rem">🎵</span>' +
-          '<span style="font-size:.8rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px" dir="auto">' + fname + '</span></div>' +
-          '<audio src="' + m.media_url + '" controls preload="none" style="width:230px;max-width:60vw;height:36px"></audio>' +
+        // Telegram/WhatsApp-style music card: round play/pause, title, artist •
+        // duration, and a thin progress bar that fills during playback.
+        var titleClean = fname.replace(/\.(mp3|m4a|aac|ogg|wav|flac|opus)$/i, '');
+        inner += '<div class="music-card">' +
+          '<audio id="maud-' + m.id + '" src="' + m.media_url + '" preload="metadata" onloadedmetadata="var t=document.getElementById(\'mtime-' + m.id + '\');if(t&&isFinite(this.duration))t.textContent=_fmtClock(this.duration)"></audio>' +
+          '<button class="music-play" id="mplay-' + m.id + '" onclick="_playMusicFile(\'' + m.id + '\',this)">' + ICON_PLAY_SM + '</button>' +
+          '<div class="music-info">' +
+            '<div class="music-title" dir="auto">' + titleClean + '</div>' +
+            '<div class="music-prog" id="mprog-' + m.id + '" onclick="_seekMusic(event,\'' + m.id + '\')"><div class="music-prog-fill" id="mfill-' + m.id + '"></div></div>' +
+            '<div class="music-sub"><span id="mtime-' + m.id + '">' + '0:00' + '</span><span class="music-badge">🎵 Audio</span></div>' +
+          '</div>' +
         '</div>';
       } else {
         var ficon = /\.pdf$/i.test(fk) ? '📕' : /\.(zip|rar|7z)$/i.test(fk) ? '🗜️' : /\.(doc|docx)$/i.test(fk) ? '📘' : /\.(xls|xlsx|csv)$/i.test(fk) ? '📊' : /\.(ppt|pptx)$/i.test(fk) ? '📙' : '📄';
@@ -3056,9 +3063,12 @@ function _dateLabel(iso) {
 }
 
 function _fakeBars(n) {
+  // Deterministic pseudo-waveform (was Math.random(), which made the bars
+  // flicker on every re-render). A fixed pattern keeps them stable.
   var bars = '';
   for (var i = 0; i < n; i++) {
-    bars += '<div class="vbar" style="height:' + (5 + Math.random() * 22) + 'px"></div>';
+    var h = 6 + Math.round(Math.abs(Math.sin(i * 1.7) * 0.6 + Math.sin(i * 0.7) * 0.4) * 20);
+    bars += '<div class="vbar" style="height:' + h + 'px"></div>';
   }
   return bars;
 }
@@ -3130,6 +3140,57 @@ window._openOnceVoice = function (msgId, mediaUrl) {
 // Small SVG icons for voice note buttons (defined here, referenced in render + playback)
 var ICON_PLAY_SM  = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 var ICON_PAUSE_SM = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+
+// ── Music/audio-file card playback (Telegram-style) ──
+function _fmtClock(sec) {
+  if (!isFinite(sec) || sec < 0) sec = 0;
+  var m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
+window._playMusicFile = function (msgId, btn) {
+  var aud = document.getElementById('maud-' + msgId);
+  if (!aud) return;
+  // Pause any other playing audio (voice notes + other music cards).
+  document.querySelectorAll('#chat-msgs audio').forEach(function (other) {
+    if (other !== aud && !other.paused) {
+      other.pause();
+      var oid = other.id.replace('maud-', '').replace('aud-', '');
+      var ob = document.getElementById('mplay-' + oid) || document.getElementById('pbtn-' + oid);
+      if (ob) ob.innerHTML = ICON_PLAY_SM;
+    }
+  });
+  if (aud.paused) {
+    aud.play().catch(function (e) { toast('⚠ Audio error: ' + e.message); });
+    btn.innerHTML = ICON_PAUSE_SM;
+    aud.ontimeupdate = function () {
+      var fill = document.getElementById('mfill-' + msgId);
+      var time = document.getElementById('mtime-' + msgId);
+      var pct = (isFinite(aud.duration) && aud.duration) ? (aud.currentTime / aud.duration) : 0;
+      if (fill) fill.style.width = (pct * 100) + '%';
+      if (time) time.textContent = _fmtClock(aud.currentTime) + (isFinite(aud.duration) && aud.duration ? ' / ' + _fmtClock(aud.duration) : '');
+    };
+    aud.onended = function () {
+      btn.innerHTML = ICON_PLAY_SM;
+      var fill = document.getElementById('mfill-' + msgId);
+      if (fill) fill.style.width = '0%';
+      var time = document.getElementById('mtime-' + msgId);
+      if (time) time.textContent = _fmtClock(aud.duration || 0);
+    };
+  } else {
+    aud.pause();
+    btn.innerHTML = ICON_PLAY_SM;
+  }
+};
+window._seekMusic = function (e, msgId) {
+  var aud = document.getElementById('maud-' + msgId);
+  var prog = document.getElementById('mprog-' + msgId);
+  if (!aud || !prog || !isFinite(aud.duration) || !aud.duration) return;
+  var rect = prog.getBoundingClientRect();
+  var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  aud.currentTime = pct * aud.duration;
+  var fill = document.getElementById('mfill-' + msgId);
+  if (fill) fill.style.width = (pct * 100) + '%';
+};
 
 window._playVoice = function (msgId, btn) {
   var aud = document.getElementById('aud-' + msgId);

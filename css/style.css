@@ -1687,3 +1687,17 @@ img { opacity: 1; }
 /* God-mode chat filter buttons */
 .cw-fbtn { padding: .4rem .8rem; border: 1px solid var(--border); border-radius: 999px; background: var(--bg3); color: var(--muted); font-size: .76rem; font-weight: 700; cursor: pointer; font-family: inherit; }
 .cw-fbtn.on { background: #1F6F5C; color: #fff; border-color: #1F6F5C; }
+
+/* ── Music / audio-file card (Telegram-style) ── */
+.music-card { display: flex; align-items: center; gap: .65rem; min-width: 230px; max-width: 290px; padding: .15rem .05rem; }
+.music-play { width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.28); border: none; cursor: pointer; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s; }
+.bubble.them .music-play { background: var(--gold, #1F6F5C); color: #fff; }
+.music-play:active { transform: scale(.9); }
+.music-info { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: .28rem; }
+.music-title { font-size: .86rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-prog { height: 4px; border-radius: 3px; background: rgba(255,255,255,.28); cursor: pointer; overflow: hidden; }
+.bubble.them .music-prog { background: rgba(31,111,92,.18); }
+.music-prog-fill { height: 100%; width: 0%; border-radius: 3px; background: #fff; transition: width .1s linear; }
+.bubble.them .music-prog-fill { background: #1F6F5C; }
+.music-sub { display: flex; align-items: center; justify-content: space-between; font-size: .68rem; font-variant-numeric: tabular-nums; opacity: .8; }
+.music-badge { font-weight: 700; opacity: .85; }
