@@ -13,3 +13,23 @@
 
 /
   Cache-Control: no-cache, no-store, must-revalidate
+
+# Clean URLs (Cloudflare Pages serves /yidplus-admin for yidplus-admin.html, with
+# no ".html" in the path) — the *.html rule above misses these, so pin them too.
+# Without this the browser caches the page HTML and keeps loading old versioned JS.
+/yidplus-admin
+  Cache-Control: no-cache, no-store, must-revalidate
+/yidplus-chat
+  Cache-Control: no-cache, no-store, must-revalidate
+/yidplus-music
+  Cache-Control: no-cache, no-store, must-revalidate
+/yidplus-shorts
+  Cache-Control: no-cache, no-store, must-revalidate
+/admin
+  Cache-Control: no-cache, no-store, must-revalidate
+/chat
+  Cache-Control: no-cache, no-store, must-revalidate
+/music
+  Cache-Control: no-cache, no-store, must-revalidate
+/shorts
+  Cache-Control: no-cache, no-store, must-revalidate

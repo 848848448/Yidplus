@@ -1,5 +1,5 @@
 // YID PLUS Service Worker v6 — Force fresh files
-const CACHE_NAME = 'yidplus-v7';
+const CACHE_NAME = 'yidplus-v8';
 const CACHE_CSS  = 'yidplus-css-v7';
 
 // JS and HTML — always fetch fresh (never cache)
@@ -71,6 +71,21 @@ self.addEventListener('notificationclick', function (event) {
 self.addEventListener('fetch', function (e) {
   var url = e.request.url;
   var path = new URL(url).pathname;
+
+  // HTML page loads (including clean URLs like /yidplus-admin that have no
+  // ".html" in them) — ALWAYS go to the network so a new deploy shows up right
+  // away. Fall back to any cached copy only when offline. This is the fix for
+  // "I deployed but still see the old app / have to hard-refresh".
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).catch(function () {
+        return caches.match(e.request).then(function (c) {
+          return c || new Response('Offline', { status: 503 });
+        });
+      })
+    );
+    return;
+  }
 
   // Never cache JS, HTML, API calls — always network
   if (NEVER_CACHE.some(function (p) { return path.includes(p) || url.includes(p); })) {
