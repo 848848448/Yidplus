@@ -31,6 +31,7 @@ var CHAT_curTopicId  = null;   // null = not in a topic-scoped view (flat chat o
 var CHAT_curTopicName = null;
 var CHAT_topicsCache  = {};    // roomId -> topics array, so re-opening a group doesn't always refetch
 var CHAT_messages    = [];
+var CHAT_lastRenderSig = null;
 var CHAT_reactions   = {}; // { messageId: { counts: {emoji: n}, my_reaction: emoji|null } }
 var CHAT_replyTo     = null;
 var CHAT_ctxMsg      = null;
@@ -1178,7 +1179,49 @@ function loadMessages(scrollToBottom) {
         }
       }
 
-      renderMessages(scrollToBottom || CHAT_atBottom);
+      // Only rebuild the message list when something actually changed. The 8s
+      // poll was calling renderMessages every time, which rebuilt innerHTML and
+      // destroyed any <audio> mid-playback — that was the voice/music "shockt
+      // zich op" glitch. Build a lightweight signature of what's visible.
+      var newSig = msgs.map(function (m) {
+        return m.id + ':' + ((m.text || '').length) + ':' +
+          (m.reactions ? JSON.stringify(m.reactions).length : 0) + ':' +
+          (m.edited ? 1 : 0) + ':' + (m.read ? 1 : 0) + ':' + (m.opened ? 1 : 0) + ':' + (m.pinned ? 1 : 0);
+      }).join('|');
+
+      if (newSig === CHAT_lastRenderSig && !scrollToBottom) {
+        // Nothing visible changed — skip the rebuild entirely (keeps audio playing).
+      } else {
+        // If audio is playing, remember where, then restore after the rebuild so
+        // an incoming message doesn't cut off the voice note / song.
+        var playing = null;
+        document.querySelectorAll('#chat-msgs audio').forEach(function (a) {
+          if (!a.paused) playing = { id: a.id, t: a.currentTime, music: a.id.indexOf('maud-') === 0 };
+        });
+
+        renderMessages(scrollToBottom || CHAT_atBottom);
+        CHAT_lastRenderSig = newSig;
+
+        if (playing) {
+          var a2 = document.getElementById(playing.id);
+          if (a2) {
+            try { a2.currentTime = playing.t; } catch (e) {}
+            a2.play().catch(function () {});
+            var mid = playing.id.replace('maud-', '').replace('aud-', '');
+            var b2 = document.getElementById((playing.music ? 'mplay-' : 'pbtn-') + mid);
+            if (b2) b2.innerHTML = ICON_PAUSE_SM;
+            if (playing.music) {
+              a2.ontimeupdate = function () {
+                var fill = document.getElementById('mfill-' + mid);
+                var time = document.getElementById('mtime-' + mid);
+                var pct = (isFinite(a2.duration) && a2.duration) ? (a2.currentTime / a2.duration) : 0;
+                if (fill) fill.style.width = (pct * 100) + '%';
+                if (time) time.textContent = _fmtClock(a2.currentTime) + (isFinite(a2.duration) && a2.duration ? ' / ' + _fmtClock(a2.duration) : '');
+              };
+            }
+          }
+        }
+      }
 
       // Update pinned bar text now that messages are loaded
       if (CHAT_pinnedMsgId) {
