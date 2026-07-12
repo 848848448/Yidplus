@@ -2374,8 +2374,16 @@ function _showMultiMediaPreview(files) {
     '</div>' +
     '<div style="display:flex;gap:.4rem;overflow-x:auto;scrollbar-width:none;margin-bottom:.5rem;padding-bottom:.25rem">' +
       files.map(function (f, i) {
-        var url = URL.createObjectURL(f);
         var isVid = f.type.startsWith('video/');
+        var isImg = f.type.startsWith('image/');
+        if (!isVid && !isImg) {
+          var ic = f.type.startsWith('audio/') ? '🎵' : /\.pdf$/i.test(f.name) ? '📕' : /\.(zip|rar|7z)$/i.test(f.name) ? '🗜️' : /\.(doc|docx)$/i.test(f.name) ? '📘' : /\.(xls|xlsx|csv)$/i.test(f.name) ? '📊' : '📄';
+          return '<div style="flex-shrink:0;width:64px;height:64px;border-radius:8px;border:2px solid #1F6F5C;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg3);padding:2px">' +
+            '<div style="font-size:1.6rem;line-height:1">' + ic + '</div>' +
+            '<div style="font-size:.5rem;color:var(--muted);max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(f.name) + '</div>' +
+          '</div>';
+        }
+        var url = URL.createObjectURL(f);
         return '<div style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;border:2px solid #1F6F5C">' +
           (isVid
             ? '<video src="' + url + '" style="width:100%;height:100%;object-fit:cover" preload="metadata"></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35)"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div>'
