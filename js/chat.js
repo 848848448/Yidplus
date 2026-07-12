@@ -658,27 +658,30 @@ window.confirmDeleteCurrentChat = function () {
   if (!CHAT_curRoom) return;
   var isGroup = CHAT_curRoom.type === 'group';
   var label = isGroup ? 'Leave "' + CHAT_curRoom.nick + '"?' : 'Delete chat with "' + CHAT_curRoom.nick + '"?';
-  if (!confirm(label)) return;
-
-  api.del('/chat/rooms?room_id=' + encodeURIComponent(CHAT_curRoom.id))
-    .then(function () {
-      toast(isGroup ? '🚪 You left the group.' : '🗑 Chat removed');
-      CHAT_curRoom = null;
-      navTo('chats');
-      loadChatRooms();
-    })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm(label, { danger: true, okText: isGroup ? 'Leave' : 'Delete' }).then(function (ok) {
+    if (!ok) return;
+    api.del('/chat/rooms?room_id=' + encodeURIComponent(CHAT_curRoom.id))
+      .then(function () {
+        toast(isGroup ? '🚪 You left the group.' : '🗑 Chat removed');
+        CHAT_curRoom = null;
+        navTo('chats');
+        loadChatRooms();
+      })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 window.deleteChatRoom = function (roomId, nick) {
-  if (!confirm('Delete chat with "' + nick + '"? This removes it from your list.')) return;
-  api.del('/chat/rooms?room_id=' + encodeURIComponent(roomId))
-    .then(function () {
-      toast('🗑 Chat removed');
-      if (CHAT_curRoom && CHAT_curRoom.id === roomId) { CHAT_curRoom = null; closeChatRoom(); }
-      loadChatRooms();
-    })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Delete chat with "' + nick + '"? This removes it from your list.', { danger: true, okText: 'Delete' }).then(function (ok) {
+    if (!ok) return;
+    api.del('/chat/rooms?room_id=' + encodeURIComponent(roomId))
+      .then(function () {
+        toast('🗑 Chat removed');
+        if (CHAT_curRoom && CHAT_curRoom.id === roomId) { CHAT_curRoom = null; closeChatRoom(); }
+        loadChatRooms();
+      })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 window.filterChats = function () {
@@ -1006,14 +1009,16 @@ window.toggleMemberGroupAdmin = function (memberId, makeAdmin) {
 
 window.removeMemberFromGroup = function (memberId) {
   if (!CHAT_curRoom) return;
-  if (!confirm('Remove this member from the group?')) return;
-  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, member_id: memberId, remove: true })
-    .then(function () {
-      toast('🚪 Member removed');
-      loadGroupMembers(CHAT_curRoom.id);
-      loadMessages(true);
-    })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Remove this member from the group?', { danger: true, okText: 'Remove' }).then(function (ok) {
+    if (!ok) return;
+    api.put('/chat/rooms', { room_id: CHAT_curRoom.id, member_id: memberId, remove: true })
+      .then(function () {
+        toast('🚪 Member removed');
+        loadGroupMembers(CHAT_curRoom.id);
+        loadMessages(true);
+      })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 function loadGroupMembers(roomId) {
@@ -1066,14 +1071,15 @@ function _renderMembersList() {
 
 window.promptSetMemberTitle = function (memberId, currentTitle) {
   if (!CHAT_curRoom) return;
-  var title = prompt('Role title for this member (e.g. "Moderator"). Leave blank to remove:', currentTitle || '');
-  if (title === null) return;
-  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, member_id: memberId, member_title: title.trim() })
-    .then(function () {
-      toast(title.trim() ? '✅ Title set!' : '✅ Title removed');
-      loadGroupMembers(CHAT_curRoom.id);
-    })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypPrompt('Role title for this member (e.g. "Moderator"). Leave blank to remove:', { title: 'Member title', value: currentTitle || '', placeholder: 'Moderator', okText: 'Save' }).then(function (title) {
+    if (title === null) return;
+    api.put('/chat/rooms', { room_id: CHAT_curRoom.id, member_id: memberId, member_title: title.trim() })
+      .then(function () {
+        toast(title.trim() ? '✅ Title set!' : '✅ Title removed');
+        loadGroupMembers(CHAT_curRoom.id);
+      })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 window.switchInfoTab = function (btn, tab) {
@@ -1136,15 +1142,16 @@ function _emptyTabMsg(icon, text) {
 
 window.confirmLeaveGroup = function () {
   if (!CHAT_curRoom) return;
-  if (!confirm('Leave "' + CHAT_curRoom.nick + '"?')) return;
-
-  api.del('/chat/rooms?room_id=' + encodeURIComponent(CHAT_curRoom.id))
-    .then(function () {
-      toast('You left the group.');
-      navTo('chats');
-      loadChatRooms();
-    })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Leave "' + CHAT_curRoom.nick + '"?', { danger: true, okText: 'Leave' }).then(function (ok) {
+    if (!ok) return;
+    api.del('/chat/rooms?room_id=' + encodeURIComponent(CHAT_curRoom.id))
+      .then(function () {
+        toast('You left the group.');
+        navTo('chats');
+        loadChatRooms();
+      })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 // ============================================================
@@ -2281,12 +2288,12 @@ window._sendSticker = function (url) {
 };
 
 window._deleteSticker = function (stickerId) {
-  if (!confirm('Remove this sticker?')) return;
-  // Remove from STICKER_PACKS locally
-  STICKER_PACKS = STICKER_PACKS.filter(function (s) { return s.id !== stickerId; });
-  // Re-render
-  _emojiCat(null, 'stickers');
-  toast('✅ Sticker removed');
+  ypConfirm('Remove this sticker?', { danger: true, okText: 'Remove' }).then(function (ok) {
+    if (!ok) return;
+    STICKER_PACKS = STICKER_PACKS.filter(function (s) { return s.id !== stickerId; });
+    _emojiCat(null, 'stickers');
+    toast('✅ Sticker removed');
+  });
 };
 
 window.uploadCustomSticker = function (file) {
@@ -2305,10 +2312,12 @@ window.uploadCustomSticker = function (file) {
 };
 
 window._deleteCustomSticker = function (stickerId) {
-  if (!confirm('Delete this sticker?')) return;
-  api.del('/chat/stickers?id=' + encodeURIComponent(stickerId))
-    .then(function () { toast('✅ Deleted'); _emojiCat(null, 'stickers'); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  ypConfirm('Delete this sticker?', { danger: true, okText: 'Delete' }).then(function (ok) {
+    if (!ok) return;
+    api.del('/chat/stickers?id=' + encodeURIComponent(stickerId))
+      .then(function () { toast('✅ Deleted'); _emojiCat(null, 'stickers'); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
 };
 
 
@@ -3107,14 +3116,15 @@ window._toggleVoiceSpeed = function (msgId) {
 };
 
 window._openOnceVoice = function (msgId, mediaUrl) {
-  if (!confirm('This voice message will disappear after you listen to it. Continue?')) return;
-  var aud = new Audio(mediaUrl);
-  aud.play().catch(function () {});
-  // Mark as opened locally and on the server (reuses the same view-once mechanism as media).
-  var msg = CHAT_messages.find(function (m) { return m.id === msgId; });
-  if (msg) msg.opened = true;
-  api.put('/chat', { id: msgId, opened: true }).catch(function () {});
-  renderMessages(false);
+  ypConfirm('This voice message will disappear after you listen to it. Continue?', { okText: 'Listen' }).then(function (ok) {
+    if (!ok) return;
+    var aud = new Audio(mediaUrl);
+    aud.play().catch(function () {});
+    var msg = CHAT_messages.find(function (m) { return m.id === msgId; });
+    if (msg) msg.opened = true;
+    api.put('/chat', { id: msgId, opened: true }).catch(function () {});
+    renderMessages(false);
+  });
 };
 
 // Small SVG icons for voice note buttons (defined here, referenced in render + playback)
@@ -3465,21 +3475,23 @@ window.castPollVote = function (pollId, optionId, allowMultiple) {
 };
 
 window.closePoll = function (pollId) {
-  if (!confirm('Close this poll? No more votes will be accepted.')) return;
-  api.put('/polls', { id: pollId, close: true })
-    .then(function(res) {
-      if (res.poll) {
-        var el = document.getElementById('poll-' + pollId);
-        if (el) el.innerHTML = _buildPollHTML(res.poll);
-      }
-    })
-    .catch(function(err) { toast('❌ ' + err.message); });
+  ypConfirm('Close this poll? No more votes will be accepted.', { danger: true, okText: 'Close poll' }).then(function (ok) {
+    if (!ok) return;
+    api.put('/polls', { id: pollId, close: true })
+      .then(function(res) {
+        if (res.poll) {
+          var el = document.getElementById('poll-' + pollId);
+          if (el) el.innerHTML = _buildPollHTML(res.poll);
+        }
+      })
+      .catch(function(err) { toast('❌ ' + err.message); });
+  });
 };
 
 window.suggestPollOption = function (pollId) {
-  var text = prompt('Suggest a new option:');
-  if (!text || !text.trim()) return;
-  api.put('/polls', { id: pollId, add_option: text.trim() })
+  ypPrompt('Suggest a new option:', { title: 'New option', placeholder: 'Your option', okText: 'Add' }).then(function (text) {
+    if (!text || !text.trim()) return;
+    api.put('/polls', { id: pollId, add_option: text.trim() })
     .then(function(res) {
       if (res.poll) {
         var el = document.getElementById('poll-' + pollId);
@@ -3487,6 +3499,7 @@ window.suggestPollOption = function (pollId) {
       }
     })
     .catch(function(err) { toast('❌ ' + err.message); });
+  });
 };
 
 /* ══════════════════════════════════
@@ -4173,14 +4186,16 @@ window._forwardMsgsToRoom = function (roomId, msgs, modalEl) {
 
 window._selectDeleteAll = function () {
   var ids = Object.keys(CHAT_selected);
-  if (!confirm('Delete ' + ids.length + ' messages?')) return;
-  var promises = ids.map(function (id) {
-    return api.del('/chat?id=' + encodeURIComponent(id)).catch(function () {});
-  });
-  Promise.all(promises).then(function () {
-    _exitSelectMode();
-    loadMessages(true);
-    toast('Deleted ' + ids.length + ' messages');
+  ypConfirm('Delete ' + ids.length + ' messages?', { danger: true, okText: 'Delete' }).then(function (ok) {
+    if (!ok) return;
+    var promises = ids.map(function (id) {
+      return api.del('/chat?id=' + encodeURIComponent(id)).catch(function () {});
+    });
+    Promise.all(promises).then(function () {
+      _exitSelectMode();
+      loadMessages(true);
+      toast('Deleted ' + ids.length + ' messages');
+    });
   });
 };
 
@@ -4970,25 +4985,27 @@ window.svDeleteCurrent = function () {
   if (!s) return;
   var slide = s.slides[HOME_svSlideIdx];
   if (!slide || !slide.id) return;
-  if (!confirm('Delete this status?')) return;
+  ypConfirm('Delete this status?', { danger: true, okText: 'Delete' }).then(function (ok) {
+    if (!ok) return;
 
-  var slideId = slide.id;
+    var slideId = slide.id;
 
-  // Remove from local cache immediately
-  s.slides.splice(HOME_svSlideIdx, 1);
-  if (!s.slides.length) {
-    HOME_svStatuses.splice(HOME_svUserIdx, 1);
-    closeSV();
-    toast('🗑 Status deleted.');
-  } else {
-    HOME_svSlideIdx = Math.min(HOME_svSlideIdx, s.slides.length - 1);
-    _svShowSlide();
-    toast('🗑 Slide deleted.');
-  }
+    // Remove from local cache immediately
+    s.slides.splice(HOME_svSlideIdx, 1);
+    if (!s.slides.length) {
+      HOME_svStatuses.splice(HOME_svUserIdx, 1);
+      closeSV();
+      toast('🗑 Status deleted.');
+    } else {
+      HOME_svSlideIdx = Math.min(HOME_svSlideIdx, s.slides.length - 1);
+      _svShowSlide();
+      toast('🗑 Slide deleted.');
+    }
 
-  // Delete on server
-  api.put('/statuses', { action: 'delete', id: slideId })
-    .catch(function (err) { toast('⚠ Could not delete: ' + err.message); });
+    // Delete on server
+    api.put('/statuses', { action: 'delete', id: slideId })
+      .catch(function (err) { toast('⚠ Could not delete: ' + err.message); });
+  });
 };
 
 // Load saved highlights on startup

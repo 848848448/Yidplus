@@ -1793,3 +1793,35 @@ window.ypConfirm = function (message, opts) {
     ov.onclick = function (e) { if (e.target === ov) done(false); };
   });
 };
+
+// ── Pretty prompt dialog (replaces native prompt "yidplus.com says…")
+// Returns Promise<string|null> (null when cancelled).
+window.ypPrompt = function (message, opts) {
+  opts = opts || {};
+  return new Promise(function (resolve) {
+    var prev = document.getElementById('yp-prompt-overlay');
+    if (prev) prev.remove();
+    var ov = document.createElement('div');
+    ov.id = 'yp-prompt-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:24px;font-family:inherit;backdrop-filter:blur(2px);animation:ypcfade .15s ease';
+    ov.innerHTML =
+      '<div style="background:var(--bg,#fff);color:var(--text,#111);border-radius:18px;max-width:340px;width:100%;padding:22px 20px 16px;box-shadow:0 12px 40px rgba(0,0,0,.3);animation:ypcpop .18s cubic-bezier(.2,.9,.3,1.2)">' +
+        (opts.title ? '<div style="font-weight:800;font-size:1.05rem;margin-bottom:.5rem" dir="auto">' + opts.title + '</div>' : '') +
+        '<div dir="auto" style="font-size:.92rem;line-height:1.45;margin-bottom:.7rem;color:var(--text,#111)">' + (message || '') + '</div>' +
+        '<input id="ypp-input" dir="auto" placeholder="' + (opts.placeholder || '') + '" style="width:100%;box-sizing:border-box;padding:.7rem .85rem;border:1.5px solid var(--border,#ddd);border-radius:12px;background:var(--bg3,#f7f7f7);color:var(--text,#111);font-size:.95rem;font-family:inherit;outline:none">' +
+        '<div style="display:flex;gap:.6rem;margin-top:16px">' +
+          '<button id="ypp-no" style="flex:1;padding:.7rem;border:1px solid var(--border,#ddd);background:var(--bg3,#f2f2f2);color:var(--text,#333);border-radius:12px;font-weight:700;font-size:.9rem;cursor:pointer;font-family:inherit">' + (opts.cancelText || 'Cancel') + '</button>' +
+          '<button id="ypp-yes" style="flex:1;padding:.7rem;border:none;background:#1F6F5C;color:#fff;border-radius:12px;font-weight:800;font-size:.9rem;cursor:pointer;font-family:inherit">' + (opts.okText || 'OK') + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    var input = ov.querySelector('#ypp-input');
+    if (opts.value) input.value = opts.value;
+    setTimeout(function () { input.focus(); }, 50);
+    function done(v) { ov.remove(); resolve(v); }
+    ov.querySelector('#ypp-yes').onclick = function () { done(input.value); };
+    ov.querySelector('#ypp-no').onclick = function () { done(null); };
+    ov.onclick = function (e) { if (e.target === ov) done(null); };
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') done(input.value); });
+  });
+};
