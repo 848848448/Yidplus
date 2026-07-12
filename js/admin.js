@@ -3409,6 +3409,20 @@ function _loadNow() {
           stat(res.active_sessions, 'Sessions') +
           stat(res.total_users, 'Total users') +
         '</div>' +
+        (function () {
+          var list = res.online_users || [];
+          if (!list.length) return '<div style="font-size:.72rem;color:var(--muted);text-align:center;margin-top:.6rem">Nobody is active in the last minute.</div>';
+          return '<div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.75rem;padding-top:.75rem;border-top:.5px solid var(--border)">' +
+            list.map(function (u) {
+              return '<button onclick="openUserDetailModal(\'' + u.id + '\')" style="display:flex;align-items:center;gap:.35rem;padding:.3rem .6rem .3rem .35rem;background:var(--bg3);border:1px solid var(--border);border-radius:999px;cursor:pointer;font-family:inherit">' +
+                (u.photo_url
+                  ? '<span style="width:22px;height:22px;border-radius:50%;background-image:url(' + u.photo_url + ');background-size:cover;flex-shrink:0"></span>'
+                  : '<span style="width:22px;height:22px;border-radius:50%;background:#16A34A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0">' + (u.nickname || 'U').slice(0,1).toUpperCase() + '</span>') +
+                '<span style="font-size:.75rem;font-weight:600;color:var(--text)">@' + escHtmlA(u.nickname) + '</span>' +
+              '</button>';
+            }).join('') +
+          '</div>';
+        })() +
       '</div>' +
       '<div class="admin-card"><div class="admin-card-title">📅 Today</div>' +
         '<div style="display:flex">' +

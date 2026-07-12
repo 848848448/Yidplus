@@ -25,7 +25,8 @@ export async function onRequestGet(context) {
     const today = startOfTodayISO();
 
     const [onlineNow, sessions, totalUsers, tUsers, tMsgs, tShorts] = await Promise.all([
-      env.DB.prepare('SELECT COUNT(*) AS c FROM users WHERE online = 1').first().catch(() => ({ c: 0 })),
+      env.DB.prepare("SELECT COUNT(*) AS c FROM users WHERE online = 1 AND last_ping >= datetime('now','-60 seconds')").first()
+        .catch(() => env.DB.prepare('SELECT COUNT(*) AS c FROM users WHERE online = 1').first().catch(() => ({ c: 0 }))),
       env.DB.prepare('SELECT COUNT(DISTINCT user_id) AS c FROM sessions').first().catch(() => ({ c: 0 })),
       env.DB.prepare('SELECT COUNT(*) AS c FROM users').first().catch(() => ({ c: 0 })),
       env.DB.prepare('SELECT COUNT(*) AS c FROM users WHERE created_at >= ?').bind(today).first().catch(() => ({ c: 0 })),
@@ -82,9 +83,15 @@ export async function onRequestGet(context) {
       users: (r.ids || '').split(',').filter(Boolean).map(id => ({ id, nickname: nickMap[id] || '(deleted)' })),
     }));
 
+    // Who is online right now (recent heartbeat)
+    const onlineList = await env.DB.prepare(
+      "SELECT id, nickname, photo_url FROM users WHERE online = 1 AND last_ping >= datetime('now','-60 seconds') ORDER BY last_ping DESC LIMIT 50"
+    ).all().catch(() => ({ results: [] }));
+
     return json({
       ok: true,
       online_now: onlineNow?.c || 0,
+      online_users: onlineList.results || [],
       active_sessions: sessions?.c || 0,
       total_users: totalUsers?.c || 0,
       today: { users: tUsers?.c || 0, messages: tMsgs?.c || 0, shorts: tShorts?.c || 0 },

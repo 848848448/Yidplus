@@ -135,10 +135,14 @@ export async function onRequestGet(context) {
       // All members (used for group lists + DM participant names)
       const mems = await env.DB.prepare(
         `SELECT rm.room_id, u.id, u.nickname, u.photo_url, u.role, rm.is_group_admin,
-                (CASE WHEN u.online = 1 THEN 1 ELSE 0 END) AS online
+                (CASE WHEN u.online = 1 AND u.last_ping >= datetime('now','-60 seconds') THEN 1 ELSE 0 END) AS online
          FROM room_members rm JOIN users u ON u.id = rm.user_id
          WHERE rm.room_id IN (${ph})`
-      ).bind(...c).all().catch(() => ({ results: [] }));
+      ).bind(...c).all().catch(() => env.DB.prepare(
+        `SELECT rm.room_id, u.id, u.nickname, u.photo_url, u.role, rm.is_group_admin, u.online
+         FROM room_members rm JOIN users u ON u.id = rm.user_id
+         WHERE rm.room_id IN (${ph})`
+      ).bind(...c).all().catch(() => ({ results: [] })));
       for (const m of (mems.results || [])) (membersByRoom[m.room_id] = membersByRoom[m.room_id] || []).push(m);
     }
 
