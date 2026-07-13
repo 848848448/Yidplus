@@ -316,51 +316,33 @@ function renderChatList() {
 function _attachChatSwipeGestures() {
   document.querySelectorAll('.chat-item-wrap').forEach(function (wrap) {
     var item = wrap.querySelector('.chat-item');
-    var startX = 0, startY = 0, dragging = false, moved = false;
+    if (item._lpBound) return;
+    item._lpBound = true;
+    var sx = 0, sy = 0, moved = false, lpTimer = null;
 
+    function reveal() {
+      document.querySelectorAll('.chat-item.swiped').forEach(function (o) { if (o !== item) o.classList.remove('swiped'); });
+      item.classList.add('swiped');
+      if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
+    }
+
+    // Long-press reveals the delete action (no more horizontal swipe here, so the
+    // list's left/right swipe is free to switch tabs in both directions).
     item.addEventListener('touchstart', function (e) {
-      var t = e.touches[0];
-      startX = t.clientX;
-      startY = t.clientY;
-      dragging = true;
-      moved = false;
+      var t = e.touches[0]; sx = t.clientX; sy = t.clientY; moved = false;
+      lpTimer = setTimeout(function () { lpTimer = null; if (!moved) reveal(); }, 500);
     }, { passive: true });
-
     item.addEventListener('touchmove', function (e) {
-      if (!dragging) return;
       var t = e.touches[0];
-      var dx = t.clientX - startX;
-      var dy = t.clientY - startY;
-      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved = true;
-      // Only react to clearly-horizontal, leftward drags.
-      if (Math.abs(dx) > Math.abs(dy) && dx < -20) {
-        e.preventDefault();
-      }
-    }, { passive: false });
-
-    item.addEventListener('touchend', function (e) {
-      if (!dragging) return;
-      dragging = false;
-      var t = e.changedTouches[0];
-      var dx = t.clientX - startX;
-      if (moved && dx < -45) {
-        document.querySelectorAll('.chat-item.swiped').forEach(function (other) {
-          if (other !== item) other.classList.remove('swiped');
-        });
-        item.classList.add('swiped');
-        window._chatRowSwipeHandled = true;   // suppress the tab swipe for this gesture
-      } else if (moved && dx > 20 && item.classList.contains('swiped')) {
-        item.classList.remove('swiped');
-        window._chatRowSwipeHandled = true;
-      }
-    });
-
-    item.addEventListener('touchcancel', function () {
-      dragging = false;
-    });
+      if (Math.abs(t.clientX - sx) > 10 || Math.abs(t.clientY - sy) > 10) { moved = true; if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } }
+    }, { passive: true });
+    item.addEventListener('touchend', function () { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } });
+    item.addEventListener('touchcancel', function () { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } });
+    // Desktop: right-click reveals delete too.
+    item.addEventListener('contextmenu', function (e) { e.preventDefault(); reveal(); });
   });
 
-  // Tapping anywhere else closes any open swipe-delete row.
+  // Tapping anywhere else closes any open delete row.
   document.addEventListener('click', function (e) {
     if (!e.target.closest('.chat-item-wrap')) {
       document.querySelectorAll('.chat-item.swiped').forEach(function (i) { i.classList.remove('swiped'); });
