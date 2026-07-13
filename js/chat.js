@@ -32,6 +32,7 @@ var CHAT_curTopicName = null;
 var CHAT_topicsCache  = {};    // roomId -> topics array, so re-opening a group doesn't always refetch
 var CHAT_messages    = [];
 var CHAT_lastRenderSig = null;
+var CHAT_lpCache = {}; // msgId -> {html, css, url} so previews survive re-renders without flicker
 var CHAT_reactions   = {}; // { messageId: { counts: {emoji: n}, my_reaction: emoji|null } }
 var CHAT_replyTo     = null;
 var CHAT_ctxMsg      = null;
@@ -844,6 +845,16 @@ window.openChatRoom = function (roomId, topicId, topicName) {
 
   // Load members list for groups
   if (isGroup) loadGroupMembers(roomId);
+
+  // Let a group's manager know if people are waiting to join.
+  var _canMng = isGroup && (room.is_group_admin || (STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner)));
+  if (_canMng) {
+    api.get('/chat/join-requests?room_id=' + encodeURIComponent(roomId)).then(function (res) {
+      if (res.ok && res.requests && res.requests.length && CHAT_curRoom && CHAT_curRoom.id === roomId) {
+        toast('📩 ' + res.requests.length + ' join request' + (res.requests.length > 1 ? 's' : '') + ' — tap the group name to review');
+      }
+    }).catch(function () {});
+  }
 };
 
 // ============================================================
@@ -892,6 +903,8 @@ window.openChatInfo = function () {
   var canManageGroup = isGroup && (CHAT_curRoom.is_group_admin || isSuperAdmin);
   document.getElementById('info-admin-settings').style.display = canManageGroup ? 'block' : 'none';
 
+  if (canManageGroup) _loadJoinRequests(CHAT_curRoom.id);
+
   if (canManageGroup) {
     document.getElementById('group-readonly-toggle').classList.toggle('on', !CHAT_curRoom.read_only);
     document.getElementById('group-visibility-toggle').classList.toggle('on', CHAT_curRoom.visibility === 'public');
@@ -916,6 +929,60 @@ window.openChatInfo = function () {
   navTo('chatinfo');
 };
 window.openMembersList = window.openChatInfo; // legacy alias
+
+// ── Private-group join requests (managers see & approve/reject) ──
+function _loadJoinRequests(roomId) {
+  // Ensure a container exists at the top of the admin-settings panel.
+  var panel = document.getElementById('info-admin-settings');
+  if (!panel) return;
+  var box = document.getElementById('join-requests-box');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'join-requests-box';
+    box.style.cssText = 'margin-bottom:1rem';
+    panel.insertBefore(box, panel.firstChild);
+  }
+  box.innerHTML = '';
+  api.get('/chat/join-requests?room_id=' + encodeURIComponent(roomId)).then(function (res) {
+    if (!res.ok || !res.requests || !res.requests.length) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    var items = res.requests.map(function (r) {
+      var av = r.photo_url
+        ? '<img src="' + escHtml(r.photo_url) + '" style="width:38px;height:38px;border-radius:50%;object-fit:cover">'
+        : '<div style="width:38px;height:38px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">' + escHtml((r.nickname || '?').charAt(0)) + '</div>';
+      return '<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px solid var(--border)">' +
+        av +
+        '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" dir="auto">' + escHtml(r.nickname || 'Someone') + '</div>' +
+        '<div style="font-size:.7rem;color:var(--muted)">wants to join</div></div>' +
+        '<button onclick="_answerJoinReq(\'' + r.id + '\',\'approve\',this)" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:.4rem .7rem;font-weight:700;font-size:.8rem;cursor:pointer">Add</button>' +
+        '<button onclick="_answerJoinReq(\'' + r.id + '\',\'reject\',this)" style="background:none;color:var(--red);border:none;border-radius:8px;padding:.4rem .5rem;font-size:.8rem;cursor:pointer">✕</button>' +
+      '</div>';
+    }).join('');
+    box.innerHTML = '<div style="font-size:.72rem;font-weight:800;letter-spacing:.06em;color:var(--blue);margin-bottom:.4rem">📩 JOIN REQUESTS (' + res.requests.length + ')</div>' + items;
+  }).catch(function () { box.style.display = 'none'; });
+}
+window._answerJoinReq = function (reqId, action, btn) {
+  var row = btn && btn.parentElement;
+  if (row) row.style.opacity = '.4';
+  api.post('/chat/join-requests', { request_id: reqId, action: action }).then(function (res) {
+    if (!res.ok) { toast('❌ ' + (res.error || 'Failed')); if (row) row.style.opacity = '1'; return; }
+    toast(action === 'approve' ? '✅ Added to group' : 'Request declined');
+    if (row) row.remove();
+    if (action === 'approve') { loadGroupMembers(CHAT_curRoom.id); loadMessages(true); }
+    _loadJoinRequests(CHAT_curRoom.id);
+    _updateJoinReqBadge();
+  }).catch(function (e) { toast('❌ ' + e.message); if (row) row.style.opacity = '1'; });
+};
+// Small badge on the chats list so managers notice new requests without digging.
+function _updateJoinReqBadge() {
+  api.get('/chat/join-requests?count=1').then(function (res) {
+    var el = document.getElementById('join-req-badge');
+    if (!el) return;
+    if (res.ok && res.count > 0) { el.textContent = res.count; el.style.display = 'flex'; }
+    else el.style.display = 'none';
+  }).catch(function () {});
+}
+
 
 window.toggleGroupReadOnly = function () {
   if (!CHAT_curRoom) return;
@@ -1224,6 +1291,21 @@ function loadMessages(scrollToBottom) {
           var rawUrl = urlMatch[1];
           var lpEl = document.getElementById('lp-' + m.id);
           if (!lpEl || lpEl.dataset.loaded) return;
+
+          // Internal invite/join links have no useful preview and render as an
+          // empty white box — skip them (the link text stays clickable).
+          if (/\/chat\?join=|\/invite\b|yidplus\.com\/chat\?/i.test(rawUrl)) { lpEl.dataset.loaded = '1'; return; }
+
+          // Re-renders (e.g. a read-receipt change) replace the message node and
+          // wipe the loaded preview; repopulate instantly from cache so it never
+          // flickers or "dances".
+          if (CHAT_lpCache[m.id]) {
+            lpEl.dataset.loaded = '1';
+            lpEl.style.cssText = CHAT_lpCache[m.id].css;
+            lpEl.innerHTML = CHAT_lpCache[m.id].html;
+            lpEl.onclick = CHAT_lpCache[m.id].url ? function () { window.open(CHAT_lpCache[m.id].url, '_blank'); } : null;
+            return;
+          }
           lpEl.dataset.loaded = '1';
 
           // YouTube embed
@@ -1238,10 +1320,9 @@ function loadMessages(scrollToBottom) {
                   'allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" ' +
                   'allowfullscreen loading="lazy"></iframe>' +
               '</div>';
+            CHAT_lpCache[m.id] = { html: lpEl.innerHTML, css: lpEl.style.cssText, url: '' };
             return;
           }
-
-          // OG Preview for other links
           api.get('/link-preview?url=' + encodeURIComponent(rawUrl))
             .then(function (res) {
               if (!res || !res.ok || !res.title) return;
@@ -1258,6 +1339,7 @@ function loadMessages(scrollToBottom) {
                   (res.description ? '<div style="font-size:.72rem;color:' + (isMe ? 'rgba(255,255,255,.75)' : 'var(--muted)') + ';margin-top:.2rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + escHtml(res.description.slice(0, 120)) + '</div>' : '') +
                 '</div>';
               lpEl.style.display = 'block';
+              CHAT_lpCache[m.id] = { html: lpEl.innerHTML, css: 'display:block;margin-top:.4rem;border-radius:12px;overflow:hidden;border:1px solid var(--border);cursor:pointer;background:var(--surface);max-width:100%;opacity:1', url: rawUrl };
               // Fade in on the next frame instead of popping straight to
               // opacity 1 — softens the sudden appearance once the async
               // preview fetch resolves, since it always lands a beat after
