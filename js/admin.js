@@ -183,6 +183,8 @@ var ADMIN_PANELS = [
   { id:'growth',         label:'Growth',          roles:['admin_limited','admin_super','owner'] },
   { id:'health',         label:'Storage',         roles:['owner'] },
   { id:'antispam',       label:'Anti-spam',       roles:['owner'] },
+  { id:'email-templates',label:'Email',           roles:['owner'] },
+  { id:'featured',       label:'Featured',        roles:['admin_super','owner'] },
   { id:'users',          label:'Users',           roles:['admin_limited','admin_super','owner'] },
   { id:'reports',        label:'Reports',         roles:['admin_limited','admin_super','owner'] },
   { id:'warnings',       label:'Warnings',        roles:['admin_limited','admin_super','owner'] },
@@ -227,7 +229,7 @@ var ADMIN_CATEGORIES = [
   { id:'moderation', label:'Moderation', desc:'Reports, feedback, support, filter',   color:'#A32D2D', bg:'#FCEBEB', bgd:'#791F1F',
     panels:['reports','feedback','support-chats','chat-watch','shorts-mod','music-mod','bad-words'] },
   { id:'content',    label:'Content',    desc:'Announce, broadcast, channels, more',  color:'#534AB7', bg:'#EEEDFE', bgd:'#3C3489',
-    panels:['announcements','broadcast','channels-mgr','telegram'] },
+    panels:['announcements','broadcast','channels-mgr','telegram','email-templates','featured'] },
   { id:'system',     label:'System',     desc:'Features, app, ads, logs, export',     color:'#5F5E5A', bg:'#F1EFE8', bgd:'#2C2C2A',
     panels:['features','app-settings','ads','maintenance','antispam','health','ip-logs','audit-logs','export','nuclear','admin-settings'] },
 ];
@@ -342,6 +344,12 @@ function buildAdminPanel(id) {
   }
   if (id === 'antispam') {
     buildAntispamPanel(content); return;
+  }
+  if (id === 'email-templates') {
+    buildEmailTemplatesPanel(content); return;
+  }
+  if (id === 'featured') {
+    buildFeaturedPanel(content); return;
   }
   if (id === 'analytics') {
     content.innerHTML =
@@ -2771,6 +2779,66 @@ window.asSaveWelcome = function () {
   var msg = (document.getElementById('as-wel-msg') || {}).value || '';
   saveSetting('welcome_enabled', on ? 'true' : 'false');
   saveSetting('welcome_message', msg);
+};
+
+/* ══════════════════════════════════
+   EMAIL TEMPLATES
+══════════════════════════════════ */
+function buildEmailTemplatesPanel(content) {
+  var s = STATE.settings || {};
+  function fld(id, label, val, ph) {
+    return '<div style="margin-bottom:.9rem"><div style="font-size:.78rem;font-weight:700;margin-bottom:.3rem">' + label + '</div>' +
+      '<input id="' + id + '" value="' + escHtml(val || '') + '" placeholder="' + ph + '" style="width:100%;box-sizing:border-box;padding:.6rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem"></div>';
+  }
+  content.innerHTML = '<div class="admin-panel">' +
+    '<div class="admin-card">' +
+      '<div class="admin-card-title">✉️ Email settings</div>' +
+      '<div style="font-size:.76rem;color:var(--muted);margin-bottom:.9rem">Customize the emails members receive. Leave blank to use the defaults. The confirm button/link is added automatically.</div>' +
+      fld('et-from', 'From name (shown as the sender)', s.email_from_name, 'YID PLUS') +
+      fld('et-verify-subj', 'Verification email — subject', s.email_verify_subject, 'Confirm your YID PLUS account') +
+      '<div style="margin-bottom:.9rem"><div style="font-size:.78rem;font-weight:700;margin-bottom:.3rem">Verification email — intro text</div>' +
+        '<textarea id="et-verify-intro" dir="auto" rows="3" placeholder="Please confirm your email address to activate your account." style="width:100%;box-sizing:border-box;padding:.6rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;resize:vertical">' + escHtml(s.email_verify_intro || '') + '</textarea></div>' +
+      '<button class="bc-send-btn" onclick="etSave()">Save email templates</button>' +
+    '</div>' +
+  '</div>';
+}
+window.etSave = function () {
+  saveSetting('email_from_name', (document.getElementById('et-from') || {}).value || '');
+  saveSetting('email_verify_subject', (document.getElementById('et-verify-subj') || {}).value || '');
+  saveSetting('email_verify_intro', (document.getElementById('et-verify-intro') || {}).value || '');
+  toast('✅ Email templates saved!');
+};
+
+/* ══════════════════════════════════
+   FEATURED CONTENT
+══════════════════════════════════ */
+function buildFeaturedPanel(content) {
+  content.innerHTML = '<div class="admin-panel"><div class="admin-card"><div class="admin-card-title">⭐ Featured posts</div>' +
+    '<div style="color:var(--muted);font-size:.8rem">Loading…</div></div></div>';
+  api.get('/admin/feature').then(function (d) {
+    if (!d.ok) { content.innerHTML = '<div class="admin-panel"><div class="admin-card">❌ ' + (d.error || 'Error') + '</div></div>'; return; }
+    var rows = (d.posts || []).map(function (p) {
+      var feat = !!p.is_featured;
+      var cap = (p.caption || '(no caption)').slice(0, 60);
+      return '<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem 0;border-bottom:1px solid var(--border)">' +
+        (feat ? '<span style="font-size:1rem">⭐</span>' : '') +
+        '<div style="flex:1;min-width:0"><div style="font-size:.82rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" dir="auto">' + escHtml(cap) + '</div>' +
+        '<div style="font-size:.66rem;color:var(--muted)">@' + escHtml(p.username || '?') + ' · ' + timeAgo(p.created_at) + '</div></div>' +
+        '<button class="save-pill" style="' + (feat ? 'background:#B45309' : '') + '" onclick="adminToggleFeature(\'' + p.id + '\',' + (feat ? 'false' : 'true') + ',this)">' + (feat ? 'Unfeature' : '⭐ Feature') + '</button>' +
+      '</div>';
+    }).join('');
+    content.innerHTML = '<div class="admin-panel"><div class="admin-card">' +
+      '<div class="admin-card-title">⭐ Featured posts</div>' +
+      '<div style="font-size:.74rem;color:var(--muted);margin-bottom:.7rem">Featured posts are pinned to the top of everyone\'s feed.</div>' +
+      (rows || '<div style="color:var(--muted);font-size:.8rem">No posts yet.</div>') +
+    '</div></div>';
+  }).catch(function (e) { content.innerHTML = '<div class="admin-panel"><div class="admin-card">❌ ' + e.message + '</div></div>'; });
+}
+window.adminToggleFeature = function (postId, featured, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  api.post('/admin/feature', { post_id: postId, featured: featured })
+    .then(function () { toast(featured ? '⭐ Featured!' : 'Unfeatured'); buildFeaturedPanel(document.getElementById('admin-content')); })
+    .catch(function (err) { toast('❌ ' + err.message); if (btn) btn.disabled = false; });
 };
 
 function buildHealthPanel(content) {

@@ -19,7 +19,18 @@ export async function sendVerificationEmail(env, userId, email, origin) {
 
   const verifyUrl = `${origin}/api/auth/verify-email?token=${token}`;
 
-  const fromAddr = env.RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>';
+  // Owner-customizable bits (Admin → Email Templates), with safe defaults.
+  async function setting(key, dflt) {
+    try { const r = await env.DB.prepare('SELECT value FROM app_settings WHERE key = ?').bind(key).first(); return (r && r.value) ? r.value : dflt; }
+    catch (e) { return dflt; }
+  }
+  const fromName = await setting('email_from_name', '');
+  const subject  = await setting('email_verify_subject', 'Confirm your YID PLUS account');
+  const intro    = await setting('email_verify_intro', 'Please confirm your email address to activate your account.');
+
+  const fromAddr = fromName
+    ? `${fromName} <${(env.RESEND_FROM_EMAIL || 'onboarding@resend.dev').replace(/^.*<|>.*$/g, '')}>`
+    : (env.RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>');
 
   const resp = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -30,11 +41,11 @@ export async function sendVerificationEmail(env, userId, email, origin) {
     body: JSON.stringify({
       from: fromAddr,
       to: [email],
-      subject: 'Confirm your YID PLUS account',
+      subject: subject,
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
           <h2 style="color:#1F6F5C">Welcome to YID PLUS! 🎉</h2>
-          <p>Please confirm your email address to activate your account.</p>
+          <p>${intro.replace(/</g, '&lt;')}</p>
           <a href="${verifyUrl}" style="display:inline-block;background:#1F6F5C;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
             Confirm My Email
           </a>

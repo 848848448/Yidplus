@@ -17,6 +17,8 @@ export async function onRequestGet(context) {
     const user = await requireUser(request, env).catch(() => null);
     const url = new URL(request.url);
     const filterUserId = url.searchParams.get('user_id');
+    // Featured/pinned posts support.
+    await env.DB.prepare('ALTER TABLE posts ADD COLUMN is_featured INTEGER DEFAULT 0').run().catch(() => {});
 
     let results;
     try {
@@ -26,8 +28,8 @@ export async function onRequestGet(context) {
              FROM posts WHERE user_id = ? AND (hidden IS NULL OR hidden = 0) ORDER BY created_at DESC LIMIT 30`
           ).bind(filterUserId).all()
         : await env.DB.prepare(
-            `SELECT id, username, user_id, caption, content, likes, comments, created_at
-             FROM posts WHERE (hidden IS NULL OR hidden = 0) ORDER BY created_at DESC LIMIT 30`
+            `SELECT id, username, user_id, caption, content, likes, comments, created_at, is_featured
+             FROM posts WHERE (hidden IS NULL OR hidden = 0) ORDER BY is_featured DESC, created_at DESC LIMIT 30`
           ).all();
       results = r.results;
     } catch (e) {
