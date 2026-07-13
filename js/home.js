@@ -812,6 +812,7 @@ window.svPrev = function () {
 var _svTouchX    = 0;
 var _svTouchY    = 0;
 var _svTouchMoved = false;
+var _svDragging  = false;
 
 window.svTouchStart = function (e) {
   var t = e.touches[0];
@@ -830,13 +831,36 @@ window.svTouchStart = function (e) {
 };
 
 window.svTouchEnd = function (e) {
-  var wasLongPress = !HOME_svLongTimer; // timer already fired = long press
-  clearTimeout(HOME_svLongTimer);
-  HOME_svLongTimer = null;
-
+  var ov = document.getElementById('sv-overlay');
   var touch = e.changedTouches[0];
   var dy = touch.clientY - _svTouchY;
   var dx = touch.clientX - _svTouchX;
+
+  // Was dragging the sheet down → close if far/fast enough, else snap back.
+  if (_svDragging) {
+    _svDragging = false;
+    clearTimeout(HOME_svLongTimer); HOME_svLongTimer = null;
+    ov.style.transition = 'transform .24s ease, opacity .24s ease, border-radius .24s ease';
+    if (dy > 130) {
+      ov.style.transform = 'translateY(100%)';
+      ov.style.opacity = '0';
+      setTimeout(function () {
+        closeSV();
+        ov.style.transform = ''; ov.style.opacity = ''; ov.style.borderRadius = ''; ov.style.transition = ''; ov.style.overflow = '';
+      }, 210);
+    } else {
+      ov.style.transform = ''; ov.style.opacity = ''; ov.style.borderRadius = ''; ov.style.overflow = '';
+      HOME_svPaused = false;
+      var v = document.querySelector('#sv-slide video'); if (v) v.play().catch(function () {});
+      _svResyncBar();
+      setTimeout(function () { ov.style.transition = ''; }, 260);
+    }
+    return;
+  }
+
+  var wasLongPress = !HOME_svLongTimer; // timer already fired = long press
+  clearTimeout(HOME_svLongTimer);
+  HOME_svLongTimer = null;
 
   if (wasLongPress) {
     // Releasing after long press → resume silently
@@ -859,11 +883,25 @@ window.svTouchEnd = function (e) {
 
 // Detect scroll/swipe-away so we don't accidentally navigate
 document.addEventListener('touchmove', function (e) {
-  if (!document.getElementById('sv-overlay').classList.contains('open')) return;
+  var ov = document.getElementById('sv-overlay');
+  if (!ov || !ov.classList.contains('open')) return;
   var t = e.touches[0];
-  if (Math.abs(t.clientX - _svTouchX) > 10 || Math.abs(t.clientY - _svTouchY) > 10) {
+  var dx = t.clientX - _svTouchX;
+  var dy = t.clientY - _svTouchY;
+  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
     _svTouchMoved = true;
     if (HOME_svLongTimer) { clearTimeout(HOME_svLongTimer); HOME_svLongTimer = null; }
+  }
+  // Drag the whole viewer down with your finger (WhatsApp-style dismiss).
+  if (dy > 0 && dy > Math.abs(dx) * 1.3) {
+    _svDragging = true;
+    HOME_svPaused = true;
+    var vid = document.querySelector('#sv-slide video'); if (vid) vid.pause();
+    ov.style.transition = 'none';
+    ov.style.transform = 'translateY(' + dy + 'px) scale(' + Math.max(0.86, 1 - dy / 1400) + ')';
+    ov.style.borderRadius = Math.min(26, dy / 9) + 'px';
+    ov.style.opacity = Math.max(0.35, 1 - dy / 650);
+    ov.style.overflow = 'hidden';
   }
 }, { passive: true });
 
