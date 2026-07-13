@@ -1701,3 +1701,24 @@ img { opacity: 1; }
 .bubble.them .music-prog-fill { background: #1F6F5C; }
 .music-sub { display: flex; align-items: center; justify-content: space-between; font-size: .68rem; font-variant-numeric: tabular-nums; opacity: .8; }
 .music-badge { font-weight: 700; opacity: .85; }
+
+/* ── Poll readability on the green "me" bubble (was low-contrast/unreadable) ── */
+.bubble.me .poll-question,
+.bubble.me .poll-description { color: #fff !important; }
+.bubble.me .poll-meta-line,
+.bubble.me .poll-voters-line,
+.bubble.me .poll-footer-row { color: rgba(255,255,255,.82) !important; }
+.bubble.me .poll-opt {
+  background: rgba(255,255,255,.96) !important;
+  border-color: rgba(255,255,255,.35) !important;
+}
+.bubble.me .poll-opt-text { color: #1a1a1a !important; }
+.bubble.me .poll-opt-pct { color: #1F6F5C !important; }
+.bubble.me .poll-opt-fill { background: rgba(31,111,92,.20) !important; }
+.bubble.me .poll-opt.voted { border-color: #fff !important; }
+.bubble.me .poll-opt-check { border-color: #9ab8ae !important; }
+.bubble.me .poll-opt.voted .poll-opt-check { background: #1F6F5C !important; border-color: #1F6F5C !important; }
+.bubble.me .poll-close-btn { color: #ffd0d0 !important; }
+.bubble.me .poll-add-suggest-btn { color: #fff !important; border-color: rgba(255,255,255,.4) !important; }
+/* A touch more polish for both sides */
+.poll-opt { transition: border-color .15s, background .15s; }
