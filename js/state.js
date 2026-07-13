@@ -1102,7 +1102,8 @@ window._gsOpenLiveChat = function (chatId) {
   GS_liveSeen = -1;
   var body = document.getElementById('gs-body');
   if (!body) return;
-  body.innerHTML = '<div id="gs-status" style="text-align:center;font-size:.7rem;color:var(--muted);padding:.4rem 0 .6rem"></div><div id="gs-thread"></div>';
+  body.innerHTML = '<div id="gs-status" style="text-align:center;font-size:.7rem;color:var(--muted);padding:.4rem 0 .6rem"></div>' +
+    '<div id="gs-thread" style="display:flex;flex-direction:column;gap:.35rem"></div>';
 
   var wrap = document.getElementById('guided-support');
   var old = document.getElementById('gs-live-composer'); if (old) old.remove();
@@ -1134,10 +1135,16 @@ function _gsRenderThread(chat, messages) {
   }
   var thread = document.getElementById('gs-thread');
   if (!thread) return;
+  function clock(ts) { try { return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
   thread.innerHTML = (messages || []).map(function (m) {
     var isUser = m.sender_type === 'user';
-    var img = m.media_url ? '<img src="' + _gsEsc(m.media_url) + '" onclick="window.open(this.src,\'_blank\')" style="max-width:180px;border-radius:8px;display:block;margin-top:' + (m.text ? '.3rem' : '0') + ';cursor:pointer">' : '';
-    return '<div class="gs-bubble ' + (isUser ? 'gs-user' : 'gs-bot') + '">' + (m.text ? _gsEsc(m.text) : '') + img + '</div>';
+    var name = (!isUser && m.sender_nick) ? '<div style="font-size:.62rem;font-weight:700;opacity:.85;margin-bottom:.12rem">' + _gsEsc(m.sender_nick) + '</div>' : '';
+    var txt = m.text ? '<div dir="auto">' + _gsEsc(m.text) + '</div>' : '';
+    var img = m.media_url ? '<img src="' + _gsEsc(m.media_url) + '" onclick="window.open(this.src,\'_blank\')" style="max-width:190px;border-radius:10px;display:block;margin-top:' + (m.text ? '.3rem' : '0') + ';cursor:pointer">' : '';
+    var time = '<div style="font-size:.58rem;opacity:.6;text-align:' + (isUser ? 'right' : 'left') + ';margin-top:.2rem">' + clock(m.created_at) + '</div>';
+    return '<div class="gs-bubble ' + (isUser ? 'gs-user' : 'gs-bot') + '" style="width:fit-content;max-width:80%;' + (isUser ? 'align-self:flex-end' : 'align-self:flex-start') + '">' +
+      name + txt + img + time +
+    '</div>';
   }).join('');
   var body = document.getElementById('gs-body');
   if (body) body.scrollTop = body.scrollHeight;
@@ -1165,8 +1172,8 @@ function _gsSendLive(text, file) {
   }
   var thread = document.getElementById('gs-thread');
   if (thread) {
-    var img = file ? '<img src="' + URL.createObjectURL(file) + '" style="max-width:180px;border-radius:8px;display:block;margin-top:' + (text ? '.3rem' : '0') + '">' : '';
-    thread.insertAdjacentHTML('beforeend', '<div class="gs-bubble gs-user">' + (text ? _gsEsc(text) : '') + img + '</div>');
+    var img = file ? '<img src="' + URL.createObjectURL(file) + '" style="max-width:190px;border-radius:10px;display:block;margin-top:' + (text ? '.3rem' : '0') + '">' : '';
+    thread.insertAdjacentHTML('beforeend', '<div class="gs-bubble gs-user" style="width:fit-content;max-width:80%;align-self:flex-end;opacity:.75">' + (text ? '<div dir="auto">' + _gsEsc(text) + '</div>' : '') + img + '</div>');
     var body = document.getElementById('gs-body'); if (body) body.scrollTop = body.scrollHeight;
   }
   var p;
