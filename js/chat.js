@@ -348,8 +348,10 @@ function _attachChatSwipeGestures() {
           if (other !== item) other.classList.remove('swiped');
         });
         item.classList.add('swiped');
-      } else if (moved && dx > 20) {
+        window._chatRowSwipeHandled = true;   // suppress the tab swipe for this gesture
+      } else if (moved && dx > 20 && item.classList.contains('swiped')) {
         item.classList.remove('swiped');
+        window._chatRowSwipeHandled = true;
       }
     });
 
@@ -698,15 +700,44 @@ window.filterChats = function () {
   renderChatList();
 };
 
-window.switchChatTab = function (btn, tab) {
+var CHAT_TABS = ['all', 'private', 'groups', 'channels'];
+window.switchChatTab = function (btn, tab) { _setChatTab(tab); };
+function _setChatTab(tab) {
+  if (CHAT_TABS.indexOf(tab) === -1) tab = 'all';
   CHAT_tab = tab;
-  document.querySelectorAll('.ctab, .tg-tab').forEach(function (t) { t.classList.remove('active'); });
-  btn.classList.add('active');
+  try { localStorage.setItem('yp_chat_tab', tab); } catch (e) {}
+  document.querySelectorAll('.tg-tab').forEach(function (t) {
+    var on = t.getAttribute('data-tab') === tab;
+    t.classList.toggle('active', on);
+    if (on && t.scrollIntoView) { try { t.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); } catch (e) {} }
+  });
   renderChatList();
-  // Show status FAB only on Private Chats tab
   var fab = document.getElementById('status-fab-btn');
   if (fab) fab.style.display = (tab === 'private') ? 'flex' : 'none';
-};
+}
+// Restore the last tab on load, and slide the list between tabs with a swipe.
+function _restoreChatTab() {
+  var t = 'all';
+  try { t = localStorage.getItem('yp_chat_tab') || 'all'; } catch (e) {}
+  _setChatTab(t);
+}
+function _initChatTabSwipe() {
+  var area = document.getElementById('chat-list-area');
+  if (!area || area._swipeBound) return;
+  area._swipeBound = true;
+  var x0 = 0, y0 = 0, tracking = false;
+  area.addEventListener('touchstart', function (e) { var t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; tracking = true; window._chatRowSwipeHandled = false; }, { passive: true });
+  area.addEventListener('touchend', function (e) {
+    if (!tracking) return; tracking = false;
+    if (window._chatRowSwipeHandled) return;                 // a chat row handled this swipe (reveal delete) — don't switch tabs
+    var t = e.changedTouches[0];
+    var dx = t.clientX - x0, dy = t.clientY - y0;
+    if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.6) return; // must be a clear horizontal swipe
+    var i = CHAT_TABS.indexOf(CHAT_tab);
+    if (dx < 0 && i < CHAT_TABS.length - 1) _setChatTab(CHAT_TABS[i + 1]);      // swipe left → next tab
+    else if (dx > 0 && i > 0) _setChatTab(CHAT_TABS[i - 1]);                    // swipe right → prev tab
+  }, { passive: true });
+}
 
 // ============================================================
 // OPEN ROOM

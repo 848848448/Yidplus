@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://yidplus.com">
 <meta property="og:type" content="website">
 <title>YID PLUS — Chats</title>
-<link rel="stylesheet" href="css/style.css?v=202607111530">
+<link rel="stylesheet" href="css/style.css?v=202607111630">
 <script>
 (function () {
   try {
@@ -63,10 +63,10 @@
 
   <!-- Tabs -->
   <div class="tg-tabs-row">
-    <button class="tg-tab active" onclick="switchChatTab(this,'all')">All</button>
-    <button class="tg-tab" onclick="switchChatTab(this,'private')">Private Chats</button>
-    <button class="tg-tab" onclick="switchChatTab(this,'groups')">Groups</button>
-    <button class="tg-tab" onclick="switchChatTab(this,'channels')">Channels</button>
+    <button class="tg-tab active" data-tab="all" onclick="switchChatTab(this,'all')">All</button>
+    <button class="tg-tab" data-tab="private" onclick="switchChatTab(this,'private')">Private Chats</button>
+    <button class="tg-tab" data-tab="groups" onclick="switchChatTab(this,'groups')">Groups</button>
+    <button class="tg-tab" data-tab="channels" onclick="switchChatTab(this,'channels')">Channels</button>
   </div>
 
   <!-- Folder row -->
@@ -648,10 +648,10 @@
 #chat-options-menu { position: fixed; }
 </style>
 
-<script src="js/state.js?v=202607111530"></script>
-<script src="js/theme.js?v=202607111530"></script>
-<script src="js/app.js?v=202607111530"></script>
-<script src="js/chat.js?v=202607111530"></script>
+<script src="js/state.js?v=202607111630"></script>
+<script src="js/theme.js?v=202607111630"></script>
+<script src="js/app.js?v=202607111630"></script>
+<script src="js/chat.js?v=202607111630"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
@@ -1008,6 +1008,18 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
+    // Restore the last-used chat filter tab (All/Private/Groups/Channels) and
+    // enable finger-swipe between tabs.
+    try {
+      var _savedTab = localStorage.getItem('yp_chat_tab');
+      if (_savedTab && typeof CHAT_tab !== 'undefined') {
+        CHAT_tab = _savedTab;
+        document.querySelectorAll('.tg-tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === _savedTab); });
+        var _f = document.getElementById('status-fab-btn'); if (_f) _f.style.display = (_savedTab === 'private') ? 'flex' : 'none';
+      }
+    } catch (e) {}
+    if (typeof _initChatTabSwipe === 'function') _initChatTabSwipe();
+
     // Refresh restore: openChatRoom writes #room=<id>, so on load reopen it.
     var hashMatch = (window.location.hash || '').match(/room=([^&]+)/);
     if (hashMatch) {
@@ -1025,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="js/ads.js?v=202607111530"></script>
+<script src="js/ads.js?v=202607111630"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");</script>
 </body>
 </html>
