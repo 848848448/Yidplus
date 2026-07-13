@@ -868,6 +868,7 @@ var SUPPORT_FLOW = {
       { label: '🎬 Shorts / Music / Status', next: 'media' },
       { label: '👤 My account or profile', next: 'account' },
       { label: '✍️ Something else', action: 'free_text', label_for_msg: 'Something else' },
+      { label: '💬 Message a person', action: 'live_chat' },
     ],
   },
   signin: {
@@ -935,14 +936,23 @@ window.openGuidedSupport = function () {
     '</div>' +
     '<div class="gs-body" id="gs-body"></div>';
   document.body.appendChild(wrap);
-  // Resume an existing open conversation if there is one; otherwise show the menu.
+  _gsGoTo('start');
+  // Keep the self-help menu first; if a live conversation is already open,
+  // offer a "Continue" shortcut at the top instead of jumping straight in.
   if (typeof api !== 'undefined' && STATE && STATE.user) {
     api.get('/support-chats?self=1').then(function (res) {
-      if (res && res.ok && res.chat) window._gsOpenLiveChat(res.chat.id);
-      else _gsGoTo('start');
-    }).catch(function () { _gsGoTo('start'); });
-  } else {
-    _gsGoTo('start');
+      if (res && res.ok && res.chat) {
+        var opts = document.getElementById('gs-current-options');
+        if (opts) {
+          var btn = document.createElement('button');
+          btn.className = 'gs-opt';
+          btn.style.fontWeight = '700';
+          btn.textContent = '💬 Continue your conversation';
+          btn.onclick = function () { window._gsOpenLiveChat(res.chat.id); };
+          opts.insertBefore(btn, opts.firstChild);
+        }
+      }
+    }).catch(function () {});
   }
 };
 
@@ -1000,7 +1010,9 @@ function _gsPick(opt) {
   if (opt.next) { setTimeout(function () { _gsGoTo(opt.next); }, 250); return; }
 
   setTimeout(function () {
-    if (opt.action === 'reset_password') {
+    if (opt.action === 'live_chat') {
+      window._gsOpenLiveChat(opt.chat_id || null);
+    } else if (opt.action === 'reset_password') {
       _gsAddBot(['You can reset your password from the sign-in screen — tap "Forgot password?" and we\'ll email you a link.', 'Want me to send it now?']);
       _gsAddOptions([
         { label: '📧 Email me a reset link', action: 'do_reset' },
