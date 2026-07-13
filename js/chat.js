@@ -1299,7 +1299,7 @@ function renderMessages(scrollDown) {
   // Group consecutive media messages into albums
   var albumGroups = _groupMediaAlbums(CHAT_messages);
 
-  var html = CHAT_messages.map(function (m, idx) {
+  var _htmlArr = CHAT_messages.map(function (m, idx) {
     var isMe = m.sender_id === meId;
     var msgDate = m.created_at ? m.created_at.slice(0, 10) : '';
     var dateSep = '';
@@ -1586,21 +1586,82 @@ function renderMessages(scrollDown) {
           reactionRow +
         '</div>' +
       '</div>';
-  }).join('');
+  });
 
-  // Preserve scroll position if not at bottom
-  var prevScroll = cont.scrollTop;
-  var prevHeight = cont.scrollHeight;
-  cont.innerHTML = '<div class="chat-msgs-inner">' + html + '</div>';
+  // Build per-message units (id + change-signature + html) and reconcile them
+  // against the DOM so we only touch what actually changed — no full rebuild,
+  // no flicker, no scroll jump (the WhatsApp/Telegram feel).
+  var units = CHAT_messages.map(function (m, i) {
+    return { id: String(m.id), sig: _msgSig(m), html: _htmlArr[i] };
+  });
+  _reconcileMessages(cont, units, scrollDown);
+}
 
-  if (scrollDown) {
+// A compact fingerprint of everything that affects how a message renders. If it
+// is unchanged, the node is left completely untouched.
+function _msgSig(m) {
+  return [
+    m.id, m.type || 't', (m.text || '').length, m.media_url ? 1 : 0,
+    m.read ? 1 : 0, m.edited ? 1 : 0, m.opened ? 1 : 0, m.pinned ? 1 : 0,
+    m.seen_count || 0, m.expires_at || '',
+    m.reactions ? JSON.stringify(m.reactions) : '',
+    m.reply_to ? (m.reply_to.id || m.reply_to) : '',
+    m.reply_count || 0, m._scheduled_pending ? 1 : 0
+  ].join('~');
+}
+
+function _reconcileMessages(cont, units, scrollDown) {
+  var inner = cont.querySelector('.chat-msgs-inner');
+  var firstRender = !inner;
+  if (firstRender) {
+    cont.innerHTML = '<div class="chat-msgs-inner"></div>';
+    inner = cont.querySelector('.chat-msgs-inner');
+  }
+
+  var wasAtBottom = (cont.scrollTop + cont.clientHeight >= cont.scrollHeight - 60);
+
+  // Index existing message nodes by id.
+  var existing = {};
+  Array.prototype.forEach.call(inner.children, function (ch) {
+    if (ch.dataset && ch.dataset.id) existing[ch.dataset.id] = ch;
+  });
+
+  // Remove nodes whose message is gone.
+  var wanted = {};
+  units.forEach(function (u) { wanted[u.id] = 1; });
+  Array.prototype.slice.call(inner.children).forEach(function (ch) {
+    if (ch.dataset.id && !wanted[ch.dataset.id]) inner.removeChild(ch);
+  });
+
+  // Insert / update / reorder in the desired order.
+  var cursor = inner.firstChild;
+  units.forEach(function (u) {
+    var node = existing[u.id];
+    if (node) {
+      if (node.dataset.sig !== u.sig) {
+        node.innerHTML = u.html;
+        node.dataset.sig = u.sig;
+      }
+      if (cursor !== node) inner.insertBefore(node, cursor);
+      cursor = node.nextSibling;
+    } else {
+      var el = document.createElement('div');
+      el.className = 'msg-unit';
+      el.dataset.id = u.id;
+      el.dataset.sig = u.sig;
+      el.innerHTML = u.html;
+      inner.insertBefore(el, cursor);
+    }
+  });
+
+  // Scroll: jump to bottom only if asked or the user was already there;
+  // otherwise leave the view exactly where it is (new messages append below).
+  if (scrollDown || wasAtBottom) {
     cont.scrollTop = cont.scrollHeight;
     CHAT_atBottom = true;
     CHAT_unreadNew = 0;
     var arrow = document.getElementById('new-arrow');
     if (arrow) arrow.classList.remove('show');
-  } else {
-    cont.scrollTop = prevScroll + (cont.scrollHeight - prevHeight);
   }
 
   _attachMessageGestures(cont);
@@ -1611,6 +1672,8 @@ function renderMessages(scrollDown) {
 // a stationary hold past ~500ms opens the context menu instead.
 function _attachMessageGestures(cont) {
   cont.querySelectorAll('.bubble[data-msg-id]').forEach(function (bubble) {
+    if (bubble.dataset.gbound) return; // already wired (incremental render keeps nodes)
+    bubble.dataset.gbound = '1';
     var msgId = bubble.dataset.msgId;
     var startX = 0, startY = 0, dragging = false, longPressTimer = null, moved = false;
 
