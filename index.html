@@ -19,7 +19,7 @@
 <meta name="twitter:description" content="A Yiddish social platform for the Jewish community">
 <meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>YID PLUS</title>
-<link rel="stylesheet" href="css/style.css?v=202607111230">
+<link rel="stylesheet" href="css/style.css?v=202607111330">
 <script>
 // Apply saved user theme ASAP (before paint) to avoid flash-of-default-colors
 (function () {
@@ -108,6 +108,11 @@
           <span id="r-txt">Create Account</span>
           <div class="loading-dots" id="r-dots"><span></span><span></span><span></span></div>
         </button>
+        <p style="font-size:.72rem;color:var(--muted);text-align:center;margin:.75rem 0 0;line-height:1.5">
+          By creating an account you agree to our
+          <a href="/terms" target="_blank" style="color:var(--gold)">Terms of Service</a> and
+          <a href="/privacy" target="_blank" style="color:var(--gold)">Privacy Policy</a>.
+        </p>
       </div>
     </div>
     <div id="support-chat-login-btn" style="margin-top:1.25rem;text-align:center;display:none">
@@ -278,6 +283,11 @@
     <div style="height:.75rem"></div>
     <div id="theme-picker-host"></div>
     <div id="settings-body"></div>
+    <div style="text-align:center;margin:.5rem .75rem 1rem;font-size:.78rem">
+      <a href="/privacy" target="_blank" style="color:var(--muted);text-decoration:none">Privacy Policy</a>
+      <span style="color:var(--border2);margin:0 .5rem">&middot;</span>
+      <a href="/terms" target="_blank" style="color:var(--muted);text-decoration:none">Terms of Service</a>
+    </div>
     <div class="logout-row" onclick="doLogout()" style="margin:.5rem .75rem 2rem">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       Sign Out
@@ -542,11 +552,11 @@
 <!-- ════════════════════════════════
      SCRIPTS — ORDER MATTERS!
 ════════════════════════════════ -->
-<script src="js/state.js?v=202607111230"></script>
-<script src="js/theme.js?v=202607111230"></script>
-<script src="js/app.js?v=202607111230"></script>
-<script src="js/auth.js?v=202607111230"></script>
-<script src="js/home.js?v=202607111230"></script>
+<script src="js/state.js?v=202607111330"></script>
+<script src="js/theme.js?v=202607111330"></script>
+<script src="js/app.js?v=202607111330"></script>
+<script src="js/auth.js?v=202607111330"></script>
+<script src="js/home.js?v=202607111330"></script>
 
 <script>
 // ── POSTS FEED (Cloudflare D1 via /api/posts) ──
@@ -811,6 +821,6 @@ window._resendVerifyEmail = function (btn) {
 };
 </script>
 
-<script src="js/ads.js?v=202607111230"></script>
+<script src="js/ads.js?v=202607111330"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
       </html>
