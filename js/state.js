@@ -1102,7 +1102,8 @@ window._gsOpenLiveChat = function (chatId) {
   GS_liveSeen = -1;
   var body = document.getElementById('gs-body');
   if (!body) return;
-  body.innerHTML = '<div id="gs-status" style="text-align:center;font-size:.7rem;color:var(--muted);padding:.4rem 0 .6rem"></div>' +
+  body.style.background = '#eceff1';
+  body.innerHTML = '<div id="gs-status" style="text-align:center;font-size:.7rem;color:#5a6b6f;padding:.4rem 0 .6rem"></div>' +
     '<div id="gs-thread" style="display:flex;flex-direction:column;gap:.35rem"></div>';
 
   var wrap = document.getElementById('guided-support');
@@ -1138,11 +1139,15 @@ function _gsRenderThread(chat, messages) {
   function clock(ts) { try { return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
   thread.innerHTML = (messages || []).map(function (m) {
     var isUser = m.sender_type === 'user';
-    var name = (!isUser && m.sender_nick) ? '<div style="font-size:.62rem;font-weight:700;opacity:.85;margin-bottom:.12rem">' + _gsEsc(m.sender_nick) + '</div>' : '';
-    var txt = m.text ? '<div dir="auto">' + _gsEsc(m.text) + '</div>' : '';
+    // Explicit colors so bubbles are always readable regardless of theme.
+    var bubbleStyle = isUser
+      ? 'align-self:flex-end;background:#1F6F5C;color:#fff;'
+      : 'align-self:flex-start;background:#ffffff;color:#141414;border:1px solid #e3e3e3;';
+    var name = (!isUser && m.sender_nick) ? '<div style="font-size:.62rem;font-weight:700;color:#1F6F5C;margin-bottom:.12rem">' + _gsEsc(m.sender_nick) + '</div>' : '';
+    var txt = m.text ? '<div dir="auto" style="white-space:pre-wrap;word-break:break-word">' + _gsEsc(m.text) + '</div>' : '';
     var img = m.media_url ? '<img src="' + _gsEsc(m.media_url) + '" onclick="window.open(this.src,\'_blank\')" style="max-width:190px;border-radius:10px;display:block;margin-top:' + (m.text ? '.3rem' : '0') + ';cursor:pointer">' : '';
-    var time = '<div style="font-size:.58rem;opacity:.6;text-align:' + (isUser ? 'right' : 'left') + ';margin-top:.2rem">' + clock(m.created_at) + '</div>';
-    return '<div class="gs-bubble ' + (isUser ? 'gs-user' : 'gs-bot') + '" style="width:fit-content;max-width:80%;' + (isUser ? 'align-self:flex-end' : 'align-self:flex-start') + '">' +
+    var time = '<div style="font-size:.56rem;opacity:.6;text-align:' + (isUser ? 'right' : 'left') + ';margin-top:.2rem">' + clock(m.created_at) + '</div>';
+    return '<div style="width:fit-content;max-width:80%;padding:.5rem .7rem;border-radius:14px;font-size:.86rem;line-height:1.4;box-shadow:0 1px 2px rgba(0,0,0,.08);' + bubbleStyle + '">' +
       name + txt + img + time +
     '</div>';
   }).join('');
@@ -1173,7 +1178,7 @@ function _gsSendLive(text, file) {
   var thread = document.getElementById('gs-thread');
   if (thread) {
     var img = file ? '<img src="' + URL.createObjectURL(file) + '" style="max-width:190px;border-radius:10px;display:block;margin-top:' + (text ? '.3rem' : '0') + '">' : '';
-    thread.insertAdjacentHTML('beforeend', '<div class="gs-bubble gs-user" style="width:fit-content;max-width:80%;align-self:flex-end;opacity:.75">' + (text ? '<div dir="auto">' + _gsEsc(text) + '</div>' : '') + img + '</div>');
+    thread.insertAdjacentHTML('beforeend', '<div style="width:fit-content;max-width:80%;align-self:flex-end;background:#1F6F5C;color:#fff;padding:.5rem .7rem;border-radius:14px;font-size:.86rem;line-height:1.4;opacity:.7">' + (text ? '<div dir="auto" style="white-space:pre-wrap;word-break:break-word">' + _gsEsc(text) + '</div>' : '') + img + '</div>');
     var body = document.getElementById('gs-body'); if (body) body.scrollTop = body.scrollHeight;
   }
   var p;
