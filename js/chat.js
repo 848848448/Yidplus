@@ -161,6 +161,7 @@ var HOME_HIGHLIGHTS  = [];
 window.closeChatRoom = function () {
   _stopTypingPoll();
   CHAT_curRoom = null;
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
   var screenChats    = document.getElementById('screen-chats');
   var screenChatroom = document.getElementById('screen-chatroom');
   if (screenChatroom) { screenChatroom.classList.add('hidden');    screenChatroom.style.display = ''; }
@@ -171,7 +172,13 @@ window.closeChatRoom = function () {
 };
 
 window.init_chats = function () {
-  loadChatRooms();
+  // If the URL points at a specific chat (e.g. after a refresh), reopen it once
+  // the room list is loaded — so refreshing keeps you in the same conversation.
+  var m = (location.hash || '').match(/room=([^&]+)/);
+  var wantRoom = m ? decodeURIComponent(m[1]) : null;
+  loadChatRooms(wantRoom ? function () {
+    if (CHAT_rooms.find(function (r) { return r.id === wantRoom; })) window.openChatRoom(wantRoom);
+  } : null);
 };
 
 // ============================================================
@@ -736,6 +743,8 @@ window.openChatRoom = function (roomId, topicId, topicName) {
   CHAT_unreadNew = 0;
   CHAT_atBottom  = true;
   room.unread    = 0;
+  // Remember which chat is open so a page refresh returns here instead of the list.
+  try { history.replaceState(null, '', '#room=' + encodeURIComponent(roomId)); } catch (e) {}
   if (typeof closeInChatSearch === 'function') closeInChatSearch();
   renderChatList();
   _startTypingPoll();
@@ -2087,15 +2096,34 @@ window.toggleVoiceRec = function () {
           var blob = new Blob(CHAT_recChunks, { type: mimeType });
           var file = new File([blob], 'voice_' + Date.now() + '.' + ext, { type: mimeType });
 
-          toast('📤 Sending voice note...');
+          // Show the voice note immediately (local blob), swap for the server copy on success.
+          var _vTmp = 'tmp-' + Date.now();
+          var _vUrl = URL.createObjectURL(blob);
+          var _vMe = STATE.user || {};
+          if (CHAT_curRoom) {
+            CHAT_messages.push({
+              id: _vTmp, room_id: CHAT_curRoom.id, sender_id: _vMe.id, sender_nick: _vMe.nickname || '',
+              type: 'voice', text: packed, media_url: _vUrl, created_at: new Date().toISOString(), read: 0, _pending: true
+            });
+            renderMessages(false); scrollToBottom();
+          }
+
           var form = new FormData();
           form.append('room_id', CHAT_curRoom.id);
           form.append('type', 'voice');
           form.append('text', packed);
           form.append('file', file);
           api.post('/chat', form, true)
-            .then(function () { loadMessages(true); loadChatRooms(); })
-            .catch(function (err) { toast('❌ ' + err.message); });
+            .then(function () {
+              CHAT_messages = CHAT_messages.filter(function (m) { return m.id !== _vTmp; });
+              try { URL.revokeObjectURL(_vUrl); } catch (e) {}
+              loadMessages(true); loadChatRooms();
+            })
+            .catch(function (err) {
+              toast('❌ ' + err.message);
+              CHAT_messages = CHAT_messages.filter(function (m) { return m.id !== _vTmp; });
+              renderMessages(false);
+            });
         };
         CHAT_mediaRec.start(250); // collect data every 250ms — prevents cutoff on long recordings
       })
@@ -2595,11 +2623,27 @@ window._sendMultiMedia = function () {
 
 function _uploadOneFile(file, caption) {
   var isVideo = file.type.startsWith('video/');
-  var type = (isVideo || file.type.startsWith('image/')) ? 'media' : 'file';
+  var isImage = file.type.startsWith('image/');
+  var type = (isVideo || isImage) ? 'media' : 'file';
   // For non-media files, show the filename if the user didn't add a caption.
   var text = caption || '';
   if (type === 'file' && (!text || text === '__once__') && file.name) text = file.name;
-  if (type === 'media') toast('📤 Preparing...');
+
+  // Optimistic bubble: show the image/video/file the instant you hit send,
+  // using a local preview URL, then swap in the server copy when it lands.
+  var tempId = 'tmp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+  var localUrl = URL.createObjectURL(file);
+  var me = STATE.user || {};
+  if (CHAT_curRoom) {
+    CHAT_messages.push({
+      id: tempId, room_id: CHAT_curRoom.id, sender_id: me.id, sender_nick: me.nickname || '',
+      type: type, text: (type === 'file' ? text : (caption && caption !== '__once__' ? caption : '')),
+      media_url: localUrl, created_at: new Date().toISOString(), read: 0, _pending: true
+    });
+    renderMessages(false);
+    scrollToBottom();
+  }
+
   watermarkFile(file).then(function (watermarked) {
     var form = new FormData();
     form.append('room_id', CHAT_curRoom.id);
@@ -2609,8 +2653,16 @@ function _uploadOneFile(file, caption) {
     if (CHAT_curTopicId) form.append('topic_id', CHAT_curTopicId);
     return api.post('/chat', form, true);
   })
-    .then(function () { loadMessages(true); loadChatRooms(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+    .then(function () {
+      CHAT_messages = CHAT_messages.filter(function (m) { return m.id !== tempId; });
+      try { URL.revokeObjectURL(localUrl); } catch (e) {}
+      loadMessages(true); loadChatRooms();
+    })
+    .catch(function (err) {
+      toast('❌ ' + err.message);
+      CHAT_messages = CHAT_messages.filter(function (m) { return m.id !== tempId; });
+      renderMessages(false);
+    });
 }
 
 // Keep backward compat
