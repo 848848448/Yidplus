@@ -881,27 +881,39 @@ window.svTouchEnd = function (e) {
   }
 };
 
-// Detect scroll/swipe-away so we don't accidentally navigate
-document.addEventListener('touchmove', function (e) {
+// Drag the whole viewer down with your finger (WhatsApp-style dismiss).
+window.svTouchMove = function (e) {
   var ov = document.getElementById('sv-overlay');
   if (!ov || !ov.classList.contains('open')) return;
   var t = e.touches[0];
   var dx = t.clientX - _svTouchX;
   var dy = t.clientY - _svTouchY;
-  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+  if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
     _svTouchMoved = true;
     if (HOME_svLongTimer) { clearTimeout(HOME_svLongTimer); HOME_svLongTimer = null; }
   }
-  // Drag the whole viewer down with your finger (WhatsApp-style dismiss).
-  if (dy > 0 && dy > Math.abs(dx) * 1.3) {
+  if ((dy > 6 && dy > Math.abs(dx)) || _svDragging) {
     _svDragging = true;
     HOME_svPaused = true;
     var vid = document.querySelector('#sv-slide video'); if (vid) vid.pause();
+    var d = Math.max(0, dy);
     ov.style.transition = 'none';
-    ov.style.transform = 'translateY(' + dy + 'px) scale(' + Math.max(0.86, 1 - dy / 1400) + ')';
-    ov.style.borderRadius = Math.min(26, dy / 9) + 'px';
-    ov.style.opacity = Math.max(0.35, 1 - dy / 650);
+    ov.style.transform = 'translateY(' + d + 'px) scale(' + Math.max(0.85, 1 - d / 1400) + ')';
+    ov.style.borderRadius = Math.min(26, d / 9) + 'px';
+    ov.style.opacity = String(Math.max(0.3, 1 - d / 600));
     ov.style.overflow = 'hidden';
+    if (e.cancelable) e.preventDefault(); // stop the page scrolling behind
+  }
+};
+
+// Keep a passive fallback so movement is still detected if the inline one misses.
+document.addEventListener('touchmove', function (e) {
+  var ov = document.getElementById('sv-overlay');
+  if (!ov || !ov.classList.contains('open')) return;
+  var t = e.touches[0];
+  if (Math.abs(t.clientX - _svTouchX) > 8 || Math.abs(t.clientY - _svTouchY) > 8) {
+    _svTouchMoved = true;
+    if (HOME_svLongTimer) { clearTimeout(HOME_svLongTimer); HOME_svLongTimer = null; }
   }
 }, { passive: true });
 
