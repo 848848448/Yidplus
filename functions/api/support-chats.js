@@ -39,8 +39,32 @@ export async function onRequestGet(context) {
     const chatId = url.searchParams.get('chat_id');
     const asAdmin = url.searchParams.get('admin');
     const tab = url.searchParams.get('tab');
+    const self = url.searchParams.get('self');
 
     const user = await requireUser(request, env).catch(() => null);
+
+    // Make sure the media column exists (added for screenshot support).
+    await env.DB.prepare('ALTER TABLE support_messages ADD COLUMN media_key TEXT').run().catch(() => {});
+
+    function withMedia(messages) {
+      (messages || []).forEach(function (m) {
+        if (m.media_key) m.media_url = '/api/media/' + encodeURIComponent(m.media_key);
+      });
+      return messages;
+    }
+
+    // The signed-in user's own open ticket (to resume where they left off).
+    if (self) {
+      if (!user) return json({ ok: true, chat: null, messages: [] });
+      const chat = await env.DB.prepare(
+        "SELECT * FROM support_chats WHERE user_id = ? AND status != 'closed' ORDER BY created_at DESC LIMIT 1"
+      ).bind(user.id).first();
+      if (!chat) return json({ ok: true, chat: null, messages: [] });
+      const { results: messages } = await env.DB.prepare(
+        'SELECT id, sender_type, sender_id, sender_nick, text, media_key, created_at FROM support_messages WHERE chat_id = ? ORDER BY created_at ASC'
+      ).bind(chat.id).all();
+      return json({ ok: true, chat, messages: withMedia(messages) });
+    }
 
     if (chatId) {
       const chat = await env.DB.prepare('SELECT * FROM support_chats WHERE id = ?').bind(chatId).first();
@@ -54,10 +78,10 @@ export async function onRequestGet(context) {
       }
 
       const { results: messages } = await env.DB.prepare(
-        'SELECT id, sender_type, sender_id, sender_nick, text, created_at FROM support_messages WHERE chat_id = ? ORDER BY created_at ASC'
+        'SELECT id, sender_type, sender_id, sender_nick, text, media_key, created_at FROM support_messages WHERE chat_id = ? ORDER BY created_at ASC'
       ).bind(chatId).all();
 
-      return json({ ok: true, chat, messages });
+      return json({ ok: true, chat, messages: withMedia(messages) });
     }
 
     // Inbox listing — admin only.
@@ -83,9 +107,26 @@ export async function onRequestGet(context) {
 export async function onRequestPost(context) {
   const { request, env } = context;
   try {
-    const body = await request.json();
+    // Accept both JSON and multipart (multipart carries an optional screenshot).
+    const ct = request.headers.get('content-type') || '';
+    let body = {}, uploadFile = null;
+    if (ct.includes('multipart/form-data')) {
+      const form = await request.formData();
+      form.forEach(function (v, k) { if (k !== 'file') body[k] = v; });
+      uploadFile = form.get('file');
+    } else {
+      body = await request.json();
+    }
     const user = await requireUser(request, env).catch(() => null);
     const now = new Date().toISOString();
+
+    // Upload a screenshot if one was attached.
+    let mediaKey = null;
+    if (uploadFile && uploadFile.size) {
+      if (uploadFile.size > 12 * 1024 * 1024) return json({ ok: false, error: 'Image too large (max 12MB)' }, 413);
+      mediaKey = 'support/' + crypto.randomUUID();
+      await env.MY_BUCKET.put(mediaKey, await uploadFile.arrayBuffer(), { httpMetadata: { contentType: uploadFile.type || 'image/jpeg' } });
+    }
 
     // ── Claim a ticket ──
     if (body.chat_id && body.claim) {
@@ -111,7 +152,7 @@ export async function onRequestPost(context) {
     }
 
     // ── Reply to an existing ticket ──
-    if (body.chat_id && body.text) {
+    if (body.chat_id && (body.text || mediaKey)) {
       const chat = await env.DB.prepare('SELECT * FROM support_chats WHERE id = ?').bind(body.chat_id).first();
       if (!chat) return json({ ok: false, error: 'Not found' }, 404);
 
@@ -131,12 +172,18 @@ export async function onRequestPost(context) {
       }
 
       const msgId = crypto.randomUUID();
+      await env.DB.prepare('ALTER TABLE support_messages ADD COLUMN media_key TEXT').run().catch(() => {});
       await env.DB.prepare(
-        'INSERT INTO support_messages (id, chat_id, sender_type, sender_id, sender_nick, text, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).bind(msgId, body.chat_id, senderType, senderId, senderNick, String(body.text).trim(), now).run();
-      await env.DB.prepare('UPDATE support_chats SET updated_at = ? WHERE id = ?').bind(now, body.chat_id).run();
+        'INSERT INTO support_messages (id, chat_id, sender_type, sender_id, sender_nick, text, media_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(msgId, body.chat_id, senderType, senderId, senderNick, String(body.text || '').trim(), mediaKey, now).run();
+      // A user replying to a resolved/closed ticket reopens it.
+      if (senderType === 'user' && chat.status === 'closed') {
+        await env.DB.prepare("UPDATE support_chats SET status = 'open', updated_at = ? WHERE id = ?").bind(now, body.chat_id).run();
+      } else {
+        await env.DB.prepare('UPDATE support_chats SET updated_at = ? WHERE id = ?').bind(now, body.chat_id).run();
+      }
 
-      return json({ ok: true, id: msgId }, 201);
+      return json({ ok: true, id: msgId, media_url: mediaKey ? '/api/media/' + encodeURIComponent(mediaKey) : null }, 201);
     }
 
     // ── Create a new ticket ──
