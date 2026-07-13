@@ -2016,7 +2016,7 @@ window.toggleVoiceRec = function () {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       return toast('⚠ Microphone not available in this browser.');
     }
-    navigator.mediaDevices.getUserMedia({ audio: true })
+    navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
       .then(function (stream) {
         CHAT_recChunks = [];
         CHAT_recPeaks  = [];
@@ -2051,15 +2051,19 @@ window.toggleVoiceRec = function () {
           console.warn('[chat] waveform analysis unavailable:', e.message);
         }
 
-        // Pick best supported audio format
-        var mimeType = 'audio/webm';
-        if (!MediaRecorder.isTypeSupported('audio/webm')) {
-          if (MediaRecorder.isTypeSupported('audio/mp4'))  mimeType = 'audio/mp4';
-          else if (MediaRecorder.isTypeSupported('audio/ogg')) mimeType = 'audio/ogg';
+        // Pick best supported audio format; prefer explicit codecs so the file
+        // decodes at the right speed on Android (bare audio/webm can misbehave).
+        var mimeType = 'audio/webm;codecs=opus';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          if (MediaRecorder.isTypeSupported('audio/webm')) mimeType = 'audio/webm';
+          else if (MediaRecorder.isTypeSupported('audio/mp4;codecs=mp4a.40.2')) mimeType = 'audio/mp4;codecs=mp4a.40.2';
+          else if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+          else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) mimeType = 'audio/ogg;codecs=opus';
+          else mimeType = '';
         }
         var ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
 
-        CHAT_mediaRec = new MediaRecorder(stream, { mimeType: mimeType });
+        CHAT_mediaRec = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
         CHAT_mediaRec.ondataavailable = function (e) { if (e.data.size > 0) CHAT_recChunks.push(e.data); };
         CHAT_mediaRec.onstop = function () {
           CHAT_isRecording = false;
@@ -3190,10 +3194,11 @@ window._seekVoice = function (e, msgId) {
   if (YP_play.msgId !== msgId) return;
   var aud = _ypAudioEl();
   var barsEl = document.getElementById('vbars-' + msgId);
-  if (!barsEl || !isFinite(aud.duration) || !aud.duration) return;
+  var dur = (isFinite(aud.duration) && aud.duration) ? aud.duration : (YP_play.dur || 0);
+  if (!barsEl || !dur) return;
   var rect = barsEl.getBoundingClientRect();
   var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-  aud.currentTime = pct * aud.duration;
+  try { aud.currentTime = pct * dur; } catch (er) {}
 };
 
 window._toggleVoiceSpeed = function (msgId) {
@@ -3232,7 +3237,36 @@ function _fmtClock(sec) {
   return m + ':' + (s < 10 ? '0' : '') + s;
 }
 var YP_play = { msgId: null, type: null };
-function _ypAudioEl() {
+// A single audio object kept in a JS variable — NOT in the DOM, so message-list
+// re-renders never touch it, AND we make a fresh one per clip so a reused webm
+// decoder can't play the next note too fast / wrong-pitched (an Android bug).
+var YP_audioObj = null;
+function _ypAudioEl() { return YP_audioObj || (YP_audioObj = new Audio()); }
+function _ypFreshAudio(url) {
+  if (YP_audioObj) { try { YP_audioObj.pause(); } catch (e) {} YP_audioObj.onended = YP_audioObj.ontimeupdate = null; }
+  var a = new Audio();
+  a.preload = 'auto';
+  a.playbackRate = 1;
+  // Keep natural pitch/speed — guards against a stuck rate or resampling.
+  try { a.preservesPitch = true; a.mozPreservesPitch = true; a.webkitPreservesPitch = true; } catch (e) {}
+  a.addEventListener('timeupdate', _ypOnTime);
+  a.addEventListener('ended', _ypOnEnded);
+  a.src = url;
+  YP_audioObj = a;
+  return a;
+}
+// Voice notes pack their real recorded length as "M:SS|peaks"; use it for the
+// progress bar because webm/opus files report duration = Infinity.
+function _knownDur(msgId, type) {
+  if (type !== 'voice') return 0;
+  var m = CHAT_messages.find(function (x) { return x.id === msgId; });
+  if (!m || !m.text) return 0;
+  var ds = String(m.text).split('|')[0];
+  var parts = ds.split(':');
+  if (parts.length === 2) return (parseInt(parts[0]) || 0) * 60 + (parseInt(parts[1]) || 0);
+  return 0;
+}
+function _ypAudioElOld() {
   var a = document.getElementById('yp-global-audio');
   if (!a) {
     a = document.createElement('audio');
@@ -3267,13 +3301,16 @@ function _ypClearUI(msgId, type) {
 }
 function _ypOnTime() {
   var a = _ypAudioEl();
-  if (!YP_play.msgId || !isFinite(a.duration) || !a.duration) return;
-  var pct = a.currentTime / a.duration;
+  if (!YP_play.msgId) return;
+  // webm/opus voice notes report Infinity — fall back to the recorded length.
+  var dur = (isFinite(a.duration) && a.duration) ? a.duration : (YP_play.dur || 0);
+  if (!dur) return;
+  var pct = Math.min(1, a.currentTime / dur);
   if (YP_play.type === 'music') {
     var fill = document.getElementById('mfill-' + YP_play.msgId);
     var time = document.getElementById('mtime-' + YP_play.msgId);
     if (fill) fill.style.width = (pct * 100) + '%';
-    if (time) time.textContent = _fmtClock(a.currentTime) + ' / ' + _fmtClock(a.duration);
+    if (time) time.textContent = _fmtClock(a.currentTime) + ' / ' + _fmtClock(dur);
   } else {
     var barsEl = document.getElementById('vbars-' + YP_play.msgId);
     if (barsEl) {
@@ -3282,7 +3319,7 @@ function _ypOnTime() {
       bars.forEach(function (b, i) { b.classList.toggle('played', i < played); });
     }
     var durEl = document.getElementById('vdur-' + YP_play.msgId);
-    if (durEl) durEl.textContent = _fmtClock(a.duration - a.currentTime);
+    if (durEl) durEl.textContent = _fmtClock(dur - a.currentTime);
   }
 }
 function _ypOnEnded() {
@@ -3297,19 +3334,17 @@ function _ypRestoreUI() {
   if (YP_play.msgId && !a.paused) _ypSetBtn(YP_play.msgId, YP_play.type, true);
 }
 function _ypToggle(msgId, type) {
-  var a = _ypAudioEl();
-  if (YP_play.msgId === msgId) {              // same clip → pause / resume
-    if (a.paused) { a.play().catch(function () {}); _ypSetBtn(msgId, type, true); }
-    else { a.pause(); _ypSetBtn(msgId, type, false); }
+  if (YP_play.msgId === msgId && YP_audioObj) {   // same clip → pause / resume
+    if (YP_audioObj.paused) { YP_audioObj.play().catch(function () {}); _ypSetBtn(msgId, type, true); }
+    else { YP_audioObj.pause(); _ypSetBtn(msgId, type, false); }
     return;
   }
   if (YP_play.msgId) _ypClearUI(YP_play.msgId, YP_play.type); // stop previous clip's UI
   var url = _msgUrl(msgId);
   if (!url) { toast('⚠ Audio unavailable'); return; }
-  YP_play = { msgId: msgId, type: type };
-  a.playbackRate = 1;
+  YP_play = { msgId: msgId, type: type, dur: _knownDur(msgId, type) };
   if (type === 'voice') { var sp = document.getElementById('vspeed-' + msgId); if (sp) sp.textContent = '1x'; }
-  a.src = url;
+  var a = _ypFreshAudio(url);
   a.play().catch(function (e) { toast('⚠ ' + e.message); });
   _ypSetBtn(msgId, type, true);
 }
