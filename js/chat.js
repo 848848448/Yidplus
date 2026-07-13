@@ -1309,7 +1309,7 @@ function loadMessages(scrollToBottom) {
           lpEl.dataset.loaded = '1';
 
           // YouTube embed
-          var ytMatch = rawUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+          var ytMatch = rawUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/live\/|youtube\.com\/embed\/|youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/);
           if (ytMatch) {
             var vid = ytMatch[1];
             lpEl.style.display = 'block';
