@@ -18,15 +18,34 @@ export async function onRequestGet(context) {
     const url = new URL(request.url);
     const limit = Math.min(50, parseInt(url.searchParams.get('limit') || '10', 10));
 
+    // Make sure the segment column exists (added for targeted broadcasts).
+    await env.DB.prepare('ALTER TABLE broadcasts ADD COLUMN segment TEXT').run().catch(() => {});
+
+    const viewer = await requireUser(request, env).catch(() => null);
+
+    // Pull a few extra so segment-filtering still returns a full page.
     const { results } = await env.DB.prepare(
-      `SELECT id, text, sender_email, created_at FROM broadcasts
+      `SELECT id, text, sender_email, created_at, segment FROM broadcasts
        ORDER BY created_at DESC LIMIT ?`
-    ).bind(limit).all();
+    ).bind(limit * 3).all();
+
+    // Keep only broadcasts this viewer is targeted by.
+    function matches(seg) {
+      if (!seg || seg === 'all') return true;
+      if (!viewer) return false;
+      if (seg === 'verified')   return !!viewer.verified;
+      if (seg === 'unverified') return !viewer.verified;
+      if (seg === 'new') {
+        if (!viewer.created_at) return false;
+        return (Date.now() - new Date(viewer.created_at).getTime()) < 7 * 86400000;
+      }
+      return true;
+    }
+    const filtered = (results || []).filter(function (b) { return matches(b.segment); }).slice(0, limit);
 
     // Owners also get the list of upcoming scheduled broadcasts
     let scheduled = [];
-    const user = await requireUser(request, env).catch(() => null);
-    if (user && isOwnerOrCoOwner(user, env.OWNER_EMAIL)) {
+    if (viewer && isOwnerOrCoOwner(viewer, env.OWNER_EMAIL)) {
       await ensureScheduledTable(env);
       const s = await env.DB.prepare(
         'SELECT id, text, push, scheduled_for FROM scheduled_broadcasts WHERE sent = 0 ORDER BY scheduled_for ASC'
@@ -34,7 +53,7 @@ export async function onRequestGet(context) {
       scheduled = s.results || [];
     }
 
-    return json({ ok: true, broadcasts: results, scheduled });
+    return json({ ok: true, broadcasts: filtered, scheduled });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
@@ -72,12 +91,14 @@ export async function onRequestPost(context) {
 
     const id = crypto.randomUUID();
     const nowIso = now.toISOString();
+    const segment = ['all', 'new', 'verified', 'unverified'].includes(body.segment) ? body.segment : 'all';
 
+    await env.DB.prepare('ALTER TABLE broadcasts ADD COLUMN segment TEXT').run().catch(() => {});
     await env.DB.prepare(
-      `INSERT INTO broadcasts (id, text, sender_email, created_at) VALUES (?, ?, ?, ?)`
-    ).bind(id, text, body.sender_email || user.email, nowIso).run();
+      `INSERT INTO broadcasts (id, text, sender_email, created_at, segment) VALUES (?, ?, ?, ?, ?)`
+    ).bind(id, text, body.sender_email || user.email, nowIso, segment).run();
 
-    return json({ ok: true, broadcast: { id, text, sender_email: user.email, created_at: nowIso } }, 201);
+    return json({ ok: true, broadcast: { id, text, sender_email: user.email, created_at: nowIso, segment } }, 201);
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }

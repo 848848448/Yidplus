@@ -374,6 +374,15 @@ function buildAdminPanel(id) {
           '<div class="admin-card-title">📢 Global Broadcast</div>' +
           '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">Sends to all users. Leave the time empty to send now, or pick a time to schedule it.</div>' +
           '<textarea class="bc-textarea" id="bc-textarea" rows="4" placeholder="Type your announcement..."></textarea>' +
+          '<div style="display:flex;align-items:center;gap:.5rem;margin:.6rem 0">' +
+            '<span style="font-size:.78rem;color:var(--muted)">🎯 Send to:</span>' +
+            '<select id="bc-segment" style="flex:1;padding:.45rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem">' +
+              '<option value="all">Everyone</option>' +
+              '<option value="new">New members (joined &lt; 7 days)</option>' +
+              '<option value="verified">Verified users only</option>' +
+              '<option value="unverified">Unverified users only</option>' +
+            '</select>' +
+          '</div>' +
           '<label style="display:flex;align-items:center;gap:.5rem;margin:.6rem 0;font-size:.82rem;cursor:pointer">' +
             '<input type="checkbox" id="bc-push" style="width:18px;height:18px;accent-color:#1F6F5C">' +
             '🔔 Also send as a push notification to phones' +
@@ -1409,6 +1418,7 @@ window.sendBroadcast = function () {
 
     var payload = {
       text: text,
+      segment: (document.getElementById('bc-segment') || {}).value || 'all',
       sender_email: ADMIN_gateEmail || (STATE.user && STATE.user.email) || '',
     };
     if (isSchedule) { payload.scheduled_for = whenVal; payload.push = !!(pushCb && pushCb.checked); }
