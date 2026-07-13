@@ -1683,7 +1683,8 @@ function _loadSupportChatThread(chatId) {
         return '<div style="display:flex;' + (isAdminMsg ? 'justify-content:flex-end' : 'justify-content:flex-start') + ';margin-bottom:.5rem">' +
           '<div style="max-width:75%;padding:.5rem .75rem;border-radius:14px;background:' + (isAdminMsg ? '#1F6F5C' : 'var(--bg3)') + ';color:' + (isAdminMsg ? '#fff' : 'var(--text)') + ';font-size:.82rem">' +
             (isAdminMsg ? '<div style="font-size:.65rem;opacity:.8;margin-bottom:.15rem">@' + escHtml(m.sender_nick || 'admin') + '</div>' : '') +
-            escHtml(m.text) +
+            (m.text ? escHtml(m.text) : '') +
+            (m.media_url ? '<img src="' + escHtml(m.media_url) + '" onclick="window.open(this.src,\'_blank\')" style="max-width:200px;border-radius:8px;display:block;margin-top:' + (m.text ? '.3rem' : '0') + ';cursor:pointer">' : '') +
             '<div style="font-size:.62rem;opacity:.7;margin-top:.2rem">' + timeAgo(m.created_at) + '</div>' +
           '</div>' +
         '</div>';

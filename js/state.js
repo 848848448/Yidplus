@@ -935,7 +935,15 @@ window.openGuidedSupport = function () {
     '</div>' +
     '<div class="gs-body" id="gs-body"></div>';
   document.body.appendChild(wrap);
-  _gsGoTo('start');
+  // Resume an existing open conversation if there is one; otherwise show the menu.
+  if (typeof api !== 'undefined' && STATE && STATE.user) {
+    api.get('/support-chats?self=1').then(function (res) {
+      if (res && res.ok && res.chat) window._gsOpenLiveChat(res.chat.id);
+      else _gsGoTo('start');
+    }).catch(function () { _gsGoTo('start'); });
+  } else {
+    _gsGoTo('start');
+  }
 };
 
 function _gsAddBot(lines) {
@@ -1059,9 +1067,9 @@ function _gsShowComposer(topic, emailCb) {
     _gsAddUser(val);
     if (topic === '__email__') { if (emailCb) emailCb(val); return; }
     api.post('/support-chats', { screen: 'guided', question_label: topic, text: val })
-      .then(function () {
-        _gsAddBot(['✅ Got it — your message is with our team.', 'We\'ll get back to you as soon as we can.']);
-        _gsAddOptions([{ label: '🏠 Back to start', next: 'start' }]);
+      .then(function (res) {
+        if (res && res.chat_id) window._gsOpenLiveChat(res.chat_id);
+        else { _gsAddBot(['✅ Got it — your message is with our team.']); }
       })
       .catch(function (e) { _gsAddBot('❌ ' + e.message); });
   }
@@ -1069,10 +1077,112 @@ function _gsShowComposer(topic, emailCb) {
   if (inp) inp.onkeydown = function (e) { if (e.key === 'Enter') submit(); };
 }
 
+/* ══════════════════════════════════════════════
+   LIVE SUPPORT CHAT — real two-way thread with an
+   admin that persists across sessions (resume where
+   you left off; only an admin can resolve it).
+══════════════════════════════════════════════ */
+var GS_liveChatId = null, GS_livePoll = null, GS_liveSeen = -1;
+function _gsEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+
+window._gsOpenLiveChat = function (chatId) {
+  GS_liveChatId = chatId || null;
+  GS_liveSeen = -1;
+  var body = document.getElementById('gs-body');
+  if (!body) return;
+  body.innerHTML = '<div id="gs-status" style="text-align:center;font-size:.7rem;color:var(--muted);padding:.4rem 0 .6rem"></div><div id="gs-thread"></div>';
+
+  var wrap = document.getElementById('guided-support');
+  var old = document.getElementById('gs-live-composer'); if (old) old.remove();
+  var comp = document.createElement('div');
+  comp.id = 'gs-live-composer';
+  comp.style.cssText = 'display:flex;align-items:center;gap:.4rem;padding:.5rem;border-top:1px solid var(--border);background:var(--surface)';
+  comp.innerHTML =
+    '<button id="gs-attach" title="Attach screenshot" style="width:36px;height:36px;border:none;background:var(--bg3);border-radius:50%;cursor:pointer;flex-shrink:0;font-size:1rem">📎</button>' +
+    '<input type="file" id="gs-file" accept="image/*" style="display:none">' +
+    '<input id="gs-live-input" placeholder="Type a message..." style="flex:1;padding:.55rem .8rem;border:1.5px solid var(--border);border-radius:20px;background:var(--bg3);color:var(--text);font-size:.85rem;font-family:inherit;outline:none">' +
+    '<button id="gs-live-send" style="width:38px;height:38px;border-radius:50%;background:var(--gold);border:none;color:#fff;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>';
+  wrap.appendChild(comp);
+
+  document.getElementById('gs-attach').onclick = function () { document.getElementById('gs-file').click(); };
+  document.getElementById('gs-file').onchange = function (e) { if (e.target.files && e.target.files[0]) _gsSendLive(null, e.target.files[0]); e.target.value = ''; };
+  document.getElementById('gs-live-send').onclick = function () { _gsSendLive(); };
+  document.getElementById('gs-live-input').onkeydown = function (e) { if (e.key === 'Enter') _gsSendLive(); };
+
+  _gsLoadThread();
+  _gsStartLivePoll();
+};
+
+function _gsRenderThread(chat, messages) {
+  var statusEl = document.getElementById('gs-status');
+  if (statusEl && chat) {
+    statusEl.textContent = chat.status === 'closed'
+      ? '✅ Resolved — send a message to reopen'
+      : (chat.claimed_by_nick ? '🟢 ' + chat.claimed_by_nick + ' is helping you' : '⏳ Waiting for someone to respond…');
+  }
+  var thread = document.getElementById('gs-thread');
+  if (!thread) return;
+  thread.innerHTML = (messages || []).map(function (m) {
+    var isUser = m.sender_type === 'user';
+    var img = m.media_url ? '<img src="' + _gsEsc(m.media_url) + '" onclick="window.open(this.src,\'_blank\')" style="max-width:180px;border-radius:8px;display:block;margin-top:' + (m.text ? '.3rem' : '0') + ';cursor:pointer">' : '';
+    return '<div class="gs-bubble ' + (isUser ? 'gs-user' : 'gs-bot') + '">' + (m.text ? _gsEsc(m.text) : '') + img + '</div>';
+  }).join('');
+  var body = document.getElementById('gs-body');
+  if (body) body.scrollTop = body.scrollHeight;
+}
+
+function _gsLoadThread() {
+  api.get('/support-chats?self=1').then(function (res) {
+    if (!res.ok || !res.chat) return;
+    GS_liveChatId = res.chat.id;
+    var n = (res.messages || []).length;
+    if (n !== GS_liveSeen) { GS_liveSeen = n; _gsRenderThread(res.chat, res.messages); }
+  }).catch(function () {});
+}
+
+function _gsSendLive(text, file) {
+  var inp = document.getElementById('gs-live-input');
+  text = text != null ? text : (inp ? inp.value.trim() : '');
+  if (!text && !file) return;
+  if (inp) inp.value = '';
+  if (!GS_liveChatId && !file) {
+    // No ticket yet (opened live cold) — create one via the normal path.
+    api.post('/support-chats', { screen: 'guided', question_label: 'Support', text: text })
+      .then(function (res) { if (res.chat_id) { GS_liveChatId = res.chat_id; GS_liveSeen = -1; _gsLoadThread(); } });
+    return;
+  }
+  var thread = document.getElementById('gs-thread');
+  if (thread) {
+    var img = file ? '<img src="' + URL.createObjectURL(file) + '" style="max-width:180px;border-radius:8px;display:block;margin-top:' + (text ? '.3rem' : '0') + '">' : '';
+    thread.insertAdjacentHTML('beforeend', '<div class="gs-bubble gs-user">' + (text ? _gsEsc(text) : '') + img + '</div>');
+    var body = document.getElementById('gs-body'); if (body) body.scrollTop = body.scrollHeight;
+  }
+  var p;
+  if (file) {
+    var form = new FormData();
+    form.append('chat_id', GS_liveChatId);
+    if (text) form.append('text', text);
+    form.append('file', file);
+    p = api.post('/support-chats', form, true);
+  } else {
+    p = api.post('/support-chats', { chat_id: GS_liveChatId, text: text });
+  }
+  p.then(function () { GS_liveSeen = -1; _gsLoadThread(); })
+   .catch(function (e) { if (typeof toast === 'function') toast('❌ ' + e.message); });
+}
+
+function _gsStartLivePoll() {
+  _gsStopLivePoll();
+  GS_livePoll = setInterval(function () {
+    if (!document.getElementById('guided-support')) { _gsStopLivePoll(); return; }
+    _gsLoadThread();
+  }, 4000);
+}
+function _gsStopLivePoll() { if (GS_livePoll) { clearInterval(GS_livePoll); GS_livePoll = null; } }
+
 window.openSupportChat = function (screen) {
   var existing = document.getElementById('support-chat-overlay');
   if (existing) existing.remove();
-
   var overlay = document.createElement('div');
   overlay.id = 'support-chat-overlay';
   overlay.className = 'modal-overlay open';
