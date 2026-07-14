@@ -11,10 +11,14 @@ async function ensureTable(env) {
     'text TEXT, media_url TEXT, media_type TEXT, link TEXT, posted_at TEXT, created_at TEXT NOT NULL, ' +
     'UNIQUE(username, tg_msg_id))'
   ).run().catch(() => {});
+  // Lazy columns for the X-style card (older tables get them added here).
+  const cols = ['author_name TEXT', 'author_handle TEXT', 'author_avatar TEXT', 'views INTEGER', 'forwards INTEGER', 'replies INTEGER', 'likes INTEGER'];
+  for (const c of cols) {
+    await env.DB.prepare('ALTER TABLE telegram_posts ADD COLUMN ' + c).run().catch(() => {});
+  }
 }
 
-// POST from the external Telethon worker. Auth via a shared secret so only your
-// script can push posts. Always returns ok:true (status in the body).
+// POST from the external Telethon worker. Auth via a shared secret.
 export async function onRequestPost(context) {
   const { request, env } = context;
   try {
@@ -30,17 +34,22 @@ export async function onRequestPost(context) {
 
     await ensureTable(env);
 
-    const text = (body.text || '').toString().slice(0, 8000);
-    const mediaUrl = (body.media_url || '').toString().slice(0, 1000) || null;
-    const mediaType = (body.media_type || '').toString().slice(0, 20) || null;
-    const link = (body.link || ('https://t.me/' + username + '/' + msgId)).toString().slice(0, 300);
-    const postedAt = (body.posted_at || new Date().toISOString()).toString().slice(0, 40);
+    const text       = (body.text || '').toString().slice(0, 8000);
+    const mediaUrl   = (body.media_url || '').toString().slice(0, 1000) || null;
+    const mediaType  = (body.media_type || '').toString().slice(0, 20) || null;
+    const link       = (body.link || ('https://t.me/' + username + '/' + msgId)).toString().slice(0, 300);
+    const postedAt   = (body.posted_at || new Date().toISOString()).toString().slice(0, 40);
+    const authorName = (body.author_name || '').toString().slice(0, 120) || null;
+    const authorHndl = (body.author_handle || username).toString().replace(/^@/, '').slice(0, 60);
+    const authorAv   = (body.author_avatar || '').toString().slice(0, 1000) || null;
+    const views      = parseInt(body.views) || null;
+    const forwards   = parseInt(body.forwards) || null;
 
-    // Insert; ignore if we already have this (username, msg_id).
     await env.DB.prepare(
-      'INSERT OR IGNORE INTO telegram_posts (id, username, tg_msg_id, text, media_url, media_type, link, posted_at, created_at) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).bind(crypto.randomUUID(), username, msgId, text, mediaUrl, mediaType, link, postedAt, new Date().toISOString()).run();
+      'INSERT INTO telegram_posts (id, username, tg_msg_id, text, media_url, media_type, link, posted_at, author_name, author_handle, author_avatar, views, forwards, created_at) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
+      'ON CONFLICT(username, tg_msg_id) DO UPDATE SET text=excluded.text, media_url=excluded.media_url, media_type=excluded.media_type, views=excluded.views, forwards=excluded.forwards'
+    ).bind(crypto.randomUUID(), username, msgId, text, mediaUrl, mediaType, link, postedAt, authorName, authorHndl, authorAv, views, forwards, new Date().toISOString()).run();
 
     return json({ ok: true, accepted: true });
   } catch (err) {
@@ -56,7 +65,7 @@ export async function onRequestGet(context) {
     const username = (new URL(request.url).searchParams.get('username') || '').replace(/^@/, '').replace(/[^a-zA-Z0-9_]/g, '');
     if (!username) return json({ ok: true, posts: [] });
     const res = await env.DB.prepare(
-      'SELECT tg_msg_id, text, media_url, media_type, link, posted_at FROM telegram_posts WHERE username = ? ORDER BY tg_msg_id DESC LIMIT 50'
+      'SELECT tg_msg_id, text, media_url, media_type, link, posted_at, author_name, author_handle, author_avatar, views, forwards FROM telegram_posts WHERE username = ? ORDER BY tg_msg_id DESC LIMIT 50'
     ).bind(username).all();
     return json({ ok: true, posts: res.results || [] });
   } catch (err) {

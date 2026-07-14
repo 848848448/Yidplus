@@ -385,34 +385,101 @@ window.openTelegramChannel = function (username, title) {
     '</div>';
 
   var dark = document.documentElement.classList.contains('dark') || (document.body && document.body.classList.contains('dark'));
-  api.get('/telegram-posts?username=' + encodeURIComponent(username)).then(function (res) {
+  api.get('/telegram-ingest?username=' + encodeURIComponent(username)).then(function (res) {
     var slot = document.getElementById('tg-feed-slot');
     var state = document.getElementById('tg-feed-state');
     if (!slot) return;
     var posts = (res && res.posts) || [];
     if (!posts.length) {
-      if (state) state.innerHTML = 'No posts here yet.<br><span style="font-size:.75rem">An admin can add posts from this channel in the admin panel.</span>' +
+      if (state) state.innerHTML = 'No posts here yet.<br><span style="font-size:.75rem">Posts appear once your Telegram sync is running.</span>' +
         '<br><br><a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9;font-weight:600">Open @' + username + ' in Telegram →</a>';
       return;
     }
     if (state) state.remove();
-    posts.forEach(function (p) {
-      var holder = document.createElement('div');
-      holder.style.marginBottom = '.5rem';
-      var s = document.createElement('script');
-      s.async = true;
-      s.src = 'https://telegram.org/js/telegram-widget.js?22';
-      s.setAttribute('data-telegram-post', p.username + '/' + p.tg_msg_id);
-      s.setAttribute('data-width', '100%');
-      if (dark) s.setAttribute('data-dark', '1');
-      holder.appendChild(s);
-      slot.appendChild(holder);
-    });
+    slot.innerHTML = posts.map(function (p) { return _xPostCard(p, username, title); }).join('');
   }).catch(function (e) {
     var state = document.getElementById('tg-feed-state');
     if (state) state.innerHTML = 'Could not load posts (' + (e && e.message ? e.message : 'error') + ').';
   });
 };
+
+// Render one channel post as an X/Twitter-style card.
+function _xPostCard(p, username, chTitle) {
+  var name   = escHtml(p.author_name || chTitle || username);
+  var handle = escHtml((p.author_handle || username));
+  var avatar = p.author_avatar
+    ? '<div style="width:44px;height:44px;border-radius:50%;background-image:url(' + encodeURI(p.author_avatar) + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
+    : '<div style="width:44px;height:44px;border-radius:50%;background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;flex-shrink:0">' + (name.slice(0, 1) || 'C') + '</div>';
+
+  var when = _xTime(p.posted_at);
+
+  // Text: escape, linkify URLs, colour @mentions and #hashtags.
+  var text = '';
+  if (p.text) {
+    text = escHtml(p.text)
+      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#1d9bf0;text-decoration:none">$1</a>')
+      .replace(/(^|\s)(@[a-zA-Z0-9_]+)/g, '$1<span style="color:#1d9bf0">$2</span>')
+      .replace(/(^|\s)(#[^\s#<]+)/g, '$1<span style="color:#1d9bf0">$2</span>')
+      .replace(/\n/g, '<br>');
+  }
+
+  // Media
+  var media = '';
+  if (p.media_url) {
+    if (p.media_type === 'video') {
+      media = '<div style="margin-top:.7rem;border-radius:16px;overflow:hidden;border:1px solid #eff3f4"><video src="' + encodeURI(p.media_url) + '" controls playsinline style="width:100%;display:block;background:#000"></video></div>';
+    } else {
+      media = '<div style="margin-top:.7rem;border-radius:16px;overflow:hidden;border:1px solid #eff3f4"><img src="' + encodeURI(p.media_url) + '" style="width:100%;display:block" loading="lazy"></div>';
+    }
+  }
+
+  function stat(icon, n) {
+    return '<div style="display:flex;align-items:center;gap:.35rem;color:#536471;font-size:.78rem">' + icon + (n ? '<span>' + _xNum(n) + '</span>' : '') + '</div>';
+  }
+  var reply  = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#536471" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
+  var rt     = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#536471" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>';
+  var like   = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#536471" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+  var views  = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#536471" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
+  var share  = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#536471" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
+
+  return '<div style="background:#fff;border:1px solid #eff3f4;border-radius:14px;padding:.85rem .95rem;margin-bottom:.6rem">' +
+    '<div style="display:flex;gap:.6rem">' +
+      avatar +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="display:flex;align-items:center;gap:.25rem;flex-wrap:wrap">' +
+          '<span style="font-weight:700;color:#0f1419;font-size:.92rem">' + name + '</span>' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="#1d9bf0" style="flex-shrink:0"><path d="M12 2l2.4 2.4 3.3-.6.6 3.3L21 12l-2.7 2.4.6 3.3-3.3.6L12 22l-2.4-2.7-3.3.6-.6-3.3L3 12l2.7-2.4-.6-3.3 3.3.6z"/><path d="M10.5 14.5l-2-2 1-1 1 1 3-3 1 1z" fill="#fff"/></svg>' +
+          '<span style="color:#536471;font-size:.86rem">@' + handle + '</span>' +
+          (when ? '<span style="color:#536471;font-size:.86rem">· ' + when + '</span>' : '') +
+        '</div>' +
+        (text ? '<div style="color:#0f1419;font-size:.95rem;line-height:1.45;margin-top:.2rem;white-space:pre-wrap;word-break:break-word">' + text + '</div>' : '') +
+        media +
+        '<div style="display:flex;justify-content:space-between;margin-top:.7rem;max-width:340px">' +
+          stat(reply, p.replies) + stat(rt, p.forwards) + stat(like, p.likes) + stat(views, p.views) +
+          '<a href="' + (p.link || ('https://t.me/' + username + '/' + p.tg_msg_id)) + '" target="_blank" style="text-decoration:none">' + share + '</a>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function _xTime(iso) {
+  if (!iso) return '';
+  try {
+    var d = new Date(iso), now = new Date(), s = (now - d) / 1000;
+    if (s < 60) return Math.max(1, Math.floor(s)) + 's';
+    if (s < 3600) return Math.floor(s / 60) + 'm';
+    if (s < 86400) return Math.floor(s / 3600) + 'h';
+    if (s < 604800) return Math.floor(s / 86400) + 'd';
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } catch (e) { return ''; }
+}
+function _xNum(n) {
+  n = parseInt(n) || 0;
+  if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+  return String(n);
+}
 
 // Swipe-left-to-reveal-delete on each chat row (mirrors the gesture used for
 // message swipe-to-reply, but horizontal-only and limited to one row at a time).
