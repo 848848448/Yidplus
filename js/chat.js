@@ -389,8 +389,15 @@ window.openTelegramChannel = function (username, title) {
     var slot = document.getElementById('tg-feed-slot');
     var state = document.getElementById('tg-feed-state');
     if (!slot) return;
-    if (!res.ok || !res.ids || !res.ids.length) {
-      if (state) state.innerHTML = (res && res.note ? res.note : 'No posts to show.') +
+    if (!res.found || !res.ids || !res.ids.length) {
+      var why = res.reason === 'private_or_empty'
+        ? 'This looks like a private or empty channel — only public channels with posts can be shown.'
+        : res.reason === 'not_a_channel'
+        ? 'Couldn\'t find a public channel with that @username.'
+        : res.error
+        ? ('Telegram couldn\'t be reached (' + res.error + ').')
+        : 'No posts to show.';
+      if (state) state.innerHTML = why +
         '<br><br><a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9;font-weight:600">Open @' + username + ' in Telegram →</a>';
       return;
     }
@@ -409,7 +416,7 @@ window.openTelegramChannel = function (username, title) {
     });
   }).catch(function (e) {
     var state = document.getElementById('tg-feed-state');
-    if (state) state.innerHTML = 'Could not load posts.<br><a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9;font-weight:600">Open in Telegram →</a>';
+    if (state) state.innerHTML = 'Could not load posts (' + (e && e.message ? e.message : 'error') + ').<br><a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9;font-weight:600">Open in Telegram →</a>';
   });
 };
 

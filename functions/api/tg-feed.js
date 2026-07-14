@@ -6,23 +6,29 @@ export async function onRequestOptions() {
 
 // GET ?username=X → fetch the public channel preview server-side (Cloudflare's
 // network reaches Telegram even if the visitor's network blocks it) and return
-// the recent post IDs. The browser then embeds each with the official widget.
+// recent post IDs. Always returns ok:true (status lives in the body) because the
+// shared client handleRes() throws on ok:false.
 export async function onRequestGet(context) {
   const { request } = context;
-  try {
-    const url = new URL(request.url);
-    const username = (url.searchParams.get('username') || '').replace(/[^a-zA-Z0-9_]/g, '');
-    if (!username) return json({ ok: false, error: 'username required' }, 400);
+  const url = new URL(request.url);
+  const username = (url.searchParams.get('username') || '').replace(/[^a-zA-Z0-9_]/g, '');
+  if (!username) return json({ ok: true, found: false, error: 'username required' });
 
+  try {
     const res = await fetch('https://t.me/s/' + username, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; YIDPLUS/1.0)' },
-      cf: { cacheTtl: 60, cacheEverything: true }
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
+        'Accept': 'text/html'
+      }
     });
-    if (!res.ok) return json({ ok: false, error: 'Channel not reachable (' + res.status + ')' }, 502);
+
+    const status = res.status;
+    if (!res.ok) {
+      return json({ ok: true, found: false, status, error: 'Telegram returned ' + status });
+    }
 
     const html = await res.text();
 
-    // Public channels expose data-post="username/<id>"; private/invalid ones don't.
     const ids = [];
     const re = /data-post="[^"/]+\/(\d+)"/g;
     let m;
@@ -32,16 +38,21 @@ export async function onRequestGet(context) {
     }
     ids.sort((a, b) => b - a);
 
-    // A title, if present, for nicer display.
     let title = '';
-    const tm = html.match(/<div class="tgme_channel_info_header_title"[^>]*><span[^>]*>([^<]+)<\/span>/);
+    const tm = html.match(/tgme_channel_info_header_title[^>]*>\s*<span[^>]*>([^<]+)<\/span>/);
     if (tm) title = tm[1].trim();
 
-    if (!ids.length) {
-      return json({ ok: true, username, title, ids: [], note: 'No public posts found — the channel may be private or empty.' });
-    }
-    return json({ ok: true, username, title, ids: ids.slice(0, 25) });
+    const looksLikeChannel = /tgme_/.test(html);
+    return json({
+      ok: true,
+      found: ids.length > 0,
+      status,
+      username,
+      title,
+      ids: ids.slice(0, 25),
+      reason: ids.length ? '' : (looksLikeChannel ? 'private_or_empty' : 'not_a_channel')
+    });
   } catch (err) {
-    return json({ ok: false, error: err.message }, 500);
+    return json({ ok: true, found: false, error: err.message });
   }
 }
