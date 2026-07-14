@@ -2316,6 +2316,41 @@ window.tgcRemove = function (id, btn) {
     .catch(function (e) { toast('❌ ' + e.message); if (btn) btn.disabled = false; });
 };
 
+function _tgpLoad() {
+  var el = document.getElementById('tgp-list');
+  if (!el) return;
+  api.get('/telegram-posts').then(function (res) {
+    var posts = (res && res.posts) || [];
+    if (!posts.length) { el.innerHTML = '<div style="font-size:.75rem;color:var(--muted)">No posts added yet.</div>'; return; }
+    var by = {};
+    posts.forEach(function (p) { (by[p.username] = by[p.username] || []).push(p); });
+    el.innerHTML = Object.keys(by).map(function (u) {
+      return '<div style="margin-bottom:.5rem">' +
+        '<div style="font-size:.74rem;font-weight:700;color:#229ED9;margin-bottom:.2rem">@' + escHtml(u) + ' (' + by[u].length + ')</div>' +
+        by[u].map(function (p) {
+          return '<div style="display:flex;align-items:center;gap:.4rem;font-size:.74rem;padding:.15rem 0">' +
+            '<span style="flex:1;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">post ' + p.tg_msg_id + '</span>' +
+            '<button onclick="tgpRemove(\'' + p.id + '\',this)" style="background:none;color:var(--red);border:none;cursor:pointer;font-size:.72rem">✕</button>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+    }).join('');
+  }).catch(function () { el.innerHTML = '<div style="font-size:.75rem;color:var(--muted)">Could not load.</div>'; });
+}
+window.tgpAdd = function () {
+  var v = (document.getElementById('tgp-links') || {}).value || '';
+  if (!v.trim()) { toast('Paste a post link'); return; }
+  api.post('/telegram-posts', { links: v }).then(function (res) {
+    if (res.added) { toast('✅ Added ' + res.added + (res.bad ? ' (' + res.bad + ' skipped)' : '')); document.getElementById('tgp-links').value = ''; _tgpLoad(); }
+    else { toast('❌ ' + (res.error || 'No valid links')); }
+  }).catch(function (e) { toast('❌ ' + e.message); });
+};
+window.tgpRemove = function (id, btn) {
+  if (btn) btn.disabled = true;
+  api.del('/telegram-posts?id=' + encodeURIComponent(id)).then(function () { _tgpLoad(); })
+    .catch(function (e) { toast('❌ ' + e.message); if (btn) btn.disabled = false; });
+};
+
 function buildChannelsMgrPanel(content) {
   content.innerHTML =
     '<div class="admin-panel">' +
@@ -2328,6 +2363,13 @@ function buildChannelsMgrPanel(content) {
         '</div>' +
         '<input id="tgc-title" placeholder="Display name (optional)" style="width:100%;box-sizing:border-box;padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem;margin-bottom:.7rem">' +
         '<div id="tgc-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+        '<div style="border-top:1px solid var(--border);margin-top:.9rem;padding-top:.8rem">' +
+          '<div style="font-weight:700;font-size:.85rem;margin-bottom:.3rem">📌 Add posts to show</div>' +
+          '<div style="font-size:.74rem;color:var(--muted);margin-bottom:.5rem">Paste Telegram <b>post</b> links (e.g. <code>t.me/channelname/123</code>) — one per line. They appear inside that channel in the Channels tab.</div>' +
+          '<textarea id="tgp-links" rows="3" placeholder="https://t.me/channelname/123&#10;https://t.me/channelname/124" style="width:100%;box-sizing:border-box;padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.8rem;margin-bottom:.4rem"></textarea>' +
+          '<button class="save-pill" onclick="tgpAdd()">Add posts</button>' +
+          '<div id="tgp-list" style="margin-top:.7rem"></div>' +
+        '</div>' +
       '</div>' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">📡 All Channels</div>' +
@@ -2336,6 +2378,7 @@ function buildChannelsMgrPanel(content) {
     '</div>';
 
   _tgcLoad();
+  _tgpLoad();
 
   api.get('/channels')
     .then(function (res) {

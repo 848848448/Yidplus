@@ -385,50 +385,34 @@ window.openTelegramChannel = function (username, title) {
     '</div>';
 
   var dark = document.documentElement.classList.contains('dark') || (document.body && document.body.classList.contains('dark'));
-  api.get('/telegram-ingest?username=' + encodeURIComponent(username)).then(function (res) {
+  api.get('/telegram-posts?username=' + encodeURIComponent(username)).then(function (res) {
     var slot = document.getElementById('tg-feed-slot');
     var state = document.getElementById('tg-feed-state');
     if (!slot) return;
     var posts = (res && res.posts) || [];
     if (!posts.length) {
-      if (state) state.innerHTML = 'No posts yet.<br><span style="font-size:.75rem">Posts appear here once your Telegram sync is running.</span>' +
+      if (state) state.innerHTML = 'No posts here yet.<br><span style="font-size:.75rem">An admin can add posts from this channel in the admin panel.</span>' +
         '<br><br><a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9;font-weight:600">Open @' + username + ' in Telegram →</a>';
       return;
     }
     if (state) state.remove();
-    slot.innerHTML = posts.map(function (p) {
-      var when = '';
-      try { when = new Date(p.posted_at).toLocaleString(); } catch (e) {}
-      var media = '';
-      if (p.media_url) {
-        if (p.media_type === 'video') {
-          media = '<video src="' + p.media_url + '" controls style="width:100%;border-radius:10px;margin-top:.4rem;background:#000"></video>';
-        } else {
-          media = '<img src="' + p.media_url + '" style="width:100%;border-radius:10px;margin-top:.4rem" loading="lazy">';
-        }
-      }
-      var txt = p.text ? _tgLinkify(escHtml(p.text)).replace(/\n/g, '<br>') : '';
-      return '<div style="background:#fff;border-radius:12px;padding:.7rem .85rem;margin-bottom:.5rem;box-shadow:0 1px 2px rgba(0,0,0,.06)">' +
-        (txt ? '<div style="font-size:.9rem;line-height:1.5;color:#111;white-space:pre-wrap;word-break:break-word">' + txt + '</div>' : '') +
-        media +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:.5rem">' +
-          '<span style="font-size:.68rem;color:var(--muted)">' + when + '</span>' +
-          '<a href="' + (p.link || ('https://t.me/' + username + '/' + p.tg_msg_id)) + '" target="_blank" style="font-size:.68rem;color:#229ED9">View on Telegram ↗</a>' +
-        '</div>' +
-      '</div>';
-    }).join('');
+    posts.forEach(function (p) {
+      var holder = document.createElement('div');
+      holder.style.marginBottom = '.5rem';
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://telegram.org/js/telegram-widget.js?22';
+      s.setAttribute('data-telegram-post', p.username + '/' + p.tg_msg_id);
+      s.setAttribute('data-width', '100%');
+      if (dark) s.setAttribute('data-dark', '1');
+      holder.appendChild(s);
+      slot.appendChild(holder);
+    });
   }).catch(function (e) {
     var state = document.getElementById('tg-feed-state');
     if (state) state.innerHTML = 'Could not load posts (' + (e && e.message ? e.message : 'error') + ').';
   });
 };
-
-// Turn bare URLs in post text into links (text is already HTML-escaped).
-function _tgLinkify(s) {
-  return s.replace(/(https?:\/\/[^\s<]+)/g, function (u) {
-    return '<a href="' + u + '" target="_blank" style="color:#229ED9">' + u + '</a>';
-  });
-}
 
 // Swipe-left-to-reveal-delete on each chat row (mirrors the gesture used for
 // message swipe-to-reply, but horizontal-only and limited to one row at a time).
