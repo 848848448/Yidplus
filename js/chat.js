@@ -368,22 +368,49 @@ window.openTelegramChannel = function (username, title) {
   var bar = document.getElementById('chat-input-bar');
   if (bar) bar.style.display = 'none';
 
-  // Body → Telegram feed embed. t.me/s/<channel> is the channel's public web
-  // feed and is frameable; it only fails where the network itself blocks Telegram
-  // (the browser then shows its own error inside the frame — we can't detect that
-  // cross-origin, so we always keep a clear "Open in Telegram" action visible).
+  // Body → Telegram feed via the OFFICIAL widget (t.me/s iframes are X-Frame
+  // blocked). The server fetches the recent post IDs, we embed each post.
   var msgs = document.getElementById('chat-msgs');
-  if (msgs) {
-    msgs.innerHTML =
-      '<div style="height:100%;display:flex;flex-direction:column;background:#fff">' +
-        '<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;background:#EAF6FC;border-bottom:1px solid #cfe8f5">' +
-          '<span style="font-size:.72rem;color:#0d6ea0;flex:1">Posts load live from Telegram.</span>' +
-          '<a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="background:#229ED9;color:#fff;text-decoration:none;padding:.32rem .8rem;border-radius:16px;font-weight:600;font-size:.74rem;white-space:nowrap">Open in Telegram ↗</a>' +
-        '</div>' +
-        '<iframe src="https://t.me/s/' + encodeURIComponent(username) + '" ' +
-          'style="flex:1;width:100%;border:none;background:#fff"></iframe>' +
-      '</div>';
-  }
+  if (!msgs) return;
+  msgs.innerHTML =
+    '<div style="height:100%;display:flex;flex-direction:column;background:#fff">' +
+      '<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;background:#EAF6FC;border-bottom:1px solid #cfe8f5">' +
+        '<span style="font-size:.72rem;color:#0d6ea0;flex:1">Live from Telegram</span>' +
+        '<a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="background:#229ED9;color:#fff;text-decoration:none;padding:.32rem .8rem;border-radius:16px;font-weight:600;font-size:.74rem;white-space:nowrap">Open in Telegram ↗</a>' +
+      '</div>' +
+      '<div id="tg-feed-scroll" style="flex:1;overflow-y:auto;background:#f0f2f5;padding:.6rem">' +
+        '<div id="tg-feed-slot" style="max-width:520px;margin:0 auto"></div>' +
+        '<div id="tg-feed-state" style="text-align:center;color:var(--muted);font-size:.85rem;padding:2rem 1rem">Loading posts…</div>' +
+      '</div>' +
+    '</div>';
+
+  var dark = document.documentElement.classList.contains('dark') || (document.body && document.body.classList.contains('dark'));
+  api.get('/tg-feed?username=' + encodeURIComponent(username)).then(function (res) {
+    var slot = document.getElementById('tg-feed-slot');
+    var state = document.getElementById('tg-feed-state');
+    if (!slot) return;
+    if (!res.ok || !res.ids || !res.ids.length) {
+      if (state) state.innerHTML = (res && res.note ? res.note : 'No posts to show.') +
+        '<br><br><a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9;font-weight:600">Open @' + username + ' in Telegram →</a>';
+      return;
+    }
+    if (state) state.remove();
+    res.ids.forEach(function (id) {
+      var holder = document.createElement('div');
+      holder.style.marginBottom = '.5rem';
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://telegram.org/js/telegram-widget.js?22';
+      s.setAttribute('data-telegram-post', username + '/' + id);
+      s.setAttribute('data-width', '100%');
+      if (dark) s.setAttribute('data-dark', '1');
+      holder.appendChild(s);
+      slot.appendChild(holder);
+    });
+  }).catch(function (e) {
+    var state = document.getElementById('tg-feed-state');
+    if (state) state.innerHTML = 'Could not load posts.<br><a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9;font-weight:600">Open in Telegram →</a>';
+  });
 };
 
 // Swipe-left-to-reveal-delete on each chat row (mirrors the gesture used for
