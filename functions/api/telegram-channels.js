@@ -14,11 +14,19 @@ async function ensureTable(env) {
 function cleanUsername(raw) {
   if (!raw) return '';
   let u = String(raw).trim();
-  u = u.replace(/^https?:\/\/(t\.me|telegram\.me)\//i, ''); // strip full links
+  u = u.replace(/^https?:\/\/(t\.me|telegram\.me|telegram\.org)\//i, ''); // strip full links
   u = u.replace(/^s\//, '');   // strip the /s/ preview prefix
   u = u.replace(/^@/, '');      // strip a leading @
   u = u.split(/[/?#]/)[0];      // drop anything after the name
   return u.replace(/[^a-zA-Z0-9_]/g, '');
+}
+
+// A private-invite link (t.me/+CODE or t.me/joinchat/CODE) is NOT a public
+// channel and cannot be embedded — Telegram only exposes a public /s/ feed for
+// channels that have a @username.
+function isPrivateInvite(raw) {
+  const s = String(raw || '');
+  return /(?:t\.me|telegram\.me)\/\+/.test(s) || /joinchat/i.test(s) || /\/\+[A-Za-z0-9_-]{10,}/.test(s) || /^\+/.test(s.trim());
 }
 
 // GET → list all Telegram channels (shown in everyone's Channels tab)
@@ -42,8 +50,11 @@ export async function onRequestPost(context) {
     await ensureTable(env);
 
     const body = await request.json();
+    if (isPrivateInvite(body.username)) {
+      return json({ ok: false, error: 'That is a private invite link (t.me/+…). Only PUBLIC channels with a @username can be embedded. Ask the channel owner for its public @username, or make the channel public.' }, 400);
+    }
     const username = cleanUsername(body.username);
-    if (!username || username.length < 3) return json({ ok: false, error: 'Enter a valid public @username' }, 400);
+    if (!username || username.length < 3) return json({ ok: false, error: 'Enter a valid public @username (not a t.me/+ invite link)' }, 400);
     const title = (body.title || '').trim().slice(0, 80) || username;
 
     const exists = await env.DB.prepare('SELECT id FROM telegram_channels WHERE username = ?').bind(username).first();

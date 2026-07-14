@@ -2321,7 +2321,7 @@ function buildChannelsMgrPanel(content) {
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">📨 Telegram channels</div>' +
-        '<div style="font-size:.76rem;color:var(--muted);margin-bottom:.7rem">Add a public Telegram channel by its @username. It shows up in the Channels tab and streams its posts directly from Telegram (read-only).</div>' +
+        '<div style="font-size:.76rem;color:var(--muted);margin-bottom:.7rem">Add a <b>public</b> Telegram channel by its @username (e.g. <code>@channelname</code>). It shows in the Channels tab and streams its posts from Telegram, read-only.<br><b>Note:</b> private invite links (t.me/+…) can\'t be embedded — only public channels with a @username.</div>' +
         '<div style="display:flex;gap:.4rem;margin-bottom:.5rem">' +
           '<input id="tgc-user" placeholder="@channelusername" style="flex:1;padding:.55rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem">' +
           '<button class="save-pill" onclick="tgcAdd()">Add</button>' +
