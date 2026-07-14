@@ -14,7 +14,7 @@ crons = ["* * * * *"]
 # then paste the printed id below.
 [[kv_namespaces]]
 binding = "TG_SESSION"
-id = "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
+id = "7978d36629a5452e813d23115998f17a"
 
 [vars]
 # Where to send the posts. The ingest endpoint already lives on the site.
