@@ -138,7 +138,31 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    if (path === '/' ) return json({ ok: true, worker: 'yidplus-telegram-worker', routes: ['/status', '/login?phone=', '/code?code=', '/password?password=', '/sync'] });
+    if (path === '/' ) return json({ ok: true, worker: 'yidplus-telegram-worker', routes: ['/health', '/status', '/login?phone=', '/code?code=', '/password?password=', '/sync'] });
+
+    // Unguarded on purpose: reports only whether each secret EXISTS, never its
+    // value, so a wrong ?secret= can be told apart from a missing binding.
+    if (path === '/health') {
+      const admin = env.WORKER_ADMIN_SECRET || '';
+      return json({
+        ok: true,
+        secrets: {
+          TELEGRAM_API_ID: !!env.TELEGRAM_API_ID,
+          TELEGRAM_API_HASH: !!env.TELEGRAM_API_HASH,
+          TELEGRAM_INGEST_SECRET: !!env.TELEGRAM_INGEST_SECRET,
+          WORKER_ADMIN_SECRET: !!admin,
+        },
+        // Compare these against what you typed — a mismatch usually means a
+        // stray space, a different case, or a character the URL ate.
+        admin_secret_length: admin.length,
+        admin_secret_first_char: admin ? admin[0] : null,
+        admin_secret_last_char: admin ? admin[admin.length - 1] : null,
+        kv_bound: !!env.TG_SESSION,
+        got_secret_param: url.searchParams.has('secret'),
+        got_secret_length: (url.searchParams.get('secret') || '').length,
+        matches: url.searchParams.get('secret') === admin,
+      });
+    }
 
     if (url.searchParams.get('secret') !== env.WORKER_ADMIN_SECRET) {
       return json({ ok: false, error: 'Bad or missing ?secret=' }, 403);
