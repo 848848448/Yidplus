@@ -240,7 +240,16 @@ function renderChatList() {
     filtered = _applyFolderFilter(filtered);
   }
 
-  if (!filtered.length) {
+  // Embedded Telegram channels appear alongside real channels (Channels + All tabs).
+  var tgHtml = '';
+  if ((CHAT_tab === 'channels' || CHAT_tab === 'all') && !CHAT_activeFolder && CHAT_tgChannels && CHAT_tgChannels.length) {
+    var _q = (CHAT_search || '').toLowerCase();
+    tgHtml = CHAT_tgChannels.filter(function (t) {
+      return !_q || ((t.title || t.username).toLowerCase().indexOf(_q) !== -1);
+    }).map(_tgChannelRow).join('');
+  }
+
+  if (!filtered.length && !tgHtml) {
     el.innerHTML =
       '<div class="feed-state">' +
         '<div style="font-size:2.5rem">💬</div>' +
@@ -306,10 +315,73 @@ function renderChatList() {
         '</div>' +
       '</div>' +
     '</div>';
-  }).join('');
+  }).join('') + tgHtml;
 
   _attachChatSwipeGestures();
 }
+
+// ── Embedded Telegram channels (public, read-only) ──
+var CHAT_tgChannels = [];
+function _loadTgChannels() {
+  api.get('/telegram-channels').then(function (res) {
+    CHAT_tgChannels = (res && res.channels) || [];
+    if (CHAT_tab === 'channels' || CHAT_tab === 'all') renderChatList();
+  }).catch(function () {});
+}
+function _tgChannelRow(t) {
+  var title = escHtml(t.title || t.username);
+  var uname = escHtml(t.username);
+  return '<div class="chat-item-wrap" data-tg="' + uname + '">' +
+    '<div class="chat-item" onclick="openTelegramChannel(\'' + uname + '\',\'' + title.replace(/'/g, "\\'") + '\')">' +
+      '<div class="chat-av chat-av-square" style="background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem">📨</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
+          '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">' + title + '</div>' +
+          '<div style="font-size:.6rem;color:#fff;background:#229ED9;border-radius:8px;padding:1px 6px;flex-shrink:0">Telegram</div>' +
+        '</div>' +
+        '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@' + uname + '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+// Open a Telegram channel as a read-only viewer (no composer), embedding the
+// channel's live feed straight from Telegram (t.me/s/<username>).
+window.openTelegramChannel = function (username, title) {
+  var screenChats    = document.getElementById('screen-chats');
+  var screenChatroom = document.getElementById('screen-chatroom');
+  if (screenChats)    screenChats.classList.add('hidden');
+  if (screenChatroom) screenChatroom.classList.remove('hidden');
+
+  CHAT_curRoom = null; // not a real room
+  try { history.replaceState(null, '', '#tg=' + encodeURIComponent(username)); } catch (e) {}
+
+  // Header
+  var nameEl = document.getElementById('cr-name');
+  if (nameEl) nameEl.textContent = title || ('@' + username);
+  var statusEl = document.getElementById('cr-status');
+  if (statusEl) statusEl.textContent = 'Telegram channel · read-only';
+  var avEl = document.getElementById('cr-avatar');
+  if (avEl) { avEl.style.background = '#229ED9'; avEl.style.backgroundImage = ''; avEl.textContent = '📨'; }
+
+  // Hide the composer / input bar — this is read-only.
+  var bar = document.getElementById('chat-input-bar');
+  if (bar) bar.style.display = 'none';
+
+  // Body → Telegram feed embed.
+  var msgs = document.getElementById('chat-msgs');
+  if (msgs) {
+    msgs.innerHTML =
+      '<div style="height:100%;display:flex;flex-direction:column;background:#fff">' +
+        '<iframe src="https://t.me/s/' + encodeURIComponent(username) + '" ' +
+          'style="flex:1;width:100%;border:none;background:#fff" loading="lazy" ' +
+          'sandbox="allow-scripts allow-same-origin allow-popups"></iframe>' +
+        '<div style="text-align:center;padding:.4rem;font-size:.68rem;color:var(--muted);background:var(--bg2)">' +
+          'Live from Telegram · <a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9">Open in Telegram</a>' +
+        '</div>' +
+      '</div>';
+  }
+};
 
 // Swipe-left-to-reveal-delete on each chat row (mirrors the gesture used for
 // message swipe-to-reply, but horizontal-only and limited to one row at a time).
@@ -811,6 +883,7 @@ window.openChatRoom = function (roomId, topicId, topicName) {
   var inputDisabled = needsJoin || lockedForReadOnly || !!room.admin_spectating;
 
   var ib = document.getElementById('chat-input-bar');
+  ib.style.display = '';   // restore in case a Telegram channel had hidden it
   ib.style.opacity = inputDisabled ? '.4' : '1';
   ib.style.pointerEvents = inputDisabled ? 'none' : 'all';
 
