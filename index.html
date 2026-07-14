@@ -19,7 +19,7 @@
 <meta name="twitter:description" content="A Yiddish social platform for the Jewish community">
 <meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>YID PLUS</title>
-<link rel="stylesheet" href="css/style.css?v=202607120230">
+<link rel="stylesheet" href="css/style.css?v=202607120330">
 <script>
 // Apply saved user theme ASAP (before paint) to avoid flash-of-default-colors
 (function () {
@@ -215,18 +215,11 @@
   <div style="padding:.6rem .75rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
     <div style="display:flex;align-items:center;gap:.5rem;background:var(--bg3);border-radius:12px;padding:.5rem .85rem;border:1.5px solid var(--border)">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input id="explore-search-inp" placeholder="Search users, channels, groups..." style="flex:1;background:none;border:none;outline:none;font-size:.9rem;color:var(--text);font-family:inherit" oninput="onExploreSearch()" autocomplete="off">
+      <input id="explore-search-inp" placeholder="Search channels..." style="flex:1;background:none;border:none;outline:none;font-size:.9rem;color:var(--text);font-family:inherit" oninput="onExploreSearch()" autocomplete="off">
       <button id="explore-clear-btn" onclick="clearExploreSearch()" style="display:none;background:none;border:none;cursor:pointer;color:var(--muted);padding:0">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-  </div>
-  <!-- Tabs -->
-  <div style="display:flex;border-bottom:1.5px solid var(--border);background:var(--surface);flex-shrink:0">
-    <button class="ctab active" id="etab-all"      onclick="switchExploreTab('all',this)"      style="flex:1">All</button>
-    <button class="ctab"        id="etab-users"    onclick="switchExploreTab('users',this)"    style="flex:1">People</button>
-    <button class="ctab"        id="etab-channels" onclick="switchExploreTab('channels',this)" style="flex:1">Channels</button>
-    <button class="ctab"        id="etab-groups"   onclick="switchExploreTab('groups',this)"   style="flex:1">Groups</button>
   </div>
   <div class="scroll-area" style="padding-bottom:80px" id="explore-content">
     <div id="explore-body" style="padding:.5rem 0"></div>
@@ -553,11 +546,11 @@
 <!-- ════════════════════════════════
      SCRIPTS — ORDER MATTERS!
 ════════════════════════════════ -->
-<script src="js/state.js?v=202607120230"></script>
-<script src="js/theme.js?v=202607120230"></script>
-<script src="js/app.js?v=202607120230"></script>
-<script src="js/auth.js?v=202607120230"></script>
-<script src="js/home.js?v=202607120230"></script>
+<script src="js/state.js?v=202607120330"></script>
+<script src="js/theme.js?v=202607120330"></script>
+<script src="js/app.js?v=202607120330"></script>
+<script src="js/auth.js?v=202607120330"></script>
+<script src="js/home.js?v=202607120330"></script>
 
 <script>
 // ── POSTS FEED (Cloudflare D1 via /api/posts) ──
@@ -822,6 +815,6 @@ window._resendVerifyEmail = function (btn) {
 };
 </script>
 
-<script src="js/ads.js?v=202607120230"></script>
+<script src="js/ads.js?v=202607120330"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
       </html>
