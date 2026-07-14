@@ -6,6 +6,19 @@
   Permissions-Policy: geolocation=(), camera=(self), microphone=(self), payment=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
 
+# JS/CSS are requested with a ?v=<build> query that changes on every deploy, so
+# the file at a given URL never changes — cache it hard. Without this, Pages
+# serves them as must-revalidate and the browser re-checks ~300KB of scripts
+# with the server on EVERY page load, which is the main source of slowness.
+/js/*
+  Cache-Control: public, max-age=31536000, immutable
+/css/*
+  Cache-Control: public, max-age=31536000, immutable
+/img/*
+  Cache-Control: public, max-age=604800
+/icons/*
+  Cache-Control: public, max-age=604800
+
 # Never let the browser cache HTML — it references versioned JS/CSS, so a
 # stale HTML is what causes "I deployed but still see the old app".
 /*.html
