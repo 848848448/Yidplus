@@ -2282,14 +2282,60 @@ window.adminQuickBanIp = function (ip) {
 /* ══════════════════════════════════
    CHANNELS MANAGER PANEL
 ══════════════════════════════════ */
+function _tgcLoad() {
+  var el = document.getElementById('tgc-list');
+  if (!el) return;
+  api.get('/telegram-channels').then(function (res) {
+    var chans = (res && res.channels) || [];
+    if (!chans.length) { el.innerHTML = '<div style="font-size:.78rem;color:var(--muted);text-align:center;padding:.5rem">No Telegram channels yet.</div>'; return; }
+    el.innerHTML = chans.map(function (c) {
+      return '<div style="display:flex;align-items:center;gap:.5rem;padding:.45rem 0;border-bottom:1px solid var(--border)">' +
+        '<div style="width:32px;height:32px;border-radius:50%;background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.9rem">📨</div>' +
+        '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(c.title || c.username) + '</div>' +
+        '<div style="font-size:.68rem;color:var(--muted)">@' + escHtml(c.username) + '</div></div>' +
+        '<button onclick="tgcRemove(\'' + c.id + '\',this)" style="background:none;color:var(--red);border:none;font-size:.8rem;cursor:pointer">Remove</button>' +
+      '</div>';
+    }).join('');
+  }).catch(function () { el.innerHTML = '<div style="font-size:.78rem;color:var(--muted)">Could not load.</div>'; });
+}
+window.tgcAdd = function () {
+  var u = (document.getElementById('tgc-user') || {}).value || '';
+  var t = (document.getElementById('tgc-title') || {}).value || '';
+  if (!u.trim()) { toast('Enter a @username'); return; }
+  api.post('/telegram-channels', { username: u, title: t }).then(function (res) {
+    if (!res.ok) { toast('❌ ' + (res.error || 'Failed')); return; }
+    toast('✅ Channel added');
+    document.getElementById('tgc-user').value = '';
+    document.getElementById('tgc-title').value = '';
+    _tgcLoad();
+  }).catch(function (e) { toast('❌ ' + e.message); });
+};
+window.tgcRemove = function (id, btn) {
+  if (btn) btn.disabled = true;
+  api.del('/telegram-channels?id=' + encodeURIComponent(id)).then(function () { toast('Removed'); _tgcLoad(); })
+    .catch(function (e) { toast('❌ ' + e.message); if (btn) btn.disabled = false; });
+};
+
 function buildChannelsMgrPanel(content) {
   content.innerHTML =
     '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">📨 Telegram channels</div>' +
+        '<div style="font-size:.76rem;color:var(--muted);margin-bottom:.7rem">Add a public Telegram channel by its @username. It shows up in the Channels tab and streams its posts directly from Telegram (read-only).</div>' +
+        '<div style="display:flex;gap:.4rem;margin-bottom:.5rem">' +
+          '<input id="tgc-user" placeholder="@channelusername" style="flex:1;padding:.55rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem">' +
+          '<button class="save-pill" onclick="tgcAdd()">Add</button>' +
+        '</div>' +
+        '<input id="tgc-title" placeholder="Display name (optional)" style="width:100%;box-sizing:border-box;padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem;margin-bottom:.7rem">' +
+        '<div id="tgc-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">📡 All Channels</div>' +
         '<div id="channels-mgr-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
       '</div>' +
     '</div>';
+
+  _tgcLoad();
 
   api.get('/channels')
     .then(function (res) {
