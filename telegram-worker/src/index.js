@@ -87,8 +87,9 @@ async function syncAll(env) {
 
       let highest = lastSeen;
       for (const m of messages) {
-        const ok = await pushPost(env, username, chat, m);
-        if (ok) { report.sent++; highest = Math.max(highest, m.id); }
+        const res = await pushPost(env, username, chat, m);
+        if (res.ok) { report.sent++; highest = Math.max(highest, m.id); }
+        else if (report.errors.length < 5) report.errors.push(`push @${username}/${m.id}: ${res.error}`);
       }
       if (highest > lastSeen) await env.TG_SESSION.put(lastKey, String(highest));
     } catch (err) {
@@ -121,9 +122,12 @@ async function pushPost(env, username, chat, m) {
       body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
-    return !!data.accepted;
+    if (data.accepted) return { ok: true };
+    // The ingest endpoint always answers ok:true and puts the real status in the
+    // body, so surface that instead of reporting a silent zero.
+    return { ok: false, error: data.error || `ingest said no (HTTP ${res.status})` };
   } catch (e) {
-    return false;
+    return { ok: false, error: e.message };
   }
 }
 
