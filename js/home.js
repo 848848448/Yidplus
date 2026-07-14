@@ -1940,18 +1940,22 @@ function _userRow(u) {
 }
 
 function _channelRow(c) {
+  var name = escHtml(c.nickname || 'Channel');
   var av = c.photo_url
-    ? '<div style="width:46px;height:46px;border-radius:12px;background-image:url(' + c.photo_url + ');background-size:cover;flex-shrink:0"></div>'
-    : '<div style="width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;color:#fff;flex-shrink:0">' + (c.nickname||'C').slice(0,1).toUpperCase() + '</div>';
-  var bioSnippet = c.bio ? '<div style="font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.1rem;unicode-bidi:plaintext">' + escHtml(c.bio) + '</div>' : '';
-  return '<div style="display:flex;align-items:center;gap:.65rem;padding:.7rem .85rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
+    ? '<div style="width:54px;height:54px;border-radius:50%;background-image:url(' + encodeURI(c.photo_url) + ');background-size:cover;background-position:center;flex-shrink:0;border:1px solid var(--border)"></div>'
+    : '<div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-size:1.25rem;font-weight:800;color:#fff;flex-shrink:0">' + (c.nickname || 'C').slice(0, 1).toUpperCase() + '</div>';
+  var verified = c.verified
+    ? ' <svg width="14" height="14" viewBox="0 0 24 24" fill="#1d9bf0" style="vertical-align:-2px;flex-shrink:0"><path d="M12 2l2.4 2.4 3.3-.6.6 3.3L21 12l-2.7 2.4.6 3.3-3.3.6L12 22l-2.4-2.7-3.3.6-.6-3.3L3 12l2.7-2.4-.6-3.3 3.3.6z"/><path d="M10.5 14.5l-2-2 1-1 1 1 3-3 1 1z" fill="#fff"/></svg>'
+    : '';
+  var sub = c.bio
+    ? escHtml(c.bio)
+    : fmtN(c.followers || 0) + ' followers';
+  return '<div style="display:flex;align-items:center;gap:.8rem;padding:.6rem 1rem;cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
     av +
     '<div style="flex:1;min-width:0">' +
-      '<div style="font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:left">' + escHtml(c.nickname||'Channel') + (c.verified?' ✅':'') + '</div>' +
-      (bioSnippet || '<div style="font-size:.72rem;color:var(--muted)">' + fmtN(c.followers||0) + ' followers</div>') +
+      '<div style="font-size:.92rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;display:flex;align-items:center;gap:.15rem">' + name + verified + '</div>' +
+      '<div style="font-size:.8rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.1rem;unicode-bidi:plaintext">' + sub + '</div>' +
     '</div>' +
-    '<div style="font-size:.66rem;color:var(--muted);text-align:right;flex-shrink:0">' + (bioSnippet ? fmtN(c.followers||0) + '<br>followers' : '') + '</div>' +
-    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>' +
   '</div>';
 }
 

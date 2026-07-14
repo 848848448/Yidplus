@@ -77,8 +77,10 @@ export async function onRequestGet(context) {
     try {
       const r = searchQ && searchQ.trim()
         ? await env.DB.prepare(
-            `SELECT c.id, c.owner_id, c.nickname, c.verified, COUNT(cf.follower_id) as followers
-             FROM channels c LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+            `SELECT c.id, c.owner_id, c.nickname, c.verified, c.bio, u.photo_url, COUNT(cf.follower_id) as followers
+             FROM channels c
+             LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+             LEFT JOIN users u ON u.id = c.owner_id
              WHERE c.nickname LIKE ? AND (c.hidden IS NULL OR c.hidden = 0)
              GROUP BY c.id ORDER BY followers DESC LIMIT ?`
           ).bind('%' + searchQ.trim() + '%', limitParam).all()
