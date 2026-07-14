@@ -235,17 +235,20 @@ window.loadDynamicFeed = function () {
 // ── BUILD ONE POST CARD ───────────────────────────────────
 function buildPostCard(p) {
   var article = document.createElement('article');
-  article.className  = 'feed-post';
+  article.className  = 'feed-post x-post';
   article.dataset.id = p.id;
 
-  var nick    = p.username || 'Anonymous';
+  var handle  = p.username || 'anonymous';
+  var name    = p.nickname || p.name || p.display_name || handle;
   var caption = p.caption  || '';
   var likes   = p.likes    || 0;
   var cmts    = p.comments || 0;
-  var timeStr = p.created_at ? timeAgo(p.created_at) : '';
+  var views   = p.views || p.view_count || 0;
+  var timeStr = p.created_at ? _xTimeH(p.created_at) : '';
+  var verified = p.verified ? 1 : 0;
+  var photo   = p.photo_url || p.avatar || p.user_photo || '';
 
-  // Does this post actually carry media? content holds a media URL/key for
-  // media posts; for a plain text post it's empty (or just an emoji).
+  // Media detection (unchanged logic).
   var content = (p.content || '').trim();
   var hasMedia = content && (content.indexOf('/') !== -1 || content.indexOf('http') === 0);
   var isEmojiOnly = content && /^[\p{Emoji}\s]+$/u.test(content) && !hasMedia;
@@ -255,9 +258,9 @@ function buildPostCard(p) {
     var url = content.indexOf('http') === 0 ? content : ('/api/media/' + encodeURIComponent(content.replace(/^\//, '')));
     var isVideo = /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
     if (isVideo) {
-      mediaHtml = '<div class="post-media"><video src="' + url + '" controls preload="metadata" style="width:100%;max-height:70vh;display:block;background:#000"></video></div>';
+      mediaHtml = '<div style="margin-top:.6rem;border-radius:16px;overflow:hidden;border:1px solid var(--border)"><video src="' + url + '" controls preload="metadata" playsinline style="width:100%;max-height:70vh;display:block;background:#000"></video></div>';
     } else {
-      mediaHtml = '<div class="post-media"><img src="' + url + '" style="width:100%;display:block" loading="lazy"></div>';
+      mediaHtml = '<div style="margin-top:.6rem;border-radius:16px;overflow:hidden;border:1px solid var(--border)"><img src="' + url + '" style="width:100%;display:block" loading="lazy"></div>';
     }
   } else if (isEmojiOnly) {
     mediaHtml = '<div class="post-emoji-big">' + escHtml(content) + '</div>';
@@ -265,43 +268,61 @@ function buildPostCard(p) {
 
   var captionHtml = '';
   if (caption) {
-    var big = !mediaHtml && caption.length < 140; // short text-only posts render larger
-    captionHtml = '<div class="post-caption' + (big ? ' post-caption-big' : '') + '">' +
+    captionHtml = '<div style="color:var(--text);font-size:.95rem;line-height:1.45;margin-top:.15rem;white-space:pre-wrap;word-break:break-word">' +
       (typeof filterContent === 'function' ? filterContent(_linkHashtags(escHtml(caption))) : _linkHashtags(escHtml(caption))) +
     '</div>';
   }
 
+  var avatarHtml = photo
+    ? '<div style="width:44px;height:44px;border-radius:50%;background-image:url(' + encodeURI(photo) + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
+    : '<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-size:1.15rem;font-weight:800;color:#fff;flex-shrink:0">' + escHtml(name.charAt(0).toUpperCase()) + '</div>';
+
+  var verifiedSvg = verified
+    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="#1d9bf0" style="flex-shrink:0"><path d="M12 2l2.4 2.4 3.3-.6.6 3.3L21 12l-2.7 2.4.6 3.3-3.3.6L12 22l-2.4-2.7-3.3.6-.6-3.3L3 12l2.7-2.4-.6-3.3 3.3.6z"/><path d="M10.5 14.5l-2-2 1-1 1 1 3-3 1 1z" fill="#fff"/></svg>'
+    : '';
+
+  var replyIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
+  var likeIcon  = p.liked
+    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="#f91880" stroke="#f91880" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>'
+    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+  var viewsIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
+  var shareIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
+
   article.innerHTML =
-    // Header
-    '<div style="display:flex;align-items:center;gap:.6rem;padding:.75rem;cursor:pointer" onclick="openChannel(\'' + escHtml(p.user_id || '') + '\')">' +
-      '<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-size:1.05rem;font-weight:800;color:#fff;flex-shrink:0">' +
-        escHtml(nick.charAt(0).toUpperCase()) +
+    '<div style="display:flex;gap:.65rem;padding:.85rem .9rem">' +
+      '<div onclick="openChannel(\'' + escHtml(p.user_id || '') + '\')" style="cursor:pointer">' + avatarHtml + '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="display:flex;align-items:center;gap:.25rem;cursor:pointer" onclick="openChannel(\'' + escHtml(p.user_id || '') + '\')">' +
+          '<span style="font-weight:700;color:var(--text);font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%;unicode-bidi:plaintext">' + escHtml(name) + '</span>' +
+          verifiedSvg +
+          '<span style="color:var(--muted);font-size:.86rem;white-space:nowrap">@' + escHtml(handle) + '</span>' +
+          (timeStr ? '<span style="color:var(--muted);font-size:.86rem">· ' + escHtml(timeStr) + '</span>' : '') +
+          (isAnyAdmin() ? '<button style="margin-left:auto;background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem;padding:0" data-role="admin" onclick="event.stopPropagation();adminDeletePost(\'' + p.id + '\')">🗑</button>' : '') +
+        '</div>' +
+        captionHtml +
+        mediaHtml +
+        '<div style="display:flex;justify-content:space-between;max-width:360px;margin-top:.65rem;color:var(--muted)">' +
+          '<button class="x-act" onclick="openPostComments(\'' + p.id + '\')" style="display:flex;align-items:center;gap:.3rem;background:none;border:none;color:inherit;cursor:pointer;font-size:.8rem;padding:0">' + replyIcon + '<span>' + fmtN(cmts) + '</span></button>' +
+          '<button class="x-act x-like' + (p.liked ? ' liked' : '') + '" id="like-btn-' + p.id + '" onclick="handleLike(this,\'' + p.id + '\')" style="display:flex;align-items:center;gap:.3rem;background:none;border:none;color:' + (p.liked ? '#f91880' : 'inherit') + ';cursor:pointer;font-size:.8rem;padding:0">' + likeIcon + '<span>' + fmtN(likes) + '</span></button>' +
+          '<div style="display:flex;align-items:center;gap:.3rem;font-size:.8rem">' + viewsIcon + '<span>' + fmtN(views) + '</span></div>' +
+          '<button class="x-act" onclick="copyPostLink(\'' + p.id + '\')" style="display:flex;align-items:center;background:none;border:none;color:inherit;cursor:pointer;padding:0">' + shareIcon + '</button>' +
+        '</div>' +
       '</div>' +
-      '<div style="min-width:0">' +
-        '<div style="font-size:.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext">@' + escHtml(nick) + '</div>' +
-        '<div style="font-size:.68rem;color:var(--muted)">' + escHtml(timeStr) + '</div>' +
-      '</div>' +
-    '</div>' +
-    mediaHtml +
-    captionHtml +
-    // Actions
-    '<div style="display:flex;gap:1.25rem;padding:.7rem .85rem;align-items:center">' +
-      '<button class="post-action' + (p.liked ? ' liked' : '') + '" id="like-btn-' + p.id + '" onclick="handleLike(this,\'' + p.id + '\')">' +
-        (p.liked ? '❤️ ' : '🤍 ') + fmtN(likes) +
-      '</button>' +
-      '<button class="post-action" onclick="openPostComments(\'' + p.id + '\')">' +
-        '💬 ' + fmtN(cmts) +
-      '</button>' +
-      '<button class="post-action" onclick="copyPostLink(\'' + p.id + '\')">' +
-        '📤 Share' +
-      '</button>' +
-      (isAnyAdmin() ?
-        '<button class="post-action" style="color:var(--red);margin-left:auto" data-role="admin" onclick="adminDeletePost(\'' + p.id + '\')">' +
-          '🗑 Delete' +
-        '</button>' : '') +
     '</div>';
 
   return article;
+}
+
+// Relative time for home/channel posts (Xs / Xm / Xh / Xd / "Mon D").
+function _xTimeH(iso) {
+  try {
+    var d = new Date(iso), s = (Date.now() - d.getTime()) / 1000;
+    if (s < 60) return Math.max(1, Math.floor(s)) + 's';
+    if (s < 3600) return Math.floor(s / 60) + 'm';
+    if (s < 86400) return Math.floor(s / 3600) + 'h';
+    if (s < 604800) return Math.floor(s / 86400) + 'd';
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } catch (e) { return ''; }
 }
 
 // ── POST ACTIONS ─────────────────────────────────────────
@@ -336,26 +357,30 @@ window.handleLike = function (btn, postId) {
   var wasLiked = btn.classList.contains('liked');
   var nowLiked = !wasLiked;
   btn.classList.toggle('liked', nowLiked);
-  // Optimistic UI: bump the displayed count by 1 while the request is in flight
-  var curText = btn.textContent.replace(/[^\d.KM]/g, '');
+  var span = btn.querySelector('span');
+  var curText = (span ? span.textContent : '0').replace(/[^\d.KM]/g, '');
   var curNum = parseFloat(curText) || 0;
   var mult = /K/.test(curText) ? 1000 : /M/.test(curText) ? 1000000 : 1;
   var optimisticCount = Math.max(0, Math.round(curNum * mult) + (nowLiked ? 1 : -1));
-  btn.innerHTML = (nowLiked ? '❤️ ' : '🤍 ') + fmtN(optimisticCount);
+  _setLikeBtn(btn, nowLiked, optimisticCount);
 
   api.put('/posts', { id: postId, like: nowLiked })
     .then(function (res) {
-      if (res && typeof res.likes === 'number') {
-        btn.innerHTML = (nowLiked ? '❤️ ' : '🤍 ') + fmtN(res.likes);
-      }
+      if (res && typeof res.likes === 'number') _setLikeBtn(btn, nowLiked, res.likes);
     })
     .catch(function (err) {
-      // Revert on failure
       btn.classList.toggle('liked', wasLiked);
-      btn.innerHTML = (wasLiked ? '❤️ ' : '🤍 ') + fmtN(curNum * mult);
+      _setLikeBtn(btn, wasLiked, Math.round(curNum * mult));
       console.warn('[HOME] Like update error:', err.message);
     });
 };
+function _setLikeBtn(btn, liked, count) {
+  btn.style.color = liked ? '#f91880' : '';
+  var heart = liked
+    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="#f91880" stroke="#f91880" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>'
+    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+  btn.innerHTML = heart + '<span>' + fmtN(count) + '</span>';
+}
 
 window.copyPostLink = function (postId) {
   var url = window.location.origin + window.location.pathname + '?post=' + postId;
