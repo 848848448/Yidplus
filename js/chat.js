@@ -369,16 +369,19 @@ window.openTelegramChannel = function (username, title) {
   if (bar) bar.style.display = 'none';
 
   // Body → Telegram feed embed. t.me/s/<channel> is the channel's public web
-  // feed and is frameable; it only fails where the network itself blocks Telegram.
+  // feed and is frameable; it only fails where the network itself blocks Telegram
+  // (the browser then shows its own error inside the frame — we can't detect that
+  // cross-origin, so we always keep a clear "Open in Telegram" action visible).
   var msgs = document.getElementById('chat-msgs');
   if (msgs) {
     msgs.innerHTML =
       '<div style="height:100%;display:flex;flex-direction:column;background:#fff">' +
+        '<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;background:#EAF6FC;border-bottom:1px solid #cfe8f5">' +
+          '<span style="font-size:.72rem;color:#0d6ea0;flex:1">Posts load live from Telegram.</span>' +
+          '<a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="background:#229ED9;color:#fff;text-decoration:none;padding:.32rem .8rem;border-radius:16px;font-weight:600;font-size:.74rem;white-space:nowrap">Open in Telegram ↗</a>' +
+        '</div>' +
         '<iframe src="https://t.me/s/' + encodeURIComponent(username) + '" ' +
           'style="flex:1;width:100%;border:none;background:#fff"></iframe>' +
-        '<div style="text-align:center;padding:.45rem;font-size:.7rem;color:var(--muted);background:var(--bg2)">' +
-          'Live from Telegram · <a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9">Open @' + escHtml(username) + ' in Telegram</a>' +
-        '</div>' +
       '</div>';
   }
 };
