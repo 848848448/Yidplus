@@ -1700,6 +1700,27 @@ window.switchChTab = function (btn, tab) {
   }
 };
 
+// Channel posts come back without the author fields the shared card wants —
+// fill them in from the channel we're already viewing.
+function _chPostShape(p) {
+  var c = CHANNEL_current || {};
+  return {
+    id: p.id,
+    user_id: c.owner_id,
+    username: p.username || c.nickname || '',
+    nickname: c.nickname || p.username || '',
+    photo_url: c.photo_url || '',
+    verified: c.verified ? 1 : 0,
+    caption: p.caption || p.content || '',
+    content: p.content || '',
+    likes: p.likes || 0,
+    comments: p.comments || 0,
+    views: p.views || p.view_count || 0,
+    liked: !!p.liked,
+    created_at: p.created_at
+  };
+}
+
 function _loadChannelPosts() {
   var el = document.getElementById('ch-posts-list');
   if (!el || !CHANNEL_current) return;
@@ -1724,12 +1745,13 @@ function _loadChannelPosts() {
         el.innerHTML = newPostBtn + '<div style="padding:2rem;text-align:center;font-size:.85rem;color:var(--muted)">No posts yet</div>';
         return;
       }
-      el.innerHTML = newPostBtn + posts.map(function (p) {
-        return '<div style="padding:.85rem 1rem;border-bottom:1px solid var(--border)">' +
-          '<div style="font-size:.88rem;line-height:1.55;unicode-bidi:plaintext">' + _linkHashtags(escHtml(p.content || p.caption || '')) + '</div>' +
-          '<div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">' + timeAgo(p.created_at) + '</div>' +
-        '</div>';
-      }).join('');
+      // Render with the shared X-style card so channel posts match the feed.
+      el.innerHTML = newPostBtn;
+      posts.forEach(function (p) {
+        var card = buildPostCard(_chPostShape(p));
+        card.style.borderBottom = '1px solid var(--border)';
+        el.appendChild(card);
+      });
     })
     .catch(function () {
       var el2 = document.getElementById('ch-posts-list');
