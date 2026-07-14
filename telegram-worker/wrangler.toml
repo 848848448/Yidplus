@@ -8,7 +8,7 @@ compatibility_flags = ["nodejs_compat"]
 # no `.extend`, so the module throws at startup ("baseDebug.extend is not a
 # function") and the deploy fails. Point it at a no-op with the same shape.
 [alias]
-"debug" = "./src/debug-stub.js"
+"debug" = "./src/debug-stub.cjs"
 
 # Poll Telegram once a minute. This is the closest Cloudflare gets to "live";
 # there is no always-on process here, each run connects, reads, and exits.
