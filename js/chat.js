@@ -408,7 +408,7 @@ function _xPostCard(p, username, chTitle) {
   var name   = escHtml(p.author_name || chTitle || username);
   var handle = escHtml((p.author_handle || username));
   var avatar = p.author_avatar
-    ? '<div style="width:44px;height:44px;border-radius:50%;background-image:url(' + encodeURI(p.author_avatar) + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
+    ? '<div style="width:44px;height:44px;border-radius:50%;background-image:url(' + p.author_avatar + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
     : '<div style="width:44px;height:44px;border-radius:50%;background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;flex-shrink:0">' + (name.slice(0, 1) || 'C') + '</div>';
 
   var when = _xTime(p.posted_at);
@@ -427,9 +427,9 @@ function _xPostCard(p, username, chTitle) {
   var media = '';
   if (p.media_url) {
     if (p.media_type === 'video') {
-      media = '<div style="margin-top:.7rem;border-radius:16px;overflow:hidden;border:1px solid #eff3f4"><video src="' + encodeURI(p.media_url) + '" controls playsinline style="width:100%;display:block;background:#000"></video></div>';
+      media = '<div style="margin-top:.7rem;border-radius:16px;overflow:hidden;border:1px solid #eff3f4"><video src="' + p.media_url + '" controls playsinline style="width:100%;display:block;background:#000"></video></div>';
     } else {
-      media = '<div style="margin-top:.7rem;border-radius:16px;overflow:hidden;border:1px solid #eff3f4"><img src="' + encodeURI(p.media_url) + '" style="width:100%;display:block" loading="lazy"></div>';
+      media = '<div style="margin-top:.7rem;border-radius:16px;overflow:hidden;border:1px solid #eff3f4"><img src="' + p.media_url + '" style="width:100%;display:block" loading="lazy"></div>';
     }
   }
 

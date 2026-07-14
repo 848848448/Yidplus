@@ -74,6 +74,7 @@ export async function onRequestGet(context) {
     const limitParam = Math.min(parseInt(url.searchParams.get('limit'), 10) || 20, 50);
 
     let results;
+    let fellBack = null;
     try {
       const r = searchQ && searchQ.trim()
         ? await env.DB.prepare(
@@ -94,22 +95,30 @@ export async function onRequestGet(context) {
           ).bind(limitParam).all();
       results = r.results;
     } catch (e) {
+      // Older schemas may lack c.bio / c.hidden — retry without them, but KEEP
+      // the users join so avatars still come back (dropping it made every
+      // channel render as a blank initial box).
+      fellBack = e.message;
       const r = searchQ && searchQ.trim()
         ? await env.DB.prepare(
-            `SELECT c.id, c.owner_id, c.nickname, c.verified, COUNT(cf.follower_id) as followers
-             FROM channels c LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+            `SELECT c.id, c.owner_id, c.nickname, c.verified, u.photo_url, COUNT(cf.follower_id) as followers
+             FROM channels c
+             LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+             LEFT JOIN users u ON u.id = c.owner_id
              WHERE c.nickname LIKE ?
              GROUP BY c.id ORDER BY followers DESC LIMIT ?`
           ).bind('%' + searchQ.trim() + '%', limitParam).all()
         : await env.DB.prepare(
-            `SELECT c.id, c.owner_id, c.nickname, c.verified, COUNT(cf.follower_id) as followers
-             FROM channels c LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+            `SELECT c.id, c.owner_id, c.nickname, c.verified, u.photo_url, COUNT(cf.follower_id) as followers
+             FROM channels c
+             LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
+             LEFT JOIN users u ON u.id = c.owner_id
              GROUP BY c.id ORDER BY followers DESC, c.created_at DESC LIMIT ?`
           ).bind(limitParam).all();
       results = r.results;
     }
 
-    return json({ ok: true, channels: results });
+    return json({ ok: true, channels: results, degraded: fellBack });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
