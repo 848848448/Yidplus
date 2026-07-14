@@ -424,6 +424,13 @@ function _xPostCard(p, username, chTitle) {
   if (p.media_url) {
     if (p.media_type === 'video') {
       media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><video src="' + p.media_url + '" controls playsinline style="width:100%;display:block;background:#000"></video></div>';
+    } else if (p.media_type === 'audio') {
+      media = '<div style="margin-bottom:.45rem"><audio src="' + p.media_url + '" controls preload="none" style="width:100%;height:38px"></audio></div>';
+    } else if (p.media_type === 'file') {
+      media = '<a href="' + p.media_url + '" target="_blank" style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem;text-decoration:none;color:#168acd">' +
+        '<div style="width:36px;height:36px;border-radius:50%;background:#168acd;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
+        '</div><span style="font-size:.85rem;font-weight:600">Download file</span></a>';
     } else {
       media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><img src="' + p.media_url + '" style="width:100%;display:block" loading="lazy"></div>';
     }

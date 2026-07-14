@@ -23,6 +23,13 @@ crons = ["* * * * *"]
 binding = "TG_SESSION"
 id = "7978d36629a5452e813d23115998f17a"
 
+# Media downloaded from Telegram is written straight into the site's bucket, so
+# the site serves it from /api/media like any other upload. Going through the
+# ingest endpoint as base64 instead would waste CPU we don't have.
+[[r2_buckets]]
+binding     = "MY_BUCKET"
+bucket_name = "yidplus-media"
+
 [vars]
 # Where to send the posts. The ingest endpoint already lives on the site.
 INGEST_URL = "https://yidplus.com/api/telegram-ingest"
@@ -30,6 +37,12 @@ INGEST_URL = "https://yidplus.com/api/telegram-ingest"
 CHANNELS_URL = "https://yidplus.com/api/telegram-channels"
 # How many recent posts to look at per channel on each run.
 FETCH_LIMIT = "20"
+# Skip files bigger than this. Each chunk is decrypted in pure JS, so large
+# files are what will blow the Worker CPU limit.
+MEDIA_MAX_MB = "20"
+# Cap how many files one run downloads, for the same reason. The rest are
+# picked up by the next run a minute later.
+MEDIA_PER_RUN = "4"
 
 # Secrets — set these with `npx wrangler secret put <NAME>`, never in this file:
 #   TELEGRAM_API_ID          from my.telegram.org

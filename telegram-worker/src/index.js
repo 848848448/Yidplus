@@ -49,7 +49,9 @@ async function call(mtproto, method, params, options = {}) {
 
 // ── the actual sync ──
 async function syncAll(env) {
-  const report = { channels: 0, sent: 0, skipped: 0, errors: [] };
+  const report = { channels: 0, sent: 0, skipped: 0, deferred: 0, errors: [] };
+  // Shared across channels: how many files this run may still download.
+  const budget = { left: Number(env.MEDIA_PER_RUN || 4) };
 
   const listRes = await fetch(env.CHANNELS_URL);
   const listJson = await listRes.json().catch(() => ({}));
@@ -87,7 +89,12 @@ async function syncAll(env) {
 
       let highest = lastSeen;
       for (const m of messages) {
-        const res = await pushPost(env, username, chat, m);
+        // Each file is decrypted in pure JS, so only a few fit in one run's CPU
+        // budget. Stop before the post rather than after: leaving lastSeen where
+        // it is means the next run picks this one up instead of skipping it.
+        if (budget.left <= 0 && mediaInfo(m)) { report.deferred++; break; }
+
+        const res = await pushPost(env, mtproto, username, chat, m, budget);
         if (res.ok) { report.sent++; highest = Math.max(highest, m.id); }
         else if (report.errors.length < 5) report.errors.push(`push @${username}/${m.id}: ${res.error}`);
       }
@@ -100,14 +107,39 @@ async function syncAll(env) {
   return report;
 }
 
-async function pushPost(env, username, chat, m) {
-  // v1 forwards the text plus a link to the original. Media needs chunked
-  // upload.getFile calls, which is a separate step.
+async function pushPost(env, mtproto, username, chat, m, budget) {
+  let mediaUrl = '';
+  let mediaType = '';
+
+  // Pull the file down and park it in R2; the post then just points at it.
+  const info = mediaInfo(m);
+  if (info) {
+    const maxBytes = Number(env.MEDIA_MAX_MB || 20) * 1024 * 1024;
+    if (info.size && info.size > maxBytes) {
+      // too big to decrypt inside a Worker — leave the post text-only
+    } else {
+      try {
+        const bytes = await downloadMedia(mtproto, info, maxBytes);
+        if (bytes.length) {
+          const key = `tg/${username}/${m.id}.${info.ext}`;
+          await env.MY_BUCKET.put(key, bytes, { httpMetadata: { contentType: info.mime } });
+          mediaUrl = '/api/media/' + key;
+          mediaType = info.kind;
+          budget.left--;
+        }
+      } catch (e) {
+        return { ok: false, error: `media @${username}/${m.id}: ${e.error_message || e.message}` };
+      }
+    }
+  }
+
   const body = {
     secret: env.TELEGRAM_INGEST_SECRET,
     username,
     tg_msg_id: m.id,
     text: m.message || '',
+    media_url: mediaUrl,
+    media_type: mediaType,
     author_name: chat.title || username,
     author_handle: username,
     views: m.views || 0,
@@ -129,6 +161,110 @@ async function pushPost(env, username, chat, m) {
   } catch (e) {
     return { ok: false, error: e.message };
   }
+}
+
+// ── media ──
+// Telegram hands back a file location, not a URL; the bytes come down in chunks
+// via upload.getFile and are decrypted client-side. We write them into the
+// site's R2 bucket so /api/media serves them like any other upload.
+
+function extFor(mime) {
+  const map = {
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif',
+    'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov',
+    'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/ogg': 'ogg', 'audio/opus': 'opus',
+    'audio/x-m4a': 'm4a', 'audio/flac': 'flac',
+  };
+  return map[mime] || (mime.split('/')[1] || 'bin').replace(/[^a-z0-9]/gi, '');
+}
+
+// Photos arrive as a set of sizes; take the biggest real one (skip the tiny
+// stripped placeholder, which isn't a decodable image on its own).
+function biggestPhotoSize(photo) {
+  const sizes = (photo.sizes || []).filter((s) => s._ === 'photoSize' || s._ === 'photoSizeProgressive');
+  if (!sizes.length) return null;
+  const bytesOf = (s) => s.size || (s.sizes ? s.sizes[s.sizes.length - 1] : 0);
+  return sizes.reduce((best, s) => (bytesOf(s) > bytesOf(best) ? s : best), sizes[0]);
+}
+
+function mediaInfo(m) {
+  const media = m.media;
+  if (!media) return null;
+
+  if (media._ === 'messageMediaPhoto' && media.photo) {
+    const size = biggestPhotoSize(media.photo);
+    if (!size) return null;
+    return {
+      kind: 'photo', ext: 'jpg', mime: 'image/jpeg',
+      size: size.size || (size.sizes ? size.sizes[size.sizes.length - 1] : 0),
+      location: {
+        _: 'inputPhotoFileLocation',
+        id: media.photo.id,
+        access_hash: media.photo.access_hash,
+        file_reference: media.photo.file_reference,
+        thumb_size: size.type,
+      },
+    };
+  }
+
+  // Video, music, voice notes and plain files are all "documents".
+  if (media._ === 'messageMediaDocument' && media.document) {
+    const d = media.document;
+    const mime = d.mime_type || 'application/octet-stream';
+    const kind = mime.startsWith('video') ? 'video'
+      : mime.startsWith('image') ? 'photo'
+      : mime.startsWith('audio') ? 'audio'
+      : 'file';
+    return {
+      kind, mime, ext: extFor(mime), size: d.size,
+      location: {
+        _: 'inputDocumentFileLocation',
+        id: d.id,
+        access_hash: d.access_hash,
+        file_reference: d.file_reference,
+        thumb_size: '',
+      },
+    };
+  }
+  return null;
+}
+
+// Files often live on a different data centre than the chat; the first chunk
+// tells us which, and the rest follow it.
+async function getChunk(mtproto, location, offset, limit, dcId) {
+  const params = { location, offset, limit, precise: false, cdn_supported: false };
+  try {
+    return { res: await mtproto.call('upload.getFile', params, dcId ? { dcId } : {}), dcId };
+  } catch (e) {
+    const msg = e.error_message || '';
+    if (e.error_code === 303 && msg.startsWith('FILE_MIGRATE_')) {
+      const newDc = Number(msg.split('_MIGRATE_')[1]);
+      return { res: await mtproto.call('upload.getFile', params, { dcId: newDc }), dcId: newDc };
+    }
+    throw e;
+  }
+}
+
+async function downloadMedia(mtproto, info, maxBytes) {
+  const CHUNK = 524288; // 512KB — must divide 1MB evenly and be a multiple of 4096
+  const parts = [];
+  let offset = 0, total = 0, dcId = null;
+
+  while (total < maxBytes) {
+    const got = await getChunk(mtproto, info.location, offset, CHUNK, dcId);
+    dcId = got.dcId;
+    const bytes = got.res && got.res.bytes;
+    if (!bytes || !bytes.length) break;
+    parts.push(bytes);
+    total += bytes.length;
+    offset += bytes.length;
+    if (bytes.length < CHUNK) break; // last chunk
+  }
+
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const p of parts) { out.set(p, at); at += p.length; }
+  return out;
 }
 
 export default {
