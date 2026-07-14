@@ -343,7 +343,7 @@ window.publishPost = function () {
   api.post('/posts', {
     username: STATE.user.nickname || (STATE.user.email || '').split('@')[0],
     caption:  content,
-    content:  '📝',
+    content:  '',
   }).then(function () {
     toast('✅ פאוסט ארויף!');
     ta.value = '';
@@ -1761,11 +1761,84 @@ function _loadChannelPosts() {
 
 window.openChannelPostComposer = function () {
   if (!CHANNEL_current) return;
-  var text = prompt('Write a post:');
-  if (!text || !text.trim()) return;
-  api.post('/posts', { caption: text.trim() })
-    .then(function () { toast('✅ Posted!'); _loadChannelPosts(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  var old = document.getElementById('post-composer');
+  if (old) old.remove();
+
+  var ov = document.createElement('div');
+  ov.id = 'post-composer';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  ov.innerHTML =
+    '<div style="background:var(--surface);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:1rem;box-sizing:border-box">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">' +
+        '<button onclick="document.getElementById(\'post-composer\').remove()" style="background:none;border:none;color:var(--muted);font-size:.9rem;cursor:pointer">Cancel</button>' +
+        '<div style="font-weight:700;font-size:.95rem">New Post</div>' +
+        '<button id="pc-send" onclick="submitChannelPost()" style="background:var(--gold);color:#fff;border:none;border-radius:18px;padding:.4rem 1.1rem;font-weight:700;font-size:.85rem;cursor:pointer">Post</button>' +
+      '</div>' +
+      '<textarea id="pc-text" rows="4" placeholder="What\'s happening?" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:12px;padding:.65rem;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.95rem;resize:none;unicode-bidi:plaintext"></textarea>' +
+      '<div id="pc-preview" style="margin-top:.5rem"></div>' +
+      '<div style="display:flex;align-items:center;gap:.8rem;margin-top:.6rem">' +
+        '<button onclick="document.getElementById(\'pc-file\').click()" style="background:none;border:none;cursor:pointer;color:var(--gold);display:flex;align-items:center;gap:.35rem;font-size:.85rem;padding:0">' +
+          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Photo' +
+        '</button>' +
+        '<button onclick="document.getElementById(\'pc-vid\').click()" style="background:none;border:none;cursor:pointer;color:var(--gold);display:flex;align-items:center;gap:.35rem;font-size:.85rem;padding:0">' +
+          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg> Video' +
+        '</button>' +
+      '</div>' +
+      '<input type="file" id="pc-file" accept="image/*" style="display:none" onchange="_pcPick(this)">' +
+      '<input type="file" id="pc-vid" accept="video/*" style="display:none" onchange="_pcPick(this)">' +
+    '</div>';
+  document.body.appendChild(ov);
+  setTimeout(function () { var t = document.getElementById('pc-text'); if (t) t.focus(); }, 60);
+};
+
+var PC_file = null;
+window._pcPick = function (input) {
+  var f = input.files && input.files[0];
+  if (!f) return;
+  PC_file = f;
+  var prev = document.getElementById('pc-preview');
+  var url = URL.createObjectURL(f);
+  var isVid = (f.type || '').indexOf('video') === 0;
+  prev.innerHTML =
+    '<div style="position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--border)">' +
+      (isVid
+        ? '<video src="' + url + '" controls playsinline style="width:100%;max-height:240px;display:block;background:#000"></video>'
+        : '<img src="' + url + '" style="width:100%;max-height:240px;object-fit:cover;display:block">') +
+      '<button onclick="_pcClear()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:.9rem">✕</button>' +
+    '</div>';
+};
+window._pcClear = function () {
+  PC_file = null;
+  var p = document.getElementById('pc-preview'); if (p) p.innerHTML = '';
+  ['pc-file', 'pc-vid'].forEach(function (id) { var e = document.getElementById(id); if (e) e.value = ''; });
+};
+
+window.submitChannelPost = function () {
+  var text = ((document.getElementById('pc-text') || {}).value || '').trim();
+  if (!text && !PC_file) { toast('⚠ Write something or attach a photo/video'); return; }
+  var btn = document.getElementById('pc-send');
+  if (btn) { btn.disabled = true; btn.textContent = 'Posting…'; }
+
+  var done = function () {
+    toast('✅ Posted!');
+    PC_file = null;
+    var ov = document.getElementById('post-composer'); if (ov) ov.remove();
+    _loadChannelPosts();
+  };
+  var fail = function (err) {
+    toast('❌ ' + (err && err.message ? err.message : 'Failed'));
+    if (btn) { btn.disabled = false; btn.textContent = 'Post'; }
+  };
+
+  if (PC_file) {
+    var fd = new FormData();
+    fd.append('caption', text);
+    fd.append('file', PC_file);
+    api.post('/posts', fd, true).then(done).catch(fail);   // multipart
+  } else {
+    api.post('/posts', { caption: text, content: '' }).then(done).catch(fail);
+  }
 };
 
 // ── EXPLORE SCREEN — load channels ──

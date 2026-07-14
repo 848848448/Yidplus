@@ -67,9 +67,35 @@ export async function onRequestPost(context) {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
 
-    const body = await request.json();
-    const caption = (body.caption || '').trim();
-    if (!caption) return json({ ok: false, error: 'caption is required' }, 400);
+    // Two shapes: JSON { caption, content } for text posts, or multipart with
+    // an optional file for photo/video posts.
+    let caption = '';
+    let content = '';
+    const ctype = request.headers.get('content-type') || '';
+
+    if (ctype.indexOf('multipart/form-data') !== -1) {
+      const form = await request.formData();
+      caption = (form.get('caption') || '').toString().trim();
+      const file = form.get('file');
+      if (file && typeof file.arrayBuffer === 'function' && file.size > 0) {
+        const isVideo = (file.type || '').indexOf('video') === 0;
+        if (file.size > (isVideo ? 60 : 12) * 1024 * 1024) {
+          return json({ ok: false, error: isVideo ? 'Video too large (max 60MB)' : 'Image too large (max 12MB)' }, 400);
+        }
+        const ext = (file.name || '').split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || (isVideo ? 'mp4' : 'jpg');
+        const key = 'posts/' + crypto.randomUUID() + '.' + ext;
+        await env.MY_BUCKET.put(key, await file.arrayBuffer(), {
+          httpMetadata: { contentType: file.type || (isVideo ? 'video/mp4' : 'image/jpeg') }
+        });
+        content = key;
+      }
+    } else {
+      const body = await request.json();
+      caption = (body.caption || '').trim();
+      content = body.content || '';
+    }
+
+    if (!caption && !content) return json({ ok: false, error: 'Write something or attach a photo/video' }, 400);
 
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
@@ -81,7 +107,7 @@ export async function onRequestPost(context) {
       await env.DB.prepare(
         `INSERT INTO posts (id, username, user_id, caption, content, likes, comments, created_at)
          VALUES (?, ?, ?, ?, ?, 0, 0, ?)`
-      ).bind(id, user.nickname || 'Anonymous', user.id, caption, body.content || '', now).run();
+      ).bind(id, user.nickname || 'Anonymous', user.id, caption, content, now).run();
     } catch (mismatchErr) {
       // Some deployments have posts.id as INTEGER (autoincrement), which
       // rejects a UUID string with SQLITE_MISMATCH. Fall back to letting the
@@ -90,14 +116,14 @@ export async function onRequestPost(context) {
         const res = await env.DB.prepare(
           `INSERT INTO posts (username, user_id, caption, content, likes, comments, created_at)
            VALUES (?, ?, ?, ?, 0, 0, ?)`
-        ).bind(user.nickname || 'Anonymous', user.id, caption, body.content || '', now).run();
+        ).bind(user.nickname || 'Anonymous', user.id, caption, content, now).run();
         finalId = res.meta && res.meta.last_row_id != null ? res.meta.last_row_id : id;
       } else {
         throw mismatchErr;
       }
     }
 
-    return json({ ok: true, post: { id: finalId, username: user.nickname, user_id: user.id, caption, content: body.content || '', likes: 0, comments: 0, created_at: now, liked: false } }, 201);
+    return json({ ok: true, post: { id: finalId, username: user.nickname, user_id: user.id, caption, content: content, likes: 0, comments: 0, created_at: now, liked: false } }, 201);
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
