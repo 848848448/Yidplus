@@ -3,6 +3,13 @@ main = "src/index.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# @mtproto/core logs through the `debug` package. That package chooses a browser
+# or node build at import time, and in the Workers runtime the one it picks has
+# no `.extend`, so the module throws at startup ("baseDebug.extend is not a
+# function") and the deploy fails. Point it at a no-op with the same shape.
+[alias]
+"debug" = "./src/debug-stub.js"
+
 # Poll Telegram once a minute. This is the closest Cloudflare gets to "live";
 # there is no always-on process here, each run connects, reads, and exits.
 [triggers]
