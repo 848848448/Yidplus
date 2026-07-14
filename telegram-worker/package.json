@@ -1,0 +1,17 @@
+{
+  "name": "yidplus-telegram-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reads YID PLUS's public Telegram channels over MTProto (as your own account) and pushes new posts to yidplus.com. Runs on Cloudflare Workers, separate from the yidplus.com Pages project.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "@mtproto/core": "^6.3.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

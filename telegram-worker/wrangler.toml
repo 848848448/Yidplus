@@ -1,0 +1,31 @@
+name = "yidplus-telegram-worker"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Poll Telegram once a minute. This is the closest Cloudflare gets to "live";
+# there is no always-on process here, each run connects, reads, and exits.
+[triggers]
+crons = ["* * * * *"]
+
+# Stores the MTProto auth keys + the id of the last post we forwarded per
+# channel, so a run only sends what's new. Create it once with:
+#   npx wrangler kv namespace create TG_SESSION
+# then paste the printed id below.
+[[kv_namespaces]]
+binding = "TG_SESSION"
+id = "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
+
+[vars]
+# Where to send the posts. The ingest endpoint already lives on the site.
+INGEST_URL = "https://yidplus.com/api/telegram-ingest"
+# Where to read the channel list from (added in the admin panel).
+CHANNELS_URL = "https://yidplus.com/api/telegram-channels"
+# How many recent posts to look at per channel on each run.
+FETCH_LIMIT = "20"
+
+# Secrets — set these with `npx wrangler secret put <NAME>`, never in this file:
+#   TELEGRAM_API_ID          from my.telegram.org
+#   TELEGRAM_API_HASH        from my.telegram.org
+#   TELEGRAM_INGEST_SECRET   same value as the Pages env var of the same name
+#   WORKER_ADMIN_SECRET      a password you invent; guards the /login endpoints
