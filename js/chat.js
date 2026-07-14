@@ -368,16 +368,16 @@ window.openTelegramChannel = function (username, title) {
   var bar = document.getElementById('chat-input-bar');
   if (bar) bar.style.display = 'none';
 
-  // Body → Telegram feed embed.
+  // Body → Telegram feed embed. t.me/s/<channel> is the channel's public web
+  // feed and is frameable; it only fails where the network itself blocks Telegram.
   var msgs = document.getElementById('chat-msgs');
   if (msgs) {
     msgs.innerHTML =
       '<div style="height:100%;display:flex;flex-direction:column;background:#fff">' +
         '<iframe src="https://t.me/s/' + encodeURIComponent(username) + '" ' +
-          'style="flex:1;width:100%;border:none;background:#fff" loading="lazy" ' +
-          'sandbox="allow-scripts allow-same-origin allow-popups"></iframe>' +
-        '<div style="text-align:center;padding:.4rem;font-size:.68rem;color:var(--muted);background:var(--bg2)">' +
-          'Live from Telegram · <a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9">Open in Telegram</a>' +
+          'style="flex:1;width:100%;border:none;background:#fff"></iframe>' +
+        '<div style="text-align:center;padding:.45rem;font-size:.7rem;color:var(--muted);background:var(--bg2)">' +
+          'Live from Telegram · <a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9">Open @' + escHtml(username) + ' in Telegram</a>' +
         '</div>' +
       '</div>';
   }
