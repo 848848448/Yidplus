@@ -537,19 +537,28 @@ function _xPostCard(p, username, chTitle) {
       .replace(/\n/g, '<br>');
   }
 
+  // Where the file comes from. A stored copy (R2) wins if we have one; if not,
+  // stream it straight from Telegram through the worker — the file is never
+  // downloaded or stored anywhere, and the player pulls it a slice at a time.
+  var src = p.media_url;
+  if (!src && p.media_type) {
+    var base = (window.STATE && STATE.settings && STATE.settings.tg_stream_base) || TG_STREAM_BASE;
+    if (base) src = base.replace(/\/$/, '') + '/media?ch=' + encodeURIComponent(username) + '&id=' + p.tg_msg_id;
+  }
+
   var media = '';
-  if (p.media_url) {
+  if (src) {
     if (p.media_type === 'video') {
-      media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><video src="' + p.media_url + '" controls playsinline style="width:100%;display:block;background:#000"></video></div>';
+      media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><video src="' + src + '" controls playsinline preload="none" style="width:100%;display:block;background:#000"></video></div>';
     } else if (p.media_type === 'audio') {
-      media = '<div style="margin-bottom:.45rem"><audio src="' + p.media_url + '" controls preload="none" class="tg-audio" onended="_tgPlayNext(this)" onplay="_tgSoloPlay(this)" style="width:100%;height:38px"></audio></div>';
+      media = '<div style="margin-bottom:.45rem"><audio src="' + src + '" controls preload="none" class="tg-audio" onended="_tgPlayNext(this)" onplay="_tgSoloPlay(this)" style="width:100%;height:38px"></audio></div>';
     } else if (p.media_type === 'file') {
-      media = '<a href="' + p.media_url + '" target="_blank" style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem;text-decoration:none;color:#168acd">' +
+      media = '<a href="' + src + '" target="_blank" style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem;text-decoration:none;color:#168acd">' +
         '<div style="width:36px;height:36px;border-radius:50%;background:#168acd;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
           '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
         '</div><span style="font-size:.85rem;font-weight:600">Download file</span></a>';
     } else {
-      media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><img src="' + p.media_url + '" style="width:100%;display:block" loading="lazy"></div>';
+      media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><img src="' + src + '" style="width:100%;display:block" loading="lazy"></div>';
     }
   }
 
@@ -591,6 +600,10 @@ window._tgPlayNext = function (el) {
 };
 
 var TG_curChannel = null;
+
+// The worker that streams channel files. Overridable from admin settings
+// (tg_stream_base) so the URL isn't baked into the client forever.
+var TG_STREAM_BASE = 'https://yidplus-telegram-worker.avrumy5872877.workers.dev';
 
 // "1,204 members" — the audience here on YID PLUS, not Telegram's subscriber count.
 function _tgMembersLabel(n) {

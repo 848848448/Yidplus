@@ -152,8 +152,15 @@ async function pushPost(env, mtproto, username, chat, m, budget) {
   let mediaUrl = '';
   let mediaType = '';
 
+  // Note the KIND of media regardless of whether we fetch the bytes. With
+  // streaming, the file is never downloaded at all — the client points a player
+  // at /media?ch=&id= and Telegram serves it a slice at a time. The kind is
+  // what tells the client which player to render.
+  const kindInfo = mediaInfo(m);
+  if (kindInfo) mediaType = kindInfo.kind;
+
   // Pull the file down and park it in R2; the post then just points at it.
-  const info = budget.enabled ? mediaInfo(m) : null;
+  const info = budget.enabled ? kindInfo : null;
   if (info) {
     const maxBytes = Number(env.MEDIA_MAX_MB || 20) * 1024 * 1024;
     // The marker only moves over an unbroken run of successes, so a file that
@@ -329,6 +336,114 @@ async function downloadMedia(mtproto, info, maxBytes) {
   return out;
 }
 
+// ── streaming proxy ──
+// Serves a channel file straight from Telegram to the browser, storing nothing.
+//
+// The trick that makes this work on the free plan: a <video> or <audio> element
+// fetches a file in Range requests, and every Range is a SEPARATE Worker
+// invocation with its own CPU budget. Decrypting a whole 60MB file in one run
+// is impossible (~4.6s of pure-JS AES); decrypting one 512KB slice per request
+// is ~38ms. The per-run CPU ceiling stops being a wall.
+//
+// So we deliberately answer with a small 206 slice and let the player come back
+// for more, rather than trying to serve the whole file at once.
+const SLICE = 524288;         // 512KB per request — must be a multiple of 4096
+const ALIGN = 4096;           // Telegram requires offset/limit aligned to this
+
+// Resolving a message costs two round-trips, so cache the file's location.
+// file_reference goes stale after a while, hence the short TTL and the retry.
+async function fileLocation(env, mtproto, username, msgId, force) {
+  const key = `loc:${username}:${msgId}`;
+  if (!force) {
+    const hit = await env.TG_SESSION.get(key);
+    if (hit) { try { return JSON.parse(hit); } catch (e) { /* refetch */ } }
+  }
+
+  const resolved = await call(mtproto, 'contacts.resolveUsername', { username });
+  const chat = (resolved.chats || [])[0];
+  if (!chat) throw new Error('channel not found');
+
+  const res = await call(mtproto, 'channels.getMessages', {
+    channel: { _: 'inputChannel', channel_id: chat.id, access_hash: chat.access_hash },
+    id: [{ _: 'inputMessageID', id: msgId }],
+  });
+  const msg = (res.messages || [])[0];
+  if (!msg) throw new Error('post not found');
+
+  const info = mediaInfo(msg);
+  if (!info) throw new Error('post has no media');
+
+  const out = { location: info.location, size: info.size || 0, mime: info.mime, kind: info.kind };
+  await env.TG_SESSION.put(key, JSON.stringify(out), { expirationTtl: 1800 });
+  return out;
+}
+
+async function streamMedia(env, request) {
+  const url = new URL(request.url);
+  const username = (url.searchParams.get('ch') || '').replace(/[^a-zA-Z0-9_]/g, '');
+  const msgId = parseInt(url.searchParams.get('id'));
+  if (!username || !msgId) return new Response('ch and id required', { status: 400 });
+
+  const mtproto = makeClient(env);
+  let info;
+  try {
+    info = await fileLocation(env, mtproto, username, msgId, false);
+  } catch (e) {
+    return new Response('Not available: ' + (e.error_message || e.message), { status: 404 });
+  }
+
+  const total = info.size || 0;
+
+  // Work out which slice the player asked for.
+  const range = request.headers.get('Range') || '';
+  const m = range.match(/bytes=(\d+)-(\d*)/);
+  let start = m ? parseInt(m[1]) : 0;
+  if (total && start >= total) {
+    return new Response('', { status: 416, headers: { 'Content-Range': `bytes */${total}` } });
+  }
+
+  // Telegram only reads on aligned boundaries, so fetch from the aligned offset
+  // and trim the head off afterwards.
+  const alignedStart = Math.floor(start / ALIGN) * ALIGN;
+  const skip = start - alignedStart;
+  let limit = SLICE;
+  if (total) limit = Math.min(limit, Math.ceil((total - alignedStart) / ALIGN) * ALIGN);
+
+  let bytes;
+  try {
+    const got = await getChunk(mtproto, info.location, alignedStart, limit, null);
+    bytes = got.res && got.res.bytes;
+  } catch (e) {
+    // A stale file_reference is the usual cause — rebuild it once and retry.
+    if (/FILE_REFERENCE/i.test(e.error_message || '')) {
+      info = await fileLocation(env, mtproto, username, msgId, true);
+      const got = await getChunk(mtproto, info.location, alignedStart, limit, null);
+      bytes = got.res && got.res.bytes;
+    } else {
+      return new Response('Stream error: ' + (e.error_message || e.message), { status: 502 });
+    }
+  }
+  if (!bytes || !bytes.length) return new Response('', { status: 416 });
+
+  const body = bytes.subarray(skip);
+  const end = start + body.length - 1;
+  const size = total || (end + 1);
+
+  return new Response(body, {
+    status: 206,
+    headers: {
+      'Content-Type': info.mime || 'application/octet-stream',
+      'Content-Length': String(body.length),
+      'Content-Range': `bytes ${start}-${end}/${size}`,
+      'Accept-Ranges': 'bytes',
+      // Nothing is stored our side, but letting the browser keep what it has
+      // already pulled saves re-decrypting the same slice on a replay.
+      'Cache-Control': 'public, max-age=86400',
+      'Access-Control-Allow-Origin': '*',
+    },
+  });
+}
+
 export default {
   // Cron: the unattended path.
   async scheduled(event, env, ctx) {
@@ -340,7 +455,20 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    if (path === '/' ) return json({ ok: true, worker: 'yidplus-telegram-worker', routes: ['/health', '/status', '/login?phone=', '/code?code=', '/password?password=', '/sync'] });
+    if (path === '/' ) return json({ ok: true, worker: 'yidplus-telegram-worker', routes: ['/health', '/status', '/login?phone=', '/code?code=', '/password?password=', '/sync', '/reset', '/media?ch=&id='] });
+
+    // Public on purpose: a <video> tag can't attach a secret, and the data is a
+    // public channel's anyway. Handled before the gate below.
+    if (path === '/media') {
+      if (request.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Range',
+          'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        } });
+      }
+      return streamMedia(env, request);
+    }
 
     // Unguarded on purpose: reports only whether each secret EXISTS, never its
     // value, so a wrong ?secret= can be told apart from a missing binding.

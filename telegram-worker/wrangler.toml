@@ -37,20 +37,16 @@ INGEST_URL = "https://yidplus.com/api/telegram-ingest"
 CHANNELS_URL = "https://yidplus.com/api/telegram-channels"
 # How many recent posts to look at per channel on each run.
 FETCH_LIMIT = "20"
-# Largest file to attempt. Every chunk is decrypted in pure JS, so size is what
-# decides whether a run survives: on the free plan a big video may exhaust the
-# CPU and kill the run (Error 1102). That's now safe rather than fatal — the
-# attempt is counted before it's made, so after three tries the post goes
-# through text-only instead of wedging the channel. Small files are unaffected.
+# Largest file to attempt IF downloading is on. Irrelevant while streaming.
 MEDIA_MAX_MB = "60"
-# How many files one run may download.
-#
-# Downloading means decrypting the file in pure JS, and the free plan's CPU per
-# run only covers about one. Asking for more is what produced Error 1102 — some
-# files landed, then the run died and took the text sync with it. One per run,
-# with the cron firing every minute, clears a backlog on its own.
-# Raise to 4+ only on the Workers Paid plan.
-MEDIA_PER_RUN = "1"
+# How many files one run may download. 0 = off, which is the point of the
+# streaming proxy: the file is never downloaded or stored at all, so there's no
+# CPU spent on it during a sync, no R2 usage, and no size ceiling. The sync only
+# records that a post HAS media and of what kind; /media serves it on demand,
+# one Range slice per request.
+# Set to 1+ only if you'd rather keep copies (survives deletion upstream, works
+# on networks that block Telegram) and accept the size limits that come with it.
+MEDIA_PER_RUN = "0"
 
 # Secrets — set these with `npx wrangler secret put <NAME>`, never in this file:
 #   TELEGRAM_API_ID          from my.telegram.org
