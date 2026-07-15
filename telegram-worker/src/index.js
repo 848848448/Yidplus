@@ -411,7 +411,51 @@ async function fileLocation(env, mtproto, username, msgId, force) {
   return out;
 }
 
-async function streamMedia(env, request) {
+// Reading a slice means standing up a fresh connection to Telegram, and a
+// 128KB slice is roughly a second of video — so a plain implementation does a
+// full handshake every second and the picture stutters constantly.
+//
+// Two things fix that, neither of which stores the file: slices are kept in
+// Cloudflare's edge cache (transient, free, evicted on its own — no R2, no
+// bucket), and while one slice is being served the next is fetched in the
+// background, so by the time the player asks for it, it's already there.
+function sliceCacheKey(username, msgId, offset) {
+  return new Request(`https://tg-slice.internal/${username}/${msgId}/${offset}`);
+}
+
+async function readSlice(env, mtproto, info, username, msgId, alignedStart) {
+  const cache = caches.default;
+  const key = sliceCacheKey(username, msgId, alignedStart);
+
+  const hit = await cache.match(key);
+  if (hit) return new Uint8Array(await hit.arrayBuffer());
+
+  const got = await getChunk(mtproto, info.location, alignedStart, SLICE, null);
+  const bytes = (got.res && got.res.bytes) || new Uint8Array(0);
+  if (bytes.length) {
+    await cache.put(key, new Response(bytes, {
+      headers: { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'public, max-age=3600' },
+    }));
+  }
+  return bytes;
+}
+
+// Warm the next slice so the player doesn't wait on a handshake for it. Runs
+// after the response is sent, and failure here is harmless — the player would
+// simply fetch it the normal way.
+function prefetchNext(ctx, env, info, username, msgId, alignedStart, total) {
+  const next = alignedStart + SLICE;
+  if (total && next >= total) return;
+  ctx.waitUntil((async () => {
+    try {
+      const cache = caches.default;
+      if (await cache.match(sliceCacheKey(username, msgId, next))) return;
+      await readSlice(env, makeClient(env), info, username, msgId, next);
+    } catch (e) { /* best effort */ }
+  })());
+}
+
+async function streamMedia(env, request, ctx) {
   const url = new URL(request.url);
   const username = (url.searchParams.get('ch') || '').replace(/[^a-zA-Z0-9_]/g, '');
   const msgId = parseInt(url.searchParams.get('id'));
@@ -481,23 +525,23 @@ async function streamMedia(env, request) {
   // by construction, and let Telegram return a short read at the end.
   const alignedStart = Math.floor(start / ALIGN) * ALIGN;
   const skip = start - alignedStart;
-  const limit = SLICE;
 
   let bytes;
   try {
-    const got = await getChunk(mtproto, info.location, alignedStart, limit, null);
-    bytes = got.res && got.res.bytes;
+    bytes = await readSlice(env, mtproto, info, username, msgId, alignedStart);
   } catch (e) {
     // A stale file_reference is the usual cause — rebuild it once and retry.
     if (/FILE_REFERENCE/i.test(e.error_message || '')) {
       info = await fileLocation(env, mtproto, username, msgId, true);
-      const got = await getChunk(mtproto, info.location, alignedStart, limit, null);
-      bytes = got.res && got.res.bytes;
+      bytes = await readSlice(env, mtproto, info, username, msgId, alignedStart);
     } else {
       return new Response('Stream error: ' + (e.error_message || e.message), { status: 502 });
     }
   }
   if (!bytes || !bytes.length) return new Response('', { status: 416 });
+
+  // Get the following slice ready while this one plays.
+  if (ctx) prefetchNext(ctx, env, info, username, msgId, alignedStart, total);
 
   let body = bytes.subarray(skip);
   // Honour the requested end. A player seeking sends a bounded range like
@@ -535,7 +579,7 @@ export default {
   },
 
   // HTTP: login + manual test. Every route needs ?secret=<WORKER_ADMIN_SECRET>.
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -551,7 +595,7 @@ export default {
           'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         } });
       }
-      return streamMedia(env, request);
+      return streamMedia(env, request, ctx);
     }
 
     // Unguarded on purpose: reports only whether each secret EXISTS, never its
