@@ -162,6 +162,9 @@ var HOME_HIGHLIGHTS  = [];
 window.closeChatRoom = function () {
   _stopTypingPoll();
   CHAT_curRoom = null;
+  TG_curChannel = null;
+  var _jb = document.getElementById('tg-join-bar');
+  if (_jb) _jb.remove();   // a Telegram channel's Join bar shouldn't outlive it
   try { history.replaceState(null, '', location.pathname); } catch (e) {}
   var screenChats    = document.getElementById('screen-chats');
   var screenChatroom = document.getElementById('screen-chatroom');
@@ -331,15 +334,18 @@ function _loadTgChannels() {
 function _tgChannelRow(t) {
   var title = escHtml(t.title || t.username);
   var uname = escHtml(t.username);
+  var av = t.photo_url
+    ? '<div class="chat-av chat-av-square" style="background-image:url(' + t.photo_url + ');background-size:cover;background-position:center"></div>'
+    : '<div class="chat-av chat-av-square" style="background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem">📨</div>';
   return '<div class="chat-item-wrap" data-tg="' + uname + '">' +
     '<div class="chat-item" onclick="openTelegramChannel(\'' + uname + '\',\'' + title.replace(/'/g, "\\'") + '\')">' +
-      '<div class="chat-av chat-av-square" style="background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem">📨</div>' +
+      av +
       '<div style="flex:1;min-width:0">' +
         '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
-          '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">' + title + '</div>' +
-          '<div style="font-size:.6rem;color:#fff;background:#229ED9;border-radius:8px;padding:1px 6px;flex-shrink:0">Telegram</div>' +
+          '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;unicode-bidi:plaintext">' + title + '</div>' +
+          (t.joined ? '<div style="font-size:.6rem;color:#fff;background:#229ED9;border-radius:8px;padding:1px 6px;flex-shrink:0">Joined</div>' : '') +
         '</div>' +
-        '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@' + uname + '</div>' +
+        '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _tgMembersLabel(t.members) + '</div>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -356,17 +362,35 @@ window.openTelegramChannel = function (username, title) {
   CHAT_curRoom = null; // not a real room
   try { history.replaceState(null, '', '#tg=' + encodeURIComponent(username)); } catch (e) {}
 
-  // Header
+  // Header — photo, name, and how many people joined here on YID PLUS.
+  var meta = null;
+  for (var i = 0; i < (CHAT_tgChannels || []).length; i++) {
+    if (CHAT_tgChannels[i].username === username) { meta = CHAT_tgChannels[i]; break; }
+  }
   var nameEl = document.getElementById('cr-name');
-  if (nameEl) nameEl.textContent = title || ('@' + username);
+  if (nameEl) nameEl.textContent = (meta && meta.title) || title || ('@' + username);
   var statusEl = document.getElementById('cr-status');
-  if (statusEl) statusEl.textContent = 'Telegram channel · read-only';
+  if (statusEl) statusEl.textContent = _tgMembersLabel(meta ? meta.members : 0);
   var avEl = document.getElementById('cr-avatar');
-  if (avEl) { avEl.style.background = '#229ED9'; avEl.style.backgroundImage = ''; avEl.textContent = '📨'; }
+  if (avEl) {
+    if (meta && meta.photo_url) {
+      avEl.textContent = '';
+      avEl.style.backgroundImage = 'url(' + meta.photo_url + ')';
+      avEl.style.backgroundSize = 'cover';
+      avEl.style.backgroundPosition = 'center';
+    } else {
+      avEl.style.background = '#229ED9';
+      avEl.style.backgroundImage = '';
+      avEl.textContent = '📨';
+    }
+  }
+  TG_curChannel = username;
 
-  // Hide the composer / input bar — this is read-only.
+  // Read-only: no composer. In its place, a Join bar — this is how someone
+  // follows the channel here on YID PLUS.
   var bar = document.getElementById('chat-input-bar');
   if (bar) bar.style.display = 'none';
+  _tgRenderJoinBar(username, meta);
 
   // Body → Telegram feed via the OFFICIAL widget (t.me/s iframes are X-Frame
   // blocked). Laid out like a chat: oldest at the top, newest at the bottom.
@@ -537,6 +561,60 @@ window._tgPlayNext = function (el) {
   next.play().then(function () {
     try { next.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
   }).catch(function () { /* browser blocked autoplay — leave it to the user */ });
+};
+
+var TG_curChannel = null;
+
+// "1,204 members" — the audience here on YID PLUS, not Telegram's subscriber count.
+function _tgMembersLabel(n) {
+  n = parseInt(n) || 0;
+  return _xNum(n) + (n === 1 ? ' member' : ' members');
+}
+
+// The Join bar sits where the composer would be on a normal chat.
+function _tgRenderJoinBar(username, meta) {
+  var old = document.getElementById('tg-join-bar');
+  if (old) old.remove();
+  var room = document.getElementById('screen-chatroom');
+  if (!room) return;
+
+  var joined = !!(meta && meta.joined);
+  var bar = document.createElement('div');
+  bar.id = 'tg-join-bar';
+  bar.style.cssText = 'flex-shrink:0;padding:.55rem .8rem;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;gap:.6rem';
+  bar.innerHTML =
+    '<div style="flex:1;min-width:0">' +
+      '<div id="tg-jb-count" style="font-size:.8rem;font-weight:600;color:var(--text)">' + _tgMembersLabel(meta ? meta.members : 0) + '</div>' +
+      '<div style="font-size:.68rem;color:var(--muted)">Read-only channel</div>' +
+    '</div>' +
+    '<button id="tg-jb-btn" onclick="tgToggleJoin()" style="border:none;border-radius:20px;padding:.45rem 1.3rem;font-weight:700;font-size:.85rem;cursor:pointer;' +
+      (joined ? 'background:var(--bg3);color:var(--muted)' : 'background:#229ED9;color:#fff') + '">' +
+      (joined ? 'Joined' : 'Join') +
+    '</button>';
+  room.appendChild(bar);
+}
+
+window.tgToggleJoin = function () {
+  var btn = document.getElementById('tg-jb-btn');
+  if (!btn || !TG_curChannel) return;
+  btn.disabled = true;
+  api.post('/telegram-join', { username: TG_curChannel }).then(function (res) {
+    btn.disabled = false;
+    if (res.error) { toast('❌ ' + res.error); return; }
+    btn.textContent = res.joined ? 'Joined' : 'Join';
+    btn.style.background = res.joined ? 'var(--bg3)' : '#229ED9';
+    btn.style.color = res.joined ? 'var(--muted)' : '#fff';
+    var label = _tgMembersLabel(res.members);
+    var c = document.getElementById('tg-jb-count'); if (c) c.textContent = label;
+    var s = document.getElementById('cr-status'); if (s) s.textContent = label;
+    // Keep the cached list in step so the row and a re-open agree.
+    for (var i = 0; i < (CHAT_tgChannels || []).length; i++) {
+      if (CHAT_tgChannels[i].username === TG_curChannel) {
+        CHAT_tgChannels[i].joined = res.joined;
+        CHAT_tgChannels[i].members = res.members;
+      }
+    }
+  }).catch(function (e) { btn.disabled = false; toast('❌ ' + e.message); });
 };
 
 function _xNum(n) {
@@ -1047,6 +1125,8 @@ window.openChatRoom = function (roomId, topicId, topicName) {
 
   var ib = document.getElementById('chat-input-bar');
   ib.style.display = '';   // restore in case a Telegram channel had hidden it
+  var _jb = document.getElementById('tg-join-bar');
+  if (_jb) _jb.remove();   // ...and drop that channel's Join bar
   ib.style.opacity = inputDisabled ? '.4' : '1';
   ib.style.pointerEvents = inputDisabled ? 'none' : 'all';
 

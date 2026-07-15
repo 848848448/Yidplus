@@ -2296,11 +2296,15 @@ function _tgcLoad() {
     var chans = (res && res.channels) || [];
     if (!chans.length) { el.innerHTML = '<div style="font-size:.78rem;color:var(--muted);text-align:center;padding:.5rem">No Telegram channels yet.</div>'; return; }
     el.innerHTML = chans.map(function (c) {
+      var av = c.photo_url
+        ? '<div style="width:32px;height:32px;border-radius:50%;background-image:url(' + c.photo_url + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
+        : '<div style="width:32px;height:32px;border-radius:50%;background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">📨</div>';
       return '<div style="display:flex;align-items:center;gap:.5rem;padding:.45rem 0;border-bottom:1px solid var(--border)">' +
-        '<div style="width:32px;height:32px;border-radius:50%;background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.9rem">📨</div>' +
-        '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(c.title || c.username) + '</div>' +
-        '<div style="font-size:.68rem;color:var(--muted)">@' + escHtml(c.username) + '</div></div>' +
-        '<button onclick="tgcRemove(\'' + c.id + '\',this)" style="background:none;color:var(--red);border:none;font-size:.8rem;cursor:pointer">Remove</button>' +
+        av +
+        '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:plaintext">' + escHtml(c.title || c.username) + '</div>' +
+        '<div style="font-size:.68rem;color:var(--muted)">@' + escHtml(c.username) + ' · ' + (c.members || 0) + ' joined here</div></div>' +
+        '<button onclick="tgcEdit(\'' + c.id + '\')" style="background:none;color:var(--gold);border:none;font-size:.78rem;cursor:pointer">Edit</button>' +
+        '<button onclick="tgcRemove(\'' + c.id + '\',this)" style="background:none;color:var(--red);border:none;font-size:.78rem;cursor:pointer">Remove</button>' +
       '</div>';
     }).join('');
   }).catch(function () { el.innerHTML = '<div style="font-size:.78rem;color:var(--muted)">Could not load.</div>'; });
@@ -2308,15 +2312,71 @@ function _tgcLoad() {
 window.tgcAdd = function () {
   var u = (document.getElementById('tgc-user') || {}).value || '';
   var t = (document.getElementById('tgc-title') || {}).value || '';
+  var pEl = document.getElementById('tgc-photo');
+  var photo = pEl && pEl.files && pEl.files[0];
   if (!u.trim()) { toast('Enter a @username'); return; }
-  api.post('/telegram-channels', { username: u, title: t }).then(function (res) {
+
+  var done = function (res) {
     if (!res.ok) { toast('❌ ' + (res.error || 'Failed')); return; }
     toast('✅ Channel added');
     document.getElementById('tgc-user').value = '';
     document.getElementById('tgc-title').value = '';
+    if (pEl) pEl.value = '';
+    _tgcLoad();
+  };
+  var fail = function (e) { toast('❌ ' + e.message); };
+
+  if (photo) {
+    var fd = new FormData();
+    fd.append('username', u);
+    fd.append('title', t);
+    fd.append('photo', photo);
+    api.post('/telegram-channels', fd, true).then(done).catch(fail);
+  } else {
+    api.post('/telegram-channels', { username: u, title: t }).then(done).catch(fail);
+  }
+};
+window.tgcEdit = function (id) {
+  var old = document.getElementById('tgc-edit');
+  if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'tgc-edit';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:1rem';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  ov.innerHTML =
+    '<div style="background:var(--surface);border-radius:14px;padding:1rem;width:100%;max-width:380px;box-sizing:border-box">' +
+      '<div style="font-weight:700;font-size:.95rem;margin-bottom:.7rem">Edit channel</div>' +
+      '<label style="font-size:.75rem;color:var(--muted)">Name</label>' +
+      '<input id="tge-title" placeholder="Channel name" style="width:100%;box-sizing:border-box;padding:.55rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;margin:.25rem 0 .7rem">' +
+      '<label style="font-size:.75rem;color:var(--muted)">Photo</label>' +
+      '<input type="file" id="tge-photo" accept="image/*" style="width:100%;font-size:.78rem;margin:.25rem 0 .9rem">' +
+      '<div style="display:flex;gap:.5rem;justify-content:flex-end">' +
+        '<button onclick="document.getElementById(\'tgc-edit\').remove()" style="background:none;border:none;color:var(--muted);font-size:.85rem;cursor:pointer;padding:.4rem .8rem">Cancel</button>' +
+        '<button class="save-pill" onclick="tgcSaveEdit(\'' + id + '\')">Save</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+};
+
+window.tgcSaveEdit = function (id) {
+  var title = (document.getElementById('tge-title') || {}).value || '';
+  var fileEl = document.getElementById('tge-photo');
+  var file = fileEl && fileEl.files && fileEl.files[0];
+  if (!title.trim() && !file) { toast('Change the name or pick a photo'); return; }
+
+  var fd = new FormData();
+  fd.append('id', id);
+  if (title.trim()) fd.append('title', title.trim());
+  if (file) fd.append('photo', file);
+
+  api.put('/telegram-channels', fd, true).then(function (res) {
+    if (res.error) { toast('❌ ' + res.error); return; }
+    toast('✅ Saved');
+    var ov = document.getElementById('tgc-edit'); if (ov) ov.remove();
     _tgcLoad();
   }).catch(function (e) { toast('❌ ' + e.message); });
 };
+
 window.tgcRemove = function (id, btn) {
   if (btn) btn.disabled = true;
   api.del('/telegram-channels?id=' + encodeURIComponent(id)).then(function () { toast('Removed'); _tgcLoad(); })
@@ -2379,7 +2439,9 @@ function buildChannelsMgrPanel(content) {
           '<input id="tgc-user" placeholder="@channelusername" style="flex:1;padding:.55rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem">' +
           '<button class="save-pill" onclick="tgcAdd()">Add</button>' +
         '</div>' +
-        '<input id="tgc-title" placeholder="Display name (optional)" style="width:100%;box-sizing:border-box;padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem;margin-bottom:.7rem">' +
+        '<input id="tgc-title" placeholder="Display name (optional)" style="width:100%;box-sizing:border-box;padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem;margin-bottom:.4rem">' +
+        '<label style="font-size:.72rem;color:var(--muted)">Photo (optional)</label>' +
+        '<input type="file" id="tgc-photo" accept="image/*" style="width:100%;font-size:.75rem;margin:.2rem 0 .7rem">' +
         '<div id="tgc-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
         '<div style="border-top:1px solid var(--border);margin-top:.9rem;padding-top:.8rem">' +
           '<div style="font-weight:700;font-size:.85rem;margin-bottom:.3rem">📌 Add posts to show</div>' +
