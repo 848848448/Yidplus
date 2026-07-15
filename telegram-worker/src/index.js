@@ -323,7 +323,10 @@ async function getChunk(mtproto, location, offset, limit, dcId) {
 }
 
 async function downloadMedia(mtproto, info, maxBytes) {
-  const CHUNK = 524288; // 512KB — must divide 1MB evenly and be a multiple of 4096
+  // Same arithmetic as SLICE: a 512KB read costs ~38ms of pure-JS AES, more than
+  // a free-plan request gets — and this is the path an <img> takes, which is why
+  // pictures failed while a 4KB probe of the same file sailed through.
+  const CHUNK = SLICE;
   const parts = [];
   let offset = 0, total = 0, dcId = null;
 
@@ -681,7 +684,19 @@ export default {
           firstChunk = { error: e.error_message || e.message };
         }
 
-        return json({ ok: true, fresh: describe(fresh), from_cache: cached.error ? { error: cached.error } : describe(cached), first_chunk: firstChunk });
+        // The path an <img> takes: read the whole file in one request. This is
+        // where pictures were failing while the 4KB probe above succeeded, so
+        // time it and report — a slow success still means a CPU problem.
+        let whole = null;
+        try {
+          const t0 = Date.now();
+          const bytes = await downloadMedia(mtproto, fresh, 1024 * 1024);
+          whole = { bytes: bytes.length, ms: Date.now() - t0 };
+        } catch (e) {
+          whole = { error: e.error_message || e.message };
+        }
+
+        return json({ ok: true, fresh: describe(fresh), from_cache: cached.error ? { error: cached.error } : describe(cached), first_chunk: firstChunk, whole_file: whole, slice_size: SLICE });
       }
 
       // Run a sync right now instead of waiting for the cron — this is the one
