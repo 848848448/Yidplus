@@ -491,7 +491,7 @@ function _xPostCard(p, username, chTitle) {
     if (p.media_type === 'video') {
       media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><video src="' + p.media_url + '" controls playsinline style="width:100%;display:block;background:#000"></video></div>';
     } else if (p.media_type === 'audio') {
-      media = '<div style="margin-bottom:.45rem"><audio src="' + p.media_url + '" controls preload="none" style="width:100%;height:38px"></audio></div>';
+      media = '<div style="margin-bottom:.45rem"><audio src="' + p.media_url + '" controls preload="none" class="tg-audio" onended="_tgPlayNext(this)" onplay="_tgSoloPlay(this)" style="width:100%;height:38px"></audio></div>';
     } else if (p.media_type === 'file') {
       media = '<a href="' + p.media_url + '" target="_blank" style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem;text-decoration:none;color:#168acd">' +
         '<div style="width:36px;height:36px;border-radius:50%;background:#168acd;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
@@ -523,6 +523,22 @@ function _xPostCard(p, username, chTitle) {
         '</div>' +      '</div>' +
     '</div>';
 }
+// Audio in a channel behaves like a playlist: only one clip plays at a time,
+// and finishing one rolls into the next, scrolling it into view.
+window._tgSoloPlay = function (el) {
+  document.querySelectorAll('audio.tg-audio').forEach(function (a) {
+    if (a !== el && !a.paused) a.pause();
+  });
+};
+window._tgPlayNext = function (el) {
+  var all = Array.prototype.slice.call(document.querySelectorAll('audio.tg-audio'));
+  var next = all[all.indexOf(el) + 1];
+  if (!next) return;
+  next.play().then(function () {
+    try { next.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+  }).catch(function () { /* browser blocked autoplay — leave it to the user */ });
+};
+
 function _xNum(n) {
   n = parseInt(n) || 0;
   if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
