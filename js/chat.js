@@ -325,11 +325,25 @@ function renderChatList() {
 
 // ── Embedded Telegram channels (public, read-only) ──
 var CHAT_tgChannels = [];
+var CHAT_tgPollTimer = null;
 function _loadTgChannels() {
   api.get('/telegram-channels').then(function (res) {
     CHAT_tgChannels = (res && res.channels) || [];
     if (CHAT_tab === 'channels' || CHAT_tab === 'all') renderChatList();
   }).catch(function () {});
+
+  // The worker syncs once a minute, so re-check on that beat — otherwise a new
+  // post would sit there with no badge until the page was reloaded. Skip it
+  // while a channel is open, since that view marks itself read anyway.
+  if (!CHAT_tgPollTimer) {
+    CHAT_tgPollTimer = setInterval(function () {
+      if (document.hidden || TG_curChannel) return;
+      api.get('/telegram-channels').then(function (res) {
+        CHAT_tgChannels = (res && res.channels) || [];
+        if (CHAT_tab === 'channels' || CHAT_tab === 'all') renderChatList();
+      }).catch(function () {});
+    }, 60000);
+  }
 }
 function _tgChannelRow(t) {
   var title = escHtml(t.title || t.username);
@@ -337,15 +351,21 @@ function _tgChannelRow(t) {
   var av = t.photo_url
     ? '<div class="chat-av chat-av-square" style="background-image:url(' + t.photo_url + ');background-size:cover;background-position:center"></div>'
     : '<div class="chat-av chat-av-square" style="background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem">📨</div>';
+  // Same badge the regular chats use, so the list reads as one thing.
+  var unreadBadge = t.unread
+    ? '<div style="min-width:20px;height:20px;border-radius:10px;background:var(--blue);color:#fff;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px;flex-shrink:0">' + (t.unread > 99 ? '99+' : t.unread) + '</div>'
+    : (t.joined ? '<div style="font-size:.6rem;color:#fff;background:#229ED9;border-radius:8px;padding:1px 6px;flex-shrink:0">Joined</div>' : '');
   return '<div class="chat-item-wrap" data-tg="' + uname + '">' +
-    '<div class="chat-item" onclick="openTelegramChannel(\'' + uname + '\',\'' + title.replace(/'/g, "\\'") + '\')">' +
+    '<div class="chat-item' + (t.unread ? ' unread' : '') + '" onclick="openTelegramChannel(\'' + uname + '\',\'' + title.replace(/'/g, "\\'") + '\')">' +
       av +
       '<div style="flex:1;min-width:0">' +
         '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
           '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;unicode-bidi:plaintext">' + title + '</div>' +
-          (t.joined ? '<div style="font-size:.6rem;color:#fff;background:#229ED9;border-radius:8px;padding:1px 6px;flex-shrink:0">Joined</div>' : '') +
         '</div>' +
-        '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _tgMembersLabel(t.members) + '</div>' +
+        '<div style="display:flex;align-items:center;gap:.4rem">' +
+          '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;font-weight:' + (t.unread ? '500' : '400') + '">' + _tgMembersLabel(t.members) + '</div>' +
+          unreadBadge +
+        '</div>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -385,6 +405,13 @@ window.openTelegramChannel = function (username, title) {
     }
   }
   TG_curChannel = username;
+
+  // Opening the channel reads it, exactly like opening a chat does. Clear the
+  // cached count first so the list is right the moment you go back, rather than
+  // waiting on the round-trip.
+  if (meta) meta.unread = 0;
+  api.post('/telegram-read', { username: username }).catch(function () {});
+  if (typeof renderChatList === 'function') renderChatList();
 
   // Read-only: no composer. In its place, a Join bar — this is how someone
   // follows the channel here on YID PLUS.

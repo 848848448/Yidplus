@@ -15,6 +15,13 @@ async function ensureTable(env) {
   await env.DB.prepare(
     'CREATE TABLE IF NOT EXISTS telegram_channel_members (username TEXT NOT NULL, user_id TEXT NOT NULL, joined_at TEXT NOT NULL, PRIMARY KEY (username, user_id))'
   ).run().catch(() => {});
+  // Read markers live apart from membership: reading a channel isn't joining it.
+  await env.DB.prepare(
+    'CREATE TABLE IF NOT EXISTS telegram_channel_reads (username TEXT NOT NULL, user_id TEXT NOT NULL, last_read_at TEXT, PRIMARY KEY (username, user_id))'
+  ).run().catch(() => {});
+  await env.DB.prepare(
+    'CREATE TABLE IF NOT EXISTS telegram_posts (id TEXT PRIMARY KEY, username TEXT NOT NULL, tg_msg_id INTEGER NOT NULL, text TEXT, media_url TEXT, media_type TEXT, link TEXT, posted_at TEXT, created_at TEXT NOT NULL, UNIQUE(username, tg_msg_id))'
+  ).run().catch(() => {});
 }
 
 // Clean a user-supplied handle into a bare Telegram username.
@@ -48,7 +55,8 @@ async function savePhoto(env, file, username) {
   return key;
 }
 
-// GET → list all Telegram channels, with how many YID PLUS users joined each.
+// GET → list all Telegram channels, with how many YID PLUS users joined each
+// and how many posts are unread for the caller.
 export async function onRequestGet(context) {
   const { request, env } = context;
   try {
@@ -63,9 +71,22 @@ export async function onRequestGet(context) {
     ).all();
 
     let joined = [];
+    let unreadBy = {};
     if (user) {
       const j = await env.DB.prepare('SELECT username FROM telegram_channel_members WHERE user_id = ?').bind(user.id).all();
       joined = (j.results || []).map((r) => r.username);
+
+      // Same shape as a group's unread: posts newer than this reader's stamp.
+      // A channel never read before counts as fully unread.
+      const u = await env.DB.prepare(
+        `SELECT p.username, COUNT(*) AS c
+         FROM telegram_posts p
+         LEFT JOIN telegram_channel_reads r
+           ON r.username = p.username AND r.user_id = ?
+         WHERE r.last_read_at IS NULL OR p.posted_at > r.last_read_at
+         GROUP BY p.username`
+      ).bind(user.id).all().catch(() => ({ results: [] }));
+      for (const row of (u.results || [])) unreadBy[row.username] = row.c;
     }
 
     const channels = (res.results || []).map((c) => ({
@@ -75,6 +96,7 @@ export async function onRequestGet(context) {
       created_at: c.created_at,
       members: c.members || 0,
       joined: joined.indexOf(c.username) !== -1,
+      unread: unreadBy[c.username] || 0,
       photo_url: c.photo_key ? '/api/media/' + c.photo_key : null,
     }));
 
