@@ -72,6 +72,7 @@ async function syncAll(env) {
 
   const mtproto = makeClient(env);
   const limit = Number(env.FETCH_LIMIT || 20);
+  const maxBytes = Number(env.MEDIA_MAX_MB || 20) * 1024 * 1024;
 
   for (const ch of channels) {
     const username = String(ch.username || '').replace(/[^a-zA-Z0-9_]/g, '');
@@ -100,17 +101,30 @@ async function syncAll(env) {
       if (!messages.length) { report.skipped++; continue; }
 
       let highest = lastSeen;
+      let stalled = false;
       for (const m of messages) {
         // With media enabled, each file is decrypted in pure JS and only a few
         // fit in one run's CPU. Stop BEFORE the post rather than after: leaving
         // lastSeen put means the next run picks it up instead of skipping it.
-        // When media is off entirely (budget 0) there's nothing to defer — the
-        // post still goes, just without its file.
-        if (budget.enabled && budget.left <= 0 && mediaInfo(m)) { report.deferred++; break; }
+        // Only defer for a file we would actually fetch — an oversized one is
+        // skipped anyway, so waiting on budget for it would stall the channel
+        // for nothing.
+        const inf = budget.enabled ? mediaInfo(m) : null;
+        const needsBudget = inf && !(inf.size && inf.size > maxBytes);
+        if (needsBudget && budget.left <= 0) { report.deferred++; break; }
 
         const res = await pushPost(env, mtproto, username, chat, m, budget);
-        if (res.ok) { report.sent++; highest = Math.max(highest, m.id); }
-        else if (report.errors.length < 5) report.errors.push(`push @${username}/${m.id}: ${res.error}`);
+        if (res.ok) {
+          report.sent++;
+          // The marker may only move over an unbroken run of successes. Taking
+          // the max instead would step over a post that failed earlier in this
+          // batch and drop it for good, since the next run only looks past the
+          // marker — which is exactly why posts were going missing.
+          if (!stalled) highest = m.id;
+        } else {
+          stalled = true;
+          if (report.errors.length < 5) report.errors.push(`push @${username}/${m.id}: ${res.error}`);
+        }
       }
       if (highest > lastSeen) await env.TG_SESSION.put(lastKey, String(highest));
     } catch (err) {
@@ -129,8 +143,15 @@ async function pushPost(env, mtproto, username, chat, m, budget) {
   const info = budget.enabled ? mediaInfo(m) : null;
   if (info) {
     const maxBytes = Number(env.MEDIA_MAX_MB || 20) * 1024 * 1024;
-    if (info.size && info.size > maxBytes) {
-      // too big to decrypt inside a Worker — leave the post text-only
+    // The marker only moves over an unbroken run of successes, so a file that
+    // fails every time would wedge the channel forever. Give it a few tries,
+    // then let the post through without it.
+    const failKey = `mediafail:${username}:${m.id}`;
+    const fails = Number((await env.TG_SESSION.get(failKey)) || 0);
+    const tooBig = info.size && info.size > maxBytes;
+
+    if (tooBig || fails >= 3) {
+      // Post goes text-only: too large to decrypt in a run, or it keeps failing.
     } else {
       try {
         const bytes = await downloadMedia(mtproto, info, maxBytes);
@@ -140,9 +161,11 @@ async function pushPost(env, mtproto, username, chat, m, budget) {
           mediaUrl = '/api/media/' + key;
           mediaType = info.kind;
           budget.left--;
+          if (fails) await env.TG_SESSION.delete(failKey);
         }
       } catch (e) {
-        return { ok: false, error: `media @${username}/${m.id}: ${e.error_message || e.message}` };
+        await env.TG_SESSION.put(failKey, String(fails + 1), { expirationTtl: 86400 });
+        return { ok: false, error: `media @${username}/${m.id} (try ${fails + 1}/3): ${e.error_message || e.message}` };
       }
     }
   }
