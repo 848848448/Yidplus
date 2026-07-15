@@ -369,19 +369,20 @@ window.openTelegramChannel = function (username, title) {
   if (bar) bar.style.display = 'none';
 
   // Body → Telegram feed via the OFFICIAL widget (t.me/s iframes are X-Frame
-  // blocked). The server fetches the recent post IDs, we embed each post.
+  // blocked). Laid out like a chat: oldest at the top, newest at the bottom.
   var msgs = document.getElementById('chat-msgs');
   if (!msgs) return;
   msgs.innerHTML =
-    '<div style="height:100%;display:flex;flex-direction:column;background:#fff">' +
-      '<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;background:#EAF6FC;border-bottom:1px solid #cfe8f5">' +
-        '<span style="font-size:.72rem;color:#0d6ea0;flex:1">Live from Telegram</span>' +
-        '<a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="background:#229ED9;color:#fff;text-decoration:none;padding:.32rem .8rem;border-radius:16px;font-weight:600;font-size:.74rem;white-space:nowrap">Open in Telegram ↗</a>' +
-      '</div>' +
-      '<div id="tg-feed-scroll" style="flex:1;overflow-y:auto;background:#f0f2f5;padding:.6rem">' +
-        '<div id="tg-feed-slot" style="max-width:520px;margin:0 auto"></div>' +
+    '<div style="height:100%;display:flex;flex-direction:column;position:relative">' +
+      '<div id="tg-feed-scroll" style="flex:1;overflow-y:auto;background:var(--tg-bg,#e6ebee);padding:.5rem .35rem">' +
+        '<div id="tg-feed-slot" style="max-width:640px;margin:0 auto"></div>' +
         '<div id="tg-feed-state" style="text-align:center;color:var(--muted);font-size:.85rem;padding:2rem 1rem">Loading posts…</div>' +
       '</div>' +
+      // Jump-to-latest, like the chat screen. Hidden until you scroll up.
+      '<button id="tg-jump" onclick="_tgScrollBottom()" style="display:none;position:absolute;right:12px;bottom:14px;width:44px;height:44px;border-radius:50%;border:none;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;align-items:center;justify-content:center;color:var(--text)">' +
+        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>' +
+        '<span id="tg-jump-badge" style="display:none;position:absolute;top:-4px;right:-4px;min-width:19px;height:19px;border-radius:10px;background:#229ED9;color:#fff;font-size:.66rem;font-weight:700;line-height:19px;padding:0 5px"></span>' +
+      '</button>' +
     '</div>';
 
   var dark = document.documentElement.classList.contains('dark') || (document.body && document.body.classList.contains('dark'));
@@ -405,29 +406,65 @@ window.openTelegramChannel = function (username, title) {
     }
     if (state) state.remove();
 
+    // The API hands them back newest-first; a chat reads the other way round.
+    var ordered = posts.slice().sort(function (a, b) { return a.tg_msg_id - b.tg_msg_id; });
+
     if (mode === 'stored') {
-      slot.innerHTML = posts.map(function (p) { return _xPostCard(p, username, title); }).join('');
-      return;
+      slot.innerHTML = ordered.map(function (p) { return _xPostCard(p, username, title); }).join('');
+    } else {
+      // Widget mode: one official embed per post, oldest at the top.
+      ordered.forEach(function (p) {
+        var holder = document.createElement('div');
+        holder.style.marginBottom = '.4rem';
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://telegram.org/js/telegram-widget.js?22';
+        s.setAttribute('data-telegram-post', username + '/' + p.tg_msg_id);
+        s.setAttribute('data-width', '100%');
+        if (dark) s.setAttribute('data-dark', '1');
+        holder.appendChild(s);
+        slot.appendChild(holder);
+      });
     }
 
-    // Widget mode: one official embed per post, newest first.
-    posts.forEach(function (p) {
-      var holder = document.createElement('div');
-      holder.style.marginBottom = '.5rem';
-      var s = document.createElement('script');
-      s.async = true;
-      s.src = 'https://telegram.org/js/telegram-widget.js?22';
-      s.setAttribute('data-telegram-post', username + '/' + p.tg_msg_id);
-      s.setAttribute('data-width', '100%');
-      if (dark) s.setAttribute('data-dark', '1');
-      holder.appendChild(s);
-      slot.appendChild(holder);
-    });
+    _tgInitScroll(ordered.length);
   }).catch(function (e) {
     var state = document.getElementById('tg-feed-state');
     if (state) state.innerHTML = 'Could not load posts (' + (e && e.message ? e.message : 'error') + ').';
   });
 };
+
+// Land at the newest post, and show the jump button once you scroll away from it.
+// The widgets load in their own iframes and keep growing after we're done here,
+// so re-pin to the bottom for a few seconds rather than scrolling once.
+function _tgInitScroll(count) {
+  var box = document.getElementById('tg-feed-scroll');
+  if (!box) return;
+  TG_lastCount = count || 0;
+  var pin = setInterval(function () { box.scrollTop = box.scrollHeight; }, 250);
+  setTimeout(function () { clearInterval(pin); }, 4000);
+
+  box.onscroll = function () {
+    var atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+    if (atBottom) { clearInterval(pin); _tgClearNew(); }
+    var btn = document.getElementById('tg-jump');
+    if (btn) btn.style.display = atBottom ? 'none' : 'flex';
+  };
+}
+
+window._tgScrollBottom = function () {
+  var box = document.getElementById('tg-feed-scroll');
+  if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+  _tgClearNew();
+};
+
+var TG_lastCount = 0;
+var TG_newCount = 0;
+function _tgClearNew() {
+  TG_newCount = 0;
+  var b = document.getElementById('tg-jump-badge');
+  if (b) b.style.display = 'none';
+}
 
 // Render one channel post as a Telegram-style bubble.
 function _xPostCard(p, username, chTitle) {
