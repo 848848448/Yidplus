@@ -37,18 +37,18 @@ INGEST_URL = "https://yidplus.com/api/telegram-ingest"
 CHANNELS_URL = "https://yidplus.com/api/telegram-channels"
 # How many recent posts to look at per channel on each run.
 FETCH_LIMIT = "20"
-# Skip files bigger than this. Each chunk is decrypted in pure JS, so large
-# files are what will blow the Worker CPU limit.
-MEDIA_MAX_MB = "20"
-# How many files one run may download. DEFAULT 0 = off.
+# Skip files bigger than this. Every chunk is decrypted in pure JS, so size is
+# what decides whether a run survives. Photos and short clips fit; a long video
+# will not, on the free plan.
+MEDIA_MAX_MB = "6"
+# How many files one run may download.
 #
-# Downloading media means decrypting megabytes in pure JS, which exceeds the
-# CPU a Worker gets on the free plan — the run dies with Error 1102 and takes
-# the text sync down with it. Left at 0 the sync is reliable and the Channels
-# tab uses 'Live copy' mode (admin > Channels), where Telegram renders the
-# photos and video itself.
-# On the Workers Paid plan there is far more CPU per run; 2-4 is a sane start.
-MEDIA_PER_RUN = "0"
+# Downloading means decrypting the file in pure JS, and the free plan's CPU per
+# run only covers roughly one. Asking for more is what produced Error 1102 —
+# some files landed, then the run died and took the text sync with it.
+# One per run never trips the limit, and since the cron fires every minute the
+# backlog clears itself. Raise to 4+ only on the Workers Paid plan.
+MEDIA_PER_RUN = "1"
 
 # Secrets — set these with `npx wrangler secret put <NAME>`, never in this file:
 #   TELEGRAM_API_ID          from my.telegram.org
