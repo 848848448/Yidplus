@@ -37,17 +37,19 @@ INGEST_URL = "https://yidplus.com/api/telegram-ingest"
 CHANNELS_URL = "https://yidplus.com/api/telegram-channels"
 # How many recent posts to look at per channel on each run.
 FETCH_LIMIT = "20"
-# Skip files bigger than this. Every chunk is decrypted in pure JS, so size is
-# what decides whether a run survives. Photos and short clips fit; a long video
-# will not, on the free plan.
-MEDIA_MAX_MB = "6"
+# Largest file to attempt. Every chunk is decrypted in pure JS, so size is what
+# decides whether a run survives: on the free plan a big video may exhaust the
+# CPU and kill the run (Error 1102). That's now safe rather than fatal — the
+# attempt is counted before it's made, so after three tries the post goes
+# through text-only instead of wedging the channel. Small files are unaffected.
+MEDIA_MAX_MB = "60"
 # How many files one run may download.
 #
 # Downloading means decrypting the file in pure JS, and the free plan's CPU per
-# run only covers roughly one. Asking for more is what produced Error 1102 —
-# some files landed, then the run died and took the text sync with it.
-# One per run never trips the limit, and since the cron fires every minute the
-# backlog clears itself. Raise to 4+ only on the Workers Paid plan.
+# run only covers about one. Asking for more is what produced Error 1102 — some
+# files landed, then the run died and took the text sync with it. One per run,
+# with the cron firing every minute, clears a backlog on its own.
+# Raise to 4+ only on the Workers Paid plan.
 MEDIA_PER_RUN = "1"
 
 # Secrets — set these with `npx wrangler secret put <NAME>`, never in this file:

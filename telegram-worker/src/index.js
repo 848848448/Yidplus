@@ -26,22 +26,35 @@ function makeClient(env) {
   });
 }
 
-// Telegram answers some calls with "you're on the wrong data centre" — follow it.
-async function call(mtproto, method, params, options = {}) {
+// Telegram answers some calls with "you're on the wrong data centre" — follow
+// it. Depth-guarded: without it a DC that keeps redirecting would recurse until
+// the run dies.
+async function call(mtproto, method, params, options = {}, depth = 0) {
   try {
     return await mtproto.call(method, params, options);
   } catch (error) {
     const code = error.error_code;
     const message = error.error_message || '';
 
-    if (code === 303) {
+    if (code === 303 && depth < 3) {
       const dcId = Number(message.split('_MIGRATE_')[1]);
       if (message.startsWith('PHONE_MIGRATE_') || message.startsWith('NETWORK_MIGRATE_')) {
         await mtproto.setDefaultDc(dcId);
       } else {
         options = { ...options, dcId };
       }
-      return call(mtproto, method, params, options);
+      return call(mtproto, method, params, options, depth + 1);
+    }
+
+    // FLOOD_WAIT_x = "you're asking too often, wait x seconds". Waiting costs
+    // wall time, not CPU, so a short one is worth sitting out; a long one is
+    // left for the next cron run rather than idling here.
+    if (code === 420 && depth < 2) {
+      const secs = Number(message.split('FLOOD_WAIT_')[1]) || 0;
+      if (secs > 0 && secs <= 5) {
+        await new Promise((r) => setTimeout(r, secs * 1000 + 250));
+        return call(mtproto, method, params, options, depth + 1);
+      }
     }
     throw error;
   }
@@ -153,6 +166,12 @@ async function pushPost(env, mtproto, username, chat, m, budget) {
     if (tooBig || fails >= 3) {
       // Post goes text-only: too large to decrypt in a run, or it keeps failing.
     } else {
+      // Record the attempt BEFORE making it. A file big enough to exhaust the
+      // run's CPU kills the isolate outright (Error 1102) — no catch runs, no
+      // finally, nothing. Counting afterwards would therefore never see those
+      // failures, so the same file would be retried every run forever and, now
+      // that the marker only advances contiguously, wedge the channel for good.
+      await env.TG_SESSION.put(failKey, String(fails + 1), { expirationTtl: 86400 });
       try {
         const bytes = await downloadMedia(mtproto, info, maxBytes);
         if (bytes.length) {
@@ -161,11 +180,17 @@ async function pushPost(env, mtproto, username, chat, m, budget) {
           mediaUrl = '/api/media/' + key;
           mediaType = info.kind;
           budget.left--;
-          if (fails) await env.TG_SESSION.delete(failKey);
         }
+        await env.TG_SESSION.delete(failKey);   // it worked — forget the tries
       } catch (e) {
-        await env.TG_SESSION.put(failKey, String(fails + 1), { expirationTtl: 86400 });
-        return { ok: false, error: `media @${username}/${m.id} (try ${fails + 1}/3): ${e.error_message || e.message}` };
+        const msg = e.error_message || e.message || '';
+        // FLOOD_WAIT means Telegram is rate-limiting us, and NETWORK/timeout
+        // errors are equally not the file's fault. Give the count back so a
+        // perfectly good file isn't given up on after three unlucky runs.
+        if (/FLOOD_WAIT|TIMEOUT|NETWORK/i.test(msg)) {
+          await env.TG_SESSION.put(failKey, String(fails), { expirationTtl: 86400 });
+        }
+        return { ok: false, error: `media @${username}/${m.id} (try ${fails + 1}/3): ${msg}` };
       }
     }
   }
