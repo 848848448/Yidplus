@@ -59,7 +59,14 @@ export async function onRequestPost(context) {
     await env.DB.prepare(
       'INSERT INTO telegram_posts (id, username, tg_msg_id, text, media_url, media_type, link, posted_at, author_name, author_handle, author_avatar, views, forwards, created_at) ' +
       'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
-      'ON CONFLICT(username, tg_msg_id) DO UPDATE SET text=excluded.text, media_url=excluded.media_url, media_type=excluded.media_type, views=excluded.views, forwards=excluded.forwards'
+      'ON CONFLICT(username, tg_msg_id) DO UPDATE SET ' +
+      'text = excluded.text, ' +
+      // Only ever fill media in, never blank it out: a re-sync that couldn't
+      // fetch the file (CPU, rate limit, size) sends an empty media_url, and
+      // taking that literally would wipe a picture we already had.
+      'media_url = COALESCE(NULLIF(excluded.media_url, \'\'), telegram_posts.media_url), ' +
+      'media_type = COALESCE(NULLIF(excluded.media_type, \'\'), telegram_posts.media_type), ' +
+      'views = excluded.views, forwards = excluded.forwards'
     ).bind(crypto.randomUUID(), username, msgId, text, mediaUrl, mediaType, link, postedAt, authorName, authorHndl, authorAv, views, forwards, new Date().toISOString()).run();
 
     return json({ ok: true, accepted: true });
