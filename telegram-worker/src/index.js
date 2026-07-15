@@ -350,13 +350,32 @@ async function downloadMedia(mtproto, info, maxBytes) {
 const SLICE = 524288;         // 512KB per request — must be a multiple of 4096
 const ALIGN = 4096;           // Telegram requires offset/limit aligned to this
 
+// A file location holds raw bytes (file_reference) and possibly BigInt ids, and
+// plain JSON mangles both: a Uint8Array comes back as {"0":1,"1":2,...} and a
+// BigInt throws outright. Either way Telegram then rejects the location, which
+// is why nothing loaded. Tag both on the way out and rebuild them on the way in.
+function locStringify(obj) {
+  return JSON.stringify(obj, (k, v) => {
+    if (typeof v === 'bigint') return { __big: v.toString() };
+    if (v instanceof Uint8Array) return { __bytes: Array.from(v) };
+    return v;
+  });
+}
+function locParse(s) {
+  return JSON.parse(s, (k, v) => {
+    if (v && typeof v === 'object' && v.__big !== undefined) return BigInt(v.__big);
+    if (v && typeof v === 'object' && Array.isArray(v.__bytes)) return new Uint8Array(v.__bytes);
+    return v;
+  });
+}
+
 // Resolving a message costs two round-trips, so cache the file's location.
 // file_reference goes stale after a while, hence the short TTL and the retry.
 async function fileLocation(env, mtproto, username, msgId, force) {
   const key = `loc:${username}:${msgId}`;
   if (!force) {
     const hit = await env.TG_SESSION.get(key);
-    if (hit) { try { return JSON.parse(hit); } catch (e) { /* refetch */ } }
+    if (hit) { try { return locParse(hit); } catch (e) { /* refetch */ } }
   }
 
   const resolved = await call(mtproto, 'contacts.resolveUsername', { username });
@@ -373,8 +392,8 @@ async function fileLocation(env, mtproto, username, msgId, force) {
   const info = mediaInfo(msg);
   if (!info) throw new Error('post has no media');
 
-  const out = { location: info.location, size: info.size || 0, mime: info.mime, kind: info.kind };
-  await env.TG_SESSION.put(key, JSON.stringify(out), { expirationTtl: 1800 });
+  const out = { location: info.location, size: Number(info.size) || 0, mime: info.mime, kind: info.kind };
+  try { await env.TG_SESSION.put(key, locStringify(out), { expirationTtl: 1800 }); } catch (e) { /* serving matters more than caching */ }
   return out;
 }
 
@@ -393,9 +412,42 @@ async function streamMedia(env, request) {
   }
 
   const total = info.size || 0;
+  const range = request.headers.get('Range') || '';
+
+  // No Range header means a plain GET — an <img> does this, and it can't use a
+  // partial body: answering 206 with 512KB was why every picture came out
+  // broken. Serve the whole thing, provided it's small enough to decrypt in one
+  // run. Anything larger is a player's job, and players do send Range.
+  if (!range) {
+    if (total && total <= 4 * 1024 * 1024) {
+      try {
+        const bytes = await downloadMedia(mtproto, info, 4 * 1024 * 1024);
+        return new Response(bytes, {
+          headers: {
+            'Content-Type': info.mime || 'application/octet-stream',
+            'Content-Length': String(bytes.length),
+            'Accept-Ranges': 'bytes',
+            'Cache-Control': 'public, max-age=86400',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      } catch (e) {
+        return new Response('Stream error: ' + (e.error_message || e.message), { status: 502 });
+      }
+    }
+    // Too big for one run: tell the caller we do ranges and let it ask again.
+    return new Response('', {
+      status: 200,
+      headers: {
+        'Content-Type': info.mime || 'application/octet-stream',
+        'Content-Length': '0',
+        'Accept-Ranges': 'bytes',
+        'Access-Control-Allow-Origin': '*',
+      },
+    });
+  }
 
   // Work out which slice the player asked for.
-  const range = request.headers.get('Range') || '';
   const m = range.match(/bytes=(\d+)-(\d*)/);
   let start = m ? parseInt(m[1]) : 0;
   if (total && start >= total) {
