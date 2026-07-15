@@ -2282,7 +2282,14 @@ window.adminQuickBanIp = function (ip) {
 /* ══════════════════════════════════
    CHANNELS MANAGER PANEL
 ══════════════════════════════════ */
+window.tgSetMode = function (v) {
+  saveSetting('tg_embed_mode', v);
+  toast(v === 'widget' ? '✅ Live copy from Telegram' : '✅ Stored copy');
+};
+
 function _tgcLoad() {
+  var sel = document.getElementById('tg-mode');
+  if (sel) sel.value = (STATE.settings && STATE.settings.tg_embed_mode) || 'widget';
   var el = document.getElementById('tgc-list');
   if (!el) return;
   api.get('/telegram-channels').then(function (res) {
@@ -2357,6 +2364,17 @@ function buildChannelsMgrPanel(content) {
       '<div class="admin-card">' +
         '<div class="admin-card-title">📨 Telegram channels</div>' +
         '<div style="font-size:.76rem;color:var(--muted);margin-bottom:.7rem">Add a <b>public</b> Telegram channel by its @username (e.g. <code>@channelname</code>). It shows in the Channels tab and streams its posts from Telegram, read-only.<br><b>Note:</b> private invite links (t.me/+…) can\'t be embedded — only public channels with a @username.</div>' +
+        '<div style="border:1px solid var(--border);border-radius:8px;padding:.55rem;margin-bottom:.7rem">' +
+          '<div style="font-weight:700;font-size:.82rem;margin-bottom:.25rem">How posts are shown</div>' +
+          '<select id="tg-mode" onchange="tgSetMode(this.value)" style="width:100%;padding:.45rem;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.8rem">' +
+            '<option value="widget">Live copy from Telegram (nothing stored)</option>' +
+            '<option value="stored">Stored copy (works without Telegram)</option>' +
+          '</select>' +
+          '<div style="font-size:.7rem;color:var(--muted);margin-top:.4rem;line-height:1.45">' +
+            '<b>Live copy</b> — posts render straight from Telegram with full photos, video and music. Uses no storage, but only shows for visitors whose network can reach t.me, and posts vanish if deleted there.<br>' +
+            '<b>Stored copy</b> — the sync saves posts and media to your own site, so everyone sees them and they stay put. Uses R2 storage.' +
+          '</div>' +
+        '</div>' +
         '<div style="display:flex;gap:.4rem;margin-bottom:.5rem">' +
           '<input id="tgc-user" placeholder="@channelusername" style="flex:1;padding:.55rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem">' +
           '<button class="save-pill" onclick="tgcAdd()">Add</button>' +

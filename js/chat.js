@@ -385,18 +385,44 @@ window.openTelegramChannel = function (username, title) {
     '</div>';
 
   var dark = document.documentElement.classList.contains('dark') || (document.body && document.body.classList.contains('dark'));
+  // Two ways to show a channel:
+  //  'widget' (default) — embed each post with Telegram's official widget. The
+  //     content stays on Telegram: full photos/video/music, nothing stored here,
+  //     but it only renders for visitors whose network can reach t.me.
+  //  'stored'  — render what the worker copied into D1/R2. Works on any network
+  //     and survives deletion, at the cost of storage.
+  var mode = (window.STATE && STATE.settings && STATE.settings.tg_embed_mode) || 'widget';
+
   api.get('/telegram-ingest?username=' + encodeURIComponent(username)).then(function (res) {
     var slot = document.getElementById('tg-feed-slot');
     var state = document.getElementById('tg-feed-state');
     if (!slot) return;
     var posts = (res && res.posts) || [];
     if (!posts.length) {
-      if (state) state.innerHTML = 'No posts here yet.<br><span style="font-size:.75rem">Posts appear once your Telegram sync is running.</span>' +
+      if (state) state.innerHTML = 'No posts here yet.<br><span style="font-size:.75rem">Posts appear once the Telegram sync has run.</span>' +
         '<br><br><a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9;font-weight:600">Open @' + username + ' in Telegram →</a>';
       return;
     }
     if (state) state.remove();
-    slot.innerHTML = posts.map(function (p) { return _xPostCard(p, username, title); }).join('');
+
+    if (mode === 'stored') {
+      slot.innerHTML = posts.map(function (p) { return _xPostCard(p, username, title); }).join('');
+      return;
+    }
+
+    // Widget mode: one official embed per post, newest first.
+    posts.forEach(function (p) {
+      var holder = document.createElement('div');
+      holder.style.marginBottom = '.5rem';
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://telegram.org/js/telegram-widget.js?22';
+      s.setAttribute('data-telegram-post', username + '/' + p.tg_msg_id);
+      s.setAttribute('data-width', '100%');
+      if (dark) s.setAttribute('data-dark', '1');
+      holder.appendChild(s);
+      slot.appendChild(holder);
+    });
   }).catch(function (e) {
     var state = document.getElementById('tg-feed-state');
     if (state) state.innerHTML = 'Could not load posts (' + (e && e.message ? e.message : 'error') + ').';
