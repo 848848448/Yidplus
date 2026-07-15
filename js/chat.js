@@ -577,7 +577,7 @@ function _xPostCard(p, username, chTitle) {
   return '<div style="display:flex;align-items:flex-end;gap:.45rem;margin-bottom:.55rem">' +
       avatar +
       '<div style="background:#fff;border-radius:12px;border-bottom-left-radius:4px;padding:.5rem .6rem;' + bubbleW + ';box-shadow:0 1px 1px rgba(0,0,0,.08);box-sizing:border-box">' +
-        '<div style="font-weight:600;font-size:.84rem;color:#168acd;margin-bottom:.2rem;unicode-bidi:plaintext">' + name + '</div>' +
+        '<div style="font-weight:600;font-size:.84rem;color:#168acd;margin-bottom:.2rem;text-align:left;unicode-bidi:plaintext;direction:ltr">' + name + '</div>' +
         media +
         (text ? '<div style="font-size:.94rem;line-height:1.4;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' : '') +
         '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;margin-top:.25rem;color:#8a9aa5;font-size:.68rem">' +

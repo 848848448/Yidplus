@@ -415,32 +415,35 @@ async function streamMedia(env, request) {
   const range = request.headers.get('Range') || '';
 
   // No Range header means a plain GET — an <img> does this, and it can't use a
-  // partial body: answering 206 with 512KB was why every picture came out
-  // broken. Serve the whole thing, provided it's small enough to decrypt in one
-  // run. Anything larger is a player's job, and players do send Range.
+  // partial body: answering 206 with a 512KB slice was why every picture came
+  // out broken. Serve the whole thing when it's small enough to decrypt in one
+  // run. Note this must NOT depend on knowing the size: photos often report
+  // none, and requiring it sent them down the empty-response path instead.
   if (!range) {
-    if (total && total <= 4 * 1024 * 1024) {
+    const WHOLE_CAP = 4 * 1024 * 1024;
+    if (!total || total <= WHOLE_CAP) {
       try {
-        const bytes = await downloadMedia(mtproto, info, 4 * 1024 * 1024);
-        return new Response(bytes, {
-          headers: {
-            'Content-Type': info.mime || 'application/octet-stream',
-            'Content-Length': String(bytes.length),
-            'Accept-Ranges': 'bytes',
-            'Cache-Control': 'public, max-age=86400',
-            'Access-Control-Allow-Origin': '*',
-          },
-        });
+        const bytes = await downloadMedia(mtproto, info, WHOLE_CAP);
+        if (bytes.length) {
+          return new Response(bytes, {
+            headers: {
+              'Content-Type': info.mime || 'application/octet-stream',
+              'Content-Length': String(bytes.length),
+              'Accept-Ranges': 'bytes',
+              'Cache-Control': 'public, max-age=86400',
+              'Access-Control-Allow-Origin': '*',
+            },
+          });
+        }
       } catch (e) {
         return new Response('Stream error: ' + (e.error_message || e.message), { status: 502 });
       }
     }
-    // Too big for one run: tell the caller we do ranges and let it ask again.
+    // Too big for one run: advertise ranges and let the player ask properly.
     return new Response('', {
       status: 200,
       headers: {
         'Content-Type': info.mime || 'application/octet-stream',
-        'Content-Length': '0',
         'Accept-Ranges': 'bytes',
         'Access-Control-Allow-Origin': '*',
       },
@@ -628,6 +631,43 @@ export default {
           cleared.push(u);
         }
         return json({ ok: true, cleared, next: 'Now call /sync — it will re-pull recent posts, media included.' });
+      }
+
+      // Diagnostic: what does Telegram actually hand us for this post? Reports
+      // the size/mime/kind and whether the location survived caching — enough to
+      // tell a bad size apart from a bad file_reference without guessing.
+      if (path === '/probe') {
+        const ch = (url.searchParams.get('ch') || '').replace(/[^a-zA-Z0-9_]/g, '');
+        const id = parseInt(url.searchParams.get('id'));
+        if (!ch || !id) return json({ ok: true, error: 'need ?ch= and ?id=' });
+        const mtproto = makeClient(env);
+
+        const fresh = await fileLocation(env, mtproto, ch, id, true).catch((e) => ({ error: e.error_message || e.message }));
+        if (fresh.error) return json({ ok: true, stage: 'resolve', error: fresh.error });
+
+        const cached = await fileLocation(env, mtproto, ch, id, false).catch((e) => ({ error: e.error_message || e.message }));
+
+        const describe = (i) => ({
+          size: i.size,
+          size_type: typeof i.size,
+          mime: i.mime,
+          kind: i.kind,
+          loc_type: i.location && i.location._,
+          ref_is_bytes: !!(i.location && i.location.file_reference instanceof Uint8Array),
+          ref_len: i.location && i.location.file_reference ? i.location.file_reference.length : null,
+          id_type: i.location ? typeof i.location.id : null,
+        });
+
+        // And can we actually read the first slice?
+        let firstChunk = null;
+        try {
+          const got = await getChunk(mtproto, fresh.location, 0, 4096, null);
+          firstChunk = { bytes: got.res && got.res.bytes ? got.res.bytes.length : 0, dc: got.dcId };
+        } catch (e) {
+          firstChunk = { error: e.error_message || e.message };
+        }
+
+        return json({ ok: true, fresh: describe(fresh), from_cache: cached.error ? { error: cached.error } : describe(cached), first_chunk: firstChunk });
       }
 
       // Run a sync right now instead of waiting for the cron — this is the one
