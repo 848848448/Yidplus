@@ -57,8 +57,18 @@ async function syncAll(env) {
 
   const listRes = await fetch(env.CHANNELS_URL);
   const listJson = await listRes.json().catch(() => ({}));
-  const channels = (listJson && listJson.channels) || [];
+  let channels = (listJson && listJson.channels) || [];
   if (!channels.length) return { ...report, note: 'No Telegram channels added in the admin panel yet.' };
+
+  // The media budget is shared, and a run walks the channels in order — so a
+  // fixed order means the first channel eats the whole budget every single run
+  // and the rest never get a turn. Rotate the starting point each run so every
+  // channel advances.
+  const turn = Number((await env.TG_SESSION.get('rr')) || 0);
+  const start = channels.length ? turn % channels.length : 0;
+  channels = channels.slice(start).concat(channels.slice(0, start));
+  await env.TG_SESSION.put('rr', String((turn + 1) % 1000000));
+  report.started_with = channels.length ? channels[0].username : null;
 
   const mtproto = makeClient(env);
   const limit = Number(env.FETCH_LIMIT || 20);
