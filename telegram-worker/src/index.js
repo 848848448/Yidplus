@@ -474,12 +474,14 @@ async function streamMedia(env, request) {
     return new Response('', { status: 416, headers: { 'Content-Range': `bytes */${total}` } });
   }
 
-  // Telegram only reads on aligned boundaries, so fetch from the aligned offset
-  // and trim the head off afterwards.
+  // Telegram requires offset % 4096 === 0, limit % 4096 === 0, AND
+  // 1048576 % limit === 0. Trimming the limit to what's left of the file breaks
+  // that last rule — e.g. a 12288-byte tail leaves a remainder of 4096 and gets
+  // rejected outright. So always ask for the full slice, which is a valid limit
+  // by construction, and let Telegram return a short read at the end.
   const alignedStart = Math.floor(start / ALIGN) * ALIGN;
   const skip = start - alignedStart;
-  let limit = SLICE;
-  if (total) limit = Math.min(limit, Math.ceil((total - alignedStart) / ALIGN) * ALIGN);
+  const limit = SLICE;
 
   let bytes;
   try {
@@ -497,7 +499,17 @@ async function streamMedia(env, request) {
   }
   if (!bytes || !bytes.length) return new Response('', { status: 416 });
 
-  const body = bytes.subarray(skip);
+  let body = bytes.subarray(skip);
+  // Honour the requested end. A player seeking sends a bounded range like
+  // bytes=1000-2000, and answering with more than it asked for is invalid —
+  // the player throws the response away. Open-ended ranges (bytes=0-) are the
+  // common case and stay capped at one slice.
+  const wantEnd = m && m[2] ? parseInt(m[2]) : null;
+  if (wantEnd !== null) {
+    const want = wantEnd - start + 1;
+    if (want > 0 && want < body.length) body = body.subarray(0, want);
+  }
+
   const end = start + body.length - 1;
   const size = total || (end + 1);
 
