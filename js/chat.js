@@ -387,12 +387,13 @@ window.openTelegramChannel = function (username, title) {
 
   var dark = document.documentElement.classList.contains('dark') || (document.body && document.body.classList.contains('dark'));
   // Two ways to show a channel:
-  //  'widget' (default) — embed each post with Telegram's official widget. The
-  //     content stays on Telegram: full photos/video/music, nothing stored here,
-  //     but it only renders for visitors whose network can reach t.me.
-  //  'stored'  — render what the worker copied into D1/R2. Works on any network
-  //     and survives deletion, at the cost of storage.
-  var mode = (window.STATE && STATE.settings && STATE.settings.tg_embed_mode) || 'widget';
+  //  'stored' (default) — render what the sync copied into D1/R2. We build every
+  //     post ourselves, so there is no Telegram branding or outbound link, it
+  //     matches the app's design, and it's fast.
+  //  'widget' — embed Telegram's official post widget. Nothing is stored, but
+  //     each post is a separate cross-origin iframe: it carries Telegram's own
+  //     links and branding, can't be restyled or shrunk, and is slow.
+  var mode = (window.STATE && STATE.settings && STATE.settings.tg_embed_mode) || 'stored';
 
   api.get('/telegram-ingest?username=' + encodeURIComponent(username)).then(function (res) {
     var slot = document.getElementById('tg-feed-slot');
@@ -473,12 +474,14 @@ function _xPostCard(p, username, chTitle) {
     ? '<div style="width:34px;height:34px;border-radius:50%;background-image:url(' + p.author_avatar + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
     : '<div style="width:34px;height:34px;border-radius:50%;background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:700;flex-shrink:0">' + (name.slice(0, 1) || 'C') + '</div>';
 
-  // Text: escape, linkify, colour @mentions and #hashtags.
+  // Text: escape, then style mentions and hashtags. Deliberately NOT linked —
+  // a @mention would otherwise be a door straight out to t.me.
   var text = '';
   if (p.text) {
     text = escHtml(p.text)
-      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#168acd;text-decoration:none">$1</a>')
-      .replace(/(^|\s)(@[a-zA-Z0-9_]+)/g, '$1<a href="https://t.me/$2" target="_blank" style="color:#168acd;text-decoration:none">$2</a>')
+      .replace(/https?:\/\/(?:t|telegram)\.me\/[^\s<]+/gi, '')   // drop bare Telegram links
+      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#168acd;text-decoration:none">$1</a>')
+      .replace(/(^|\s)(@[a-zA-Z0-9_]+)/g, '$1<span style="color:#168acd">$2</span>')
       .replace(/(^|\s)(#[^\s#<]+)/g, '$1<span style="color:#168acd">$2</span>')
       .replace(/\n/g, '<br>');
   }
@@ -517,8 +520,7 @@ function _xPostCard(p, username, chTitle) {
         '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;margin-top:.25rem;color:#8a9aa5;font-size:.68rem">' +
           eye + '<span>' + _xNum(p.views || 0) + '</span>' +
           '<span style="margin-left:.2rem">' + when + '</span>' +
-        '</div>' +
-      '</div>' +
+        '</div>' +      '</div>' +
     '</div>';
 }
 function _xNum(n) {
