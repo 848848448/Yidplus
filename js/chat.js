@@ -360,7 +360,7 @@ function _tgChannelRow(t) {
       av +
       '<div style="flex:1;min-width:0">' +
         '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
-          '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;unicode-bidi:plaintext">' + title + '</div>' +
+          '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;text-align:left;unicode-bidi:plaintext;direction:ltr">' + title + '</div>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:.4rem">' +
           '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;font-weight:' + (t.unread ? '500' : '400') + '">' + _tgMembersLabel(t.members) + '</div>' +
@@ -551,7 +551,7 @@ function _xPostCard(p, username, chTitle) {
     if (p.media_type === 'video') {
       media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><video src="' + src + '" controls playsinline preload="none" style="width:100%;display:block;background:#000"></video></div>';
     } else if (p.media_type === 'audio') {
-      media = '<div style="margin-bottom:.45rem"><audio src="' + src + '" controls preload="none" class="tg-audio" onended="_tgPlayNext(this)" onplay="_tgSoloPlay(this)" style="width:100%;height:38px"></audio></div>';
+      media = '<div style="margin-bottom:.45rem"><audio src="' + src + '" controls preload="none" class="tg-audio" onended="_tgPlayNext(this)" onplay="_tgSoloPlay(this)" style="display:block;width:100%;min-width:250px;height:40px"></audio></div>';
     } else if (p.media_type === 'file') {
       media = '<a href="' + src + '" target="_blank" style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem;text-decoration:none;color:#168acd">' +
         '<div style="width:36px;height:36px;border-radius:50%;background:#168acd;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
@@ -571,9 +571,12 @@ function _xPostCard(p, username, chTitle) {
 
   // Telegram channel layout: avatar on the left, one light bubble holding the
   // channel name, the post, and a views + time footer on the right.
+  // A bubble shrinks to fit its text, which squeezed the audio controls to
+  // nothing — so a bubble carrying media gets a floor to sit on.
+  var bubbleW = media ? 'width:100%;max-width:min(82%,420px)' : 'max-width:82%';
   return '<div style="display:flex;align-items:flex-end;gap:.45rem;margin-bottom:.55rem">' +
       avatar +
-      '<div style="background:#fff;border-radius:12px;border-bottom-left-radius:4px;padding:.5rem .6rem;max-width:82%;box-shadow:0 1px 1px rgba(0,0,0,.08)">' +
+      '<div style="background:#fff;border-radius:12px;border-bottom-left-radius:4px;padding:.5rem .6rem;' + bubbleW + ';box-shadow:0 1px 1px rgba(0,0,0,.08);box-sizing:border-box">' +
         '<div style="font-weight:600;font-size:.84rem;color:#168acd;margin-bottom:.2rem;unicode-bidi:plaintext">' + name + '</div>' +
         media +
         (text ? '<div style="font-size:.94rem;line-height:1.4;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' : '') +
