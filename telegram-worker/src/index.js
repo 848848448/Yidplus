@@ -51,7 +51,9 @@ async function call(mtproto, method, params, options = {}) {
 async function syncAll(env) {
   const report = { channels: 0, sent: 0, skipped: 0, deferred: 0, errors: [] };
   // Shared across channels: how many files this run may still download.
-  const budget = { left: Number(env.MEDIA_PER_RUN || 4) };
+  // enabled:false means media is off entirely — posts sync text-only.
+  const perRun = Number(env.MEDIA_PER_RUN || 0);
+  const budget = { left: perRun, enabled: perRun > 0 };
 
   const listRes = await fetch(env.CHANNELS_URL);
   const listJson = await listRes.json().catch(() => ({}));
@@ -89,10 +91,12 @@ async function syncAll(env) {
 
       let highest = lastSeen;
       for (const m of messages) {
-        // Each file is decrypted in pure JS, so only a few fit in one run's CPU
-        // budget. Stop before the post rather than after: leaving lastSeen where
-        // it is means the next run picks this one up instead of skipping it.
-        if (budget.left <= 0 && mediaInfo(m)) { report.deferred++; break; }
+        // With media enabled, each file is decrypted in pure JS and only a few
+        // fit in one run's CPU. Stop BEFORE the post rather than after: leaving
+        // lastSeen put means the next run picks it up instead of skipping it.
+        // When media is off entirely (budget 0) there's nothing to defer — the
+        // post still goes, just without its file.
+        if (budget.enabled && budget.left <= 0 && mediaInfo(m)) { report.deferred++; break; }
 
         const res = await pushPost(env, mtproto, username, chat, m, budget);
         if (res.ok) { report.sent++; highest = Math.max(highest, m.id); }
@@ -112,7 +116,7 @@ async function pushPost(env, mtproto, username, chat, m, budget) {
   let mediaType = '';
 
   // Pull the file down and park it in R2; the post then just points at it.
-  const info = mediaInfo(m);
+  const info = budget.enabled ? mediaInfo(m) : null;
   if (info) {
     const maxBytes = Number(env.MEDIA_MAX_MB || 20) * 1024 * 1024;
     if (info.size && info.size > maxBytes) {

@@ -40,9 +40,15 @@ FETCH_LIMIT = "20"
 # Skip files bigger than this. Each chunk is decrypted in pure JS, so large
 # files are what will blow the Worker CPU limit.
 MEDIA_MAX_MB = "20"
-# Cap how many files one run downloads, for the same reason. The rest are
-# picked up by the next run a minute later.
-MEDIA_PER_RUN = "4"
+# How many files one run may download. DEFAULT 0 = off.
+#
+# Downloading media means decrypting megabytes in pure JS, which exceeds the
+# CPU a Worker gets on the free plan — the run dies with Error 1102 and takes
+# the text sync down with it. Left at 0 the sync is reliable and the Channels
+# tab uses 'Live copy' mode (admin > Channels), where Telegram renders the
+# photos and video itself.
+# On the Workers Paid plan there is far more CPU per run; 2-4 is a sane start.
+MEDIA_PER_RUN = "0"
 
 # Secrets — set these with `npx wrangler secret put <NAME>`, never in this file:
 #   TELEGRAM_API_ID          from my.telegram.org
