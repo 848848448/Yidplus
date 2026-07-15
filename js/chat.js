@@ -598,26 +598,21 @@ function _tgMembersLabel(n) {
   return _xNum(n) + (n === 1 ? ' member' : ' members');
 }
 
-// The Join bar sits where the composer would be on a normal chat.
+// The Join bar sits where the composer would be — and only while you haven't
+// joined. Once you have, it goes away like it does in Telegram; the member
+// count lives under the channel name in the header, not down here.
 function _tgRenderJoinBar(username, meta) {
   var old = document.getElementById('tg-join-bar');
   if (old) old.remove();
   var room = document.getElementById('screen-chatroom');
   if (!room) return;
+  if (meta && meta.joined) return;   // already joined → no bar at all
 
-  var joined = !!(meta && meta.joined);
   var bar = document.createElement('div');
   bar.id = 'tg-join-bar';
-  bar.style.cssText = 'flex-shrink:0;padding:.55rem .8rem;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;gap:.6rem';
+  bar.style.cssText = 'flex-shrink:0;padding:.6rem .8rem;background:var(--surface);border-top:1px solid var(--border);display:flex;justify-content:center';
   bar.innerHTML =
-    '<div style="flex:1;min-width:0">' +
-      '<div id="tg-jb-count" style="font-size:.8rem;font-weight:600;color:var(--text)">' + _tgMembersLabel(meta ? meta.members : 0) + '</div>' +
-      '<div style="font-size:.68rem;color:var(--muted)">Read-only channel</div>' +
-    '</div>' +
-    '<button id="tg-jb-btn" onclick="tgToggleJoin()" style="border:none;border-radius:20px;padding:.45rem 1.3rem;font-weight:700;font-size:.85rem;cursor:pointer;' +
-      (joined ? 'background:var(--bg3);color:var(--muted)' : 'background:#229ED9;color:#fff') + '">' +
-      (joined ? 'Joined' : 'Join') +
-    '</button>';
+    '<button id="tg-jb-btn" onclick="tgToggleJoin()" style="border:none;border-radius:20px;padding:.55rem 2.4rem;font-weight:700;font-size:.9rem;cursor:pointer;background:#229ED9;color:#fff">Join channel</button>';
   room.appendChild(bar);
 }
 
@@ -626,14 +621,12 @@ window.tgToggleJoin = function () {
   if (!btn || !TG_curChannel) return;
   btn.disabled = true;
   api.post('/telegram-join', { username: TG_curChannel }).then(function (res) {
-    btn.disabled = false;
-    if (res.error) { toast('❌ ' + res.error); return; }
-    btn.textContent = res.joined ? 'Joined' : 'Join';
-    btn.style.background = res.joined ? 'var(--bg3)' : '#229ED9';
-    btn.style.color = res.joined ? 'var(--muted)' : '#fff';
-    var label = _tgMembersLabel(res.members);
-    var c = document.getElementById('tg-jb-count'); if (c) c.textContent = label;
-    var s = document.getElementById('cr-status'); if (s) s.textContent = label;
+    if (res.error) { btn.disabled = false; toast('❌ ' + res.error); return; }
+    // Joined → the bar's job is done.
+    var bar = document.getElementById('tg-join-bar');
+    if (bar) bar.remove();
+    var s = document.getElementById('cr-status');
+    if (s) s.textContent = _tgMembersLabel(res.members);
     // Keep the cached list in step so the row and a re-open agree.
     for (var i = 0; i < (CHAT_tgChannels || []).length; i++) {
       if (CHAT_tgChannels[i].username === TG_curChannel) {

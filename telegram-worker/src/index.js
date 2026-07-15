@@ -370,6 +370,24 @@ export default {
         return json({ ok: true, logged_in: true, user: auth.user ? (auth.user.username || auth.user.id) : 'ok' });
       }
 
+      // Clear the "already sent" marks so the next sync re-fetches recent posts.
+      // Needed because posts synced before media support exist as empty shells:
+      // the ingest upserts, so re-sending fills them in rather than duplicating.
+      if (path === '/reset') {
+        const only = (url.searchParams.get('username') || '').replace(/[^a-zA-Z0-9_]/g, '');
+        const listRes = await fetch(env.CHANNELS_URL);
+        const listJson = await listRes.json().catch(() => ({}));
+        const channels = (listJson && listJson.channels) || [];
+        const cleared = [];
+        for (const ch of channels) {
+          const u = String(ch.username || '').replace(/[^a-zA-Z0-9_]/g, '');
+          if (!u || (only && u !== only)) continue;
+          await env.TG_SESSION.delete('last:' + u);
+          cleared.push(u);
+        }
+        return json({ ok: true, cleared, next: 'Now call /sync — it will re-pull recent posts, media included.' });
+      }
+
       // Run a sync right now instead of waiting for the cron — this is the one
       // to hit when testing.
       if (path === '/sync') {
