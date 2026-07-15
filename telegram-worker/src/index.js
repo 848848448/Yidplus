@@ -247,13 +247,21 @@ function extFor(mime) {
   return map[mime] || (mime.split('/')[1] || 'bin').replace(/[^a-z0-9]/gi, '');
 }
 
-// Photos arrive as a set of sizes; take the biggest real one (skip the tiny
-// stripped placeholder, which isn't a decodable image on its own).
+// Photos arrive as a set of sizes. Take the biggest one that still fits a
+// request's CPU rather than the largest outright: Telegram's top size can be
+// 2560px and megabytes, which is both wasted on a chat bubble and more AES than
+// a free-plan request can do. The stripped placeholder is skipped — it isn't a
+// decodable image on its own.
+const PHOTO_BUDGET = 600 * 1024;
 function biggestPhotoSize(photo) {
   const sizes = (photo.sizes || []).filter((s) => s._ === 'photoSize' || s._ === 'photoSizeProgressive');
   if (!sizes.length) return null;
-  const bytesOf = (s) => s.size || (s.sizes ? s.sizes[s.sizes.length - 1] : 0);
-  return sizes.reduce((best, s) => (bytesOf(s) > bytesOf(best) ? s : best), sizes[0]);
+  const bytesOf = (s) => Number(s.size || (s.sizes ? s.sizes[s.sizes.length - 1] : 0)) || 0;
+  const sorted = sizes.slice().sort((a, b) => bytesOf(a) - bytesOf(b));
+  const fits = sorted.filter((s) => bytesOf(s) && bytesOf(s) <= PHOTO_BUDGET);
+  // Largest that fits the budget; if every size is oversized (or none report a
+  // size), fall back to the smallest so something renders.
+  return fits.length ? fits[fits.length - 1] : sorted[0];
 }
 
 function mediaInfo(m) {
@@ -342,12 +350,15 @@ async function downloadMedia(mtproto, info, maxBytes) {
 // The trick that makes this work on the free plan: a <video> or <audio> element
 // fetches a file in Range requests, and every Range is a SEPARATE Worker
 // invocation with its own CPU budget. Decrypting a whole 60MB file in one run
-// is impossible (~4.6s of pure-JS AES); decrypting one 512KB slice per request
-// is ~38ms. The per-run CPU ceiling stops being a wall.
+// is impossible (~4.6s of pure-JS AES); decrypting one small slice per request
+// is a few ms. The per-run CPU ceiling stops being a wall.
 //
-// So we deliberately answer with a small 206 slice and let the player come back
-// for more, rather than trying to serve the whole file at once.
-const SLICE = 524288;         // 512KB per request — must be a multiple of 4096
+// Slice size is chosen against measured throughput: aes-js does ~13MB/s, so
+// 512KB costs ~38ms of CPU — over what a free-plan request gets, which killed
+// the response even though the file itself reads fine. 128KB is ~10ms and
+// leaves headroom. Smaller slices just mean more requests, and requests are
+// the thing we have plenty of.
+const SLICE = 131072;         // 128KB per request — must be a multiple of 4096
 const ALIGN = 4096;           // Telegram requires offset/limit aligned to this
 
 // A file location holds raw bytes (file_reference) and possibly BigInt ids, and
@@ -420,7 +431,10 @@ async function streamMedia(env, request) {
   // run. Note this must NOT depend on knowing the size: photos often report
   // none, and requiring it sent them down the empty-response path instead.
   if (!range) {
-    const WHOLE_CAP = 4 * 1024 * 1024;
+    // Sized against the same measurement as SLICE: ~13MB/s means 1MB is ~76ms
+    // of AES, which is about as much as one free-plan request will take. Photos
+    // are picked below this budget on purpose (see biggestPhotoSize).
+    const WHOLE_CAP = 1024 * 1024;
     if (!total || total <= WHOLE_CAP) {
       try {
         const bytes = await downloadMedia(mtproto, info, WHOLE_CAP);
