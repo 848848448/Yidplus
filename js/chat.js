@@ -1161,7 +1161,10 @@ window.copyInviteLink = function () {
   // link is simply the one that opens it. Handled first because CHAT_curRoom is
   // null for these, which is why this used to do nothing at all.
   if (TG_curChannel) {
-    var tgUrl = window.location.origin + '/chat#tg=' + encodeURIComponent(TG_curChannel);
+    // /c/<name> rather than /chat#tg=<name>: a fragment never reaches the
+    // server, so a shared link had no title or picture to unfurl with. That
+    // route renders the preview tags and then opens the channel.
+    var tgUrl = window.location.origin + '/c/' + encodeURIComponent(TG_curChannel);
     if (navigator.share) {
       navigator.share({ title: TG_curTitle || TG_curChannel, url: tgUrl }).catch(function () {});
     } else if (navigator.clipboard) {
