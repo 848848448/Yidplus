@@ -441,26 +441,27 @@ async function readSlice(env, mtproto, info, username, msgId, alignedStart) {
 }
 
 // Warm the slices ahead so the player doesn't wait on a handshake for each one.
-// One slice of lookahead wasn't enough — 128KB is about a second of video, so
-// the player caught up with the prefetch almost immediately and stuttered every
-// second or two. Reading several ahead on a SINGLE connection gives it a real
-// buffer, and reusing the client is what keeps that cheap: the handshake is the
-// expensive part, not the read.
+//
+// The catch: waitUntil work is billed to the SAME invocation, so reading four
+// slices inline cost ~40ms on top of the response's own ~10ms and blew the
+// free-plan ceiling — the prefetch was killed, and it was dragging the real
+// response down with it. Firing them as subrequests back at ourselves puts each
+// one in its OWN invocation with its OWN budget: exactly the same reason Range
+// requests work at all. They land in the edge cache, so the player finds them
+// waiting. nopf stops a prefetch from prefetching in turn.
 const PREFETCH_SLICES = 4;
 
-function prefetchNext(ctx, env, info, username, msgId, alignedStart, total) {
-  ctx.waitUntil((async () => {
-    try {
-      const cache = caches.default;
-      const mtproto = makeClient(env);
-      for (let i = 1; i <= PREFETCH_SLICES; i++) {
-        const at = alignedStart + SLICE * i;
-        if (total && at >= total) break;
-        if (await cache.match(sliceCacheKey(username, msgId, at))) continue;
-        await readSlice(env, mtproto, info, username, msgId, at);
-      }
-    } catch (e) { /* best effort — the player can always fetch it itself */ }
-  })());
+function prefetchNext(ctx, request, username, msgId, alignedStart, total) {
+  const origin = new URL(request.url).origin;
+  for (let i = 1; i <= PREFETCH_SLICES; i++) {
+    const at = alignedStart + SLICE * i;
+    if (total && at >= total) break;
+    const url = `${origin}/media?ch=${encodeURIComponent(username)}&id=${msgId}&nopf=1`;
+    ctx.waitUntil(
+      fetch(new Request(url, { headers: { Range: `bytes=${at}-${at + SLICE - 1}` } }))
+        .catch(() => {})   // best effort — the player can always fetch it itself
+    );
+  }
 }
 
 async function streamMedia(env, request, ctx) {
@@ -548,8 +549,11 @@ async function streamMedia(env, request, ctx) {
   }
   if (!bytes || !bytes.length) return new Response('', { status: 416 });
 
-  // Get the following slice ready while this one plays.
-  if (ctx) prefetchNext(ctx, env, info, username, msgId, alignedStart, total);
+  // Get the following slices ready while this one plays. Skipped when this
+  // request IS a prefetch, so they don't cascade.
+  if (ctx && !url.searchParams.has('nopf')) {
+    prefetchNext(ctx, request, username, msgId, alignedStart, total);
+  }
 
   let body = bytes.subarray(skip);
   // Honour the requested end. A player seeking sends a bounded range like
