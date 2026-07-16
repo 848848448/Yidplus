@@ -598,6 +598,12 @@ function _xPostCard(p, username, chTitle) {
   // A bubble shrinks to fit its text, which squeezed the audio controls to
   // nothing — so a bubble carrying media gets a floor to sit on.
   var bubbleW = media ? 'width:100%;max-width:min(82%,420px)' : 'max-width:82%';
+  // Only the main admins can pull a post off the site.
+  var canDelete = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
+  var delBtn = canDelete
+    ? '<span onclick="event.stopPropagation();tgDeletePost(' + p.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-right:auto">🗑</span>'
+    : '';
+
   return '<div style="display:flex;align-items:flex-end;gap:.45rem;margin-bottom:.55rem">' +
       avatar +
       '<div style="background:#fff;border-radius:12px;border-bottom-left-radius:4px;padding:.5rem .6rem;' + bubbleW + ';box-shadow:0 1px 1px rgba(0,0,0,.08);box-sizing:border-box">' +
@@ -606,6 +612,7 @@ function _xPostCard(p, username, chTitle) {
         (text ? '<div style="font-size:.94rem;line-height:1.4;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' : '') +
         reactRow +
         '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;margin-top:.25rem;color:#8a9aa5;font-size:.68rem">' +
+          delBtn +
           eye + '<span>' + _xNum(p.views || 0) + '</span>' +
           '<span style="margin-left:.2rem">' + when + '</span>' +
         '</div>' +      '</div>' +
@@ -628,6 +635,105 @@ window._tgPlayNext = function (el) {
 };
 
 var TG_curChannel = null;
+
+// Tapping the title opens info — a Telegram channel has its own panel, anything
+// else falls through to the normal room info the chats already use.
+window.crTitleTap = function () {
+  if (TG_curChannel) tgOpenInfo();
+  else if (typeof openChatInfo === 'function') openChatInfo();
+};
+
+window.tgOpenInfo = function () {
+  if (!TG_curChannel) return;
+  var old = document.getElementById('tg-info');
+  if (old) old.remove();
+
+  var meta = null;
+  for (var i = 0; i < (CHAT_tgChannels || []).length; i++) {
+    if (CHAT_tgChannels[i].username === TG_curChannel) { meta = CHAT_tgChannels[i]; break; }
+  }
+  var av = meta && meta.photo_url
+    ? '<div style="width:84px;height:84px;border-radius:50%;background-image:url(' + meta.photo_url + ');background-size:cover;background-position:center;margin:0 auto"></div>'
+    : '<div style="width:84px;height:84px;border-radius:50%;background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:2.2rem;margin:0 auto">📨</div>';
+
+  var ov = document.createElement('div');
+  ov.id = 'tg-info';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:940;background:var(--bg);display:flex;flex-direction:column';
+  ov.innerHTML =
+    '<div style="display:flex;align-items:center;gap:.6rem;padding:.7rem .8rem;background:var(--brand,#1F6F5C);color:#fff;flex-shrink:0">' +
+      '<button onclick="document.getElementById(\'tg-info\').remove()" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;padding:0 .3rem">‹</button>' +
+      '<div style="font-weight:700;font-size:.98rem">Channel info</div>' +
+    '</div>' +
+    '<div style="flex:1;overflow-y:auto">' +
+      '<div style="text-align:center;padding:1.2rem 1rem;background:var(--surface)">' +
+        av +
+        '<div style="font-weight:700;font-size:1.05rem;margin-top:.6rem;text-align:center;unicode-bidi:plaintext;direction:ltr">' + escHtml(TG_curTitle || TG_curChannel) + '</div>' +
+        '<div style="font-size:.78rem;color:var(--muted);margin-top:.15rem">Telegram channel · read-only</div>' +
+        '<div id="tgi-stats" style="font-size:.8rem;color:var(--muted);margin-top:.5rem"></div>' +
+      '</div>' +
+      '<div style="padding:.8rem 1rem .3rem;font-size:.75rem;font-weight:700;color:var(--muted);letter-spacing:.04em">MEMBERS</div>' +
+      '<div id="tgi-members" style="background:var(--surface)"><div style="padding:1.2rem;text-align:center"><div class="spinner"></div></div></div>' +
+      '<div style="height:2rem"></div>' +
+    '</div>';
+  document.body.appendChild(ov);
+
+  api.get('/telegram-info?username=' + encodeURIComponent(TG_curChannel)).then(function (res) {
+    var st = document.getElementById('tgi-stats');
+    if (st) st.textContent = _tgMembersLabel((res.members || []).length) + ' · ' + (res.post_count || 0) + ' posts';
+
+    var el = document.getElementById('tgi-members');
+    if (!el) return;
+    var list = res.members || [];
+    if (!list.length) {
+      el.innerHTML = '<div style="padding:1.2rem;text-align:center;color:var(--muted);font-size:.85rem">Nobody has joined yet.</div>';
+      return;
+    }
+    el.innerHTML = list.map(function (m) {
+      var mav = m.photo_url
+        ? '<div style="width:40px;height:40px;border-radius:50%;background-image:url(' + m.photo_url + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
+        : '<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">' + escHtml((m.name || '?').charAt(0).toUpperCase()) + '</div>';
+      return '<div style="display:flex;align-items:center;gap:.7rem;padding:.55rem 1rem;border-bottom:1px solid var(--border)">' +
+        mav +
+        '<div style="flex:1;min-width:0"><div style="font-size:.9rem;font-weight:600;unicode-bidi:plaintext;direction:ltr;text-align:left">' + escHtml(m.name) + '</div>' +
+        '<div style="font-size:.68rem;color:var(--muted)">Joined ' + (m.joined_at ? new Date(m.joined_at).toLocaleDateString() : '') + '</div></div>' +
+        (res.is_admin ? '<button onclick="tgRemoveMember(\'' + m.user_id + '\',this)" style="background:none;border:none;color:var(--red);font-size:.78rem;cursor:pointer">Remove</button>' : '') +
+      '</div>';
+    }).join('');
+  }).catch(function (e) {
+    var el = document.getElementById('tgi-members');
+    if (el) el.innerHTML = '<div style="padding:1rem;color:var(--muted);font-size:.85rem">Could not load.</div>';
+  });
+};
+
+window.tgRemoveMember = function (userId, btn) {
+  if (!confirm('Remove this member from the channel?')) return;
+  btn.disabled = true;
+  api.del('/telegram-info?username=' + encodeURIComponent(TG_curChannel) + '&user_id=' + encodeURIComponent(userId))
+    .then(function (res) {
+      if (res.error) { toast('❌ ' + res.error); btn.disabled = false; return; }
+      toast('Removed');
+      var row = btn.parentElement; if (row) row.remove();
+      // Keep the header and the cached row in step with the new count.
+      var s = document.getElementById('cr-status');
+      if (s && typeof res.members === 'number') s.textContent = _tgMembersLabel(res.members);
+      for (var i = 0; i < (CHAT_tgChannels || []).length; i++) {
+        if (CHAT_tgChannels[i].username === TG_curChannel) CHAT_tgChannels[i].members = res.members;
+      }
+    })
+    .catch(function (e) { toast('❌ ' + e.message); btn.disabled = false; });
+};
+
+window.tgDeletePost = function (msgId) {
+  if (!confirm('Delete this post from YID PLUS? (It stays on Telegram.)')) return;
+  api.del('/telegram-info?username=' + encodeURIComponent(TG_curChannel) + '&tg_msg_id=' + msgId)
+    .then(function (res) {
+      if (res.error) { toast('❌ ' + res.error); return; }
+      toast('Deleted');
+      TG_posts = TG_posts.filter(function (p) { return p.tg_msg_id !== msgId; });
+      _tgRerender();
+    })
+    .catch(function (e) { toast('❌ ' + e.message); });
+};
 var TG_curTitle = '';
 
 // Redraw the open channel from what's already loaded — used after a reaction,

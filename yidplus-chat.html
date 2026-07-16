@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://yidplus.com">
 <meta property="og:type" content="website">
 <title>YID PLUS — Chats</title>
-<link rel="stylesheet" href="css/style.css?v=202607130030">
+<link rel="stylesheet" href="css/style.css?v=202607130130">
 <script>
 (function () {
   try {
@@ -131,9 +131,9 @@
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </div>
     <div class="chatroom-avatar" id="cr-avatar"></div>
-    <div style="flex:1;min-width:0" id="cr-name-wrap">
-      <div style="font-size:.96rem;font-weight:700;unicode-bidi:plaintext;text-align:start" id="cr-name"></div>
-      <div style="font-size:.7rem;opacity:.75;unicode-bidi:plaintext;text-align:start" id="cr-status"></div>
+    <div style="flex:1;min-width:0;cursor:pointer" id="cr-name-wrap" onclick="crTitleTap()">
+      <div style="font-size:.96rem;font-weight:700;unicode-bidi:plaintext;text-align:left;direction:ltr" id="cr-name"></div>
+      <div style="font-size:.7rem;opacity:.75;unicode-bidi:plaintext;text-align:left;direction:ltr" id="cr-status"></div>
     </div>
     <div class="icon-btn" onclick="openInChatSearch()">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -648,10 +648,10 @@
 #chat-options-menu { position: fixed; }
 </style>
 
-<script src="js/state.js?v=202607130030"></script>
-<script src="js/theme.js?v=202607130030"></script>
-<script src="js/app.js?v=202607130030"></script>
-<script src="js/chat.js?v=202607130030"></script>
+<script src="js/state.js?v=202607130130"></script>
+<script src="js/theme.js?v=202607130130"></script>
+<script src="js/app.js?v=202607130130"></script>
+<script src="js/chat.js?v=202607130130"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
@@ -1038,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="js/ads.js?v=202607130030"></script>
+<script src="js/ads.js?v=202607130130"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");</script>
 </body>
 </html>
