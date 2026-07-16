@@ -405,6 +405,13 @@ window.openTelegramChannel = function (username, title) {
     }
   }
   TG_curChannel = username;
+  TG_curTitle = (meta && meta.title) || title || username;
+
+  // Reactions load alongside the posts so the pills are right on first paint.
+  TG_reactions = {};
+  api.get('/telegram-reactions?username=' + encodeURIComponent(username))
+    .then(function (res) { TG_reactions = (res && res.reactions) || {}; _tgRerender(); })
+    .catch(function () {});
 
   // Opening the channel reads it, exactly like opening a chat does. Clear the
   // cached count first so the list is right the moment you go back, rather than
@@ -550,7 +557,12 @@ function _xPostCard(p, username, chTitle) {
   var media = '';
   if (src) {
     if (p.media_type === 'video') {
-      media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><video src="' + src + '" controls playsinline preload="none" style="width:100%;display:block;background:#000"></video></div>';
+      // preload=metadata, not none: it fetches the file's head on render, which
+      // both fills in the duration and — because serving a slice also warms the
+      // next few — leaves the opening seconds cached before anyone presses play.
+      // With preload=none the player started from a cold cache and stalled
+      // immediately, which is exactly when the stutter was worst.
+      media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><video src="' + src + '" controls playsinline preload="metadata" style="width:100%;display:block;background:#000"></video></div>';
     } else if (p.media_type === 'audio') {
       media = '<div style="margin-bottom:.45rem"><audio src="' + src + '" controls preload="none" class="tg-audio" onended="_tgPlayNext(this)" onplay="_tgSoloPlay(this)" style="display:block;width:100%;min-width:250px;height:40px"></audio></div>';
     } else if (p.media_type === 'file') {
@@ -570,6 +582,17 @@ function _xPostCard(p, username, chTitle) {
 
   var eye = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.75"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 
+  // Reactions, using the same pills the chats use so it reads as one app.
+  var r = TG_reactions[p.tg_msg_id] || { counts: {}, my_reaction: null };
+  var pills = Object.keys(r.counts).map(function (emo) {
+    return '<span class="reaction-pill' + (emo === r.my_reaction ? ' mine' : '') + '" onclick="event.stopPropagation();tgReact(' + p.tg_msg_id + ',\'' + emo + '\')">' + emo + ' ' + r.counts[emo] + '</span>';
+  }).join('');
+  var reactRow =
+    '<div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;margin-top:.35rem">' +
+      pills +
+      '<span class="reaction-pill" onclick="event.stopPropagation();tgOpenReactPicker(' + p.tg_msg_id + ',this)" style="opacity:.6">🙂+</span>' +
+    '</div>';
+
   // Telegram channel layout: avatar on the left, one light bubble holding the
   // channel name, the post, and a views + time footer on the right.
   // A bubble shrinks to fit its text, which squeezed the audio controls to
@@ -581,6 +604,7 @@ function _xPostCard(p, username, chTitle) {
         '<div style="font-weight:600;font-size:.84rem;color:#168acd;margin-bottom:.2rem;text-align:left;unicode-bidi:plaintext;direction:ltr">' + name + '</div>' +
         media +
         (text ? '<div style="font-size:.94rem;line-height:1.4;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' : '') +
+        reactRow +
         '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;margin-top:.25rem;color:#8a9aa5;font-size:.68rem">' +
           eye + '<span>' + _xNum(p.views || 0) + '</span>' +
           '<span style="margin-left:.2rem">' + when + '</span>' +
@@ -604,6 +628,58 @@ window._tgPlayNext = function (el) {
 };
 
 var TG_curChannel = null;
+var TG_curTitle = '';
+
+// Redraw the open channel from what's already loaded — used after a reaction,
+// so the pills update without refetching the whole feed.
+function _tgRerender() {
+  var slot = document.getElementById('tg-feed-slot');
+  if (!slot || !TG_posts.length) return;
+  var mode = (window.STATE && STATE.settings && STATE.settings.tg_embed_mode) || 'stored';
+  if (mode !== 'stored') return;   // widget mode draws itself
+  slot.innerHTML = TG_posts.map(function (p) { return _xPostCard(p, TG_curChannel, TG_curTitle); }).join('');
+}
+var TG_reactions = {};    // { tg_msg_id: { counts:{emoji:n}, my_reaction } }
+
+// The same quick set the chats offer, so reacting feels identical either side.
+var TG_QUICK_EMOJI = ['👍', '❤️', '😂', '🔥', '😮', '😢', '🙏', '💯'];
+
+window.tgReact = function (msgId, emoji) {
+  if (!TG_curChannel) return;
+  // Optimistic: reflect it now, reconcile with whatever the server says.
+  var cur = TG_reactions[msgId] || { counts: {}, my_reaction: null };
+  api.post('/telegram-reactions', { username: TG_curChannel, tg_msg_id: msgId, emoji: emoji })
+    .then(function (res) {
+      if (res.error) { toast('❌ ' + res.error); return; }
+      TG_reactions[msgId] = { counts: res.counts || {}, my_reaction: res.my_reaction || null };
+      _tgRerender();
+    })
+    .catch(function (e) { toast('❌ ' + e.message); });
+};
+
+window.tgOpenReactPicker = function (msgId, anchor) {
+  var old = document.getElementById('tg-react-pick');
+  if (old) old.remove();
+  var box = document.createElement('div');
+  box.id = 'tg-react-pick';
+  box.style.cssText = 'position:fixed;z-index:960;background:var(--surface);border-radius:22px;padding:.4rem .5rem;box-shadow:0 4px 18px rgba(0,0,0,.25);display:flex;gap:.25rem';
+  box.innerHTML = TG_QUICK_EMOJI.map(function (e) {
+    return '<span onclick="tgReact(' + msgId + ',\'' + e + '\');document.getElementById(\'tg-react-pick\').remove()" style="font-size:1.35rem;cursor:pointer;padding:.1rem .15rem">' + e + '</span>';
+  }).join('');
+  document.body.appendChild(box);
+
+  // Sit it above the button, kept inside the screen.
+  var r = anchor.getBoundingClientRect();
+  var w = box.offsetWidth;
+  box.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left - w / 2 + r.width / 2)) + 'px';
+  box.style.top = Math.max(8, r.top - box.offsetHeight - 8) + 'px';
+
+  setTimeout(function () {
+    document.addEventListener('click', function close(ev) {
+      if (!box.contains(ev.target)) { box.remove(); document.removeEventListener('click', close); }
+    });
+  }, 0);
+};
 var TG_posts = [];        // what's currently rendered, for the media viewer
 
 // Open a channel photo in the SAME viewer the chats use, so it swipes between
