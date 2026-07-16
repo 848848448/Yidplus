@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://yidplus.com">
 <meta property="og:type" content="website">
 <title>YID PLUS — Chats</title>
-<link rel="stylesheet" href="css/style.css?v=202607130130">
+<link rel="stylesheet" href="css/style.css?v=202607130230">
 <script>
 (function () {
   try {
@@ -648,10 +648,10 @@
 #chat-options-menu { position: fixed; }
 </style>
 
-<script src="js/state.js?v=202607130130"></script>
-<script src="js/theme.js?v=202607130130"></script>
-<script src="js/app.js?v=202607130130"></script>
-<script src="js/chat.js?v=202607130130"></script>
+<script src="js/state.js?v=202607130230"></script>
+<script src="js/theme.js?v=202607130230"></script>
+<script src="js/app.js?v=202607130230"></script>
+<script src="js/chat.js?v=202607130230"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
@@ -1021,6 +1021,24 @@ document.addEventListener('DOMContentLoaded', function () {
     if (typeof _initChatTabSwipe === 'function') _initChatTabSwipe();
     if (typeof _loadTgChannels === 'function') _loadTgChannels();
 
+    // Someone arriving on a channel invite link (#tg=<username>) — open it.
+    // Without this the link would land them in the app but nowhere in
+    // particular, which is why sharing one did nothing.
+    var tgMatch = (window.location.hash || '').match(/tg=([^&]+)/);
+    if (tgMatch) {
+      var tgUser = decodeURIComponent(tgMatch[1]);
+      loadChatRooms(function () {
+        if (typeof _loadTgChannels === 'function') _loadTgChannels();
+        // The channel list load is what fills in the title/photo, so give it a
+        // moment before opening rather than flashing an unnamed header.
+        setTimeout(function () {
+          if (typeof openTelegramChannel === 'function') openTelegramChannel(tgUser, '');
+        }, 350);
+      });
+      initAds('chat');
+      return;
+    }
+
     // Refresh restore: openChatRoom writes #room=<id>, so on load reopen it.
     var hashMatch = (window.location.hash || '').match(/room=([^&]+)/);
     if (hashMatch) {
@@ -1038,7 +1056,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="js/ads.js?v=202607130130"></script>
+<script src="js/ads.js?v=202607130230"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");</script>
 </body>
 </html>

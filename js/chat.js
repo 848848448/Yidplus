@@ -1157,6 +1157,21 @@ window._handleInviteJoin = function (code) {
 };
 
 window.copyInviteLink = function () {
+  // A Telegram channel has no room and no invite code — it's public, so the
+  // link is simply the one that opens it. Handled first because CHAT_curRoom is
+  // null for these, which is why this used to do nothing at all.
+  if (TG_curChannel) {
+    var tgUrl = window.location.origin + '/chat#tg=' + encodeURIComponent(TG_curChannel);
+    if (navigator.share) {
+      navigator.share({ title: TG_curTitle || TG_curChannel, url: tgUrl }).catch(function () {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(tgUrl).then(function () { toast('✅ Invite link copied!'); });
+    } else {
+      toast('🔗 ' + tgUrl);
+    }
+    return;
+  }
+
   if (!CHAT_curRoom) return;
   var code = CHAT_curRoom.invite_code;
   if (code) {
