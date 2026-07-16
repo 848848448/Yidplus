@@ -554,6 +554,13 @@ function _xPostCard(p, username, chTitle) {
     if (base) src = base.replace(/\/$/, '') + '/media?ch=' + encodeURIComponent(username) + '&id=' + p.tg_msg_id;
   }
 
+  // Channel media is streamed from Telegram, never uploaded here, so the canvas
+  // watermark used at upload time can't apply — baking it in would mean
+  // re-encoding every file, far past what one request can do. An overlay puts
+  // the mark on screen for free. It rides on top rather than being part of the
+  // file, so a saved copy won't carry it.
+  var stamp = '<div style="position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.45);color:#fff;font-size:.6rem;font-weight:600;padding:1px 6px;border-radius:7px;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.5)">Yidplus.com</div>';
+
   var media = '';
   if (src) {
     if (p.media_type === 'video') {
@@ -562,7 +569,7 @@ function _xPostCard(p, username, chTitle) {
       // next few — leaves the opening seconds cached before anyone presses play.
       // With preload=none the player started from a cold cache and stalled
       // immediately, which is exactly when the stutter was worst.
-      media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><video src="' + src + '" controls playsinline preload="metadata" style="width:100%;display:block;background:#000"></video></div>';
+      media = '<div style="position:relative;margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><video src="' + src + '" controls playsinline preload="metadata" style="width:100%;display:block;background:#000"></video>' + stamp + '</div>';
     } else if (p.media_type === 'audio') {
       media = '<div style="margin-bottom:.45rem"><audio src="' + src + '" controls preload="none" class="tg-audio" onended="_tgPlayNext(this)" onplay="_tgSoloPlay(this)" style="display:block;width:100%;min-width:250px;height:40px"></audio></div>';
     } else if (p.media_type === 'file') {
@@ -571,7 +578,7 @@ function _xPostCard(p, username, chTitle) {
           '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
         '</div><span style="font-size:.85rem;font-weight:600">Download file</span></a>';
     } else {
-      media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;display:block;cursor:pointer" loading="lazy"></div>';
+      media = '<div style="position:relative;margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;display:block;cursor:pointer" loading="lazy">' + stamp + '</div>';
     }
   }
 
