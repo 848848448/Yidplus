@@ -460,6 +460,7 @@ window.openTelegramChannel = function (username, title) {
 
     // The API hands them back newest-first; a chat reads the other way round.
     var ordered = posts.slice().sort(function (a, b) { return a.tg_msg_id - b.tg_msg_id; });
+    TG_posts = ordered;   // the media viewer pages through these
 
     if (mode === 'stored') {
       slot.innerHTML = ordered.map(function (p) { return _xPostCard(p, username, title); }).join('');
@@ -558,7 +559,7 @@ function _xPostCard(p, username, chTitle) {
           '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
         '</div><span style="font-size:.85rem;font-weight:600">Download file</span></a>';
     } else {
-      media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><img src="' + src + '" style="width:100%;display:block" loading="lazy"></div>';
+      media = '<div style="margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;display:block;cursor:pointer" loading="lazy"></div>';
     }
   }
 
@@ -603,6 +604,33 @@ window._tgPlayNext = function (el) {
 };
 
 var TG_curChannel = null;
+var TG_posts = [];        // what's currently rendered, for the media viewer
+
+// Open a channel photo in the SAME viewer the chats use, so it swipes between
+// pictures and behaves identically. The viewer reads _mediaList, so we just
+// build that from this channel's posts instead of from CHAT_messages.
+window._openTgMediaViewer = function (msgId) {
+  if (typeof _mediaList === 'undefined') return;
+  var base = (window.STATE && STATE.settings && STATE.settings.tg_stream_base) || TG_STREAM_BASE;
+  _mediaList = TG_posts.filter(function (p) {
+    return p.media_type === 'photo' || p.media_type === 'video';
+  }).map(function (p) {
+    return {
+      id: p.tg_msg_id,
+      url: p.media_url || (base.replace(/\/$/, '') + '/media?ch=' + encodeURIComponent(TG_curChannel) + '&id=' + p.tg_msg_id),
+      key: '',
+      text: p.text || '',
+      sender: p.author_name || TG_curChannel || '',
+      time: p.posted_at ? _fmt12(p.posted_at) : '',
+      isVideo: p.media_type === 'video',
+    };
+  });
+  _mediaIdx = _mediaList.findIndex(function (v) { return v.id === msgId; });
+  if (_mediaIdx < 0) _mediaIdx = 0;
+  _mediaViewerLoad(_mediaIdx);
+  var v = document.getElementById('media-viewer');
+  if (v) v.style.display = 'flex';
+};
 
 // The worker that streams channel files. Overridable from admin settings
 // (tg_stream_base) so the URL isn't baked into the client forever.

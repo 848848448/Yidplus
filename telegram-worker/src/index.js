@@ -440,18 +440,26 @@ async function readSlice(env, mtproto, info, username, msgId, alignedStart) {
   return bytes;
 }
 
-// Warm the next slice so the player doesn't wait on a handshake for it. Runs
-// after the response is sent, and failure here is harmless — the player would
-// simply fetch it the normal way.
+// Warm the slices ahead so the player doesn't wait on a handshake for each one.
+// One slice of lookahead wasn't enough — 128KB is about a second of video, so
+// the player caught up with the prefetch almost immediately and stuttered every
+// second or two. Reading several ahead on a SINGLE connection gives it a real
+// buffer, and reusing the client is what keeps that cheap: the handshake is the
+// expensive part, not the read.
+const PREFETCH_SLICES = 4;
+
 function prefetchNext(ctx, env, info, username, msgId, alignedStart, total) {
-  const next = alignedStart + SLICE;
-  if (total && next >= total) return;
   ctx.waitUntil((async () => {
     try {
       const cache = caches.default;
-      if (await cache.match(sliceCacheKey(username, msgId, next))) return;
-      await readSlice(env, makeClient(env), info, username, msgId, next);
-    } catch (e) { /* best effort */ }
+      const mtproto = makeClient(env);
+      for (let i = 1; i <= PREFETCH_SLICES; i++) {
+        const at = alignedStart + SLICE * i;
+        if (total && at >= total) break;
+        if (await cache.match(sliceCacheKey(username, msgId, at))) continue;
+        await readSlice(env, mtproto, info, username, msgId, at);
+      }
+    } catch (e) { /* best effort — the player can always fetch it itself */ }
   })());
 }
 
