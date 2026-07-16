@@ -571,12 +571,33 @@ function _xPostCard(p, username, chTitle) {
       // immediately, which is exactly when the stutter was worst.
       media = '<div style="position:relative;margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><video src="' + src + '" controls playsinline preload="metadata" style="width:100%;display:block;background:#000"></video>' + stamp + '</div>';
     } else if (p.media_type === 'audio') {
-      media = '<div style="margin-bottom:.45rem"><audio src="' + src + '" controls preload="none" class="tg-audio" onended="_tgPlayNext(this)" onplay="_tgSoloPlay(this)" style="display:block;width:100%;min-width:250px;height:40px"></audio></div>';
+      // Telegram shows a track as a card — name, performer, running time — not a
+      // bare player reading 0:00. All of that rides along in the post now, so
+      // show it: the title falls back to the file name, and the duration is
+      // known up front rather than waiting on the file to load.
+      var tTitle = p.media_title || (p.media_name || '').replace(/\.[a-z0-9]+$/i, '') || 'Audio';
+      var tSub = p.media_performer || '';
+      var tDur = p.media_duration ? _tgDur(p.media_duration) : '';
+      media =
+        '<div style="margin-bottom:.45rem">' +
+          '<div style="display:flex;align-items:center;gap:.55rem;margin-bottom:.3rem">' +
+            '<div style="width:38px;height:38px;border-radius:50%;background:#168acd;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+              '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>' +
+            '</div>' +
+            '<div style="flex:1;min-width:0">' +
+              '<div style="font-size:.86rem;font-weight:600;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext">' + escHtml(tTitle) + '</div>' +
+              '<div style="font-size:.72rem;color:#8a9aa5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext">' +
+                escHtml(tSub) + (tSub && tDur ? ' · ' : '') + tDur +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<audio src="' + src + '" controls preload="none" class="tg-audio" onended="_tgPlayNext(this)" onplay="_tgSoloPlay(this)" style="display:block;width:100%;min-width:250px;height:38px"></audio>' +
+        '</div>';
     } else if (p.media_type === 'file') {
       media = '<a href="' + src + '" target="_blank" style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem;text-decoration:none;color:#168acd">' +
         '<div style="width:36px;height:36px;border-radius:50%;background:#168acd;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
           '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
-        '</div><span style="font-size:.85rem;font-weight:600">Download file</span></a>';
+        '</div><span style="font-size:.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(p.media_name || 'Download file') + '</span></a>';
     } else {
       media = '<div style="position:relative;margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;display:block;cursor:pointer" loading="lazy">' + stamp + '</div>';
     }
@@ -869,6 +890,14 @@ window.tgToggleJoin = function () {
     }
   }).catch(function (e) { btn.disabled = false; toast('❌ ' + e.message); });
 };
+
+// Seconds -> 3:06 / 10:14 / 1:02:33, the way a track's running time reads.
+function _tgDur(s) {
+  s = parseInt(s) || 0;
+  var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  var pad = function (n) { return n < 10 ? '0' + n : String(n); };
+  return h ? h + ':' + pad(m) + ':' + pad(x) : m + ':' + pad(x);
+}
 
 function _xNum(n) {
   n = parseInt(n) || 0;

@@ -12,7 +12,10 @@ async function ensureTable(env) {
     'UNIQUE(username, tg_msg_id))'
   ).run().catch(() => {});
   // Lazy columns for the X-style card (older tables get them added here).
-  const cols = ['author_name TEXT', 'author_handle TEXT', 'author_avatar TEXT', 'views INTEGER', 'forwards INTEGER', 'replies INTEGER', 'likes INTEGER'];
+  const cols = ['author_name TEXT', 'author_handle TEXT', 'author_avatar TEXT', 'views INTEGER', 'forwards INTEGER', 'replies INTEGER', 'likes INTEGER',
+    // What Telegram shows beside a track — the song name, performer, running
+    // time and file name. Without these a track renders as a bare player.
+    'media_title TEXT', 'media_performer TEXT', 'media_duration INTEGER', 'media_name TEXT'];
   for (const c of cols) {
     await env.DB.prepare('ALTER TABLE telegram_posts ADD COLUMN ' + c).run().catch(() => {});
   }
@@ -53,12 +56,16 @@ export async function onRequestPost(context) {
     const authorName = (body.author_name || '').toString().slice(0, 120) || null;
     const authorHndl = (body.author_handle || username).toString().replace(/^@/, '').slice(0, 60);
     const authorAv   = (body.author_avatar || '').toString().slice(0, 1000) || null;
+    const mTitle     = (body.media_title || '').toString().slice(0, 200);
+    const mPerformer = (body.media_performer || '').toString().slice(0, 200);
+    const mDuration  = parseInt(body.media_duration) || 0;
+    const mName      = (body.media_name || '').toString().slice(0, 200);
     const views      = parseInt(body.views) || null;
     const forwards   = parseInt(body.forwards) || null;
 
     await env.DB.prepare(
-      'INSERT INTO telegram_posts (id, username, tg_msg_id, text, media_url, media_type, link, posted_at, author_name, author_handle, author_avatar, views, forwards, created_at) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
+      'INSERT INTO telegram_posts (id, username, tg_msg_id, text, media_url, media_type, media_title, media_performer, media_duration, media_name, link, posted_at, author_name, author_handle, author_avatar, views, forwards, created_at) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
       'ON CONFLICT(username, tg_msg_id) DO UPDATE SET ' +
       'text = excluded.text, ' +
       // Only ever fill media in, never blank it out: a re-sync that couldn't
@@ -66,8 +73,10 @@ export async function onRequestPost(context) {
       // taking that literally would wipe a picture we already had.
       'media_url = COALESCE(NULLIF(excluded.media_url, \'\'), telegram_posts.media_url), ' +
       'media_type = COALESCE(NULLIF(excluded.media_type, \'\'), telegram_posts.media_type), ' +
+      'media_title = excluded.media_title, media_performer = excluded.media_performer, ' +
+      'media_duration = excluded.media_duration, media_name = excluded.media_name, ' +
       'views = excluded.views, forwards = excluded.forwards'
-    ).bind(crypto.randomUUID(), username, msgId, text, mediaUrl, mediaType, link, postedAt, authorName, authorHndl, authorAv, views, forwards, new Date().toISOString()).run();
+    ).bind(crypto.randomUUID(), username, msgId, text, mediaUrl, mediaType, mTitle, mPerformer, mDuration, mName, link, postedAt, authorName, authorHndl, authorAv, views, forwards, new Date().toISOString()).run();
 
     return json({ ok: true, accepted: true });
   } catch (err) {
@@ -83,7 +92,7 @@ export async function onRequestGet(context) {
     const username = (new URL(request.url).searchParams.get('username') || '').replace(/^@/, '').replace(/[^a-zA-Z0-9_]/g, '');
     if (!username) return json({ ok: true, posts: [] });
     const res = await env.DB.prepare(
-      'SELECT tg_msg_id, text, media_url, media_type, link, posted_at, author_name, author_handle, author_avatar, views, forwards FROM telegram_posts WHERE username = ? ORDER BY tg_msg_id DESC LIMIT 50'
+      'SELECT tg_msg_id, text, media_url, media_type, media_title, media_performer, media_duration, media_name, link, posted_at, author_name, author_handle, author_avatar, views, forwards FROM telegram_posts WHERE username = ? ORDER BY tg_msg_id DESC LIMIT 50'
     ).bind(username).all();
     return json({ ok: true, posts: res.results || [] });
   } catch (err) {

@@ -209,6 +209,11 @@ async function pushPost(env, mtproto, username, chat, m, budget) {
     text: m.message || '',
     media_url: mediaUrl,
     media_type: mediaType,
+    // What Telegram shows beside a track: name, performer, running time, file.
+    media_title: (kindInfo && kindInfo.title) || '',
+    media_performer: (kindInfo && kindInfo.performer) || '',
+    media_duration: (kindInfo && kindInfo.duration) || 0,
+    media_name: (kindInfo && kindInfo.file_name) || '',
     author_name: chat.title || username,
     author_handle: username,
     views: m.views || 0,
@@ -288,12 +293,30 @@ function mediaInfo(m) {
   if (media._ === 'messageMediaDocument' && media.document) {
     const d = media.document;
     const mime = d.mime_type || 'application/octet-stream';
+    const attrs = d.attributes || [];
+    const find = (t) => attrs.find((a) => a._ === t) || {};
+
+    // Everything Telegram shows next to a track — the song name, the performer,
+    // the running time, the file name — travels in the document's attributes.
+    // We were dropping them on the floor, which is why a track rendered as a
+    // bare player reading 0:00 with no idea what it was.
+    const audio = find('documentAttributeAudio');
+    const video = find('documentAttributeVideo');
+    const named = find('documentAttributeFilename');
+
+    const isVoice = !!audio.voice;
     const kind = mime.startsWith('video') ? 'video'
       : mime.startsWith('image') ? 'photo'
       : mime.startsWith('audio') ? 'audio'
       : 'file';
+
     return {
       kind, mime, ext: extFor(mime), size: d.size,
+      title: audio.title || '',
+      performer: audio.performer || '',
+      duration: Number(audio.duration || video.duration || 0) || 0,
+      file_name: named.file_name || '',
+      voice: isVoice,
       location: {
         _: 'inputDocumentFileLocation',
         id: d.id,
