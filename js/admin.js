@@ -4109,6 +4109,11 @@ window.toggleFeature = function (key, turnOn, btn) {
   api.put('/settings', { key: key, value: turnOn ? 'on' : 'off' })
     .then(function () {
       toast(turnOn ? '✅ Enabled' : '🚫 Disabled');
+      // The value has to go into STATE.settings too. saveSetting() does this;
+      // a direct put doesn't — and the rebuild below draws from STATE.settings,
+      // so the toggle would flip straight back to where it was. It saved fine;
+      // the panel just redrew from a copy that never heard about it.
+      if (STATE.settings) STATE.settings[key] = turnOn ? 'on' : 'off';
       buildFeaturesPanel(document.getElementById('admin-content'));
     })
     .catch(function (err) { toast('❌ ' + err.message); });
@@ -4117,7 +4122,10 @@ window.toggleFeature = function (key, turnOn, btn) {
 window.saveAutomod = function () {
   var v = Math.max(0, parseInt(document.getElementById('automod-threshold').value, 10) || 0);
   api.put('/settings', { key: 'automod_threshold', value: String(v) })
-    .then(function () { toast(v > 0 ? '🛡️ Auto-hide after ' + v + ' reports' : 'Auto-moderation off'); })
+    .then(function () {
+      if (STATE.settings) STATE.settings.automod_threshold = String(v);
+      toast(v > 0 ? '🛡️ Auto-hide after ' + v + ' reports' : 'Auto-moderation off');
+    })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
 
