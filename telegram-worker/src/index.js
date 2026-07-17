@@ -207,6 +207,9 @@ async function pushPost(env, mtproto, username, chat, m, budget) {
     username,
     tg_msg_id: m.id,
     text: m.message || '',
+    // Bold, links, italics — Telegram sends them as offset/length ranges
+    // alongside the text. Without them a post renders as flat plain text.
+    entities: JSON.stringify(m.entities || []),
     media_url: mediaUrl,
     media_type: mediaType,
     // What Telegram shows beside a track: name, performer, running time, file.

@@ -15,7 +15,7 @@ async function ensureTable(env) {
   const cols = ['author_name TEXT', 'author_handle TEXT', 'author_avatar TEXT', 'views INTEGER', 'forwards INTEGER', 'replies INTEGER', 'likes INTEGER',
     // What Telegram shows beside a track — the song name, performer, running
     // time and file name. Without these a track renders as a bare player.
-    'media_title TEXT', 'media_performer TEXT', 'media_duration INTEGER', 'media_name TEXT', 'media_thumb INTEGER'];
+    'media_title TEXT', 'media_performer TEXT', 'media_duration INTEGER', 'media_name TEXT', 'media_thumb INTEGER', 'entities TEXT'];
   for (const c of cols) {
     await env.DB.prepare('ALTER TABLE telegram_posts ADD COLUMN ' + c).run().catch(() => {});
   }
@@ -61,12 +61,13 @@ export async function onRequestPost(context) {
     const mDuration  = parseInt(body.media_duration) || 0;
     const mName      = (body.media_name || '').toString().slice(0, 200);
     const mThumb     = body.media_thumb ? 1 : 0;
+    const ents       = (body.entities || '').toString().slice(0, 8000);
     const views      = parseInt(body.views) || null;
     const forwards   = parseInt(body.forwards) || null;
 
     await env.DB.prepare(
-      'INSERT INTO telegram_posts (id, username, tg_msg_id, text, media_url, media_type, media_title, media_performer, media_duration, media_name, media_thumb, link, posted_at, author_name, author_handle, author_avatar, views, forwards, created_at) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
+      'INSERT INTO telegram_posts (id, username, tg_msg_id, text, media_url, media_type, media_title, media_performer, media_duration, media_name, media_thumb, entities, link, posted_at, author_name, author_handle, author_avatar, views, forwards, created_at) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
       'ON CONFLICT(username, tg_msg_id) DO UPDATE SET ' +
       'text = excluded.text, ' +
       // Only ever fill media in, never blank it out: a re-sync that couldn't
@@ -76,9 +77,9 @@ export async function onRequestPost(context) {
       'media_type = COALESCE(NULLIF(excluded.media_type, \'\'), telegram_posts.media_type), ' +
       'media_title = excluded.media_title, media_performer = excluded.media_performer, ' +
       'media_duration = excluded.media_duration, media_name = excluded.media_name, ' +
-      'media_thumb = excluded.media_thumb, ' +
+      'media_thumb = excluded.media_thumb, entities = excluded.entities, ' +
       'views = excluded.views, forwards = excluded.forwards'
-    ).bind(crypto.randomUUID(), username, msgId, text, mediaUrl, mediaType, mTitle, mPerformer, mDuration, mName, mThumb, link, postedAt, authorName, authorHndl, authorAv, views, forwards, new Date().toISOString()).run();
+    ).bind(crypto.randomUUID(), username, msgId, text, mediaUrl, mediaType, mTitle, mPerformer, mDuration, mName, mThumb, ents, link, postedAt, authorName, authorHndl, authorAv, views, forwards, new Date().toISOString()).run();
 
     return json({ ok: true, accepted: true });
   } catch (err) {
@@ -94,7 +95,7 @@ export async function onRequestGet(context) {
     const username = (new URL(request.url).searchParams.get('username') || '').replace(/^@/, '').replace(/[^a-zA-Z0-9_]/g, '');
     if (!username) return json({ ok: true, posts: [] });
     const res = await env.DB.prepare(
-      'SELECT tg_msg_id, text, media_url, media_type, media_title, media_performer, media_duration, media_name, media_thumb, link, posted_at, author_name, author_handle, author_avatar, views, forwards FROM telegram_posts WHERE username = ? ORDER BY tg_msg_id DESC LIMIT 50'
+      'SELECT tg_msg_id, text, media_url, media_type, media_title, media_performer, media_duration, media_name, media_thumb, entities, link, posted_at, author_name, author_handle, author_avatar, views, forwards FROM telegram_posts WHERE username = ? ORDER BY tg_msg_id DESC LIMIT 50'
     ).bind(username).all();
     return json({ ok: true, posts: res.results || [] });
   } catch (err) {

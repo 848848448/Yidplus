@@ -533,17 +533,8 @@ function _xPostCard(p, username, chTitle) {
     ? '<div style="width:34px;height:34px;border-radius:50%;background-image:url(' + p.author_avatar + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
     : '<div style="width:34px;height:34px;border-radius:50%;background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:700;flex-shrink:0">' + (name.slice(0, 1) || 'C') + '</div>';
 
-  // Text: escape, then style mentions and hashtags. Deliberately NOT linked —
-  // a @mention would otherwise be a door straight out to t.me.
-  var text = '';
-  if (p.text) {
-    text = escHtml(p.text)
-      .replace(/https?:\/\/(?:t|telegram)\.me\/[^\s<]+/gi, '')   // drop bare Telegram links
-      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#168acd;text-decoration:none">$1</a>')
-      .replace(/(^|\s)(@[a-zA-Z0-9_]+)/g, '$1<span style="color:#168acd">$2</span>')
-      .replace(/(^|\s)(#[^\s#<]+)/g, '$1<span style="color:#168acd">$2</span>')
-      .replace(/\n/g, '<br>');
-  }
+  // Bold, links and italics come as ranges alongside the text — see _tgFormat.
+  var text = p.text ? _tgFormat(p.text, p.entities) : '';
 
   // Where the file comes from. A stored copy (R2) wins if we have one; if not,
   // stream it straight from Telegram through the worker — the file is never
@@ -900,6 +891,73 @@ window.tgToggleJoin = function () {
 // Lay the posts out with a date divider wherever the day changes — the way
 // Telegram breaks a channel up, so you can tell Thursday from Friday at a
 // glance instead of reading timestamps.
+// Telegram doesn't send marked-up text — it sends plain text plus a list of
+// ranges ("bold from 4 for 9", "this bit is a link to X"). Ignoring them is why
+// every post read as flat plain text.
+//
+// Offsets are UTF-16 code units, which is exactly how JS indexes a string, so
+// they line up directly. Escaping is done per code unit and concatenated, which
+// leaves surrogate pairs (emoji) intact — escHtml only ever touches ASCII.
+function _tgEntityTags(e) {
+  var u = e.url || '';
+  switch (e._) {
+    case 'messageEntityBold':       return ['<b>', '</b>'];
+    case 'messageEntityItalic':     return ['<i>', '</i>'];
+    case 'messageEntityUnderline':  return ['<u>', '</u>'];
+    case 'messageEntityStrike':     return ['<s>', '</s>'];
+    case 'messageEntityCode':       return ['<code style="background:rgba(0,0,0,.06);padding:0 3px;border-radius:3px">', '</code>'];
+    case 'messageEntityPre':        return ['<pre style="background:rgba(0,0,0,.06);padding:.4rem;border-radius:6px;overflow-x:auto;margin:.3rem 0">', '</pre>'];
+    case 'messageEntityBlockquote': return ['<blockquote style="border-left:3px solid #168acd;margin:.3rem 0;padding:.1rem .5rem;opacity:.9">', '</blockquote>'];
+    case 'messageEntitySpoiler':    return ['<span onclick="this.style.filter=&#39;none&#39;" style="filter:blur(5px);cursor:pointer;transition:filter .15s">', '</span>'];
+    case 'messageEntityTextUrl':
+      // A t.me target would be a way back out to Telegram — keep the styling,
+      // drop the link, same as bare t.me links elsewhere in a post.
+      if (/(?:t|telegram)\.me\//i.test(u)) return ['<span style="color:#168acd">', '</span>'];
+      return ['<a href="' + escHtml(u) + '" target="_blank" rel="noopener" style="color:#168acd;text-decoration:none">', '</a>'];
+    case 'messageEntityUrl':
+    case 'messageEntityMention':
+    case 'messageEntityHashtag':
+    case 'messageEntityCashtag':
+    case 'messageEntityBotCommand':
+      return ['<span style="color:#168acd">', '</span>'];
+    default: return null;
+  }
+}
+
+function _tgFormat(text, entitiesJson) {
+  if (!text) return '';
+  var ents = [];
+  try { ents = JSON.parse(entitiesJson || '[]') || []; } catch (e) { ents = []; }
+
+  // Strip bare Telegram links first — but only when there's no formatting to
+  // keep aligned, since removing characters would shift every later offset.
+  if (!ents.length) {
+    return escHtml(text.replace(/https?:\/\/(?:t|telegram)\.me\/[^\s]+/gi, ''))
+      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#168acd;text-decoration:none">$1</a>')
+      .replace(/(^|\s)([@#][^\s<]+)/g, '$1<span style="color:#168acd">$2</span>')
+      .replace(/\n/g, '<br>');
+  }
+
+  var opens = {}, closes = {};
+  ents.forEach(function (e) {
+    var tags = _tgEntityTags(e);
+    if (!tags) return;
+    var a = e.offset, b = e.offset + e.length;
+    if (!(a >= 0) || !(b > a)) return;
+    (opens[a] = opens[a] || []).push(tags[0]);
+    // Close in reverse order so nested ranges nest properly.
+    (closes[b] = closes[b] || []).unshift(tags[1]);
+  });
+
+  var out = '';
+  for (var i = 0; i <= text.length; i++) {
+    if (closes[i]) out += closes[i].join('');
+    if (opens[i]) out += opens[i].join('');
+    if (i < text.length) out += escHtml(text[i]);
+  }
+  return out.replace(/\n/g, '<br>');
+}
+
 function _tgRenderPosts(list, username, title) {
   var out = '';
   var lastDay = '';
