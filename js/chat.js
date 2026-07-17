@@ -477,16 +477,9 @@ window.openTelegramChannel = function (username, title) {
       '</button>' +
     '</div>';
 
-  var dark = document.documentElement.classList.contains('dark') || (document.body && document.body.classList.contains('dark'));
   // Two ways to show a channel:
   //  'stored' (default) — render what the sync copied into D1/R2. We build every
   //     post ourselves, so there is no Telegram branding or outbound link, it
-  //     matches the app's design, and it's fast.
-  //  'widget' — embed Telegram's official post widget. Nothing is stored, but
-  //     each post is a separate cross-origin iframe: it carries Telegram's own
-  //     links and branding, can't be restyled or shrunk, and is slow.
-  var mode = (window.STATE && STATE.settings && STATE.settings.tg_embed_mode) || 'stored';
-
   api.get('/telegram-ingest?username=' + encodeURIComponent(username)).then(function (res) {
     var slot = document.getElementById('tg-feed-slot');
     var state = document.getElementById('tg-feed-state');
@@ -503,24 +496,7 @@ window.openTelegramChannel = function (username, title) {
     var ordered = posts.slice().sort(function (a, b) { return a.tg_msg_id - b.tg_msg_id; });
     TG_posts = ordered;   // the media viewer pages through these
 
-    if (mode === 'stored') {
-      slot.innerHTML = _tgRenderPosts(ordered, username, title);
-    } else {
-      // Widget mode: one official embed per post, oldest at the top.
-      ordered.forEach(function (p) {
-        var holder = document.createElement('div');
-        holder.style.marginBottom = '.4rem';
-        var s = document.createElement('script');
-        s.async = true;
-        s.src = 'https://telegram.org/js/telegram-widget.js?22';
-        s.setAttribute('data-telegram-post', username + '/' + p.tg_msg_id);
-        s.setAttribute('data-width', '100%');
-        if (dark) s.setAttribute('data-dark', '1');
-        holder.appendChild(s);
-        slot.appendChild(holder);
-      });
-    }
-
+    slot.innerHTML = _tgRenderPosts(ordered, username, title);
     _tgInitScroll(ordered.length);
   }).catch(function (e) {
     var state = document.getElementById('tg-feed-state');
@@ -799,8 +775,6 @@ var TG_curTitle = '';
 function _tgRerender() {
   var slot = document.getElementById('tg-feed-slot');
   if (!slot || !TG_posts.length) return;
-  var mode = (window.STATE && STATE.settings && STATE.settings.tg_embed_mode) || 'stored';
-  if (mode !== 'stored') return;   // widget mode draws itself
   slot.innerHTML = _tgRenderPosts(TG_posts, TG_curChannel, TG_curTitle);
 }
 var TG_reactions = {};    // { tg_msg_id: { counts:{emoji:n}, my_reaction } }

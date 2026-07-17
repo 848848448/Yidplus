@@ -38,19 +38,9 @@ export async function onRequestPost(context) {
     await ensureTable(env);
 
     const text       = (body.text || '').toString().slice(0, 8000);
-    let   mediaUrl   = (body.media_url || '').toString().slice(0, 1000) || null;
+    const mediaUrl   = (body.media_url || '').toString().slice(0, 1000) || null;
     const mediaType  = (body.media_type || '').toString().slice(0, 20) || null;
 
-    // Optional inline media: the script base64-encodes the file; we store it in R2.
-    if (!mediaUrl && body.media_b64 && env.MY_BUCKET) {
-      try {
-        const bin = Uint8Array.from(atob(body.media_b64), c => c.charCodeAt(0));
-        const ext = (mediaType === 'video') ? 'mp4' : 'jpg';
-        const key = 'tg/' + username + '/' + msgId + '.' + ext;
-        await env.MY_BUCKET.put(key, bin, { httpMetadata: { contentType: mediaType === 'video' ? 'video/mp4' : 'image/jpeg' } });
-        mediaUrl = '/api/media/' + key;
-      } catch (e) { /* keep going without media */ }
-    }
     const link       = (body.link || ('https://t.me/' + username + '/' + msgId)).toString().slice(0, 300);
     const postedAt   = (body.posted_at || new Date().toISOString()).toString().slice(0, 40);
     const authorName = (body.author_name || '').toString().slice(0, 120) || null;

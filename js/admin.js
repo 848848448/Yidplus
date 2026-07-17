@@ -2353,14 +2353,7 @@ window.adminQuickBanIp = function (ip) {
 /* ══════════════════════════════════
    CHANNELS MANAGER PANEL
 ══════════════════════════════════ */
-window.tgSetMode = function (v) {
-  saveSetting('tg_embed_mode', v);
-  toast(v === 'widget' ? '✅ Live copy from Telegram' : '✅ Stored copy');
-};
-
 function _tgcLoad() {
-  var sel = document.getElementById('tg-mode');
-  if (sel) sel.value = (STATE.settings && STATE.settings.tg_embed_mode) || 'widget';
   var el = document.getElementById('tgc-list');
   if (!el) return;
   api.get('/telegram-channels').then(function (res) {
@@ -2454,40 +2447,6 @@ window.tgcRemove = function (id, btn) {
     .catch(function (e) { toast('❌ ' + e.message); if (btn) btn.disabled = false; });
 };
 
-function _tgpLoad() {
-  var el = document.getElementById('tgp-list');
-  if (!el) return;
-  api.get('/telegram-posts').then(function (res) {
-    var posts = (res && res.posts) || [];
-    if (!posts.length) { el.innerHTML = '<div style="font-size:.75rem;color:var(--muted)">No posts added yet.</div>'; return; }
-    var by = {};
-    posts.forEach(function (p) { (by[p.username] = by[p.username] || []).push(p); });
-    el.innerHTML = Object.keys(by).map(function (u) {
-      return '<div style="margin-bottom:.5rem">' +
-        '<div style="font-size:.74rem;font-weight:700;color:#229ED9;margin-bottom:.2rem">@' + escHtml(u) + ' (' + by[u].length + ')</div>' +
-        by[u].map(function (p) {
-          return '<div style="display:flex;align-items:center;gap:.4rem;font-size:.74rem;padding:.15rem 0">' +
-            '<span style="flex:1;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">post ' + p.tg_msg_id + '</span>' +
-            '<button onclick="tgpRemove(\'' + p.id + '\',this)" style="background:none;color:var(--red);border:none;cursor:pointer;font-size:.72rem">✕</button>' +
-          '</div>';
-        }).join('') +
-      '</div>';
-    }).join('');
-  }).catch(function () { el.innerHTML = '<div style="font-size:.75rem;color:var(--muted)">Could not load.</div>'; });
-}
-window.tgpAdd = function () {
-  var v = (document.getElementById('tgp-links') || {}).value || '';
-  if (!v.trim()) { toast('Paste a post link'); return; }
-  api.post('/telegram-posts', { links: v }).then(function (res) {
-    if (res.added) { toast('✅ Added ' + res.added + (res.bad ? ' (' + res.bad + ' skipped)' : '')); document.getElementById('tgp-links').value = ''; _tgpLoad(); }
-    else { toast('❌ ' + (res.error || 'No valid links')); }
-  }).catch(function (e) { toast('❌ ' + e.message); });
-};
-window.tgpRemove = function (id, btn) {
-  if (btn) btn.disabled = true;
-  api.del('/telegram-posts?id=' + encodeURIComponent(id)).then(function () { _tgpLoad(); })
-    .catch(function (e) { toast('❌ ' + e.message); if (btn) btn.disabled = false; });
-};
 
 function buildChannelsMgrPanel(content) {
   content.innerHTML =
@@ -2495,33 +2454,8 @@ function buildChannelsMgrPanel(content) {
       '<div class="admin-card">' +
         '<div class="admin-card-title">📨 Telegram channels</div>' +
         '<div style="font-size:.76rem;color:var(--muted);margin-bottom:.7rem">Add a <b>public</b> Telegram channel by its @username (e.g. <code>@channelname</code>). It shows in the Channels tab and streams its posts from Telegram, read-only.<br><b>Note:</b> private invite links (t.me/+…) can\'t be embedded — only public channels with a @username.</div>' +
-        '<div style="border:1px solid var(--border);border-radius:8px;padding:.55rem;margin-bottom:.7rem">' +
-          '<div style="font-weight:700;font-size:.82rem;margin-bottom:.25rem">How posts are shown</div>' +
-          '<select id="tg-mode" onchange="tgSetMode(this.value)" style="width:100%;padding:.45rem;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.8rem">' +
-            '<option value="widget">Live copy from Telegram (nothing stored)</option>' +
-            '<option value="stored">Stored copy (works without Telegram)</option>' +
-          '</select>' +
-          '<div style="font-size:.7rem;color:var(--muted);margin-top:.4rem;line-height:1.45">' +
-            '<b>Live copy</b> — posts render straight from Telegram with full photos, video and music. Uses no storage, but only shows for visitors whose network can reach t.me, and posts vanish if deleted there.<br>' +
-            '<b>Stored copy</b> — the sync saves posts and media to your own site, so everyone sees them and they stay put. Uses R2 storage.' +
-          '</div>' +
-        '</div>' +
-        '<div style="display:flex;gap:.4rem;margin-bottom:.5rem">' +
-          '<input id="tgc-user" placeholder="@channelusername" style="flex:1;padding:.55rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem">' +
-          '<button class="save-pill" onclick="tgcAdd()">Add</button>' +
-        '</div>' +
-        '<input id="tgc-title" placeholder="Display name (optional)" style="width:100%;box-sizing:border-box;padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem;margin-bottom:.4rem">' +
-        '<label style="font-size:.72rem;color:var(--muted)">Photo (optional)</label>' +
-        '<input type="file" id="tgc-photo" accept="image/*" style="width:100%;font-size:.75rem;margin:.2rem 0 .7rem">' +
         '<div id="tgc-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
-        '<div style="border-top:1px solid var(--border);margin-top:.9rem;padding-top:.8rem">' +
-          '<div style="font-weight:700;font-size:.85rem;margin-bottom:.3rem">📌 Add posts to show</div>' +
-          '<div style="font-size:.74rem;color:var(--muted);margin-bottom:.5rem">Paste Telegram <b>post</b> links (e.g. <code>t.me/channelname/123</code>) — one per line. They appear inside that channel in the Channels tab.</div>' +
-          '<textarea id="tgp-links" rows="3" placeholder="https://t.me/channelname/123&#10;https://t.me/channelname/124" style="width:100%;box-sizing:border-box;padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.8rem;margin-bottom:.4rem"></textarea>' +
-          '<button class="save-pill" onclick="tgpAdd()">Add posts</button>' +
-          '<div id="tgp-list" style="margin-top:.7rem"></div>' +
         '</div>' +
-      '</div>' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">📡 All Channels</div>' +
         '<div id="channels-mgr-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
@@ -2529,7 +2463,6 @@ function buildChannelsMgrPanel(content) {
     '</div>';
 
   _tgcLoad();
-  _tgpLoad();
 
   api.get('/channels')
     .then(function (res) {
