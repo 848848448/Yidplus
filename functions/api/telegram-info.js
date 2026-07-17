@@ -20,6 +20,10 @@ export async function onRequestGet(context) {
     if (!username) return json({ ok: true, members: [] });
 
     const user = await requireUser(request, env).catch(() => null);
+    // Who's in your community isn't for passers-by. No emails are exposed
+    // either way, but a signed-out visitor has no business enumerating members
+    // and their ids — the counts on the channel row are public, the list isn't.
+    if (!user) return json({ ok: true, error: 'Sign in to view members', members: [] });
     const isAdmin = !!(user && isSuperOrOwner(user, env.OWNER_EMAIL));
 
     const res = await env.DB.prepare(

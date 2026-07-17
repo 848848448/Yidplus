@@ -529,11 +529,39 @@ function prefetchNext(ctx, request, username, msgId, alignedStart, total) {
   }
 }
 
+// The channels this site actually lists. /media is necessarily public — a
+// <video> can't send a secret — so without this check the worker is an open
+// proxy: anyone could stream ANY public Telegram channel through it, on this
+// account's quota and this account's Telegram session. Cached briefly since
+// every slice of every file passes through here.
+let _allowCache = { at: 0, set: null };
+async function allowedChannel(env, username) {
+  const now = Date.now();
+  if (!_allowCache.set || now - _allowCache.at > 60000) {
+    try {
+      const res = await fetch(env.CHANNELS_URL);
+      const data = await res.json();
+      _allowCache = {
+        at: now,
+        set: new Set(((data && data.channels) || []).map((c) => String(c.username).toLowerCase())),
+      };
+    } catch (e) {
+      // If the list can't be read, fail closed rather than open.
+      return false;
+    }
+  }
+  return _allowCache.set.has(String(username).toLowerCase());
+}
+
 async function streamMedia(env, request, ctx) {
   const url = new URL(request.url);
   const username = (url.searchParams.get('ch') || '').replace(/[^a-zA-Z0-9_]/g, '');
   const msgId = parseInt(url.searchParams.get('id'));
   if (!username || !msgId) return new Response('ch and id required', { status: 400 });
+
+  if (!(await allowedChannel(env, username))) {
+    return new Response('Not a channel on this site', { status: 403 });
+  }
 
   const mtproto = makeClient(env);
   let info;
@@ -678,27 +706,22 @@ export default {
       return streamMedia(env, request, ctx);
     }
 
-    // Unguarded on purpose: reports only whether each secret EXISTS, never its
-    // value, so a wrong ?secret= can be told apart from a missing binding.
+    // Unguarded on purpose: reports only whether each secret EXISTS, never any
+    // detail about it. It used to also return the admin secret's length and its
+    // first and last character — added while debugging a mismatch, and a real
+    // leak: anyone could read it, and it cuts a brute-force down enormously.
+    // Existence booleans are all that's needed to tell "not configured" apart
+    // from "wrong secret".
     if (path === '/health') {
-      const admin = env.WORKER_ADMIN_SECRET || '';
       return json({
         ok: true,
         secrets: {
           TELEGRAM_API_ID: !!env.TELEGRAM_API_ID,
           TELEGRAM_API_HASH: !!env.TELEGRAM_API_HASH,
           TELEGRAM_INGEST_SECRET: !!env.TELEGRAM_INGEST_SECRET,
-          WORKER_ADMIN_SECRET: !!admin,
+          WORKER_ADMIN_SECRET: !!env.WORKER_ADMIN_SECRET,
         },
-        // Compare these against what you typed — a mismatch usually means a
-        // stray space, a different case, or a character the URL ate.
-        admin_secret_length: admin.length,
-        admin_secret_first_char: admin ? admin[0] : null,
-        admin_secret_last_char: admin ? admin[admin.length - 1] : null,
         kv_bound: !!env.TG_SESSION,
-        got_secret_param: url.searchParams.has('secret'),
-        got_secret_length: (url.searchParams.get('secret') || '').length,
-        matches: url.searchParams.get('secret') === admin,
       });
     }
 
