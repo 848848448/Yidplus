@@ -210,6 +210,11 @@ async function pushPost(env, mtproto, username, chat, m, budget) {
     // Bold, links, italics — Telegram sends them as offset/length ranges
     // alongside the text. Without them a post renders as flat plain text.
     entities: JSON.stringify(m.entities || []),
+    // An album is sent as several separate messages sharing one grouped_id
+    // (usually only one of them carries the caption). Without it we can't
+    // tell them apart from five unrelated posts. It's a long, so keep it
+    // as a string rather than risk losing precision.
+    grouped_id: m.grouped_id ? String(m.grouped_id) : '',
     media_url: mediaUrl,
     media_type: mediaType,
     // What Telegram shows beside a track: name, performer, running time, file.

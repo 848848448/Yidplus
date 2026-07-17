@@ -961,8 +961,10 @@ function _tgFormat(text, entitiesJson) {
 function _tgRenderPosts(list, username, title) {
   var out = '';
   var lastDay = '';
-  for (var i = 0; i < list.length; i++) {
+  var i = 0;
+  while (i < list.length) {
     var p = list[i];
+
     var day = '';
     try { day = p.posted_at ? new Date(p.posted_at).toDateString() : ''; } catch (e) {}
     if (day && day !== lastDay) {
@@ -973,9 +975,70 @@ function _tgRenderPosts(list, username, title) {
                '</span>' +
              '</div>';
     }
+
+    // Fold an album back into one bubble. Telegram sends it as several separate
+    // messages sharing a grouped_id, so one-per-bubble — what we were doing —
+    // turns a five-photo post into five posts. They arrive together, so a run
+    // of matching ids is the whole album.
+    if (p.grouped_id) {
+      var group = [p];
+      var j = i + 1;
+      while (j < list.length && list[j].grouped_id === p.grouped_id) { group.push(list[j]); j++; }
+      if (group.length > 1) { out += _tgAlbumCard(group, username, title); i = j; continue; }
+    }
+
     out += _xPostCard(p, username, title);
+    i++;
   }
   return out;
+}
+
+// One bubble for an album: a grid of its pictures, plus the caption from
+// whichever message carries it — Telegram puts it on only one of them.
+function _tgAlbumCard(group, username, chTitle) {
+  var lead = group[0];
+  var withText = group.filter(function (p) { return p.text; })[0];
+  var base = (window.STATE && STATE.settings && STATE.settings.tg_stream_base) || TG_STREAM_BASE;
+
+  var name = escHtml(lead.author_name || chTitle || username);
+  var avatar = lead.author_avatar
+    ? '<div style="width:34px;height:34px;border-radius:50%;background-image:url(' + lead.author_avatar + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
+    : '<div style="width:34px;height:34px;border-radius:50%;background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:700;flex-shrink:0">' + (name.slice(0, 1) || 'C') + '</div>';
+
+  var stamp = '<div style="position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.45);color:#fff;font-size:.55rem;font-weight:600;padding:1px 5px;border-radius:6px;pointer-events:none">Yidplus.com</div>';
+
+  // Two across, with an odd one out spanning the full width — close to how
+  // Telegram tiles an album without reimplementing its exact geometry.
+  var cells = group.map(function (p, idx) {
+    var src = p.media_url || (base.replace(/\/$/, '') + '/media?ch=' + encodeURIComponent(username) + '&id=' + p.tg_msg_id);
+    var span = (group.length % 2 === 1 && idx === group.length - 1) ? 'grid-column:1/-1;' : '';
+    var inner = p.media_type === 'video'
+      ? '<video src="' + src + '" controls playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;display:block;background:#000"></video>'
+      : '<img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;height:100%;object-fit:cover;display:block;cursor:pointer" loading="lazy">';
+    return '<div style="position:relative;' + span + 'aspect-ratio:1;overflow:hidden;border-radius:6px">' + inner + stamp + '</div>';
+  }).join('');
+
+  var text = withText ? _tgFormat(withText.text, withText.entities) : '';
+  var when = '';
+  try { when = new Date(lead.posted_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) {}
+  var eye = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.75"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var canDelete = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
+  var delBtn = canDelete
+    ? '<span onclick="event.stopPropagation();tgDeletePost(' + lead.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-right:auto">🗑</span>'
+    : '';
+
+  return '<div style="display:flex;align-items:flex-end;gap:.45rem;margin-bottom:.55rem">' +
+      avatar +
+      '<div style="background:#fff;border-radius:12px;border-bottom-left-radius:4px;padding:.5rem .6rem;width:100%;max-width:min(82%,420px);box-shadow:0 1px 1px rgba(0,0,0,.08);box-sizing:border-box">' +
+        '<div style="font-weight:600;font-size:.84rem;color:#168acd;margin-bottom:.3rem;text-align:left;unicode-bidi:plaintext;direction:ltr">' + name + '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:.4rem">' + cells + '</div>' +
+        (text ? '<div style="font-size:.94rem;line-height:1.4;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' : '') +
+        '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;margin-top:.25rem;color:#8a9aa5;font-size:.68rem">' +
+          delBtn + eye + '<span>' + _xNum(lead.views || 0) + '</span>' +
+          '<span style="margin-left:.2rem">' + when + '</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
 }
 
 function _tgDur(s) {
