@@ -1336,6 +1336,23 @@ window._submitSupportChat = function (screen, label) {
   }).catch(function (err) { toast('❌ ' + err.message); });
 };
 
+// Check a file's size BEFORE uploading it.
+//
+// Nothing did this: pick a 200MB video and you'd sit through the whole upload
+// on a phone connection, only to be rejected at the end with no explanation of
+// what went wrong or how big is too big. The server limits are what they are —
+// this just says so up front, in the same terms.
+//
+// Returns true if it's fine to send; shows the reason and returns false if not.
+window.checkFileSize = function (file, maxMB, label) {
+  if (!file) return false;
+  var max = maxMB * 1024 * 1024;
+  if (file.size <= max) return true;
+  var mb = (file.size / 1024 / 1024).toFixed(1);
+  toast('❌ ' + (label || 'File') + ' is ' + mb + 'MB — the limit is ' + maxMB + 'MB');
+  return false;
+};
+
 window.saveSetting = function (key, value) {
   return api.put('/settings', { key: key, value: value }).then(function () {
     STATE.settings[key] = value;

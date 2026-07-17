@@ -3526,6 +3526,10 @@ function _uploadOneFile(file, caption) {
     scrollToBottom();
   }
 
+  // The request is capped at 105MB before it ever reaches the handler, so a
+  // bigger file is a long upload that can only end in a rejection.
+  if (!checkFileSize(file, 100, 'File')) return;
+
   watermarkFile(file).then(function (watermarked) {
     var form = new FormData();
     form.append('room_id', CHAT_curRoom.id);

@@ -497,6 +497,10 @@ window.confirmShortUpload = function () {
   var file = SHORTS_pendingFile;
   SHORTS_pendingFile = null;
 
+  // Shorts are the biggest thing anyone uploads here, and this is where waiting
+  // through a doomed upload hurts most.
+  if (!checkFileSize(file, 100, 'Video')) return;
+
   document.getElementById('caption-modal').classList.remove('open');
   toast('📤 Uploading short...');
 

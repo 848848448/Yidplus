@@ -1267,6 +1267,7 @@ window.submitStatus = function () {
   } else if (STATUS_selectedFile) {
     var caption = (document.getElementById('status-media-caption') || {}).value || '';
     var privacy2 = (document.getElementById('status-privacy') || {}).value || 'public';
+    if (!checkFileSize(STATUS_selectedFile, 100, 'Status')) return;
     toast('📤 Preparing...');
     watermarkFile(STATUS_selectedFile).then(function (watermarked) {
       var form = new FormData();
@@ -1927,6 +1928,12 @@ window.submitChannelPost = function () {
   };
 
   if (PC_file) {
+    // Same limits posts.js enforces — say so before the upload, not after.
+    var isVid = (PC_file.type || '').indexOf('video') === 0;
+    if (!checkFileSize(PC_file, isVid ? 60 : 12, isVid ? 'Video' : 'Image')) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Post'; }
+      return;
+    }
     var fd = new FormData();
     fd.append('caption', text);
     fd.append('file', PC_file);
