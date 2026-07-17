@@ -165,7 +165,10 @@ window.closeChatRoom = function () {
   TG_curChannel = null;
   var _jb = document.getElementById('tg-join-bar');
   if (_jb) _jb.remove();   // a Telegram channel's Join bar shouldn't outlive it
-  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  // Only rewrite the URL if we're not already being driven BY the URL — when
+  // Back fires, the browser has already moved, and touching history here would
+  // fight it.
+  if (!_navFromPop) { try { history.replaceState(null, '', location.pathname); } catch (e) {} }
   var screenChats    = document.getElementById('screen-chats');
   var screenChatroom = document.getElementById('screen-chatroom');
   if (screenChatroom) { screenChatroom.classList.add('hidden');    screenChatroom.style.display = ''; }
@@ -414,7 +417,11 @@ window.openTelegramChannel = function (username, title) {
   if (screenChatroom) screenChatroom.classList.remove('hidden');
 
   CHAT_curRoom = null; // not a real room
-  try { history.replaceState(null, '', '#tg=' + encodeURIComponent(username)); } catch (e) {}
+  try {
+    if ((location.hash || '').indexOf('#tg=' + username) === -1) {
+      history.pushState({ view: 'tg', id: username }, '', '#tg=' + encodeURIComponent(username));
+    }
+  } catch (e) {}
 
   // Header — photo, name, and how many people joined here on YID PLUS.
   var meta = null;
@@ -1528,7 +1535,14 @@ window.openChatRoom = function (roomId, topicId, topicName) {
   CHAT_atBottom  = true;
   room.unread    = 0;
   // Remember which chat is open so a page refresh returns here instead of the list.
-  try { history.replaceState(null, '', '#room=' + encodeURIComponent(roomId)); } catch (e) {}
+  // pushState, not replaceState: Back needs an entry to return to. Everything
+  // used replaceState, which is why the browser's Back button walked out of
+  // the app instead of closing the chat.
+  try {
+    if ((location.hash || '').indexOf('#room=' + roomId) === -1) {
+      history.pushState({ view: 'room', id: roomId }, '', '#room=' + encodeURIComponent(roomId));
+    }
+  } catch (e) {}
   if (typeof closeInChatSearch === 'function') closeInChatSearch();
   renderChatList();
   _startTypingPoll();
@@ -6276,3 +6290,30 @@ if (!window._chatVisBound) {
     }
   });
 }
+
+// ── Browser Back ──
+// Nothing in the app listened for popstate, and every view used replaceState,
+// so no history entries existed at all: pressing Back walked straight out of
+// the app instead of closing the chat you had open. Opens now push an entry,
+// and this puts you back where that entry says you were.
+var _navFromPop = false;
+window.addEventListener('popstate', function () {
+  _navFromPop = true;
+  try {
+    var hash = window.location.hash || '';
+    var room = hash.match(/room=([^&]+)/);
+    var tg = hash.match(/tg=([^&]+)/);
+
+    if (room) {
+      if (typeof openChatRoom === 'function') openChatRoom(decodeURIComponent(room[1]));
+    } else if (tg) {
+      if (typeof openTelegramChannel === 'function') openTelegramChannel(decodeURIComponent(tg[1]), '');
+    } else {
+      // No view in the URL = back at the list.
+      var cr = document.getElementById('screen-chatroom');
+      if (cr && !cr.classList.contains('hidden') && typeof closeChatRoom === 'function') closeChatRoom();
+    }
+  } finally {
+    _navFromPop = false;
+  }
+});

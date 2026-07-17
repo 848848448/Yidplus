@@ -1320,6 +1320,7 @@ window.saveProfile = function () {
 // CHANNEL_pendingOwnerId pre-set (used for cross-page URL loads).
 // ============================================================
 var CHANNEL_current = null;       // currently loaded channel data
+var CHANNEL_tab = 'shorts';       // which tab you're on, so a refresh keeps it
 var CHANNEL_pendingOwnerId = null; // set by boot logic when arriving via ?channel=xxx
 
 window.init_channel = function () {
@@ -1355,6 +1356,12 @@ function _loadChannel(ownerId) {
       CHANNEL_current.owner_id = ownerId;
       CHANNEL_current.is_following = !!res.is_following;
       _renderChannelHeader(res.channel);
+      // Land on the tab you left, not always on Shorts.
+      try { CHANNEL_tab = localStorage.getItem('yp_ch_tab') || 'shorts'; } catch (e) {}
+      if (CHANNEL_tab !== 'shorts') {
+        var _tb = document.querySelector('.screen#screen-channel .chtab[onclick*="\'' + CHANNEL_tab + '\'"]');
+        if (_tb) switchChTab(_tb, CHANNEL_tab);
+      }
       if (res.locked) {
         _renderLockedWall(res.request_status);
       } else {
@@ -1669,6 +1676,10 @@ window.toggleChFollow = function () {
 window.switchChTab = function (btn, tab) {
   document.querySelectorAll('.screen#screen-channel .chtab').forEach(function (b) { b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
+  // Remember which tab you were on. Refreshing on Posts used to drop you back
+  // on Shorts, because nothing recorded where you were.
+  CHANNEL_tab = tab;
+  try { localStorage.setItem('yp_ch_tab', tab); } catch (e) {}
   document.getElementById('ch-shorts-tab').style.display = (tab === 'shorts') ? 'block' : 'none';
   document.getElementById('ch-music-tab').style.display  = (tab === 'music')  ? 'block' : 'none';
   document.getElementById('ch-about-tab').style.display  = (tab === 'about')  ? 'block' : 'none';

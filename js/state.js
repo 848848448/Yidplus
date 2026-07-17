@@ -447,6 +447,14 @@ window.navTo = function (id) {
   STATE.screen = id;
   if (id !== 'auth') localStorage.setItem('yp_page', id);
 
+  // Give Back something to return to. navTo never touched history, so the
+  // browser's Back button left the app rather than stepping back a screen.
+  // _navFromPop is set while we're being driven BY Back — pushing then would
+  // fight the browser.
+  if (!window._navFromPop && prev && prev !== id && id !== 'auth') {
+    try { history.pushState({ screen: id }, '', location.pathname + location.search); } catch (e) {}
+  }
+
   document.querySelectorAll('.screen').forEach(function (s) {
     s.classList.remove('active', 'prev');
   });
@@ -1965,3 +1973,23 @@ window.ypPrompt = function (message, opts) {
     input.addEventListener('keydown', function (e) { if (e.key === 'Enter') done(input.value); });
   });
 };
+
+
+// ── Browser Back ──
+// Nothing listened for popstate, so Back walked out of the app instead of
+// stepping back a screen. navTo now pushes an entry; this walks it back.
+//
+// state.js loads on every page, but chat/music/shorts are separate pages with
+// their own screens and their own popstate handling — this only applies to the
+// SPA, so it bows out where there's no home screen to go back to.
+window.addEventListener('popstate', function (e) {
+  if (!document.getElementById('screen-home')) return;
+  var target = (e.state && e.state.screen) || null;
+  // No state = we're back at the entry the page loaded on. Prefer the screen we
+  // came from over guessing.
+  if (!target) target = STATE.prevScreen && STATE.prevScreen !== STATE.screen ? STATE.prevScreen : null;
+  if (!target) return;                       // nothing sensible to go back to
+  if (target === STATE.screen) return;       // already there
+  window._navFromPop = true;
+  try { navTo(target); } finally { window._navFromPop = false; }
+});
