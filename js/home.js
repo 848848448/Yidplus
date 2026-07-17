@@ -2080,6 +2080,21 @@ function _groupRow(g) {
 ══════════════════════════════════ */
 var PROFILE_userId = null;
 
+// navTo calls window['init_' + screen], and there was no init_profile — so
+// arriving at the profile any way other than through openUserProfile (which
+// builds it itself) left the spinner the screen ships with, forever. That's
+// exactly what the chat page's menu does: goPage('/?goto=profile') lands on
+// the screen with nobody having said whose profile it is.
+//
+// Coming in that way means "my profile", which is the only thing that link
+// could reasonably mean.
+window.init_profile = function () {
+  var id = PROFILE_userId || (STATE.user && STATE.user.id);
+  if (!id) { goPage('/'); return; }
+  PROFILE_userId = id;
+  _buildProfileScreen(id);
+};
+
 window.openUserProfile = function (userId) {
   if (!userId) return;
   PROFILE_userId = userId;
