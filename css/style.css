@@ -1722,3 +1722,95 @@ img { opacity: 1; }
 .bubble.me .poll-add-suggest-btn { color: #fff !important; border-color: rgba(255,255,255,.4) !important; }
 /* A touch more polish for both sides */
 .poll-opt { transition: border-color .15s, background .15s; }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Desktop & large screens
+   ───────────────────────────────────────────────────────────────────────────
+   The app was built phone-first: every screen is `position:fixed; inset:0`, so
+   on a monitor a chat list stretched across two thousand pixels and a message
+   bubble floated alone in an ocean of white. There were no media queries at all.
+
+   Rather than rewrite the layout, these rules reshape it at the edges:
+   the messenger becomes two columns the way every desktop messenger is, and
+   everything else is held to a readable column instead of being stretched.
+   Below 1000px nothing here applies, so the phone layout is untouched.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@media (min-width: 1000px) {
+  /* The surround the app now sits on. */
+  body { background: var(--bg2, #0e1621); }
+
+  /* ── Messenger: list on the left, conversation on the right ── */
+  #screen-chats {
+    right: auto !important;
+    width: 400px !important;
+    border-right: 1px solid var(--line);
+  }
+  /* On a phone the list hides when a chat opens. On a monitor there's room for
+     both, and hiding it is the thing that makes a desktop app feel wrong. */
+  #screen-chats.hidden { display: flex !important; }
+
+  #screen-chatroom { left: 400px !important; }
+  /* The conversation pane stays put with nothing in it rather than collapsing. */
+  #screen-chatroom.hidden { display: flex !important; }
+  #screen-chatroom.hidden > * { display: none !important; }
+  #screen-chatroom.hidden::after {
+    content: 'Select a chat to start messaging';
+    margin: auto;
+    color: var(--muted);
+    font-size: .9rem;
+  }
+
+  /* Bubbles shouldn't run the width of a monitor — that's unreadable. */
+  #screen-chatroom .bubble { max-width: min(70%, 560px); }
+  .chat-messages { padding-left: 8%; padding-right: 8%; }
+
+  /* ── Everything else: a centred column, not a stretched one ── */
+  .screen {
+    left: 50% !important;
+    right: auto !important;
+    width: 100%;
+    max-width: 520px;
+    transform: translateX(-50%);
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+  }
+
+  /* Sheets and overlays are full-screen by design; keep them that way. */
+  #media-viewer, #sv-overlay, #global-search-modal,
+  #tg-info, #follow-list, #adm-user-list, #post-composer {
+    left: 0 !important; right: 0 !important;
+    max-width: none; transform: none;
+  }
+
+  /* A pointer gets hover feedback; a finger never did. */
+  .chat-item:hover { background: var(--bg3); }
+  .tg-tab:hover { opacity: .85; }
+}
+
+/* Very wide: let the conversation breathe without the bubbles drifting apart. */
+@media (min-width: 1500px) {
+  #screen-chats { width: 440px !important; }
+  #screen-chatroom { left: 440px !important; }
+  .chat-messages { padding-left: 14%; padding-right: 14%; }
+}
+
+/* Tablets: too wide for a phone layout, too narrow to split in two. Hold the
+   content to a column so it doesn't stretch, and leave the flow alone. */
+@media (min-width: 700px) and (max-width: 999px) {
+  body { background: var(--bg2, #0e1621); }
+  .screen, .chat-page {
+    left: 50% !important;
+    right: auto !important;
+    width: 100%;
+    max-width: 560px;
+    transform: translateX(-50%);
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+  }
+  #media-viewer, #sv-overlay, #global-search-modal,
+  #tg-info, #follow-list, #adm-user-list, #post-composer {
+    left: 0 !important; right: 0 !important;
+    max-width: none; transform: none;
+  }
+}
