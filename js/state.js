@@ -1622,6 +1622,8 @@ window.loadContentFilter = function () {
         FILTER_phrase_regex = new RegExp('(' + escapedPhrases.join('|') + ')', 'gi');
       }
       FILTER_loaded = true;
+      // Tell anything already drawn to redraw itself with the words in hand.
+      try { window.dispatchEvent(new Event('yp-filter-ready')); } catch (e) {}
     })
     .catch(function () {});
 };
@@ -1700,10 +1702,30 @@ window.filterElement = function (el) {
   });
 };
 
-// Auto-load on startup
+// Load it now, not in two seconds' time.
+//
+// The delay was a race the filter usually lost: the feed and the chat render as
+// soon as their data arrives, filterContent runs against a word list that's
+// still empty, and the text goes out unfiltered — then the list loads two
+// seconds later with nothing left to apply it to. On a quick connection the
+// filter simply didn't happen. It's one small request and it blocks nothing.
+//
+// It can still lose the race on a slow link, so anything already on screen is
+// redrawn once the words are in.
 (function () {
-  setTimeout(function () { loadContentFilter(); }, 2000);
+  loadContentFilter();
 })();
+
+window.addEventListener('yp-filter-ready', function () {
+  // Only worth redrawing if there's actually something to hide.
+  if (!FILTER_words.length && !FILTER_phrases.length) return;
+  if (typeof renderChatList === 'function' && document.getElementById('chat-list-area')) {
+    try { renderChatList(); } catch (e) {}
+  }
+  if (typeof _renderFeed === 'function' && window.HOME_posts) {
+    try { _renderFeed(window.HOME_posts); } catch (e) {}
+  }
+});
 
 /* ══════════════════════════════════
    GUEST MODE

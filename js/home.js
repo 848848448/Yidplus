@@ -182,7 +182,10 @@ function _fetchHomeData() {
     // Build all sections at once
     _renderShortsPrev(shortsRes.shorts || []);
     _renderChannelsPrev(channelRes.channels || []);
-    _renderFeed(postsRes.posts || []);
+    // Kept so the feed can be redrawn if the word filter finishes loading
+    // after this ran — otherwise there'd be nothing to redraw from.
+    window.HOME_posts = postsRes.posts || [];
+    _renderFeed(window.HOME_posts);
     _renderBroadcast(broadRes.announcements || broadRes.pinned || []);
     _updateBadgesFromRooms(roomsRes.rooms || []);
 
