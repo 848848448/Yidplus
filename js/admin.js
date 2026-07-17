@@ -1104,6 +1104,61 @@ window.filterAdminUsers = function () {
   renderUsersList(filtered);
 };
 
+// Show the rows behind one of the activity counts. Same numbers, just opened up.
+window.adminOpenUserList = function (userId, type) {
+  var old = document.getElementById('adm-user-list');
+  if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'adm-user-list';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:980;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  ov.innerHTML =
+    '<div style="background:var(--surface);width:100%;max-width:520px;border-radius:16px 16px 0 0;max-height:80vh;display:flex;flex-direction:column">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-bottom:1px solid var(--border);flex-shrink:0">' +
+        '<div id="aul-title" style="font-weight:700;font-size:.95rem">Loading…</div>' +
+        '<button onclick="document.getElementById(\'adm-user-list\').remove()" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">✕</button>' +
+      '</div>' +
+      '<div id="aul-body" style="overflow-y:auto;padding:.3rem 0"><div style="padding:1.5rem;text-align:center"><div class="spinner"></div></div></div>' +
+    '</div>';
+  document.body.appendChild(ov);
+
+  api.get('/admin/user-lists?user_id=' + encodeURIComponent(userId) + '&type=' + encodeURIComponent(type))
+    .then(function (res) {
+      var t = document.getElementById('aul-title');
+      var b = document.getElementById('aul-body');
+      if (!b) return;
+      if (res.error) { if (t) t.textContent = 'Error'; b.innerHTML = '<div style="padding:1.2rem;color:var(--red);font-size:.85rem">' + escHtml(res.error) + '</div>'; return; }
+      var items = res.items || [];
+      if (t) t.textContent = (res.title || type) + ' (' + items.length + ')';
+      if (!items.length) { b.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-size:.85rem">Nothing here.</div>'; return; }
+
+      var isPeople = (type === 'followers' || type === 'following');
+      b.innerHTML = items.map(function (it) {
+        var label = it.nickname || (isPeople ? 'Unknown' : '(untitled)');
+        var av = it.photo_url
+          ? '<div style="width:36px;height:36px;border-radius:50%;background-image:url(' + it.photo_url + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
+          : '<div style="width:36px;height:36px;border-radius:' + (isPeople ? '50%' : '9px') + ';background:linear-gradient(135deg,var(--gold),var(--gold-l));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex-shrink:0">' +
+              escHtml(it.emoji || String(label).charAt(0).toUpperCase()) + '</div>';
+        // A person opens their own admin page; anything else is just a row.
+        var click = isPeople && it.id
+          ? ' onclick="document.getElementById(\'adm-user-list\').remove();openUserDetailModal(\'' + it.id + '\')" style="cursor:pointer"'
+          : '';
+        return '<div' + click + ' style="display:flex;align-items:center;gap:.7rem;padding:.5rem 1rem;border-bottom:1px solid var(--border)">' +
+          av +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:.88rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:plaintext">' + escHtml(label) + '</div>' +
+            '<div style="font-size:.68rem;color:var(--muted)">' + (it.created_at ? new Date(it.created_at).toLocaleDateString() : '') + '</div>' +
+          '</div>' +
+          (isPeople ? '<span style="color:var(--muted);font-size:.9rem">›</span>' : '') +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (e) {
+      var b = document.getElementById('aul-body');
+      if (b) b.innerHTML = '<div style="padding:1.2rem;color:var(--red);font-size:.85rem">' + escHtml(e.message) + '</div>';
+    });
+};
+
 window.openUserDetailModal = function (userId) {
   var existing = document.getElementById('user-detail-overlay');
   if (existing) existing.remove();
@@ -1145,19 +1200,34 @@ window.openUserDetailModal = function (userId) {
           '</div>' +
         '</div>';
 
+      // Each count opens the list behind it — a number on its own doesn't tell
+      // you who or what it's made of, which is the thing you actually want when
+      // you're looking at a user. Messages stays a plain number: there's no
+      // useful list to show and it can run to thousands.
+      var cell = function (icon, n, label, type) {
+        var v = n || 0;
+        if (!type || !v) return '<div>' + icon + '<br><strong>' + v + '</strong><br>' + label + '</div>';
+        return '<div onclick="adminOpenUserList(\'' + userId + '\',\'' + type + '\')" ' +
+          'style="cursor:pointer;border-radius:8px;padding:.25rem 0;transition:background .12s" ' +
+          'onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'\'">' +
+          icon + '<br><strong style="color:var(--gold)">' + v + '</strong><br>' + label +
+        '</div>';
+      };
+
       var countsGrid =
         '<div class="admin-card" style="margin:0 0 .75rem">' +
           '<div class="admin-card-title">📊 Activity Counts</div>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;text-align:center;font-size:.78rem">' +
-            '<div>👤<br><strong>' + (c.followers || 0) + '</strong><br>Followers</div>' +
-            '<div>➡️<br><strong>' + (c.following || 0) + '</strong><br>Following</div>' +
-            '<div>💬<br><strong>' + c.messages + '</strong><br>Messages</div>' +
-            '<div>🎬<br><strong>' + c.shorts + '</strong><br>Shorts</div>' +
-            '<div>⭐<br><strong>' + c.statuses + '</strong><br>Statuses</div>' +
-            '<div>🎵<br><strong>' + c.music + '</strong><br>Music</div>' +
-            '<div>👥<br><strong>' + c.groups_created + '</strong><br>Groups Made</div>' +
-            '<div>🚪<br><strong>' + c.groups_joined + '</strong><br>Groups Joined</div>' +
+            cell('👤', c.followers, 'Followers', 'followers') +
+            cell('➡️', c.following, 'Following', 'following') +
+            cell('💬', c.messages, 'Messages', null) +
+            cell('🎬', c.shorts, 'Shorts', 'shorts') +
+            cell('⭐', c.statuses, 'Statuses', 'statuses') +
+            cell('🎵', c.music, 'Music', 'music') +
+            cell('👥', c.groups_created, 'Groups Made', 'groups_created') +
+            cell('🚪', c.groups_joined, 'Groups Joined', 'groups_joined') +
           '</div>' +
+          '<div style="font-size:.68rem;color:var(--muted);text-align:center;margin-top:.5rem">Tap a number to see the list</div>' +
         '</div>';
 
       // ── Devices & IPs — ban a blocked user's device so they can't return ──
