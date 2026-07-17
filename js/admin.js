@@ -1113,7 +1113,7 @@ window.adminOpenUserList = function (userId, type) {
   ov.style.cssText = 'position:fixed;inset:0;z-index:980;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
   ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
   ov.innerHTML =
-    '<div style="background:var(--surface);width:100%;max-width:520px;border-radius:16px 16px 0 0;max-height:80vh;display:flex;flex-direction:column">' +
+    '<div style="background:var(--surface);width:100%;max-width:520px;border-radius:16px 16px 0 0;height:85vh;display:flex;flex-direction:column">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-bottom:1px solid var(--border);flex-shrink:0">' +
         '<div id="aul-title" style="font-weight:700;font-size:.95rem">Loading…</div>' +
         '<button onclick="document.getElementById(\'adm-user-list\').remove()" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">✕</button>' +
@@ -1136,20 +1136,20 @@ window.adminOpenUserList = function (userId, type) {
       b.innerHTML = items.map(function (it) {
         var label = it.nickname || (isPeople ? 'Unknown' : '(untitled)');
         var av = it.photo_url
-          ? '<div style="width:36px;height:36px;border-radius:50%;background-image:url(' + it.photo_url + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
-          : '<div style="width:36px;height:36px;border-radius:' + (isPeople ? '50%' : '9px') + ';background:linear-gradient(135deg,var(--gold),var(--gold-l));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex-shrink:0">' +
+          ? '<div style="width:28px;height:28px;border-radius:50%;background-image:url(' + it.photo_url + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
+          : '<div style="width:28px;height:28px;border-radius:' + (isPeople ? '50%' : '7px') + ';background:linear-gradient(135deg,var(--gold),var(--gold-l));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;flex-shrink:0">' +
               escHtml(it.emoji || String(label).charAt(0).toUpperCase()) + '</div>';
         // A person opens their own admin page; anything else is just a row.
         var click = isPeople && it.id
           ? ' onclick="document.getElementById(\'adm-user-list\').remove();openUserDetailModal(\'' + it.id + '\')" style="cursor:pointer"'
           : '';
-        return '<div' + click + ' style="display:flex;align-items:center;gap:.7rem;padding:.5rem 1rem;border-bottom:1px solid var(--border)">' +
+        // One line per row, date on the right — the two-line layout meant only
+        // a handful fit on a phone before you had to scroll.
+        return '<div' + click + ' style="display:flex;align-items:center;gap:.55rem;padding:.35rem .8rem;border-bottom:1px solid var(--border)">' +
           av +
-          '<div style="flex:1;min-width:0">' +
-            '<div style="font-size:.88rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:plaintext">' + escHtml(label) + '</div>' +
-            '<div style="font-size:.68rem;color:var(--muted)">' + (it.created_at ? new Date(it.created_at).toLocaleDateString() : '') + '</div>' +
-          '</div>' +
-          (isPeople ? '<span style="color:var(--muted);font-size:.9rem">›</span>' : '') +
+          '<div style="flex:1;min-width:0;font-size:.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:plaintext;text-align:left;direction:ltr">' + escHtml(label) + '</div>' +
+          '<div style="font-size:.66rem;color:var(--muted);flex-shrink:0">' + (it.created_at ? new Date(it.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '') + '</div>' +
+          (isPeople ? '<span style="color:var(--muted);font-size:.85rem;flex-shrink:0">›</span>' : '') +
         '</div>';
       }).join('');
     })
@@ -1226,6 +1226,7 @@ window.openUserDetailModal = function (userId) {
             cell('🎵', c.music, 'Music', 'music') +
             cell('👥', c.groups_created, 'Groups Made', 'groups_created') +
             cell('🚪', c.groups_joined, 'Groups Joined', 'groups_joined') +
+            cell('📨', c.telegram_channels, 'TG Channels', 'telegram_channels') +
           '</div>' +
           '<div style="font-size:.68rem;color:var(--muted);text-align:center;margin-top:.5rem">Tap a number to see the list</div>' +
         '</div>';

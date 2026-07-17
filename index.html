@@ -19,7 +19,7 @@
 <meta name="twitter:description" content="A Yiddish social platform for the Jewish community">
 <meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>YID PLUS</title>
-<link rel="stylesheet" href="css/style.css?v=202607130830">
+<link rel="stylesheet" href="css/style.css?v=202607130930">
 <script>
 // Apply saved user theme ASAP (before paint) to avoid flash-of-default-colors
 (function () {
@@ -299,8 +299,8 @@
       <div style="font-size:.85rem;color:var(--text);margin-top:.5rem;line-height:1.55;unicode-bidi:plaintext" id="ch-bio"></div>
     </div>
     <div class="ch-stats-row">
-      <div style="text-align:center"><div class="ch-stat-val" id="ch-followers">0</div><div class="ch-stat-lbl">Followers</div></div>
-      <div style="text-align:center"><div class="ch-stat-val" id="ch-following">0</div><div class="ch-stat-lbl">Following</div></div>
+      <div style="text-align:center;cursor:pointer" onclick="openFollowList('followers')"><div class="ch-stat-val" id="ch-followers">0</div><div class="ch-stat-lbl">Followers</div></div>
+      <div style="text-align:center;cursor:pointer" onclick="openFollowList('following')"><div class="ch-stat-val" id="ch-following">0</div><div class="ch-stat-lbl">Following</div></div>
       <div style="text-align:center"><div class="ch-stat-val" id="ch-views">0</div><div class="ch-stat-lbl">Views</div></div>
       <div style="text-align:center"><div class="ch-stat-val" id="ch-shorts-ct">0</div><div class="ch-stat-lbl">Shorts</div></div>
     </div>
@@ -546,11 +546,11 @@
 <!-- ════════════════════════════════
      SCRIPTS — ORDER MATTERS!
 ════════════════════════════════ -->
-<script src="js/state.js?v=202607130830"></script>
-<script src="js/theme.js?v=202607130830"></script>
-<script src="js/app.js?v=202607130830"></script>
-<script src="js/auth.js?v=202607130830"></script>
-<script src="js/home.js?v=202607130830"></script>
+<script src="js/state.js?v=202607130930"></script>
+<script src="js/theme.js?v=202607130930"></script>
+<script src="js/app.js?v=202607130930"></script>
+<script src="js/auth.js?v=202607130930"></script>
+<script src="js/home.js?v=202607130930"></script>
 
 <script>
 // ── POSTS FEED (Cloudflare D1 via /api/posts) ──
@@ -815,6 +815,6 @@ window._resendVerifyEmail = function (btn) {
 };
 </script>
 
-<script src="js/ads.js?v=202607130830"></script>
+<script src="js/ads.js?v=202607130930"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
       </html>

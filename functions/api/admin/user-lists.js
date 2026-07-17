@@ -62,6 +62,17 @@ export async function onRequestGet(context) {
            WHERE m.user_id = ? ORDER BY m.joined_at DESC LIMIT 200`, targetId)).results;
         break;
 
+      case 'telegram_channels':
+        // Joining an embedded Telegram channel is tracked separately from room
+        // membership, so it never showed up under groups.
+        title = 'Telegram channels';
+        rows = (await q(
+          `SELECT c.id, COALESCE(c.title, m.username) AS nickname, m.username AS emoji, m.joined_at AS created_at
+           FROM telegram_channel_members m
+           LEFT JOIN telegram_channels c ON c.username = m.username
+           WHERE m.user_id = ? ORDER BY m.joined_at DESC LIMIT 200`, targetId)).results;
+        break;
+
       case 'statuses':
         title = 'Statuses';
         rows = (await q(

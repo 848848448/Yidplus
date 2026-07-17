@@ -35,13 +35,16 @@ export async function onRequestGet(context) {
     );
     if (!profile) return json({ ok: false, error: 'User not found' }, 404);
 
-    const [messages, shorts, statuses, music, groupsCreated, groupsJoined] = await Promise.all([
+    const [messages, shorts, statuses, music, groupsCreated, groupsJoined, tgChannels] = await Promise.all([
       env.DB.prepare('SELECT COUNT(*) AS c FROM messages WHERE sender_id = ?').bind(targetId).first().catch(() => ({ c: 0 })),
       env.DB.prepare('SELECT COUNT(*) AS c FROM shorts WHERE owner_id = ?').bind(targetId).first().catch(() => ({ c: 0 })),
       env.DB.prepare('SELECT COUNT(*) AS c FROM statuses WHERE user_id = ?').bind(targetId).first().catch(() => ({ c: 0 })),
       env.DB.prepare('SELECT COUNT(*) AS c FROM music_tracks WHERE owner_id = ?').bind(targetId).first().catch(() => ({ c: 0 })),
       env.DB.prepare("SELECT COUNT(*) AS c FROM rooms WHERE created_by = ? AND type = 'group'").bind(targetId).first().catch(() => ({ c: 0 })),
       env.DB.prepare('SELECT COUNT(*) AS c FROM room_members WHERE user_id = ?').bind(targetId).first().catch(() => ({ c: 0 })),
+      // Telegram channel membership lives in its own table, so it was
+      // invisible here — a user could be in six channels and show none.
+      env.DB.prepare('SELECT COUNT(*) AS c FROM telegram_channel_members WHERE user_id = ?').bind(targetId).first().catch(() => ({ c: 0 })),
     ]);
 
     const [followers, following] = await Promise.all([
@@ -96,6 +99,7 @@ export async function onRequestGet(context) {
         music: music?.c || 0,
         groups_created: groupsCreated?.c || 0,
         groups_joined: groupsJoined?.c || 0,
+        telegram_channels: tgChannels?.c || 0,
         followers: followers?.c || 0,
         following: following?.c || 0,
       },

@@ -1702,6 +1702,90 @@ window.switchChTab = function (btn, tab) {
 
 // Channel posts come back without the author fields the shared card wants —
 // fill them in from the channel we're already viewing.
+// Anyone can see who follows a channel and who it follows — the counts were
+// there but dead, and this is the first thing you want when you tap one.
+// Backed by /api/follows?followers=1|following=1, which already existed.
+window.openFollowList = function (type) {
+  if (!CHANNEL_current || !CHANNEL_current.owner_id) return;
+  var old = document.getElementById('follow-list');
+  if (old) old.remove();
+
+  var ov = document.createElement('div');
+  ov.id = 'follow-list';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:940;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  ov.innerHTML =
+    '<div style="background:var(--surface);width:100%;max-width:520px;border-radius:16px 16px 0 0;height:80vh;display:flex;flex-direction:column">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-bottom:1px solid var(--border);flex-shrink:0">' +
+        '<div id="fl-title" style="font-weight:700;font-size:.95rem">' + (type === 'followers' ? 'Followers' : 'Following') + '</div>' +
+        '<button onclick="document.getElementById(\'follow-list\').remove()" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">✕</button>' +
+      '</div>' +
+      '<div id="fl-body" style="overflow-y:auto"><div style="padding:1.5rem;text-align:center"><div class="spinner"></div></div></div>' +
+    '</div>';
+  document.body.appendChild(ov);
+
+  var isMine = STATE.user && STATE.user.id === CHANNEL_current.owner_id;
+  var qs = (type === 'followers' ? 'followers=1' : 'following=1') + '&user_id=' + encodeURIComponent(CHANNEL_current.owner_id);
+
+  api.get('/follows?' + qs).then(function (res) {
+    var body = document.getElementById('fl-body');
+    var t = document.getElementById('fl-title');
+    if (!body) return;
+    var list = res.users || res.followers || res.following || [];
+    if (t) t.textContent = (type === 'followers' ? 'Followers' : 'Following') + ' (' + list.length + ')';
+    if (!list.length) {
+      body.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:.85rem">' +
+        (type === 'followers' ? 'Nobody follows this channel yet.' : 'Not following anyone yet.') + '</div>';
+      return;
+    }
+    body.innerHTML = list.map(function (u) {
+      var av = u.photo_url
+        ? '<div style="width:38px;height:38px;border-radius:50%;background-image:url(' + u.photo_url + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
+        : '<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">' +
+            escHtml((u.nickname || '?').charAt(0).toUpperCase()) + '</div>';
+      // Only the channel's owner gets to remove a follower, and only from their
+      // own followers — you can't remove someone from a list you don't own.
+      var canRemove = isMine && type === 'followers';
+      return '<div style="display:flex;align-items:center;gap:.7rem;padding:.45rem 1rem;border-bottom:1px solid var(--border)">' +
+        '<div onclick="document.getElementById(\'follow-list\').remove();openChannel(\'' + u.id + '\')" style="display:flex;align-items:center;gap:.7rem;flex:1;min-width:0;cursor:pointer">' +
+          av +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:.88rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:plaintext;text-align:left;direction:ltr">' + escHtml(u.nickname || 'User') + '</div>' +
+          '</div>' +
+        '</div>' +
+        (canRemove ? '<button onclick="removeFollower(\'' + u.id + '\',this)" style="background:none;border:none;color:var(--red);font-size:.75rem;cursor:pointer;flex-shrink:0">Remove</button>' : '') +
+      '</div>';
+    }).join('');
+  }).catch(function (e) {
+    var body = document.getElementById('fl-body');
+    if (body) body.innerHTML = '<div style="padding:1.2rem;color:var(--red);font-size:.85rem">' + escHtml(e.message) + '</div>';
+  });
+};
+
+// Removing a follower = making them unfollow you. Blocking is a heavier,
+// separate thing; this just takes them off the list.
+window.removeFollower = function (userId, btn) {
+  if (!confirm('Remove this follower?')) return;
+  btn.disabled = true;
+  api.del('/follows?user_id=' + encodeURIComponent(userId) + '&remove=1')
+    .then(function () {
+      toast('Removed');
+      var row = btn.parentElement; if (row) row.remove();
+      _loadChannelHeaderCounts();
+    })
+    .catch(function (e) { toast('❌ ' + e.message); btn.disabled = false; });
+};
+
+function _loadChannelHeaderCounts() {
+  if (!CHANNEL_current || !CHANNEL_current.owner_id) return;
+  api.get('/follows?user_id=' + encodeURIComponent(CHANNEL_current.owner_id)).then(function (r) {
+    var f = document.getElementById('ch-followers');
+    if (f && typeof r.followers === 'number') f.textContent = fmtN(r.followers);
+  }).catch(function () {});
+}
+
+// Channel posts come back without the author fields the shared card wants —
+// fill them in from the channel we're already viewing.
 function _chPostShape(p) {
   var c = CHANNEL_current || {};
   return {
