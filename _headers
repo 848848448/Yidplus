@@ -14,9 +14,9 @@
   Cache-Control: public, max-age=31536000, immutable
 /css/*
   Cache-Control: public, max-age=31536000, immutable
-/img/*
-  Cache-Control: public, max-age=604800
-/icons/*
+# The folder is images/ — /img/* matched nothing, so the icons were never
+# getting a cache header at all.
+/images/*
   Cache-Control: public, max-age=604800
 
 # Never let the browser cache HTML — it references versioned JS/CSS, so a
