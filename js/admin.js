@@ -124,8 +124,20 @@ window.checkPin = function () {
                            :                           '🔒 MODERATOR';
     }
 
-      buildAdminNav();
-      navTo('admin');
+      // Load the saved settings BEFORE building anything. Every panel reads
+      // STATE.settings to show its current values, but nothing on this page
+      // ever populated it — so each one fell back to its default and looked
+      // like the setting had reverted. It never had: the values were in the
+      // database the whole time, the admin panel just never asked for them.
+      loadAppSettings().then(function () {
+        buildAdminNav();
+        navTo('admin');
+      }).catch(function () {
+        // Still open the panel if settings can't be read — better a panel
+        // showing defaults than no panel at all.
+        buildAdminNav();
+        navTo('admin');
+      });
     })
     .catch(function (err) {
       setLoad('gate-pin', false);
