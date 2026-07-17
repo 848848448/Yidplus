@@ -62,6 +62,21 @@ async function gate(request, env) {
   return { user };
 }
 
+// Two naming conventions ended up creating the same index twice on the same
+// column — idx_login_logs_user and idx_loginlogs_user, and so on. A duplicate
+// index buys nothing on reads and costs every write, since each INSERT and
+// UPDATE has to maintain all of them. These are the older-named copies; the
+// survivor in each pair is the one INDEXES above still creates.
+const DUPLICATE_INDEXES = [
+  'idx_loginlogs_user',
+  'idx_loginlogs_ip',
+  'idx_loginlogs_fp',
+  'idx_music_tracks_owner',
+  'idx_post_comments',
+  'idx_user_follows_user',
+  'idx_users_nick',
+];
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   try {
@@ -77,9 +92,15 @@ export async function onRequestPost(context) {
         errors.push(stmt.match(/idx_[a-z_]+/)[0]);
       }
     }
+
+    // Clear out the redundant copies while we're here.
+    let dropped = 0;
+    for (const name of DUPLICATE_INDEXES) {
+      try { await env.DB.prepare('DROP INDEX IF EXISTS ' + name).run(); dropped++; } catch (e) { /* fine */ }
+    }
     // ANALYZE lets SQLite pick the new indexes optimally.
     await env.DB.prepare('ANALYZE').run().catch(() => {});
-    return json({ ok: true, created, skipped, total: INDEXES.length, skipped_names: errors });
+    return json({ ok: true, created, skipped, dropped_duplicates: dropped, total: INDEXES.length, skipped_names: errors });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
 }
 
