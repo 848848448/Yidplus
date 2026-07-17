@@ -470,7 +470,7 @@ window.openTelegramChannel = function (username, title) {
     TG_posts = ordered;   // the media viewer pages through these
 
     if (mode === 'stored') {
-      slot.innerHTML = ordered.map(function (p) { return _xPostCard(p, username, title); }).join('');
+      slot.innerHTML = _tgRenderPosts(ordered, username, title);
     } else {
       // Widget mode: one official embed per post, oldest at the top.
       ordered.forEach(function (p) {
@@ -578,12 +578,17 @@ function _xPostCard(p, username, chTitle) {
       var tTitle = p.media_title || (p.media_name || '').replace(/\.[a-z0-9]+$/i, '') || 'Audio';
       var tSub = p.media_performer || '';
       var tDur = p.media_duration ? _tgDur(p.media_duration) : '';
+      // Cover art when the track carries any, otherwise the note icon. Fetched
+      // from the same stream endpoint at ?thumb=1 — a few KB, never stored.
+      var art = p.media_thumb
+        ? '<div style="width:44px;height:44px;border-radius:6px;background-image:url(' + src + '&thumb=1);background-size:cover;background-position:center;flex-shrink:0;background-color:#e6ebee"></div>'
+        : '<div style="width:44px;height:44px;border-radius:6px;background:#168acd;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>' +
+          '</div>';
       media =
         '<div style="margin-bottom:.45rem">' +
           '<div style="display:flex;align-items:center;gap:.55rem;margin-bottom:.3rem">' +
-            '<div style="width:38px;height:38px;border-radius:50%;background:#168acd;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
-              '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>' +
-            '</div>' +
+            art +
             '<div style="flex:1;min-width:0">' +
               '<div style="font-size:.86rem;font-weight:600;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext">' + escHtml(tTitle) + '</div>' +
               '<div style="font-size:.72rem;color:#8a9aa5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext">' +
@@ -771,7 +776,7 @@ function _tgRerender() {
   if (!slot || !TG_posts.length) return;
   var mode = (window.STATE && STATE.settings && STATE.settings.tg_embed_mode) || 'stored';
   if (mode !== 'stored') return;   // widget mode draws itself
-  slot.innerHTML = TG_posts.map(function (p) { return _xPostCard(p, TG_curChannel, TG_curTitle); }).join('');
+  slot.innerHTML = _tgRenderPosts(TG_posts, TG_curChannel, TG_curTitle);
 }
 var TG_reactions = {};    // { tg_msg_id: { counts:{emoji:n}, my_reaction } }
 
@@ -892,6 +897,29 @@ window.tgToggleJoin = function () {
 };
 
 // Seconds -> 3:06 / 10:14 / 1:02:33, the way a track's running time reads.
+// Lay the posts out with a date divider wherever the day changes — the way
+// Telegram breaks a channel up, so you can tell Thursday from Friday at a
+// glance instead of reading timestamps.
+function _tgRenderPosts(list, username, title) {
+  var out = '';
+  var lastDay = '';
+  for (var i = 0; i < list.length; i++) {
+    var p = list[i];
+    var day = '';
+    try { day = p.posted_at ? new Date(p.posted_at).toDateString() : ''; } catch (e) {}
+    if (day && day !== lastDay) {
+      lastDay = day;
+      out += '<div style="display:flex;justify-content:center;margin:.5rem 0 .6rem">' +
+               '<span style="background:rgba(0,0,0,.16);color:#fff;font-size:.7rem;font-weight:600;padding:.15rem .7rem;border-radius:11px;backdrop-filter:blur(2px)">' +
+                 escHtml(_dateLabel(p.posted_at)) +
+               '</span>' +
+             '</div>';
+    }
+    out += _xPostCard(p, username, title);
+  }
+  return out;
+}
+
 function _tgDur(s) {
   s = parseInt(s) || 0;
   var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;

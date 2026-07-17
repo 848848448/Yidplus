@@ -214,6 +214,9 @@ async function pushPost(env, mtproto, username, chat, m, budget) {
     media_performer: (kindInfo && kindInfo.performer) || '',
     media_duration: (kindInfo && kindInfo.duration) || 0,
     media_name: (kindInfo && kindInfo.file_name) || '',
+    // Whether there's cover art to ask for; the art itself is fetched on
+    // demand via /media?thumb=1, never stored.
+    media_thumb: !!(kindInfo && kindInfo.thumb_type),
     author_name: chat.title || username,
     author_handle: username,
     views: m.views || 0,
@@ -310,6 +313,14 @@ function mediaInfo(m) {
       : mime.startsWith('audio') ? 'audio'
       : 'file';
 
+    // A track's cover art and a video's poster frame ride along as thumbs on the
+    // document. They're small, so the largest is still cheap to serve; it's
+    // fetched from the same location with thumb_size set to its type.
+    const thumbs = (d.thumbs || []).filter((t) => t._ === 'photoSize' || t._ === 'photoSizeProgressive');
+    const thumb = thumbs.length
+      ? thumbs.reduce((best, t) => ((t.size || 0) > (best.size || 0) ? t : best), thumbs[0])
+      : null;
+
     return {
       kind, mime, ext: extFor(mime), size: d.size,
       title: audio.title || '',
@@ -317,6 +328,7 @@ function mediaInfo(m) {
       duration: Number(audio.duration || video.duration || 0) || 0,
       file_name: named.file_name || '',
       voice: isVoice,
+      thumb_type: thumb ? thumb.type : '',
       location: {
         _: 'inputDocumentFileLocation',
         id: d.id,
@@ -429,9 +441,31 @@ async function fileLocation(env, mtproto, username, msgId, force) {
   const info = mediaInfo(msg);
   if (!info) throw new Error('post has no media');
 
-  const out = { location: info.location, size: Number(info.size) || 0, mime: info.mime, kind: info.kind };
+  const out = { location: info.location, size: Number(info.size) || 0, mime: info.mime, kind: info.kind, thumb_type: info.thumb_type || '' };
   try { await env.TG_SESSION.put(key, locStringify(out), { expirationTtl: 1800 }); } catch (e) { /* serving matters more than caching */ }
   return out;
+}
+
+// Cover art / poster frame: the same file location, asked for at thumb_size.
+// Thumbs are a few KB, so they always come whole and never need ranges.
+async function streamThumb(env, mtproto, info, username, msgId) {
+  if (!info.thumb_type) return new Response('No thumbnail', { status: 404 });
+  const loc = Object.assign({}, info.location, { thumb_size: info.thumb_type });
+  try {
+    const got = await getChunk(mtproto, loc, 0, SLICE, null);
+    const bytes = (got.res && got.res.bytes) || new Uint8Array(0);
+    if (!bytes.length) return new Response('Empty thumbnail', { status: 404 });
+    return new Response(bytes, {
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'Content-Length': String(bytes.length),
+        'Cache-Control': 'public, max-age=86400',
+        'Access-Control-Allow-Origin': '*',
+      },
+    });
+  } catch (e) {
+    return new Response('Thumb error: ' + (e.error_message || e.message), { status: 502 });
+  }
 }
 
 // Reading a slice means standing up a fresh connection to Telegram, and a
@@ -503,6 +537,9 @@ async function streamMedia(env, request, ctx) {
 
   const total = info.size || 0;
   const range = request.headers.get('Range') || '';
+
+  // ?thumb=1 asks for the cover art rather than the file itself.
+  if (url.searchParams.has('thumb')) return streamThumb(env, mtproto, info, username, msgId);
 
   // No Range header means a plain GET — an <img> does this, and it can't use a
   // partial body: answering 206 with a 512KB slice was why every picture came
