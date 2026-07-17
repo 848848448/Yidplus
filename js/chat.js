@@ -245,21 +245,14 @@ function renderChatList() {
 
   // Embedded Telegram channels sit alongside real ones — but only the ones you
   // joined, the same way Telegram only lists channels you're in. Finding a new
-  // one is what search is for; the full list lives there and in the admin panel.
+  // one is what the search button is for (it lists them with a Join), or a link
+  // shared in a group.
   var tgHtml = '';
   if ((CHAT_tab === 'channels' || CHAT_tab === 'all') && !CHAT_activeFolder && CHAT_tgChannels && CHAT_tgChannels.length) {
-    var _q = (CHAT_search || '').toLowerCase();
     tgHtml = CHAT_tgChannels
-      .filter(function (t) {
-        // While searching, everything is fair game — that's how you find one to
-        // join. Otherwise the list is yours only.
-        if (_q) return (t.title || t.username).toLowerCase().indexOf(_q) !== -1;
-        return t.joined;
-      })
+      .filter(function (t) { return t.joined; })
       // A channel that just posted belongs at the top, like any other chat.
-      .sort(function (a, b) {
-        return (b.last_post_at || '').localeCompare(a.last_post_at || '');
-      })
+      .sort(function (a, b) { return (b.last_post_at || '').localeCompare(a.last_post_at || ''); })
       .map(_tgChannelRow).join('');
   }
 
@@ -5013,6 +5006,13 @@ function _runGSearch(q) {
     calls.push(api.get('/channels?search=' + encodeURIComponent(q), true)
       .then(function (res) { return { kind: 'channels', items: res.channels || [] }; })
       .catch(function () { return { kind: 'channels', items: [] }; }));
+    // Telegram channels only list once you've joined them, so search is the
+    // only way to find a new one — it has to look here too. The full set is
+    // already loaded, so this is a local filter rather than another round trip.
+    var tgHits = (CHAT_tgChannels || []).filter(function (t) {
+      return ((t.title || '') + ' ' + t.username).toLowerCase().indexOf(qLower) !== -1;
+    });
+    calls.push(Promise.resolve({ kind: 'tgchannels', items: tgHits }));
   }
   if (tab === 'all' || tab === 'users') {
     calls.push(api.get('/users/search?q=' + encodeURIComponent(q), true)
@@ -5029,7 +5029,7 @@ function _runGSearch(q) {
     var html = '';
     groups.forEach(function (g) {
       if (!g.items.length) return;
-      var label = { chats: 'Your Chats', groups: 'Groups', channels: 'Channels', users: 'Users', messages: 'Messages' }[g.kind];
+      var label = { chats: 'Your Chats', groups: 'Groups', channels: 'Channels', tgchannels: 'Telegram Channels', users: 'Users', messages: 'Messages' }[g.kind];
       html += '<div style="font-size:.68rem;color:var(--muted);font-weight:700;text-transform:uppercase;padding:.5rem .5rem .2rem">' + label + '</div>';
       if (g.kind === 'chats') {
         html += g.items.map(function (r) {
@@ -5050,6 +5050,21 @@ function _runGSearch(q) {
           return '<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();goPage(\'/?channel=\' + encodeURIComponent(\'' + c.owner_id + '\'))">' +
             '<div class="chat-av" style="width:38px;height:38px;font-size:.9rem;background:' + avatarColor(c.owner_id) + '">' + escHtml((c.nickname || '?').slice(0, 1).toUpperCase()) + '</div>' +
             '<div><div style="font-size:.86rem;font-weight:600">@' + escHtml(c.nickname || 'Channel') + '</div><div style="font-size:.68rem;color:var(--muted)">' + fmtN(c.followers || 0) + ' followers</div></div>' +
+          '</div>';
+        }).join('');
+      } else if (g.kind === 'tgchannels') {
+        html += g.items.map(function (t) {
+          var av = t.photo_url
+            ? '<div class="chat-av" style="width:38px;height:38px;background-image:url(' + t.photo_url + ');background-size:cover;background-position:center"></div>'
+            : '<div class="chat-av" style="width:38px;height:38px;font-size:1rem;background:#229ED9;color:#fff">\ud83d\udce8</div>';
+          var join = t.joined
+            ? '<span style="font-size:.68rem;color:var(--muted);margin-left:auto">Joined</span>'
+            : '<button onclick="event.stopPropagation();tgQuickJoin(\'' + escHtml(t.username) + '\',this)" style="margin-left:auto;background:#229ED9;color:#fff;border:none;border-radius:14px;padding:.2rem .8rem;font-size:.7rem;font-weight:700;cursor:pointer">Join</button>';
+          return '<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();openTelegramChannel(\'' + escHtml(t.username) + '\',\'' + escHtml(t.title || t.username).replace(/'/g, "\\'") + '\')">' +
+            av +
+            '<div style="min-width:0"><div style="font-size:.86rem;font-weight:600;unicode-bidi:plaintext;text-align:left;direction:ltr">' + escHtml(t.title || t.username) + '</div>' +
+            '<div style="font-size:.68rem;color:var(--muted)">' + _tgMembersLabel(t.members) + '</div></div>' +
+            join +
           '</div>';
         }).join('');
       } else if (g.kind === 'users') {
