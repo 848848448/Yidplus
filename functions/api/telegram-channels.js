@@ -65,7 +65,10 @@ export async function onRequestGet(context) {
 
     const res = await env.DB.prepare(
       `SELECT c.id, c.username, c.title, c.photo_key, c.created_at,
-              (SELECT COUNT(*) FROM telegram_channel_members m WHERE m.username = c.username) AS members
+              (SELECT COUNT(*) FROM telegram_channel_members m WHERE m.username = c.username) AS members,
+              (SELECT MAX(p.posted_at) FROM telegram_posts p WHERE p.username = c.username) AS last_post_at,
+              (SELECT p.text FROM telegram_posts p WHERE p.username = c.username ORDER BY p.tg_msg_id DESC LIMIT 1) AS last_text,
+              (SELECT p.media_type FROM telegram_posts p WHERE p.username = c.username ORDER BY p.tg_msg_id DESC LIMIT 1) AS last_media
        FROM telegram_channels c
        ORDER BY c.sort_order ASC, c.created_at ASC`
     ).all();
@@ -97,6 +100,11 @@ export async function onRequestGet(context) {
       members: c.members || 0,
       joined: joined.indexOf(c.username) !== -1,
       unread: unreadBy[c.username] || 0,
+      // What the chat list needs to behave like a chat list: when the channel
+      // last posted, and a preview of it.
+      last_post_at: c.last_post_at || null,
+      last_text: c.last_text || '',
+      last_media: c.last_media || '',
       photo_url: c.photo_key ? '/api/media/' + c.photo_key : null,
     }));
 

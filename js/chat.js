@@ -243,13 +243,24 @@ function renderChatList() {
     filtered = _applyFolderFilter(filtered);
   }
 
-  // Embedded Telegram channels appear alongside real channels (Channels + All tabs).
+  // Embedded Telegram channels sit alongside real ones — but only the ones you
+  // joined, the same way Telegram only lists channels you're in. Finding a new
+  // one is what search is for; the full list lives there and in the admin panel.
   var tgHtml = '';
   if ((CHAT_tab === 'channels' || CHAT_tab === 'all') && !CHAT_activeFolder && CHAT_tgChannels && CHAT_tgChannels.length) {
     var _q = (CHAT_search || '').toLowerCase();
-    tgHtml = CHAT_tgChannels.filter(function (t) {
-      return !_q || ((t.title || t.username).toLowerCase().indexOf(_q) !== -1);
-    }).map(_tgChannelRow).join('');
+    tgHtml = CHAT_tgChannels
+      .filter(function (t) {
+        // While searching, everything is fair game — that's how you find one to
+        // join. Otherwise the list is yours only.
+        if (_q) return (t.title || t.username).toLowerCase().indexOf(_q) !== -1;
+        return t.joined;
+      })
+      // A channel that just posted belongs at the top, like any other chat.
+      .sort(function (a, b) {
+        return (b.last_post_at || '').localeCompare(a.last_post_at || '');
+      })
+      .map(_tgChannelRow).join('');
   }
 
   if (!filtered.length && !tgHtml) {
@@ -351,25 +362,55 @@ function _tgChannelRow(t) {
   var av = t.photo_url
     ? '<div class="chat-av chat-av-square" style="background-image:url(' + t.photo_url + ');background-size:cover;background-position:center"></div>'
     : '<div class="chat-av chat-av-square" style="background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem">📨</div>';
-  // Same badge the regular chats use, so the list reads as one thing.
-  var unreadBadge = t.unread
+
+  // A row you've joined reads like any other chat: last message and when.
+  // A search hit you haven't joined shows what it is and offers to join.
+  var preview = t.joined
+    ? (t.last_text ? escHtml(t.last_text.slice(0, 60))
+       : t.last_media ? ({ photo: '📷 Photo', video: '🎥 Video', audio: '🎵 Audio' }[t.last_media] || '📎 File')
+       : _tgMembersLabel(t.members))
+    : _tgMembersLabel(t.members);
+
+  var when = '';
+  if (t.joined && t.last_post_at) { try { when = _fmt12(t.last_post_at); } catch (e) {} }
+
+  var right = t.unread
     ? '<div style="min-width:20px;height:20px;border-radius:10px;background:var(--blue);color:#fff;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px;flex-shrink:0">' + (t.unread > 99 ? '99+' : t.unread) + '</div>'
-    : (t.joined ? '<div style="font-size:.6rem;color:#fff;background:#229ED9;border-radius:8px;padding:1px 6px;flex-shrink:0">Joined</div>' : '');
+    : (!t.joined ? '<button onclick="event.stopPropagation();tgQuickJoin(\'' + uname + '\',this)" style="background:#229ED9;color:#fff;border:none;border-radius:14px;padding:.2rem .7rem;font-size:.68rem;font-weight:700;cursor:pointer;flex-shrink:0">Join</button>' : '');
+
   return '<div class="chat-item-wrap" data-tg="' + uname + '">' +
     '<div class="chat-item' + (t.unread ? ' unread' : '') + '" onclick="openTelegramChannel(\'' + uname + '\',\'' + title.replace(/'/g, "\\'") + '\')">' +
       av +
       '<div style="flex:1;min-width:0">' +
         '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
           '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;text-align:left;unicode-bidi:plaintext;direction:ltr">' + title + '</div>' +
+          (when ? '<div style="font-size:.68rem;color:var(--muted);flex-shrink:0">' + when + '</div>' : '') +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:.4rem">' +
-          '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;font-weight:' + (t.unread ? '500' : '400') + '">' + _tgMembersLabel(t.members) + '</div>' +
-          unreadBadge +
+          '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;unicode-bidi:plaintext;font-weight:' + (t.unread ? '500' : '400') + '">' + preview + '</div>' +
+          right +
         '</div>' +
       '</div>' +
     '</div>' +
   '</div>';
 }
+
+// Join straight from a search hit, without opening the channel first.
+window.tgQuickJoin = function (username, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  api.post('/telegram-join', { username: username }).then(function (res) {
+    if (res.error) { toast('❌ ' + res.error); btn.disabled = false; btn.textContent = 'Join'; return; }
+    for (var i = 0; i < (CHAT_tgChannels || []).length; i++) {
+      if (CHAT_tgChannels[i].username === username) {
+        CHAT_tgChannels[i].joined = res.joined;
+        CHAT_tgChannels[i].members = res.members;
+      }
+    }
+    toast('✅ Joined');
+    renderChatList();
+  }).catch(function (e) { toast('❌ ' + e.message); btn.disabled = false; btn.textContent = 'Join'; });
+};
 
 // Open a Telegram channel as a read-only viewer (no composer), embedding the
 // channel's live feed straight from Telegram (t.me/s/<username>).
