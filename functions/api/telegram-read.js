@@ -1,5 +1,9 @@
 import { json, corsHeaders, requireUser } from './_helpers.js';
 
+// Ran on every request, before doing any actual work. A Worker isolate is
+// reused, so once is enough.
+let _schemaReady = null;
+
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
@@ -16,9 +20,12 @@ export async function onRequestPost(context) {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: true, error: 'Not signed in' });
 
-    await env.DB.prepare(
+    if (!_schemaReady) {
+      _schemaReady = env.DB.prepare(
       'CREATE TABLE IF NOT EXISTS telegram_channel_reads (username TEXT NOT NULL, user_id TEXT NOT NULL, last_read_at TEXT, PRIMARY KEY (username, user_id))'
-    ).run().catch(() => {});
+      ).run().catch(() => {});
+    }
+    await _schemaReady;
 
     const body = await request.json().catch(() => ({}));
     const username = String(body.username || '').replace(/^@/, '').replace(/[^a-zA-Z0-9_]/g, '');

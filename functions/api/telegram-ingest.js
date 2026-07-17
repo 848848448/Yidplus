@@ -4,7 +4,20 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
+// The schema work only needs doing once, not on every request. This ran
+// CREATE TABLE plus fourteen ALTER TABLE ADD COLUMN statements — every one of
+// which throws, because the columns already exist — before serving anything.
+// A Worker isolate is reused across requests, so remembering it here means the
+// cost is paid once per isolate rather than per request.
+let _schemaReady = null;
+
 async function ensureTable(env) {
+  if (_schemaReady) return _schemaReady;
+  _schemaReady = _migrate(env);
+  return _schemaReady;
+}
+
+async function _migrate(env) {
   await env.DB.prepare(
     'CREATE TABLE IF NOT EXISTS telegram_posts (' +
     'id TEXT PRIMARY KEY, username TEXT NOT NULL, tg_msg_id INTEGER NOT NULL, ' +
@@ -19,6 +32,12 @@ async function ensureTable(env) {
   for (const c of cols) {
     await env.DB.prepare('ALTER TABLE telegram_posts ADD COLUMN ' + c).run().catch(() => {});
   }
+  // The unread count joins on username and compares posted_at. Without this it
+  // scans every post in the table — for every user, every time the channel list
+  // refreshes, which is once a minute each.
+  await env.DB.prepare(
+    'CREATE INDEX IF NOT EXISTS idx_tgposts_user_posted ON telegram_posts(username, posted_at)'
+  ).run().catch(() => {});
 }
 
 // POST from the external Telethon worker. Auth via a shared secret.

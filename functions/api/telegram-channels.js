@@ -4,7 +4,18 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
+// Once per isolate, not once per request — this creates four tables and alters
+// another before every single call, and the ALTERs all throw because the
+// columns are already there.
+let _schemaReady = null;
+
 async function ensureTable(env) {
+  if (_schemaReady) return _schemaReady;
+  _schemaReady = _migrate(env);
+  return _schemaReady;
+}
+
+async function _migrate(env) {
   await env.DB.prepare(
     'CREATE TABLE IF NOT EXISTS telegram_channels (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, title TEXT, added_by TEXT, created_at TEXT NOT NULL, sort_order INTEGER DEFAULT 0)'
   ).run().catch(() => {});
@@ -21,6 +32,19 @@ async function ensureTable(env) {
   ).run().catch(() => {});
   await env.DB.prepare(
     'CREATE TABLE IF NOT EXISTS telegram_posts (id TEXT PRIMARY KEY, username TEXT NOT NULL, tg_msg_id INTEGER NOT NULL, text TEXT, media_url TEXT, media_type TEXT, link TEXT, posted_at TEXT, created_at TEXT NOT NULL, UNIQUE(username, tg_msg_id))'
+  ).run().catch(() => {});
+
+  // Every channel-list load counts unread posts per channel and looks up which
+  // channels the caller joined. Neither had an index: the unread count scanned
+  // the whole posts table, and the membership lookup scanned all members —
+  // per user, every minute.
+  await env.DB.prepare(
+    'CREATE INDEX IF NOT EXISTS idx_tgposts_user_posted ON telegram_posts(username, posted_at)'
+  ).run().catch(() => {});
+  // The members PK is (username, user_id), so a lookup BY user_id alone can't
+  // use it.
+  await env.DB.prepare(
+    'CREATE INDEX IF NOT EXISTS idx_tgmembers_user ON telegram_channel_members(user_id)'
   ).run().catch(() => {});
 }
 

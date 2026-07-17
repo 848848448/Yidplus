@@ -14,12 +14,25 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
+let _schemaReady = null;
+
 async function ensureTable(env) {
+  if (_schemaReady) return _schemaReady;
+  _schemaReady = _migrate(env);
+  return _schemaReady;
+}
+
+async function _migrate(env) {
   await env.DB.prepare(
     'CREATE TABLE IF NOT EXISTS telegram_reactions (' +
     'username TEXT NOT NULL, tg_msg_id INTEGER NOT NULL, user_id TEXT NOT NULL, ' +
     'emoji TEXT NOT NULL, created_at TEXT NOT NULL, ' +
     'PRIMARY KEY (username, tg_msg_id, user_id))'
+  ).run().catch(() => {});
+  // Fetching "what did I react to in this channel" filters on username+user_id,
+  // and user_id is the third column of the PK — so that index can't serve it.
+  await env.DB.prepare(
+    'CREATE INDEX IF NOT EXISTS idx_tgreactions_user ON telegram_reactions(username, user_id)'
   ).run().catch(() => {});
 }
 
