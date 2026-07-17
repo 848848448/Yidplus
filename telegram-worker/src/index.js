@@ -635,12 +635,22 @@ async function streamMedia(env, request, ctx) {
   try {
     bytes = await readSlice(env, mtproto, info, username, msgId, alignedStart);
   } catch (e) {
+    const msg = e.error_message || e.message || '';
     // A stale file_reference is the usual cause — rebuild it once and retry.
-    if (/FILE_REFERENCE/i.test(e.error_message || '')) {
+    if (/FILE_REFERENCE/i.test(msg)) {
       info = await fileLocation(env, mtproto, username, msgId, true);
       bytes = await readSlice(env, mtproto, info, username, msgId, alignedStart);
+    } else if (/FLOOD_WAIT/i.test(msg)) {
+      // Telegram is rate-limiting us. 503 + Retry-After is the honest answer:
+      // players back off and try again, where a 502 reads as "this file is
+      // broken" and they give up on it for good.
+      const secs = Number(msg.split('FLOOD_WAIT_')[1]) || 5;
+      return new Response('Rate limited by Telegram, retrying shortly', {
+        status: 503,
+        headers: { 'Retry-After': String(Math.min(secs, 30)), 'Access-Control-Allow-Origin': '*' },
+      });
     } else {
-      return new Response('Stream error: ' + (e.error_message || e.message), { status: 502 });
+      return new Response('Stream error: ' + msg, { status: 502 });
     }
   }
   if (!bytes || !bytes.length) return new Response('', { status: 416 });

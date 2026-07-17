@@ -572,12 +572,19 @@ function _xPostCard(p, username, chTitle) {
   var media = '';
   if (src) {
     if (p.media_type === 'video') {
-      // preload=metadata, not none: it fetches the file's head on render, which
-      // both fills in the duration and — because serving a slice also warms the
-      // next few — leaves the opening seconds cached before anyone presses play.
-      // With preload=none the player started from a cold cache and stalled
-      // immediately, which is exactly when the stutter was worst.
-      media = '<div style="position:relative;margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><video src="' + src + '" controls playsinline preload="metadata" style="width:100%;display:block;background:#000"></video>' + stamp + '</div>';
+      // preload=none. It was 'metadata', to fetch the head on render so the
+      // duration showed and the opening seconds warmed up — but that's one
+      // request per post, and each of those warms four more, so opening a
+      // channel of twenty videos fired ~100 requests at once, each building its
+      // own MTProto connection. Telegram answers that with FLOOD_WAIT and the
+      // slices start failing at random: some posts play, some don't, and it
+      // changes every time.
+      //
+      // The duration no longer needs probing for — it comes with the post now
+      // (media_duration), and the card shows it. So nothing is fetched until
+      // someone actually presses play, and then the prefetch has the field to
+      // itself.
+      media = '<div style="position:relative;margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><video src="' + src + '" controls playsinline preload="none" style="width:100%;display:block;background:#000"></video>' + stamp + '</div>';
     } else if (p.media_type === 'audio') {
       // Telegram shows a track as a card — name, performer, running time — not a
       // bare player reading 0:00. All of that rides along in the post now, so
@@ -1028,7 +1035,7 @@ function _tgAlbumCard(group, username, chTitle) {
     var src = p.media_url || (base.replace(/\/$/, '') + '/media?ch=' + encodeURIComponent(username) + '&id=' + p.tg_msg_id);
     var span = (group.length % 2 === 1 && idx === group.length - 1) ? 'grid-column:1/-1;' : '';
     var inner = p.media_type === 'video'
-      ? '<video src="' + src + '" controls playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;display:block;background:#000"></video>'
+      ? '<video src="' + src + '" controls playsinline preload="none" style="width:100%;height:100%;object-fit:cover;display:block;background:#000"></video>'
       : '<img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;height:100%;object-fit:cover;display:block;cursor:pointer" loading="lazy">';
     return '<div style="position:relative;' + span + 'aspect-ratio:1;overflow:hidden;border-radius:6px">' + inner + stamp + '</div>';
   }).join('');
