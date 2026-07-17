@@ -2917,12 +2917,80 @@ function buildGrowthPanel(content) {
 /* ══════════════════════════════════
    ANTI-SPAM & WELCOME
 ══════════════════════════════════ */
+// Flipping this on with broken email delivery locks everyone out of signing up,
+// so the switch and the test sit together and the warning stays until it's on.
+// Goes through email-verify-toggle rather than writing the setting directly:
+// that endpoint also grandfathers existing accounts, which is what stops the
+// switch locking out everyone who signed up before the column existed.
+window.asSaveVerify = function (on) {
+  var lbl = document.querySelector('#as-verify + span');
+  api.post('/admin/email-verify-toggle', { enabled: on }).then(function (res) {
+    if (!res.ok) {
+      toast('❌ ' + (res.error || 'Failed'));
+      var cb = document.getElementById('as-verify');
+      if (cb) cb.checked = !on;   // put the switch back where it was
+      return;
+    }
+    if (STATE.settings) STATE.settings.require_email_verify = on ? 'true' : 'false';
+    if (lbl) lbl.textContent = on ? 'On' : 'Off';
+    var warn = document.getElementById('as-verify-warn');
+    if (warn) warn.style.display = on ? 'none' : '';
+    toast(on
+      ? '✅ New accounts must verify' + (res.grandfathered ? ' · ' + res.grandfathered + ' existing accounts kept their access' : '')
+      : 'Email verification off');
+  }).catch(function (e) {
+    toast('❌ ' + e.message);
+    var cb = document.getElementById('as-verify');
+    if (cb) cb.checked = !on;
+  });
+};
+
+window.asTestEmail = function () {
+  var out = document.getElementById('as-test-out');
+  if (out) { out.style.color = 'var(--muted)'; out.textContent = 'Sending…'; }
+  // No recipient = the endpoint sends to the signed-in owner.
+  api.post('/admin/email-test', {}).then(function (res) {
+    if (!out) return;
+    if (res.ok) {
+      out.style.color = 'var(--green,#1F6F5C)';
+      out.textContent = '✅ Sent. Check your inbox (and spam). If it arrived, verification is safe to switch on.';
+    } else {
+      out.style.color = 'var(--red)';
+      out.textContent = '❌ ' + (res.error || 'Failed') + (res.resend_status ? ' (Resend ' + res.resend_status + ')' : '');
+    }
+  }).catch(function (e) {
+    if (out) { out.style.color = 'var(--red)'; out.textContent = '❌ ' + e.message; }
+  });
+};
+
 function buildAntispamPanel(content) {
   var s = STATE.settings || {};
   var rateMax = s.register_rate_max || '5';
   var welEnabled = s.welcome_enabled === 'true';
   var welMsg = s.welcome_message || '';
+  var verifyOn = s.require_email_verify === 'true';
   content.innerHTML = '<div class="admin-panel">' +
+    // The site has always been able to do this — register.js sends the email
+    // and verify-email.js handles the click — it was just never switched on,
+    // and there was nowhere in the UI to switch it on.
+    '<div class="admin-card">' +
+      '<div class="admin-card-title">📧 Require email verification</div>' +
+      '<div style="font-size:.76rem;color:var(--muted);margin-bottom:.8rem;line-height:1.5">' +
+        'New accounts must click a link sent to their email before they can use the site. Someone who typed an address that isn\'t theirs never gets in.<br>' +
+        '<b>This is the only way to check an address is real.</b> No site can verify someone\'s email password — not even their email provider can, and any site that asks for it is a phishing attempt.' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap">' +
+        '<label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">' +
+          '<input type="checkbox" id="as-verify" ' + (verifyOn ? 'checked' : '') + ' onchange="asSaveVerify(this.checked)" style="width:18px;height:18px;cursor:pointer">' +
+          '<span style="font-size:.9rem;font-weight:600">' + (verifyOn ? 'On' : 'Off') + '</span>' +
+        '</label>' +
+        '<button class="save-pill" onclick="asTestEmail()" style="margin-left:auto">Send test email</button>' +
+      '</div>' +
+      '<div id="as-verify-warn" style="font-size:.74rem;color:var(--red);margin-top:.6rem;' + (verifyOn ? 'display:none' : '') + '">' +
+        '⚠️ Test that emails actually arrive before switching this on — if they don\'t, nobody will be able to register at all.' +
+      '</div>' +
+      '<div id="as-test-out" style="font-size:.76rem;margin-top:.5rem"></div>' +
+    '</div>' +
     '<div class="admin-card">' +
       '<div class="admin-card-title">🛡 Anti-spam</div>' +
       '<div style="font-size:.76rem;color:var(--muted);margin-bottom:.8rem">Cap how many new accounts one IP can create per hour. Stops bot floods when you open to the public.</div>' +

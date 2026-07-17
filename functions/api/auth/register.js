@@ -187,7 +187,13 @@ export async function onRequestPost(context) {
       await env.DB.prepare('UPDATE users SET email_verified = 1 WHERE id = ?').bind(userId).run().catch(() => {});
     }
 
-    const headers = { ...corsHeaders, 'Set-Cookie': `yp_session=${sessionId}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=2592000` };
+    // Only hand out a session if the address doesn't need proving. Registering
+    // used to log you straight in either way, which made the whole requirement
+    // decorative: an address that wasn't yours still got you a working account,
+    // and the verification mail simply went to a stranger.
+    const headers = requireVerify
+      ? { ...corsHeaders }
+      : { ...corsHeaders, 'Set-Cookie': `yp_session=${sessionId}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=2592000` };
     return new Response(JSON.stringify({ ok: true, user: { id: userId, email, nickname, role, verified: 0 }, email_verify_required: requireVerify }), { status: 201, headers: { 'Content-Type': 'application/json', ...headers } });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);

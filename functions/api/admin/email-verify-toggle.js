@@ -26,10 +26,27 @@ export async function onRequestPost(context) {
     }
 
     const { enabled } = await request.json();
+
+    // Grandfather everyone who already has an account. email_verified only
+    // started being set when that column was added, so older accounts are NULL
+    // — and login refuses those while this is on, with no way for them to fix
+    // it: the verification mail only goes out at registration, which they're
+    // long past. Switching this on would have locked out the existing
+    // community. The point is to stop NEW fake addresses, so it applies from
+    // here forward; people already using the site have proven themselves by
+    // using it.
+    let grandfathered = 0;
+    if (enabled) {
+      const res = await env.DB.prepare(
+        'UPDATE users SET email_verified = 1 WHERE email_verified IS NULL OR email_verified = 0'
+      ).run().catch(() => null);
+      grandfathered = (res && res.meta && res.meta.changes) || 0;
+    }
+
     await env.DB.prepare(
       "INSERT INTO app_settings (key, value, updated_at) VALUES ('require_email_verify', ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=datetime('now')"
     ).bind(enabled ? 'true' : 'false').run();
 
-    return json({ ok: true, enabled: !!enabled });
+    return json({ ok: true, enabled: !!enabled, grandfathered });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
 }

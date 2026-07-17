@@ -87,7 +87,7 @@ export async function onRequestPost(context) {
     }
 
     const user = await env.DB.prepare(
-      'SELECT id, email, nickname, role, verified, blocked, password_hash FROM users WHERE email = ?'
+      'SELECT id, email, nickname, role, verified, email_verified, blocked, password_hash FROM users WHERE email = ?'
     ).bind(email).first();
 
     let loginOk = false;
@@ -110,6 +110,23 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: 'Invalid email or password' }, 401);
     }
     if (user.blocked) return json({ ok: false, error: 'Account suspended. Contact support.' }, 403);
+
+    // The requirement is only meaningful if it's actually enforced here: the
+    // password being right doesn't prove the address belongs to them. Checked
+    // at login rather than baked into the account, so turning the setting on
+    // applies to everyone from that moment, and turning it off lets them in
+    // again — accounts made while it was off are already marked verified.
+    const verifySetting = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'require_email_verify'"
+    ).first().catch(() => null);
+    if (verifySetting && verifySetting.value === 'true' && !user.email_verified) {
+      return json({
+        ok: false,
+        error: 'Please confirm your email address first — check your inbox for the link we sent.',
+        needs_verification: true,
+        email: user.email,
+      }, 403);
+    }
 
     const sessionId = generateSessionToken();
     const now = new Date().toISOString();
