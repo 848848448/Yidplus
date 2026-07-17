@@ -1,9 +1,18 @@
-// YID PLUS Service Worker v6 — Force fresh files
-const CACHE_NAME = 'yidplus-v8';
-const CACHE_CSS  = 'yidplus-css-v7';
+// YID PLUS Service Worker v7
+const CACHE_NAME = 'yidplus-v9';
+const CACHE_CSS  = 'yidplus-css-v8';
+const CACHE_JS   = 'yidplus-js-v1';
 
-// JS and HTML — always fetch fresh (never cache)
-const NEVER_CACHE = ['.js', '.html', '/api/'];
+// HTML and API — always fresh. HTML is what points at the current build, so it
+// must never be stale; API responses are live data.
+//
+// .js used to be on this list, from back when a deploy could leave you looking
+// at the old app. It isn't the fix any more and it costs a great deal: every
+// script now carries ?v=<build>, so a new deploy is a NEW URL and a cached copy
+// can't go stale — but the worker was still pulling ~550KB over the network on
+// every single page load, which also quietly cancelled out the immutable
+// Cache-Control headers. Versioned scripts are cached below instead.
+const NEVER_CACHE = ['.html', '/api/'];
 
 // CSS — cache with stale-while-revalidate
 const CSS_PATTERNS = ['.css'];
@@ -19,7 +28,7 @@ self.addEventListener('activate', function (e) {
   e.waitUntil(
     caches.keys().then(function (keys) {
       return Promise.all(
-        keys.filter(function (k) { return k !== CACHE_CSS && k !== CACHE_NAME; })
+        keys.filter(function (k) { return k !== CACHE_CSS && k !== CACHE_NAME && k !== CACHE_JS; })
             .map(function (k) { return caches.delete(k); })
       );
     }).then(function () { return self.clients.claim(); })
@@ -92,6 +101,35 @@ self.addEventListener('fetch', function (e) {
     e.respondWith(
       fetch(e.request).catch(function () {
         return new Response('Offline', { status: 503 });
+      })
+    );
+    return;
+  }
+
+  // Versioned scripts — cache first. The ?v= is the build, so the URL changes
+  // whenever the file does; there's nothing to go stale. An unversioned script
+  // has no such guarantee, so it falls through to the network below.
+  if (path.endsWith('.js') && new URL(url).searchParams.has('v')) {
+    e.respondWith(
+      caches.open(CACHE_JS).then(function (cache) {
+        return cache.match(e.request).then(function (cached) {
+          if (cached) return cached;
+          return fetch(e.request).then(function (res) {
+            if (res && res.status === 200) {
+              cache.put(e.request, res.clone());
+              // Each deploy is a new URL, so without this the cache would grow
+              // by the whole bundle every time and never let go. Drop older
+              // builds of this same file.
+              cache.keys().then(function (keys) {
+                keys.forEach(function (k) {
+                  var ku = new URL(k.url);
+                  if (ku.pathname === path && k.url !== url) cache.delete(k);
+                });
+              });
+            }
+            return res;
+          });
+        });
       })
     );
     return;

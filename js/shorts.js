@@ -25,8 +25,8 @@ function loadShortsFeed() {
   var cont = document.getElementById('swipe-cont');
   if (!cont) return;
   // Lock scroll to snap exactly one slide at a time
-  cont.style.cssText = 'height:100vh;width:100%;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:none';
-  cont.innerHTML = '<div class="feed-state" style="height:100vh;color:#fff"><div class="spinner"></div><div>Loading shorts...</div></div>';
+  cont.style.cssText = 'height:100dvh;width:100%;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:none';
+  cont.innerHTML = '<div class="feed-state" style="height:100dvh;color:#fff"><div class="spinner"></div><div>Loading shorts...</div></div>';
 
   api.get('/shorts')
     .then(function (res) {
@@ -47,7 +47,7 @@ function loadShortsFeed() {
       if (sharedId) _scrollToSharedShort(sharedId);
     })
     .catch(function (err) {
-      cont.innerHTML = '<div class="feed-state" style="height:100vh;color:#fff">' +
+      cont.innerHTML = '<div class="feed-state" style="height:100dvh;color:#fff">' +
         '<div style="font-size:2.5rem">⚠️</div><div>Could not load shorts</div>' +
         '<div style="font-size:.75rem;opacity:.7">' + escHtml(err.message) + '</div>' +
         '<button class="feed-retry" onclick="loadShortsFeed()">Try Again</button></div>';
@@ -81,7 +81,7 @@ function renderShorts() {
   if (!cont) return;
 
   if (!SHORTS_data.length) {
-    cont.innerHTML = '<div class="feed-state" style="height:100vh;color:#fff">' +
+    cont.innerHTML = '<div class="feed-state" style="height:100dvh;color:#fff">' +
       '<div style="font-size:2.5rem">🎬</div><div>No shorts yet</div>' +
       '<div style="font-size:.75rem;opacity:.7">Tap + to upload the first one!</div></div>';
     return;
