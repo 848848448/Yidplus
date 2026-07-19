@@ -163,6 +163,7 @@ window.closeChatRoom = function () {
   _stopTypingPoll();
   CHAT_curRoom = null;
   TG_curChannel = null;
+  if (typeof _tgStopLivePoll === 'function') _tgStopLivePoll();
   var _jb = document.getElementById('tg-join-bar');
   if (_jb) _jb.remove();   // a Telegram channel's Join bar shouldn't outlive it
   // Only rewrite the URL if we're not already being driven BY the URL — when
@@ -496,6 +497,8 @@ window.openTelegramChannel = function (username, title) {
     if (!posts.length) {
       if (state) state.innerHTML = 'No posts here yet.<br><span style="font-size:.75rem">Posts appear once the Telegram sync has run.</span>' +
         '<br><br><a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9;font-weight:600">Open @' + username + ' in Telegram →</a>';
+      TG_posts = [];
+      _tgStartLivePoll(username);   // so the first posts appear live once synced
       return;
     }
     if (state) state.remove();
@@ -506,6 +509,7 @@ window.openTelegramChannel = function (username, title) {
 
     slot.innerHTML = _tgRenderPosts(ordered, username, title);
     _tgInitScroll(ordered.length);
+    _tgStartLivePoll(username);   // keep the open channel live
   }).catch(function (e) {
     var state = document.getElementById('tg-feed-state');
     if (state) state.innerHTML = 'Could not load posts (' + (e && e.message ? e.message : 'error') + ').';
@@ -6550,3 +6554,87 @@ window.clearAIChat = function () {
     }).catch(function (e) { toast('❌ ' + e.message); });
   });
 };
+
+/* ══════════════════════════════════════════════════════════════════════
+   TELEGRAM CHANNELS — live refresh while a channel is open.
+   Polls for NEW posts and APPENDS them; never re-renders existing posts, so
+   a playing voice note / video and the media viewer are left untouched.
+   Self-stops on channel close (closeChatRoom) or when the view is gone.
+   ═════════════════════════════════════════════════════════════════════ */
+var TG_livePollTimer = null;
+
+function _tgStopLivePoll() {
+  if (TG_livePollTimer) { clearInterval(TG_livePollTimer); TG_livePollTimer = null; }
+}
+
+function _tgStartLivePoll(username) {
+  _tgStopLivePoll();
+  TG_livePollTimer = setInterval(function () {
+    // Stop cleanly if we've navigated away or the feed is gone.
+    if (TG_curChannel !== username || !document.getElementById('tg-feed-scroll')) {
+      _tgStopLivePoll(); return;
+    }
+    if (document.hidden) return;   // don't poll a backgrounded tab
+
+    api.get('/telegram-ingest?username=' + encodeURIComponent(username))
+      .then(function (res) {
+        if (TG_curChannel !== username) return;         // changed mid-flight
+        var posts = (res && res.posts) || [];
+        if (!posts.length) return;
+
+        var slot = document.getElementById('tg-feed-slot');
+        var box = document.getElementById('tg-feed-scroll');
+        if (!slot || !box) return;
+
+        // First posts arriving into a channel that was empty → do the normal
+        // initial render once (nothing is playing yet, so this is safe).
+        if (!TG_posts || !TG_posts.length) {
+          var st = document.getElementById('tg-feed-state');
+          if (st) st.remove();
+          var first = posts.slice().sort(function (a, b) { return a.tg_msg_id - b.tg_msg_id; });
+          TG_posts = first;
+          slot.innerHTML = _tgRenderPosts(first, username, TG_curTitle);
+          _tgInitScroll(first.length);
+          return;
+        }
+
+        // Otherwise append ONLY posts newer than the newest we already show.
+        var maxId = 0;
+        for (var i = 0; i < TG_posts.length; i++) if (TG_posts[i].tg_msg_id > maxId) maxId = TG_posts[i].tg_msg_id;
+        var fresh = posts.filter(function (p) { return p.tg_msg_id > maxId; })
+                         .sort(function (a, b) { return a.tg_msg_id - b.tg_msg_id; });
+        if (!fresh.length) return;
+
+        var atBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 120;
+
+        var html = _tgRenderPosts(fresh, username, TG_curTitle);
+        // Drop a leading day-divider if the newest existing post is the same
+        // calendar day, so we don't repeat "Today" mid-feed.
+        try {
+          var lastP = TG_posts[TG_posts.length - 1];
+          var sameDay = lastP && fresh[0] && lastP.posted_at && fresh[0].posted_at &&
+            new Date(lastP.posted_at).toDateString() === new Date(fresh[0].posted_at).toDateString();
+          if (sameDay) {
+            html = html.replace(/^<div style="display:flex;justify-content:center;margin:\.5rem 0 \.6rem">.*?<\/span><\/div>/, '');
+          }
+        } catch (e) {}
+
+        slot.insertAdjacentHTML('beforeend', html);
+        for (var k = 0; k < fresh.length; k++) TG_posts.push(fresh[k]);
+
+        if (atBottom) {
+          box.scrollTop = box.scrollHeight;      // follow along at the bottom
+        } else {
+          TG_newCount += fresh.length;           // otherwise flag them on the jump button
+          var jb = document.getElementById('tg-jump-badge');
+          var jbtn = document.getElementById('tg-jump');
+          if (jb) { jb.textContent = TG_newCount; jb.style.display = 'block'; }
+          if (jbtn) jbtn.style.display = 'flex';
+        }
+
+        // Reading a channel marks it read, like the initial open does.
+        api.post('/telegram-read', { username: username }).catch(function () {});
+      })
+      .catch(function () { /* transient — try again next tick */ });
+  }, 25000);
+}
