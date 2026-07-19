@@ -17,6 +17,12 @@ database_id  = "cfedf9e5-8c65-4f6f-995d-9f7c93eeeb45"
 binding     = "MY_BUCKET"
 bucket_name = "yidplus-media"
 
+# ── WORKERS AI (free tier: 10k neurons/day) ──────────────
+# Powers YID PLUS AI. No external account/key needed — this binding gives the
+# Functions access to Cloudflare's hosted models via env.AI.
+[ai]
+binding = "AI"
+
 # ── ENVIRONMENT VARIABLES ────────────────────────────────
 [vars]
 OWNER_EMAIL = "avrumy5872877@gmail.com"
@@ -38,3 +44,6 @@ database_id  = "cfedf9e5-8c65-4f6f-995d-9f7c93eeeb45"
 [[env.production.r2_buckets]]
 binding     = "MY_BUCKET"
 bucket_name = "yidplus-media"
+
+[env.production.ai]
+binding = "AI"
