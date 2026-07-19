@@ -9,7 +9,7 @@
 // before the PIN is even considered, and rate-limits guesses since a
 // 4-digit PIN only has 10,000 possibilities.
 
-import { json, corsHeaders, requireUser, isAdminRole } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, logAttack, clientIp } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -43,48 +43,20 @@ export async function onRequestPost(context) {
     }
 
     if (pin !== expected) {
-      const ip = (request.headers.get('CF-Connecting-IP') ||
-                  request.headers.get('X-Forwarded-For') || '').split(',')[0].trim();
+      const ip = clientIp(request);
 
       await env.DB.prepare(
         `INSERT INTO login_logs (id, user_id, ip, fingerprint, action, created_at) VALUES (?, ?, ?, ?, 'admin_pin_fail', ?)`
       ).bind(crypto.randomUUID(), user.id, ip, null, new Date().toISOString()).run().catch(() => {});
 
-      // Also surface it in the Attacks panel with full geo/browser data, so a
-      // wall of wrong-PIN guesses shows up next to every other intrusion
-      // attempt — not buried in a separate table the owner never sees. This is
-      // someone who already got past the email gate and is now guessing the
-      // second factor, which is exactly the kind of thing the owner wants to
-      // watch. Best-effort, in the background, never blocks the response.
-      try {
-        const cf = request.cf || {};
-        const work = (async () => {
-          await env.DB.prepare(
-            `CREATE TABLE IF NOT EXISTS attack_logs (
-               id TEXT PRIMARY KEY, ip TEXT, country TEXT, city TEXT, region TEXT,
-               asn TEXT, method TEXT, path TEXT, attack_type TEXT, user_agent TEXT,
-               referer TEXT, status INTEGER, created_at TEXT
-             )`
-          ).run().catch(() => {});
-          // The account being used to guess is worth attributing — a wrong PIN
-          // under a real admin login. Folded into the path, which the Attacks
-          // panel already displays.
-          const acctPath = ('/api/admin/verify-pin  (acct: ' + (user.email || user.id || '?') + ')').slice(0, 500);
-          await env.DB.prepare(
-            `INSERT INTO attack_logs
-               (id, ip, country, city, region, asn, method, path, attack_type, user_agent, referer, status, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, 'POST', ?, 'Admin PIN guess', ?, '', 401, datetime('now'))`
-          ).bind(
-            crypto.randomUUID(), (ip || 'unknown').slice(0, 64),
-            (request.headers.get('CF-IPCountry') || cf.country || '').slice(0, 8),
-            (cf.city || '').slice(0, 80), (cf.region || '').slice(0, 80),
-            (cf.asOrganization || (cf.asn ? ('AS' + cf.asn) : '')).slice(0, 120),
-            acctPath,
-            (request.headers.get('User-Agent') || '').slice(0, 400)
-          ).run().catch(() => {});
-        })();
-        if (context.waitUntil) context.waitUntil(work);
-      } catch (e) { /* logging must never break the PIN check */ }
+      // Also surface it in the Attacks panel with full geo/device intel. A wall
+      // of wrong-PIN guesses means someone already got past the email gate and
+      // is now attacking the second factor — exactly what the owner wants to
+      // watch. The account used to guess is folded into the displayed path.
+      logAttack(context, 'Admin PIN guess', 401, {
+        method: 'POST',
+        path: '/api/admin/verify-pin  (acct: ' + (user.email || user.id || '?') + ')',
+      });
 
       return json({ ok: false, error: 'Incorrect PIN.' }, 401);
     }

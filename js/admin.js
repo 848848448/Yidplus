@@ -2402,14 +2402,23 @@ function buildSecurityPanel(content) {
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
         '<div class="admin-card-title" style="display:flex;justify-content:space-between;align-items:center">' +
-          '<span>🛡️ Security — Blocked Attack Attempts</span>' +
+          '<span>&#128737;&#65039; Security &mdash; Intrusion Log</span>' +
           '<button class="save-pill" style="font-size:.62rem;background:var(--red)" onclick="adminClearSecurityLog()">Clear log</button>' +
         '</div>' +
         '<div id="security-stats" style="display:flex;gap:.5rem;margin:.4rem 0 .7rem"></div>' +
-        '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.6rem;line-height:1.4">' +
-          'These requests were <strong>automatically blocked</strong> by the site\'s defenses before they could do anything. ' +
-          'This list shows who tried, from where, and what they attempted.' +
+        '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem;line-height:1.45">' +
+          'Every request below was <strong>automatically blocked</strong> before it could do anything. ' +
+          'For each one you can see where it came from, everything the attacker\'s own request revealed, ' +
+          'and block them &mdash; by their address, their whole country, or their whole network &mdash; so ' +
+          'they can\'t reach any part of the site again. Repeat attackers are banned automatically.' +
         '</div>' +
+      '</div>' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">&#128260; Repeat offenders</div>' +
+        '<div id="security-offenders"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">&#128220; Every attempt</div>' +
         '<div id="security-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
       '</div>' +
     '</div>';
@@ -2418,58 +2427,207 @@ function buildSecurityPanel(content) {
     .then(function (res) {
       var logs = res.logs || [];
       var stats = res.stats || {};
-      var statsEl = document.getElementById('security-stats');
-      if (statsEl) {
-        var card = function (n, label, color) {
-          return '<div style="flex:1;background:var(--card2,rgba(0,0,0,.06));border-radius:10px;padding:.5rem .3rem;text-align:center">' +
-            '<div style="font-size:1.15rem;font-weight:800;color:' + color + '">' + (n || 0) + '</div>' +
-            '<div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em">' + label + '</div>' +
-          '</div>';
-        };
-        statsEl.innerHTML =
-          card(stats.total, 'Total blocked', 'var(--text)') +
-          card(stats.last24, 'Last 24h', 'var(--gold)') +
-          card(stats.unique_ips, 'Unique IPs', 'var(--red)');
-      }
+      var offenders = res.offenders || [];
+      var banned = res.banned || [];
 
-      var el = document.getElementById('security-list');
-      if (!el) return;
-      if (!logs.length) {
-        el.innerHTML = '<div style="padding:1.2rem;text-align:center;font-size:.8rem;color:var(--muted)">' +
-          '✅ No attacks recorded. The site is quiet.</div>';
-        return;
-      }
-
-      el.innerHTML = logs.map(function (l) {
-        var color = _attackColor(l.attack_type);
-        var flag = _flagEmoji(l.country);
-        var loc = [l.city, l.region, l.country].filter(Boolean).join(', ');
-        var net = l.asn ? (' · ' + escHtml(l.asn)) : '';
-        var safeIp = (l.ip || '').replace(/'/g, '');
-
-        return '<div style="padding:.6rem 0;border-bottom:.5px solid var(--border)">' +
-          '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">' +
-            '<div style="min-width:0;flex:1">' +
-              '<span style="display:inline-block;font-size:.62rem;font-weight:700;color:#fff;background:' + color + ';padding:.12rem .4rem;border-radius:5px;margin-bottom:.25rem">' +
-                escHtml(l.attack_type || 'Blocked') + '</span>' +
-              '<div style="font-size:.78rem;font-weight:700;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
-                (flag ? flag + ' ' : '') + escHtml(l.ip || '—') + '</div>' +
-              (loc ? '<div style="font-size:.66rem;color:var(--muted)">📍 ' + escHtml(loc) + net + '</div>' : (net ? '<div style="font-size:.66rem;color:var(--muted)">' + net.replace(/^ · /, '') + '</div>' : '')) +
-              '<div style="font-size:.66rem;color:var(--muted);font-family:monospace;margin-top:.15rem;word-break:break-all">' +
-                escHtml(l.method || '') + ' ' + escHtml(l.path || '') + '</div>' +
-              (l.user_agent ? '<div style="font-size:.6rem;color:var(--muted);margin-top:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🖥️ ' + escHtml(l.user_agent) + '</div>' : '') +
-              '<div style="font-size:.62rem;color:var(--muted);margin-top:.15rem">🕐 ' + timeAgo(l.created_at) + '</div>' +
-            '</div>' +
-            '<button class="save-pill" style="font-size:.62rem;flex-shrink:0" onclick="adminQuickBanIp(\'' + escHtml(safeIp) + '\')">🚫 Ban</button>' +
-          '</div>' +
-        '</div>';
-      }).join('');
+      _secRenderStats(stats);
+      _secRenderOffenders(offenders, banned);
+      _secRenderFeed(logs, banned);
     })
     .catch(function (err) {
       var el = document.getElementById('security-list');
       if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
     });
 }
+
+// Is a source already banned? Checks its exact IP, its whole country, and its
+// whole network against the ban list returned by the server.
+function _secIsBanned(ip, country, asnNum, banned) {
+  if (!banned || !banned.length) return false;
+  if (ip && banned.indexOf(ip) >= 0) return true;
+  if (country && banned.indexOf('country:' + country.toUpperCase()) >= 0) return true;
+  if (asnNum && banned.indexOf('asn:' + asnNum) >= 0) return true;
+  return false;
+}
+
+function _secRenderStats(stats) {
+  var statsEl = document.getElementById('security-stats');
+  if (!statsEl) return;
+  var card = function (n, label, color) {
+    return '<div style="flex:1;background:var(--card2,rgba(0,0,0,.06));border-radius:10px;padding:.5rem .3rem;text-align:center">' +
+      '<div style="font-size:1.15rem;font-weight:800;color:' + color + '">' + (n || 0) + '</div>' +
+      '<div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em">' + label + '</div>' +
+    '</div>';
+  };
+  statsEl.innerHTML =
+    card(stats.total, 'Total blocked', 'var(--text)') +
+    card(stats.last24, 'Last 24h', 'var(--gold)') +
+    card(stats.unique_ips, 'Unique IPs', 'var(--red)');
+}
+
+function _secRenderOffenders(offenders, banned) {
+  var el = document.getElementById('security-offenders');
+  if (!el) return;
+  if (!offenders.length) {
+    el.innerHTML = '<div style="font-size:.75rem;color:var(--muted);padding:.4rem 0">No repeat sources yet.</div>';
+    return;
+  }
+  el.innerHTML = offenders.map(function (o) {
+    var flag = _flagEmoji(o.country);
+    var loc = [o.city, o.country].filter(Boolean).join(', ');
+    var net = o.asn ? escHtml(o.asn) : '';
+    var isBanned = _secIsBanned(o.ip, o.country, null, banned);
+    var safeIp = (o.ip || '').replace(/'/g, '');
+    var safeCc = (o.country || '').replace(/'/g, '');
+
+    var right = isBanned
+      ? '<span style="font-size:.62rem;font-weight:700;color:var(--red);white-space:nowrap">&#9989; Banned</span>'
+      : '<button class="save-pill" style="font-size:.6rem;flex-shrink:0" onclick="secBanIp(\'' + safeIp + '\')">&#128683; Ban IP</button>';
+
+    return '<div style="padding:.55rem 0;border-bottom:.5px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:.5rem">' +
+      '<div style="min-width:0;flex:1">' +
+        '<div style="font-size:.8rem;font-weight:700;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+          (flag ? flag + ' ' : '') + escHtml(o.ip || '&mdash;') +
+          ' <span style="color:var(--red);font-weight:800">&times;' + (o.hits || 0) + '</span></div>' +
+        (loc ? '<div style="font-size:.64rem;color:var(--muted)">&#128205; ' + escHtml(loc) + (net ? ' &middot; ' + net : '') + '</div>' : (net ? '<div style="font-size:.64rem;color:var(--muted)">' + net + '</div>' : '')) +
+        '<div style="font-size:.6rem;color:var(--muted);margin-top:.1rem">first ' + timeAgo(o.first_seen) + ' &middot; last ' + timeAgo(o.last_seen) + '</div>' +
+        (safeCc ? '<div style="margin-top:.3rem;display:flex;gap:.3rem;flex-wrap:wrap">' +
+            (isBanned ? '' : '<button class="save-pill" style="font-size:.58rem;background:var(--muted)" onclick="secBanCountry(\'' + safeCc + '\')">&#127760; Ban ' + escHtml(safeCc) + '</button>') +
+            '<a href="https://www.abuseipdb.com/check/' + encodeURIComponent(o.ip || '') + '" target="_blank" rel="noopener" class="save-pill" style="font-size:.58rem;background:var(--muted);text-decoration:none;display:inline-block">&#128269; Report</a>' +
+          '</div>' : '') +
+      '</div>' +
+      '<div style="flex-shrink:0">' + right + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function _secRenderFeed(logs, banned) {
+  var el = document.getElementById('security-list');
+  if (!el) return;
+  if (!logs.length) {
+    el.innerHTML = '<div style="padding:1.2rem;text-align:center;font-size:.8rem;color:var(--muted)">' +
+      '&#9989; No attacks recorded. The site is quiet.</div>';
+    return;
+  }
+
+  el.innerHTML = logs.map(function (l, idx) {
+    var color = _attackColor(l.attack_type);
+    var flag = _flagEmoji(l.country);
+    var loc = [l.city, l.region, l.country].filter(Boolean).join(', ');
+    var net = l.asn ? (' &middot; ' + escHtml(l.asn)) : '';
+    var safeIp = (l.ip || '').replace(/'/g, '');
+    var meta = {};
+    try { meta = JSON.parse(l.meta || '{}'); } catch (e) { meta = {}; }
+    var asnNum = meta.asnNum || '';
+    var isBanned = _secIsBanned(l.ip, l.country, asnNum, banned);
+
+    var actionBtn = isBanned
+      ? '<span style="font-size:.62rem;font-weight:700;color:var(--red);flex-shrink:0">&#9989; Banned</span>'
+      : '<button class="save-pill" style="font-size:.62rem;flex-shrink:0" onclick="secBanIp(\'' + safeIp + '\')">&#128683; Ban</button>';
+
+    return '<div style="padding:.6rem 0;border-bottom:.5px solid var(--border)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">' +
+        '<div style="min-width:0;flex:1">' +
+          '<span style="display:inline-block;font-size:.62rem;font-weight:700;color:#fff;background:' + color + ';padding:.12rem .4rem;border-radius:5px;margin-bottom:.25rem">' +
+            escHtml(l.attack_type || 'Blocked') + '</span>' +
+          '<div style="font-size:.78rem;font-weight:700;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+            (flag ? flag + ' ' : '') + escHtml(l.ip || '&mdash;') + '</div>' +
+          (loc ? '<div style="font-size:.66rem;color:var(--muted)">&#128205; ' + escHtml(loc) + net + '</div>' : (net ? '<div style="font-size:.66rem;color:var(--muted)">' + net.replace(/^ &middot; /, '') + '</div>' : '')) +
+          '<div style="font-size:.66rem;color:var(--muted);font-family:monospace;margin-top:.15rem;word-break:break-all">' +
+            escHtml(l.method || '') + ' ' + escHtml(l.path || '') + '</div>' +
+          (l.user_agent ? '<div style="font-size:.6rem;color:var(--muted);margin-top:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">&#128421;&#65039; ' + escHtml(l.user_agent) + '</div>' : '') +
+          '<div style="font-size:.62rem;color:var(--muted);margin-top:.15rem">&#128336; ' + timeAgo(l.created_at) + '</div>' +
+          '<div id="secd-' + idx + '" style="display:none;margin-top:.5rem;padding:.5rem;background:var(--card2,rgba(0,0,0,.05));border-radius:8px">' +
+            _secDetailHtml(l, meta) + '</div>' +
+          '<div style="margin-top:.35rem;display:flex;gap:.3rem;flex-wrap:wrap">' +
+            '<button class="save-pill" style="font-size:.58rem;background:var(--muted)" onclick="secToggleDetail(' + idx + ')">&#8942; Full details</button>' +
+            (isBanned ? '' :
+              (l.country ? '<button class="save-pill" style="font-size:.58rem;background:var(--muted)" onclick="secBanCountry(\'' + (l.country || '').replace(/'/g, '') + '\')">&#127760; Ban country</button>' : '') +
+              (asnNum ? '<button class="save-pill" style="font-size:.58rem;background:var(--muted)" onclick="secBanNetwork(\'' + asnNum.replace(/'/g, '') + '\')">&#128225; Ban network</button>' : '')
+            ) +
+            '<a href="https://www.abuseipdb.com/check/' + encodeURIComponent(l.ip || '') + '" target="_blank" rel="noopener" class="save-pill" style="font-size:.58rem;background:var(--muted);text-decoration:none;display:inline-block">&#128269; Report</a>' +
+          '</div>' +
+        '</div>' +
+        actionBtn +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// The full intelligence a single request revealed. Everything here is data the
+// attacker's own connection handed our server.
+function _secDetailHtml(l, meta) {
+  var rows = [];
+  var add = function (icon, label, val) {
+    if (val === undefined || val === null || val === '' ) return;
+    rows.push('<div style="display:flex;gap:.4rem;font-size:.63rem;padding:.12rem 0">' +
+      '<span style="color:var(--muted);min-width:96px;flex-shrink:0">' + icon + ' ' + label + '</span>' +
+      '<span style="word-break:break-all">' + escHtml(String(val)) + '</span></div>');
+  };
+
+  // Approximate location on a map (Cloudflare's coarse coordinates).
+  if (meta.latitude && meta.longitude) {
+    var q = encodeURIComponent(meta.latitude + ',' + meta.longitude);
+    rows.push('<div style="display:flex;gap:.4rem;font-size:.63rem;padding:.12rem 0">' +
+      '<span style="color:var(--muted);min-width:96px;flex-shrink:0">&#128506;&#65039; Map</span>' +
+      '<a href="https://www.google.com/maps?q=' + q + '" target="_blank" rel="noopener" style="color:var(--gold)">' +
+      escHtml(meta.latitude + ', ' + meta.longitude) + ' &#8599;</a></div>');
+  }
+  add('&#127759;', 'Continent', meta.continent);
+  add('&#9993;&#65039;', 'Postal', meta.postalCode);
+  add('&#128336;', 'Timezone', meta.timezone);
+  add('&#128225;', 'Network', l.asn);
+  if (meta.asnNum) add('&#35;', 'ASN', meta.asnNum);
+  add('&#127760;', 'Language', meta.acceptLanguage);
+  add('&#128241;', 'Platform', meta.platform + (meta.mobile ? ' (mobile)' : ''));
+  add('&#127970;', 'CF datacenter', meta.colo);
+  add('&#128274;', 'TLS', [meta.tlsVersion, meta.tlsCipher].filter(Boolean).join(' / '));
+  add('&#128246;', 'Protocol', meta.httpProtocol);
+  if (meta.botScore !== '' && meta.botScore !== undefined) add('&#129302;', 'Bot score', meta.botScore + (meta.verifiedBot ? ' (verified bot)' : ''));
+  if (meta.threatScore !== '' && meta.threatScore !== undefined) add('&#9888;&#65039;', 'Threat score', meta.threatScore);
+  add('&#8617;&#65039;', 'Referer', l.referer);
+  add('&#127760;', 'Origin', meta.origin);
+  add('&#128421;&#65039;', 'User-Agent', l.user_agent);
+  add('&#128279;', 'X-Forwarded', meta.xff);
+
+  if (!rows.length) return '<div style="font-size:.63rem;color:var(--muted)">No extra details captured.</div>';
+  return rows.join('');
+}
+
+window.secToggleDetail = function (idx) {
+  var d = document.getElementById('secd-' + idx);
+  if (d) d.style.display = (d.style.display === 'none' ? 'block' : 'none');
+};
+
+// One helper backs all three ban buttons. `value` is either a raw IP, a
+// 'country:XX' sentinel, or an 'asn:AS123' sentinel — the middleware's ban
+// check understands all three, so a single device_bans row can wall off an
+// address, a country, or a whole network.
+function _secBan(value, human, reason) {
+  ypConfirm('Block ' + human + '? They will be turned away from the entire site.', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.post('/admin/device-bans', { ip: value, reason: reason })
+      .then(function () {
+        toast('🚫 Blocked ' + human);
+        var c = document.getElementById('admin-content');
+        if (c) buildSecurityPanel(c);
+      })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
+}
+
+window.secBanIp = function (ip) {
+  if (!ip || ip === '0.0.0.0' || ip === 'unknown') { toast('No valid IP'); return; }
+  _secBan(ip, 'IP ' + ip, 'Blocked from Attacks panel');
+};
+window.secBanCountry = function (cc) {
+  if (!cc) { toast('No country'); return; }
+  _secBan('country:' + cc.toUpperCase(), 'everyone from ' + cc.toUpperCase(), 'Country block from Attacks panel');
+};
+window.secBanNetwork = function (asnNum) {
+  if (!asnNum) { toast('No network'); return; }
+  _secBan('asn:' + asnNum, 'network ' + asnNum, 'Network block from Attacks panel');
+};
 
 window.adminClearSecurityLog = function () {
   ypConfirm('Clear the entire security log? This cannot be undone.', { danger: true }).then(function (ok) {

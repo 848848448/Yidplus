@@ -1,3 +1,5 @@
+import { findBan, logAttack } from './_helpers.js';
+
 // Security middleware — scoped to /api/* only (this file lives under
 // functions/api/, NOT functions/). It must stay here: a site-wide
 // functions/_middleware.js previously caused an ERR_TOO_MANY_REDIRECTS loop
@@ -13,6 +15,22 @@ export async function onRequest(context) {
   let fullUrl = path + (url.search || '');
   try { fullUrl = decodeURIComponent(fullUrl); } catch (e) {}
 
+  // ── Layer 0: turn away banned sources entirely ──
+  // A banned IP / country / network is blocked from EVERY endpoint, not just
+  // the login door — and each blocked attempt is still recorded, so the owner
+  // can watch a banned attacker keep knocking and getting nowhere. Skipped for
+  // CORS preflight (no body, no risk) and wrapped so a lookup hiccup can never
+  // wall off the whole site.
+  if (request.method !== 'OPTIONS') {
+    try {
+      const ban = await findBan(context.env, request);
+      if (ban) {
+        logAttack(context, 'Banned source (blocked)', 403);
+        return _deny(403);
+      }
+    } catch (e) { /* fail open — never block legit traffic over a bad lookup */ }
+  }
+
   // ── Layer 1: block injection / XSS / traversal signatures in the URL ──
   // Each pattern is labelled so a blocked hit can be recorded with a
   // human-readable attack type in the security log.
@@ -26,7 +44,7 @@ export async function onRequest(context) {
     { rx: /\bexec\s*\(|\beval\s*\(|system\s*\(/i,       type: 'Code execution probe' },
   ];
   for (const p of suspiciousPatterns) {
-    if (p.rx.test(fullUrl)) { _logAttack(context, p.type, 400); return _deny(400); }
+    if (p.rx.test(fullUrl)) { logAttack(context, p.type, 400); return _deny(400); }
   }
 
   // ── Layer 2: block probes for other stacks / secret files ──
@@ -35,12 +53,12 @@ export async function onRequest(context) {
     /\.(php|asp|aspx|jsp|cgi|sh|bak|sql|env)$/i, /\/\.(git|env|htaccess|ssh)/i,
   ];
   for (const rx of badPaths) {
-    if (rx.test(path)) { _logAttack(context, 'Scanner / file probe', 403); return _deny(403); }
+    if (rx.test(path)) { logAttack(context, 'Scanner / file probe', 403); return _deny(403); }
   }
 
   // ── Layer 3: HTTP method allowlist ──
   if (!['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'].includes(request.method)) {
-    _logAttack(context, 'Unusual HTTP method', 405);
+    logAttack(context, 'Unusual HTTP method', 405);
     return _deny(405);
   }
 
@@ -101,62 +119,6 @@ function _deny(status) {
   });
 }
 
-// Record a blocked attack attempt to the security log. Runs entirely in the
-// background via waitUntil so it NEVER slows down the response the attacker
-// gets (and never slows a legitimate request — this is only ever reached on
-// the deny path). Wrapped in try/catch and .catch() so a logging failure can
-// never turn a blocked attack into an error. The table self-creates, so no
-// manual migration is needed.
-function _logAttack(context, attackType, status) {
-  try {
-    const { request, env } = context;
-    if (!env || !env.DB) return;
-
-    const url = new URL(request.url);
-    // Cloudflare gives us the true client IP and geo/network data for free.
-    const ip = (request.headers.get('CF-Connecting-IP') ||
-                request.headers.get('X-Forwarded-For') ||
-                'unknown').split(',')[0].trim().slice(0, 64);
-    const cf = request.cf || {};
-    const country = (request.headers.get('CF-IPCountry') || cf.country || '').slice(0, 8);
-    const city    = (cf.city || '').slice(0, 80);
-    const region  = (cf.region || '').slice(0, 80);
-    const asn     = (cf.asOrganization || (cf.asn ? ('AS' + cf.asn) : '')).slice(0, 120);
-    const ua      = (request.headers.get('User-Agent') || '').slice(0, 400);
-    const ref     = (request.headers.get('Referer') || '').slice(0, 300);
-    const path    = (url.pathname + (url.search || '')).slice(0, 500);
-    const method  = (request.method || '').slice(0, 10);
-
-    const work = (async () => {
-      await env.DB.prepare(
-        `CREATE TABLE IF NOT EXISTS attack_logs (
-           id TEXT PRIMARY KEY, ip TEXT, country TEXT, city TEXT, region TEXT,
-           asn TEXT, method TEXT, path TEXT, attack_type TEXT, user_agent TEXT,
-           referer TEXT, status INTEGER, created_at TEXT
-         )`
-      ).run().catch(() => {});
-
-      await env.DB.prepare(
-        `INSERT INTO attack_logs
-           (id, ip, country, city, region, asn, method, path, attack_type, user_agent, referer, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
-      ).bind(
-        crypto.randomUUID(), ip, country, city, region, asn,
-        method, path, attackType, ua, ref, status
-      ).run().catch(() => {});
-
-      // Occasionally prune anything older than 60 days so the table can't
-      // grow without bound. Cheap, and only runs ~3% of the time.
-      if (Math.random() < 0.03) {
-        await env.DB.prepare(
-          `DELETE FROM attack_logs WHERE created_at < datetime('now', '-60 days')`
-        ).run().catch(() => {});
-      }
-    })();
-
-    if (context.waitUntil) context.waitUntil(work);
-  } catch (e) { /* logging must never break the block */ }
-}
 
 function _cookie(request, name) {
   const c = request.headers.get('Cookie') || '';

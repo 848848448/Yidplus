@@ -1,4 +1,4 @@
-import { json, corsHeaders, verifyPassword, hashPassword, isValidEmail, isOwnerOrCoOwner, generateSessionToken } from '../_helpers.js';
+import { json, corsHeaders, verifyPassword, hashPassword, isValidEmail, isOwnerOrCoOwner, generateSessionToken, logAttack } from '../_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -84,32 +84,10 @@ export async function onRequestPost(context) {
 
     if (!isOwnerEmail && (recentFails?.cnt || 0) >= 10) {
       // A wall of failed sign-ins from one IP is a brute-force / credential-
-      // stuffing attempt — record it to the security log so the owner can see
-      // and ban the source. Best-effort, in the background, never blocks.
-      try {
-        const cf = request.cf || {};
-        const bfWork = (async () => {
-          await env.DB.prepare(
-            `CREATE TABLE IF NOT EXISTS attack_logs (
-               id TEXT PRIMARY KEY, ip TEXT, country TEXT, city TEXT, region TEXT,
-               asn TEXT, method TEXT, path TEXT, attack_type TEXT, user_agent TEXT,
-               referer TEXT, status INTEGER, created_at TEXT
-             )`
-          ).run().catch(() => {});
-          await env.DB.prepare(
-            `INSERT INTO attack_logs
-               (id, ip, country, city, region, asn, method, path, attack_type, user_agent, referer, status, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, 'POST', '/api/auth/login', 'Brute-force login', ?, '', 429, datetime('now'))`
-          ).bind(
-            crypto.randomUUID(), ip,
-            (request.headers.get('CF-IPCountry') || cf.country || '').slice(0, 8),
-            (cf.city || '').slice(0, 80), (cf.region || '').slice(0, 80),
-            (cf.asOrganization || (cf.asn ? ('AS' + cf.asn) : '')).slice(0, 120),
-            (request.headers.get('User-Agent') || '').slice(0, 400)
-          ).run().catch(() => {});
-        })();
-        if (context.waitUntil) context.waitUntil(bfWork);
-      } catch (e) { /* never break login over a log write */ }
+      // stuffing attempt — record it to the security log (with full geo /
+      // device intel) so the owner can see and ban the source. The shared
+      // helper also auto-bans this IP once it crosses the attack threshold.
+      logAttack(context, 'Brute-force login', 429, { path: '/api/auth/login', method: 'POST' });
       return json({ ok: false, error: 'Too many failed attempts. Please wait 15 minutes.' }, 429);
     }
 

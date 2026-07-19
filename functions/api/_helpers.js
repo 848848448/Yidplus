@@ -273,3 +273,172 @@ export async function logAudit(env, actor, action, targetType, targetId, details
     console.error('[audit] failed to write log:', e.message);
   }
     }
+
+/* ══════════════════════════════════════════════════════════════════════
+   SECURITY: attacker intelligence + ban enforcement
+   ─────────────────────────────────────────────────────────────────────
+   One place that (a) reads the true client IP, (b) captures everything an
+   attacker's own request reveals to our server, (c) writes it to the
+   attack_logs table the Attacks panel reads, and (d) answers "is this
+   source banned?". Everything here is best-effort and wrapped so a logging
+   or lookup failure can never break the request it's attached to.
+   ═════════════════════════════════════════════════════════════════════ */
+
+// True client IP, as Cloudflare sees it (not spoofable via headers on CF).
+export function clientIp(request) {
+  return (request.headers.get('CF-Connecting-IP') ||
+          request.headers.get('X-Forwarded-For') ||
+          'unknown').split(',')[0].trim().slice(0, 64);
+}
+
+// Everything the attacker's request tells us about who and where they are.
+// Cloudflare hands us geo + network for free on request.cf; the rest are
+// standard request headers the client sent. Returned as a flat object; the
+// rich extras get JSON-stringified into attack_logs.meta.
+export function gatherIntel(request) {
+  const cf = request.cf || {};
+  const h = (name) => request.headers.get(name) || '';
+  const ip = clientIp(request);
+  const asnNum = cf.asn ? ('AS' + cf.asn) : '';
+  return {
+    ip,
+    country: (request.headers.get('CF-IPCountry') || cf.country || '').slice(0, 8),
+    city:    (cf.city || '').slice(0, 80),
+    region:  (cf.region || cf.regionCode || '').slice(0, 80),
+    asn:     (cf.asOrganization || asnNum || '').slice(0, 120),
+    user_agent: h('User-Agent').slice(0, 400),
+    referer:    h('Referer').slice(0, 300),
+    meta: {
+      asnNum,
+      continent:   cf.continent || '',
+      postalCode:  cf.postalCode || '',
+      timezone:    cf.timezone || '',
+      latitude:    cf.latitude || '',
+      longitude:   cf.longitude || '',
+      colo:        cf.colo || '',                 // CF datacenter that served it
+      tlsVersion:  cf.tlsVersion || '',
+      tlsCipher:   cf.tlsCipher || '',
+      httpProtocol: cf.httpProtocol || '',
+      // Cloudflare bot/threat signals — present only on some plans; captured
+      // defensively so they show when available and are simply absent otherwise.
+      botScore:    (cf.botManagement && typeof cf.botManagement.score !== 'undefined') ? cf.botManagement.score : '',
+      verifiedBot: (cf.botManagement && cf.botManagement.verifiedBot) ? 1 : 0,
+      threatScore: (typeof cf.threatScore !== 'undefined') ? cf.threatScore : '',
+      // What the browser volunteers about itself.
+      acceptLanguage: h('Accept-Language').slice(0, 120),
+      platform:  (h('Sec-CH-UA-Platform') || '').replace(/"/g, '').slice(0, 40),
+      mobile:    h('Sec-CH-UA-Mobile') === '?1' ? 1 : 0,
+      origin:    h('Origin').slice(0, 200),
+      xff:       h('X-Forwarded-For').slice(0, 200),
+    },
+  };
+}
+
+// Ensure the attack_logs table exists AND has the meta column (older
+// deployments created it without meta — ALTER is idempotent-by-catch).
+async function _ensureAttackTable(env) {
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS attack_logs (
+       id TEXT PRIMARY KEY, ip TEXT, country TEXT, city TEXT, region TEXT,
+       asn TEXT, method TEXT, path TEXT, attack_type TEXT, user_agent TEXT,
+       referer TEXT, status INTEGER, created_at TEXT, meta TEXT
+     )`
+  ).run().catch(() => {});
+  await env.DB.prepare('ALTER TABLE attack_logs ADD COLUMN meta TEXT').run().catch(() => {});
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_attack_ip ON attack_logs(ip)').run().catch(() => {});
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_attack_created ON attack_logs(created_at)').run().catch(() => {});
+}
+
+// Record a blocked/failed intrusion attempt with full intelligence. Runs in
+// the background via waitUntil so it never slows the response. `opts` may set
+// { path, method, status } overrides (e.g. a login/PIN handler wants to label
+// its own endpoint). Also auto-bans an IP that crosses the attack threshold.
+export function logAttack(context, attackType, status, opts) {
+  try {
+    const { request, env } = context;
+    if (!env || !env.DB) return;
+    const info = gatherIntel(request);
+    const url = new URL(request.url);
+    const path = ((opts && opts.path) || (url.pathname + (url.search || ''))).slice(0, 500);
+    const method = ((opts && opts.method) || request.method || '').slice(0, 10);
+    const st = (opts && opts.status) || status || 0;
+
+    const work = (async () => {
+      await _ensureAttackTable(env);
+      await env.DB.prepare(
+        `INSERT INTO attack_logs
+           (id, ip, country, city, region, asn, method, path, attack_type,
+            user_agent, referer, status, created_at, meta)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)`
+      ).bind(
+        crypto.randomUUID(), info.ip, info.country, info.city, info.region,
+        info.asn, method, path, attackType, info.user_agent, info.referer, st,
+        JSON.stringify(info.meta)
+      ).run().catch(() => {});
+
+      // ── Auto-ban repeat offenders ──
+      // Someone who trips the defenses again and again isn't a one-off typo —
+      // it's a determined probe. After enough hits in a short window, ban the
+      // IP outright so every future request (not just this endpoint) is turned
+      // away. Never auto-bans 'unknown'.
+      if (info.ip && info.ip !== 'unknown') {
+        const AUTO_BAN_THRESHOLD = 8;   // attacks within the window
+        const WINDOW = '-1 hours';
+        const row = await env.DB.prepare(
+          `SELECT COUNT(*) AS c FROM attack_logs
+           WHERE ip = ? AND created_at > datetime('now', ?)`
+        ).bind(info.ip, WINDOW).first().catch(() => ({ c: 0 }));
+        if ((row?.c || 0) >= AUTO_BAN_THRESHOLD) {
+          const already = await env.DB.prepare(
+            `SELECT id FROM device_bans WHERE ip = ? LIMIT 1`
+          ).bind(info.ip).first().catch(() => null);
+          if (!already) {
+            await env.DB.prepare(
+              `INSERT INTO device_bans (id, ip, fingerprint, reason, banned_by, created_at)
+               VALUES (?, ?, NULL, ?, 'auto', ?)`
+            ).bind(
+              crypto.randomUUID(), info.ip,
+              'Auto-banned: ' + (row.c) + ' attacks in 1h (' + attackType + ')',
+              new Date().toISOString()
+            ).run().catch(() => {});
+          }
+        }
+      }
+
+      // Occasionally prune anything older than 60 days (cheap, ~3% of writes).
+      if (Math.random() < 0.03) {
+        await env.DB.prepare(
+          `DELETE FROM attack_logs WHERE created_at < datetime('now', '-60 days')`
+        ).run().catch(() => {});
+      }
+    })();
+
+    if (context.waitUntil) context.waitUntil(work);
+  } catch (e) { /* logging must never break the request */ }
+}
+
+// Is this request coming from a banned source? Checks the exact IP, the whole
+// country ('country:US'), and the whole network/ASN ('asn:AS12345') in ONE
+// indexed query, so an owner can wall off a single address, an entire country
+// they'll never have real users in, or a whole hosting network a bot farm
+// lives on. Returns the matching ban row, or null.
+export async function findBan(env, request) {
+  try {
+    const ip = clientIp(request);
+    const cf = request.cf || {};
+    const cc = (request.headers.get('CF-IPCountry') || cf.country || '').toUpperCase();
+    const asn = cf.asn ? ('AS' + cf.asn) : '';
+    const keys = [];
+    if (ip && ip !== 'unknown') keys.push(ip);
+    if (cc) keys.push('country:' + cc);
+    if (asn) keys.push('asn:' + asn);
+    if (!keys.length) return null;
+    const placeholders = keys.map(() => '?').join(',');
+    const row = await env.DB.prepare(
+      `SELECT id, ip, reason FROM device_bans WHERE ip IN (${placeholders}) LIMIT 1`
+    ).bind(...keys).first().catch(() => null);
+    return row || null;
+  } catch (e) {
+    return null; // a ban-lookup failure must never wall off the whole site
+  }
+}
