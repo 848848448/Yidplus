@@ -6475,7 +6475,7 @@ function _aiRenderMessages() {
         '<div style="font-size:.82rem;line-height:1.5;max-width:280px;margin:0 auto">פרעג מיר וואס דו ווילסט — פֿראגעס, שרייבן, איבערזעצן, אידעען, ערקלערונגען, און נאך. איך רעד אידיש.</div>' +
       '</div>';
     if (AI_state.notConfigured) {
-      html += '<div style="align-self:center;background:rgba(183,121,31,.15);border:1px solid rgba(183,121,31,.4);color:var(--text);padding:.6rem .8rem;border-radius:12px;font-size:.78rem;max-width:90%;text-align:center">⚠️ YID PLUS AI איז נאך נישט אויפגעשטעלט. דער אייגנטומער דארף צולייגן אן ANTHROPIC_API_KEY.</div>';
+      html += '<div style="align-self:center;background:rgba(183,121,31,.15);border:1px solid rgba(183,121,31,.4);color:var(--text);padding:.6rem .8rem;border-radius:12px;font-size:.78rem;max-width:90%;text-align:center">⚠️ YID PLUS AI איז נאך נישט אויפגעשטעלט. דער אייגנטומער דארף אדער אנצינדן די פֿרייע Cloudflare Workers AI, אדער צולייגן אן ANTHROPIC_API_KEY.</div>';
     }
   }
 

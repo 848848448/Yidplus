@@ -57,7 +57,7 @@ export async function onRequestGet(context) {
     const { results } = await env.DB.prepare(
       'SELECT role, content, created_at FROM ai_messages WHERE user_id = ? ORDER BY created_at ASC LIMIT 200'
     ).bind(user.id).all();
-    return json({ ok: true, messages: results || [], configured: !!env.ANTHROPIC_API_KEY });
+    return json({ ok: true, messages: results || [], configured: !!(env.ANTHROPIC_API_KEY || env.AI) });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
@@ -76,9 +76,9 @@ export async function onRequestPost(context) {
     if (!message) return json({ ok: false, error: 'Empty message' }, 400);
     if (message.length > 4000) return json({ ok: false, error: 'Message too long (max 4000 characters).' }, 400);
 
-    if (!env.ANTHROPIC_API_KEY) {
+    if (!env.ANTHROPIC_API_KEY && !env.AI) {
       return json({ ok: false, error: 'not_configured',
-        message: 'YID PLUS AI is not set up yet. The site owner needs to add an ANTHROPIC_API_KEY.' }, 503);
+        message: 'YID PLUS AI is not set up yet. The site owner needs to either bind Cloudflare Workers AI (free) or add an ANTHROPIC_API_KEY.' }, 503);
     }
 
     // ── Rate limit: cap messages per user per hour to control cost/abuse ──
@@ -103,43 +103,13 @@ export async function onRequestPost(context) {
     }));
     messages.push({ role: 'user', content: message });
 
-    const model = env.AI_MODEL || 'claude-sonnet-5';
-
-    let reply = '';
-    try {
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: 1024,
-          system: systemPrompt(user),
-          messages,
-        }),
-      });
-
-      if (!resp.ok) {
-        const errText = await resp.text().catch(() => '');
-        return json({ ok: false, error: 'ai_error',
-          message: 'The AI service returned an error (' + resp.status + '). Please try again.',
-          detail: errText.slice(0, 300) }, 502);
-      }
-
-      const data = await resp.json();
-      reply = (data.content || [])
-        .filter((b) => b.type === 'text')
-        .map((b) => b.text)
-        .join('\n')
-        .trim();
-    } catch (e) {
-      return json({ ok: false, error: 'ai_unreachable',
-        message: 'Could not reach the AI service. Please try again.' }, 502);
+    const gen = await generateReply(env, systemPrompt(user), messages);
+    if (!gen.ok) {
+      return json({ ok: false, error: gen.error || 'ai_error',
+        message: gen.message || 'The AI service returned an error. Please try again.',
+        detail: (gen.detail || '').slice(0, 300) }, gen.status || 502);
     }
-
+    let reply = (gen.reply || '').trim();
     if (!reply) reply = 'איך האב נישט געקענט ענטפערן דערויף. פרוביר נאכאמאל.';
 
     // ── Persist both turns ──
@@ -155,6 +125,64 @@ export async function onRequestPost(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
+}
+
+// Generate a reply. Prefers Claude (best, needs a paid ANTHROPIC_API_KEY);
+// otherwise falls back to Cloudflare Workers AI (free — 10k neurons/day, just
+// needs the AI binding, no external account). Returns { ok, reply } or
+// { ok:false, error, message, status }.
+async function generateReply(env, system, messages) {
+  // ── Preferred: Claude ──
+  if (env.ANTHROPIC_API_KEY) {
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: env.AI_MODEL || 'claude-sonnet-5',
+          max_tokens: 1024,
+          system,
+          messages,
+        }),
+      });
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => '');
+        return { ok: false, error: 'ai_error', status: 502,
+          message: 'The AI service returned an error (' + resp.status + ').', detail: errText };
+      }
+      const data = await resp.json();
+      const reply = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n');
+      return { ok: true, reply };
+    } catch (e) {
+      return { ok: false, error: 'ai_unreachable', status: 502,
+        message: 'Could not reach the AI service.' };
+    }
+  }
+
+  // ── Free fallback: Cloudflare Workers AI ──
+  if (env.AI) {
+    try {
+      const model = env.CF_AI_MODEL || '@cf/meta/llama-3.1-8b-instruct';
+      const out = await env.AI.run(model, {
+        messages: [{ role: 'system', content: system }].concat(messages),
+        max_tokens: 1024,
+      });
+      // Workers AI text models return { response: "..." }.
+      const reply = (out && (out.response || out.result || '')) || '';
+      return { ok: true, reply: String(reply) };
+    } catch (e) {
+      return { ok: false, error: 'ai_error', status: 502,
+        message: 'The free AI model returned an error. It may be busy — please try again.',
+        detail: String(e && e.message || e) };
+    }
+  }
+
+  return { ok: false, error: 'not_configured', status: 503,
+    message: 'AI is not configured.' };
 }
 
 // DELETE → clear this user's conversation
