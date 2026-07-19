@@ -2390,6 +2390,7 @@ function _attackColor(type) {
   if (t.indexOf('xss') >= 0)        return '#8E44AD';
   if (t.indexOf('traversal') >= 0)  return '#D35400';
   if (t.indexOf('brute') >= 0)      return '#B7410E';
+  if (t.indexOf('pin') >= 0)        return '#7D3C98';
   if (t.indexOf('code') >= 0)       return '#922B21';
   if (t.indexOf('template') >= 0)   return '#6C3483';
   if (t.indexOf('system') >= 0)     return '#A04000';
