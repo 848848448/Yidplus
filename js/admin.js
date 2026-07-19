@@ -163,6 +163,7 @@ var ADMIN_ICONS = {
   reports:        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
   'banned-devices': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
   'ip-logs':      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  'security':     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
   'channels-mgr': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
   'shorts-mod':   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
   'chat-watch':   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
@@ -216,6 +217,7 @@ var ADMIN_PANELS = [
   { id:'broadcast',      label:'Broadcast',       roles:['owner'] },
   { id:'banned-devices', label:'Banned',          roles:['owner'] },
   { id:'ip-logs',        label:'IP Logs',         roles:['owner'] },
+  { id:'security',       label:'Attacks',         roles:['owner'] },
   { id:'sessions',       label:'Sessions',        roles:['owner'] },
   { id:'audit-logs',     label:'Audit Logs',      roles:['owner'] },
   { id:'ads',            label:'Ads',             roles:['owner'] },
@@ -243,7 +245,7 @@ var ADMIN_CATEGORIES = [
   { id:'content',    label:'Content',    desc:'Announce, broadcast, channels, more',  color:'#534AB7', bg:'#EEEDFE', bgd:'#3C3489',
     panels:['announcements','broadcast','channels-mgr','telegram','email-templates','featured'] },
   { id:'system',     label:'System',     desc:'Features, app, ads, logs, export',     color:'#5F5E5A', bg:'#F1EFE8', bgd:'#2C2C2A',
-    panels:['features','app-settings','ads','maintenance','antispam','health','ip-logs','audit-logs','export','nuclear','admin-settings'] },
+    panels:['features','app-settings','ads','maintenance','antispam','health','security','ip-logs','audit-logs','export','nuclear','admin-settings'] },
 ];
 
 var ADMIN_CAT_ICONS = {
@@ -548,6 +550,8 @@ function buildAdminPanel(id) {
 
   } else if (id === 'ip-logs') {
     buildIpLogsPanel(content);
+  } else if (id === 'security') {
+    buildSecurityPanel(content);
 
   } else if (id === 'channels-mgr') {
     buildChannelsMgrPanel(content);
@@ -2358,6 +2362,119 @@ window.adminQuickBanIp = function (ip) {
     if (!ok) return;
     api.post('/admin/device-bans', { ip: ip, reason: 'Banned from IP Logs' })
       .then(function () { toast('🚫 IP banned!'); })
+      .catch(function (err) { toast('❌ ' + err.message); });
+  });
+};
+
+/* ══════════════════════════════════
+   SECURITY / ATTACKS PANEL
+   Every attack the middleware blocks (SQL injection, XSS, path traversal,
+   scanners, brute-force logins) is recorded with the attacker's IP, country,
+   city, network, browser and exactly what they tried. Owner-only.
+══════════════════════════════════ */
+
+// 2-letter ISO country code -> flag emoji (each letter maps to a regional
+// indicator symbol). Returns '' for missing/invalid codes.
+function _flagEmoji(cc) {
+  if (!cc || cc.length !== 2 || !/^[A-Za-z]{2}$/.test(cc)) return '';
+  var base = 0x1F1E6;
+  var a = cc.toUpperCase().charCodeAt(0) - 65;
+  var b = cc.toUpperCase().charCodeAt(1) - 65;
+  if (a < 0 || a > 25 || b < 0 || b > 25) return '';
+  return String.fromCodePoint(base + a) + String.fromCodePoint(base + b);
+}
+
+function _attackColor(type) {
+  var t = (type || '').toLowerCase();
+  if (t.indexOf('sql') >= 0)        return '#C0392B';
+  if (t.indexOf('xss') >= 0)        return '#8E44AD';
+  if (t.indexOf('traversal') >= 0)  return '#D35400';
+  if (t.indexOf('brute') >= 0)      return '#B7410E';
+  if (t.indexOf('code') >= 0)       return '#922B21';
+  if (t.indexOf('template') >= 0)   return '#6C3483';
+  if (t.indexOf('system') >= 0)     return '#A04000';
+  return '#5D6D7E'; // scanner / probe / other
+}
+
+function buildSecurityPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title" style="display:flex;justify-content:space-between;align-items:center">' +
+          '<span>🛡️ Security — Blocked Attack Attempts</span>' +
+          '<button class="save-pill" style="font-size:.62rem;background:var(--red)" onclick="adminClearSecurityLog()">Clear log</button>' +
+        '</div>' +
+        '<div id="security-stats" style="display:flex;gap:.5rem;margin:.4rem 0 .7rem"></div>' +
+        '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.6rem;line-height:1.4">' +
+          'These requests were <strong>automatically blocked</strong> by the site\'s defenses before they could do anything. ' +
+          'This list shows who tried, from where, and what they attempted.' +
+        '</div>' +
+        '<div id="security-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+
+  api.get('/admin/security-log?limit=150')
+    .then(function (res) {
+      var logs = res.logs || [];
+      var stats = res.stats || {};
+      var statsEl = document.getElementById('security-stats');
+      if (statsEl) {
+        var card = function (n, label, color) {
+          return '<div style="flex:1;background:var(--card2,rgba(0,0,0,.06));border-radius:10px;padding:.5rem .3rem;text-align:center">' +
+            '<div style="font-size:1.15rem;font-weight:800;color:' + color + '">' + (n || 0) + '</div>' +
+            '<div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em">' + label + '</div>' +
+          '</div>';
+        };
+        statsEl.innerHTML =
+          card(stats.total, 'Total blocked', 'var(--text)') +
+          card(stats.last24, 'Last 24h', 'var(--gold)') +
+          card(stats.unique_ips, 'Unique IPs', 'var(--red)');
+      }
+
+      var el = document.getElementById('security-list');
+      if (!el) return;
+      if (!logs.length) {
+        el.innerHTML = '<div style="padding:1.2rem;text-align:center;font-size:.8rem;color:var(--muted)">' +
+          '✅ No attacks recorded. The site is quiet.</div>';
+        return;
+      }
+
+      el.innerHTML = logs.map(function (l) {
+        var color = _attackColor(l.attack_type);
+        var flag = _flagEmoji(l.country);
+        var loc = [l.city, l.region, l.country].filter(Boolean).join(', ');
+        var net = l.asn ? (' · ' + escHtml(l.asn)) : '';
+        var safeIp = (l.ip || '').replace(/'/g, '');
+
+        return '<div style="padding:.6rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">' +
+            '<div style="min-width:0;flex:1">' +
+              '<span style="display:inline-block;font-size:.62rem;font-weight:700;color:#fff;background:' + color + ';padding:.12rem .4rem;border-radius:5px;margin-bottom:.25rem">' +
+                escHtml(l.attack_type || 'Blocked') + '</span>' +
+              '<div style="font-size:.78rem;font-weight:700;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+                (flag ? flag + ' ' : '') + escHtml(l.ip || '—') + '</div>' +
+              (loc ? '<div style="font-size:.66rem;color:var(--muted)">📍 ' + escHtml(loc) + net + '</div>' : (net ? '<div style="font-size:.66rem;color:var(--muted)">' + net.replace(/^ · /, '') + '</div>' : '')) +
+              '<div style="font-size:.66rem;color:var(--muted);font-family:monospace;margin-top:.15rem;word-break:break-all">' +
+                escHtml(l.method || '') + ' ' + escHtml(l.path || '') + '</div>' +
+              (l.user_agent ? '<div style="font-size:.6rem;color:var(--muted);margin-top:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🖥️ ' + escHtml(l.user_agent) + '</div>' : '') +
+              '<div style="font-size:.62rem;color:var(--muted);margin-top:.15rem">🕐 ' + timeAgo(l.created_at) + '</div>' +
+            '</div>' +
+            '<button class="save-pill" style="font-size:.62rem;flex-shrink:0" onclick="adminQuickBanIp(\'' + escHtml(safeIp) + '\')">🚫 Ban</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function (err) {
+      var el = document.getElementById('security-list');
+      if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
+    });
+}
+
+window.adminClearSecurityLog = function () {
+  ypConfirm('Clear the entire security log? This cannot be undone.', { danger: true }).then(function (ok) {
+    if (!ok) return;
+    api.del('/admin/security-log')
+      .then(function () { toast('🧹 Security log cleared'); var c = document.getElementById('admin-content'); if (c) buildSecurityPanel(c); })
       .catch(function (err) { toast('❌ ' + err.message); });
   });
 };
