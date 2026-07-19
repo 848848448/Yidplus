@@ -166,6 +166,7 @@ var ADMIN_ICONS = {
   'security':     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
   'diagnostics':  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
   'channels-mgr': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
+  'ai':           '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12" rx="3"/><path d="M12 8V4"/><circle cx="8.5" cy="14" r="1"/><circle cx="15.5" cy="14" r="1"/></svg>',
   'shorts-mod':   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
   'chat-watch':   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
   'music-mod':    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
@@ -212,6 +213,7 @@ var ADMIN_PANELS = [
   // Everything below requires actual configuration/creation power, or exposes
   // extra personal information beyond what's needed to moderate — owner only.
   { id:'channels-mgr',   label:'Channels',        roles:['owner'] },
+  { id:'ai',             label:'YID PLUS AI',     roles:['owner'] },
   { id:'access-control', label:'Access',          roles:['owner'] },
   { id:'invite-codes',   label:'Invites',         roles:['owner'] },
   { id:'verify-requests',label:'Verify',          roles:['admin_limited','admin_super','owner'] },
@@ -245,7 +247,7 @@ var ADMIN_CATEGORIES = [
   { id:'moderation', label:'Moderation', desc:'Reports, feedback, support, filter',   color:'#A32D2D', bg:'#FCEBEB', bgd:'#791F1F',
     panels:['reports','feedback','support-chats','chat-watch','shorts-mod','music-mod','bad-words'] },
   { id:'content',    label:'Content',    desc:'Announce, broadcast, channels, more',  color:'#534AB7', bg:'#EEEDFE', bgd:'#3C3489',
-    panels:['announcements','broadcast','channels-mgr','telegram','email-templates','featured'] },
+    panels:['announcements','broadcast','channels-mgr','ai','telegram','email-templates','featured'] },
   { id:'system',     label:'System',     desc:'Features, app, ads, logs, export',     color:'#5F5E5A', bg:'#F1EFE8', bgd:'#2C2C2A',
     panels:['features','app-settings','ads','maintenance','antispam','health','security','diagnostics','ip-logs','audit-logs','export','nuclear','admin-settings'] },
 ];
@@ -564,6 +566,9 @@ function buildAdminPanel(id) {
 
   } else if (id === 'channels-mgr') {
     buildChannelsMgrPanel(content);
+
+  } else if (id === 'ai') {
+    buildAIPanel(content);
 
   } else if (id === 'access-control') {
     buildAccessControlPanel(content);
@@ -3146,6 +3151,90 @@ window.adminDeleteChannel = function (id, nick) {
       .then(function () { toast('🗑 Deleted'); buildChannelsMgrPanel(document.getElementById('admin-content')); })
       .catch(function (err) { toast('❌ ' + err.message); });
   });
+};
+
+/* ══════════════════════════════════
+   YID PLUS AI — control panel
+   Lets the owner configure how the assistant behaves for everyone: on/off,
+   its name, its instructions (persona/behaviour), a welcome message, and the
+   per-user hourly limit. Also shows which AI engine is active.
+══════════════════════════════════ */
+function buildAIPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel"><div class="admin-card">' +
+      '<div class="admin-card-title">🤖 YID PLUS AI</div>' +
+      '<div id="ai-panel-body"><div class="feed-state"><div class="spinner"></div></div></div>' +
+    '</div></div>';
+
+  api.get('/admin/ai-settings')
+    .then(function (res) {
+      if (!res || !res.ok) throw new Error((res && res.error) || 'Failed to load');
+      var s = res.settings || {};
+      var provider = res.provider || 'none';
+
+      var providerLine;
+      if (provider === 'claude') {
+        providerLine = '<div style="background:rgba(15,110,86,.12);border:1px solid rgba(15,110,86,.4);border-radius:10px;padding:.55rem .7rem;font-size:.72rem;line-height:1.45">🟢 <b>Engine:</b> Claude (best quality). Active.</div>';
+      } else if (provider === 'cloudflare') {
+        providerLine = '<div style="background:rgba(34,158,217,.12);border:1px solid rgba(34,158,217,.4);border-radius:10px;padding:.55rem .7rem;font-size:.72rem;line-height:1.45">🔵 <b>Engine:</b> Cloudflare Workers AI (free). Active. For stronger Yiddish you can add an ANTHROPIC_API_KEY.</div>';
+      } else {
+        providerLine = '<div style="background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.4);border-radius:10px;padding:.55rem .7rem;font-size:.72rem;line-height:1.45">🔴 <b>No engine connected.</b> Bind Cloudflare Workers AI (free) as <code>AI</code> in your Pages settings, or add an <code>ANTHROPIC_API_KEY</code> secret. The settings below still save.</div>';
+      }
+
+      var body = document.getElementById('ai-panel-body');
+      if (!body) return;
+      body.innerHTML =
+        providerLine +
+
+        // Enable toggle
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:.9rem 0 .3rem">' +
+          '<div><div style="font-weight:700;font-size:.85rem">Turn on for everyone</div>' +
+            '<div style="font-size:.66rem;color:var(--muted)">When off, no one can use the AI.</div></div>' +
+          '<input type="checkbox" id="ai-enabled"' + (s.enabled ? ' checked' : '') + ' style="width:22px;height:22px;cursor:pointer;accent-color:#7C3AED;flex-shrink:0">' +
+        '</div>' +
+
+        // Name
+        '<label style="font-size:.75rem;color:var(--muted);display:block;margin-top:.8rem">Name</label>' +
+        '<input id="ai-name" value="' + escHtml(s.name || 'YID PLUS AI') + '" style="width:100%;box-sizing:border-box;padding:.55rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;margin-top:.2rem">' +
+
+        // Instructions
+        '<label style="font-size:.75rem;color:var(--muted);display:block;margin-top:.8rem">How the AI should behave (your instructions)</label>' +
+        '<div style="font-size:.64rem;color:var(--muted);margin:.15rem 0 .3rem;line-height:1.4">Write, in your own words, how the AI should act — its personality, tone, what it should focus on, what to avoid. This applies to everyone. (Basic safety rules always stay on.)</div>' +
+        '<textarea id="ai-instructions" rows="7" placeholder="למשל: ביסט א פֿריינדליכער אידישער אסיסטענט פֿאר אונזער קהילה. ענטפער קורץ און קלאר. זיי תמיד בכבודיק…" style="width:100%;box-sizing:border-box;padding:.6rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem;line-height:1.5" dir="auto">' + escHtml(s.instructions || '') + '</textarea>' +
+
+        // Welcome
+        '<label style="font-size:.75rem;color:var(--muted);display:block;margin-top:.8rem">Welcome message (shown before the first message)</label>' +
+        '<textarea id="ai-welcome" rows="2" placeholder="ווילקומען! פרעג מיר וואס דו ווילסט…" style="width:100%;box-sizing:border-box;padding:.55rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem" dir="auto">' + escHtml(s.welcome || '') + '</textarea>' +
+
+        // Hourly limit
+        '<label style="font-size:.75rem;color:var(--muted);display:block;margin-top:.8rem">Messages per user per hour</label>' +
+        '<input id="ai-limit" type="number" min="1" max="1000" value="' + (s.hourly_limit || 40) + '" style="width:120px;box-sizing:border-box;padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;margin-top:.2rem">' +
+        '<div style="font-size:.64rem;color:var(--muted);margin-top:.2rem">Keeps costs/abuse in check. 40 is a sensible default.</div>' +
+
+        '<button class="save-pill" style="margin-top:1rem;width:100%;padding:.6rem" onclick="saveAISettings(this)">💾 Save</button>';
+    })
+    .catch(function (err) {
+      var body = document.getElementById('ai-panel-body');
+      if (body) body.innerHTML = '<div style="padding:.6rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
+    });
+}
+
+window.saveAISettings = function (btn) {
+  var payload = {
+    enabled: !!(document.getElementById('ai-enabled') || {}).checked,
+    name: ((document.getElementById('ai-name') || {}).value || '').trim(),
+    instructions: (document.getElementById('ai-instructions') || {}).value || '',
+    welcome: (document.getElementById('ai-welcome') || {}).value || '',
+    hourly_limit: parseInt((document.getElementById('ai-limit') || {}).value || '40', 10) || 40,
+  };
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  api.post('/admin/ai-settings', payload)
+    .then(function (res) {
+      if (!res || !res.ok) throw new Error((res && res.error) || 'Failed');
+      toast('✅ Saved');
+    })
+    .catch(function (err) { toast('❌ ' + err.message); })
+    .then(function () { if (btn) { btn.disabled = false; btn.innerHTML = '💾 Save'; } });
 };
 
 /* ══════════════════════════════════

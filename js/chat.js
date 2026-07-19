@@ -6388,7 +6388,7 @@ window.openAIChat = function () {
       '<button onclick="closeAIChat()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;padding:.1rem .3rem;line-height:1">‹</button>' +
       '<div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🤖</div>' +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-weight:800;font-size:1rem">YID PLUS AI</div>' +
+        '<div style="font-weight:800;font-size:1rem" id="ai-title">YID PLUS AI</div>' +
         '<div style="font-size:.68rem;opacity:.85" id="ai-subtitle">גרייט צו העלפן</div>' +
       '</div>' +
       '<button onclick="clearAIChat()" title="Clear" style="background:none;border:none;color:#fff;cursor:pointer;padding:.3rem;opacity:.9"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>' +
@@ -6428,9 +6428,13 @@ function _aiLoadHistory() {
     .then(function (res) {
       AI_state.messages = (res && res.messages) || [];
       AI_state.loaded = true;
-      if (res && res.configured === false) {
-        AI_state.notConfigured = true;
+      AI_state.notConfigured = !!(res && res.configured === false);
+      AI_state.disabled = !!(res && res.enabled === false);
+      if (res && res.name) {
+        AI_state.name = res.name;
+        var t = document.getElementById('ai-title'); if (t) t.textContent = res.name;
       }
+      if (res && res.welcome) AI_state.welcome = res.welcome;
       _aiRenderMessages();
     })
     .catch(function () { /* keep empty; welcome shows */ });
@@ -6468,13 +6472,17 @@ function _aiRenderMessages() {
 
   // Welcome / intro when empty.
   if (!AI_state.messages.length) {
+    var wname = AI_state.name || 'YID PLUS AI';
+    var wtext = AI_state.welcome || 'פרעג מיר וואס דו ווילסט — פֿראגעס, שרייבן, איבערזעצן, אידעען, ערקלערונגען, און נאך. איך רעד אידיש.';
     html +=
       '<div style="text-align:center;color:var(--muted);padding:1.5rem .5rem">' +
         '<div style="font-size:3rem;margin-bottom:.4rem">🤖</div>' +
-        '<div style="font-size:1.05rem;font-weight:800;color:var(--text);margin-bottom:.3rem">YID PLUS AI</div>' +
-        '<div style="font-size:.82rem;line-height:1.5;max-width:280px;margin:0 auto">פרעג מיר וואס דו ווילסט — פֿראגעס, שרייבן, איבערזעצן, אידעען, ערקלערונגען, און נאך. איך רעד אידיש.</div>' +
+        '<div style="font-size:1.05rem;font-weight:800;color:var(--text);margin-bottom:.3rem">' + escHtml(wname) + '</div>' +
+        '<div style="font-size:.82rem;line-height:1.5;max-width:280px;margin:0 auto" dir="auto">' + escHtml(wtext) + '</div>' +
       '</div>';
-    if (AI_state.notConfigured) {
+    if (AI_state.disabled) {
+      html += '<div style="align-self:center;background:rgba(128,128,128,.15);border:1px solid var(--border);color:var(--text);padding:.6rem .8rem;border-radius:12px;font-size:.78rem;max-width:90%;text-align:center">⏸️ YID PLUS AI איז יעצט אויסגעשאלטן.</div>';
+    } else if (AI_state.notConfigured) {
       html += '<div style="align-self:center;background:rgba(183,121,31,.15);border:1px solid rgba(183,121,31,.4);color:var(--text);padding:.6rem .8rem;border-radius:12px;font-size:.78rem;max-width:90%;text-align:center">⚠️ YID PLUS AI איז נאך נישט אויפגעשטעלט. דער אייגנטומער דארף אדער אנצינדן די פֿרייע Cloudflare Workers AI, אדער צולייגן אן ANTHROPIC_API_KEY.</div>';
     }
   }

@@ -34,17 +34,40 @@ async function ensureTable(env) {
   return _ready;
 }
 
-// The assistant's persona. Kept in one place so it's easy to tune.
-function systemPrompt(user) {
+// Read the owner-configured AI settings from app_settings (applies to all).
+async function readAiSettings(env) {
+  const keys = ['ai_enabled', 'ai_name', 'ai_instructions', 'ai_welcome', 'ai_hourly_limit'];
+  const ph = keys.map(() => '?').join(',');
+  const { results } = await env.DB.prepare(
+    `SELECT key, value FROM app_settings WHERE key IN (${ph})`
+  ).bind(...keys).all().catch(() => ({ results: [] }));
+  const m = {};
+  (results || []).forEach((r) => { m[r.key] = r.value; });
+  return {
+    enabled: m.ai_enabled !== 'false',
+    name: m.ai_name || 'YID PLUS AI',
+    instructions: m.ai_instructions || '',
+    welcome: m.ai_welcome || '',
+    hourly_limit: parseInt(m.ai_hourly_limit || '40', 10) || 40,
+  };
+}
+
+// The assistant's persona. A fixed safety base (always enforced) plus whatever
+// custom behaviour the owner configured in the admin panel.
+function systemPrompt(user, settings) {
   const name = (user && user.nickname) ? user.nickname : '';
-  return [
-    'You are YID PLUS AI, the helpful assistant built into YID PLUS — a social platform for a Yiddish-speaking (Chassidish/Heimish) Jewish community.',
-    'Reply in Yiddish by default, in the warm, natural Yiddish this community actually speaks. If the user writes in another language, you may answer in that language.',
-    'Be genuinely helpful, friendly, concise and clear. You can help with questions, writing, explanations, ideas, translations, planning, and general knowledge.',
-    'Respect the community\'s religious values and sensibilities. Avoid content that is inappropriate, disrespectful of Yiddishkeit, or unsuitable for a frum audience. If asked for a psak halacha or a serious halachic/medical/legal ruling, gently suggest asking a qualified Rav or professional.',
-    'You are a chat assistant inside an app — you cannot change the website, access accounts, or perform actions outside this conversation. If asked to do something you can\'t, say so kindly and offer what you can do.',
-    name ? ('You are speaking with ' + name + '.') : '',
-  ].filter(Boolean).join('\n');
+  const aiName = (settings && settings.name) || 'YID PLUS AI';
+  const base = [
+    'You are ' + aiName + ', the assistant built into YID PLUS — a social platform for a Yiddish-speaking (Chassidish/Heimish) Jewish community.',
+    'Reply in Yiddish by default, in the warm, natural Yiddish this community actually speaks. If the user clearly writes in another language, you may answer in that language.',
+    'Always keep content appropriate and respectful of Yiddishkeit and a frum audience. Never produce content that is inappropriate for this community. For a serious psak halacha or a medical/legal ruling, gently suggest asking a qualified Rav or professional.',
+    'You are a chat assistant inside an app — you cannot change the website, access accounts, or act outside this conversation. If asked to do something you can\'t, say so kindly.',
+  ];
+  const custom = (settings && settings.instructions && settings.instructions.trim())
+    ? ['\nThe site owner has given you these additional instructions on how to behave — follow them as long as they don\'t conflict with keeping content safe and appropriate:\n' + settings.instructions.trim()]
+    : ['Be genuinely helpful, friendly, concise and clear. You can help with questions, writing, explanations, ideas, translations and planning.'];
+  const who = name ? ['\nYou are speaking with ' + name + '.'] : [];
+  return base.concat(custom).concat(who).join('\n');
 }
 
 // GET → history
@@ -54,10 +77,18 @@ export async function onRequestGet(context) {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
     await ensureTable(env);
+    const settings = await readAiSettings(env);
     const { results } = await env.DB.prepare(
       'SELECT role, content, created_at FROM ai_messages WHERE user_id = ? ORDER BY created_at ASC LIMIT 200'
     ).bind(user.id).all();
-    return json({ ok: true, messages: results || [], configured: !!(env.ANTHROPIC_API_KEY || env.AI) });
+    return json({
+      ok: true,
+      messages: results || [],
+      configured: !!(env.ANTHROPIC_API_KEY || env.AI),
+      enabled: settings.enabled,
+      name: settings.name,
+      welcome: settings.welcome,
+    });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
@@ -70,6 +101,12 @@ export async function onRequestPost(context) {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
     await ensureTable(env);
+    const settings = await readAiSettings(env);
+
+    if (!settings.enabled) {
+      return json({ ok: false, error: 'disabled',
+        message: 'YID PLUS AI is currently turned off.' }, 503);
+    }
 
     const body = await request.json().catch(() => ({}));
     const message = (body.message || '').toString().trim();
@@ -82,7 +119,7 @@ export async function onRequestPost(context) {
     }
 
     // ── Rate limit: cap messages per user per hour to control cost/abuse ──
-    const HOURLY_CAP = 40;
+    const HOURLY_CAP = settings.hourly_limit;
     const recent = await env.DB.prepare(
       "SELECT COUNT(*) AS c FROM ai_messages WHERE user_id = ? AND role = 'user' AND created_at > datetime('now','-1 hours')"
     ).bind(user.id).first().catch(() => ({ c: 0 }));
@@ -103,7 +140,7 @@ export async function onRequestPost(context) {
     }));
     messages.push({ role: 'user', content: message });
 
-    const gen = await generateReply(env, systemPrompt(user), messages);
+    const gen = await generateReply(env, systemPrompt(user, settings), messages);
     if (!gen.ok) {
       return json({ ok: false, error: gen.error || 'ai_error',
         message: gen.message || 'The AI service returned an error. Please try again.',
