@@ -15,7 +15,7 @@
 <meta name="twitter:title" content="YID PLUS — Shorts">
 <meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>🎬 YID PLUS — Shorts</title>
-<link rel="stylesheet" href="css/style.css?v=202607192317">
+<link rel="stylesheet" href="css/style.css?v=202607192323">
 <style>
 /* Shorts page is always dark, regardless of user theme */
 html, body { background: #000 !important; }
@@ -45,8 +45,8 @@ html, body { background: #000 !important; }
 <div class="cmt-drawer" id="cmt-drawer">
   <div class="drawer-handle"></div>
   <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem .5rem">
-    <div style="font-size:.9rem;color:rgba(255,255,255,.9)">💬 Comments <span id="cmt-count" style="color:rgba(255,255,255,.4);font-size:.8rem"></span></div>
-    <button style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;display:flex;align-items:center" onclick="closeCmts()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <div style="font-size:.9rem;color:var(--text)">💬 Comments <span id="cmt-count" style="color:var(--muted);font-size:.8rem"></span></div>
+    <button style="background:none;border:none;color:var(--muted);cursor:pointer;display:flex;align-items:center" onclick="closeCmts()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="comments-list" id="cmt-list"></div>
   <div class="comment-input-row">
@@ -86,10 +86,10 @@ html, body { background: #000 !important; }
 
 <div id="app-toast"></div>
 
-<script src="js/state.js?v=202607192317"></script>
-<script src="js/theme.js?v=202607192317"></script>
-<script src="js/app.js?v=202607192317"></script>
-<script src="js/shorts.js?v=202607192317"></script>
+<script src="js/state.js?v=202607192323"></script>
+<script src="js/theme.js?v=202607192323"></script>
+<script src="js/app.js?v=202607192323"></script>
+<script src="js/shorts.js?v=202607192323"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -105,6 +105,6 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="js/ads.js?v=202607192317"></script>
+<script src="js/ads.js?v=202607192323"></script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
   </html>

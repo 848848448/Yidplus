@@ -423,7 +423,7 @@ window.openComments = function (idx) {
   var s = SHORTS_data[idx];
   var list = document.getElementById('cmt-list');
   var countEl = document.getElementById('cmt-count');
-  list.innerHTML = '<div class="feed-state" style="color:#fff"><div class="spinner"></div></div>';
+  list.innerHTML = '<div class="feed-state" style="color:var(--muted)"><div class="spinner"></div></div>';
   document.getElementById('cmt-drawer').classList.add('open');
 
   api.get('/shorts/comments?short_id=' + encodeURIComponent(s.id))
@@ -431,7 +431,7 @@ window.openComments = function (idx) {
       var comments = res.comments || [];
       countEl.textContent = '(' + comments.length + ')';
       if (!comments.length) {
-        list.innerHTML = '<div style="text-align:center;padding:2rem 1rem;color:rgba(255,255,255,.4);font-size:.85rem">No comments yet.<br>Be the first!</div>';
+        list.innerHTML = '<div style="text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.85rem">No comments yet.<br>Be the first!</div>';
         return;
       }
       list.innerHTML = comments.map(function (c) {
