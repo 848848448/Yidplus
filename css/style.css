@@ -527,7 +527,7 @@ body.night {
 /* Auto-hiding scrub bar — sits at the very bottom of the slide, fades in
    while the video is playing/being scrubbed, fades out after a few
    seconds of inactivity (YouTube Shorts style). */
-.scrub-wrap   { position: absolute; left: 0; right: 0; bottom: 0; height: 32px; z-index: 8; display: flex; align-items: center; padding: 0 8px; opacity: .35; transition: opacity .25s; touch-action: none; }
+.scrub-wrap   { position: absolute; left: 0; right: 0; bottom: calc(58px + env(safe-area-inset-bottom, 0px)); height: 28px; z-index: 40; display: flex; align-items: center; padding: 0 10px; opacity: 1; transition: opacity .25s; touch-action: none; }
 .scrub-wrap.show { opacity: 1; }
 .scrub-track  { position: relative; flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.3); cursor: pointer; }
 .scrub-fill   { position: absolute; top: 0; left: 0; height: 100%; border-radius: 2px; background: #fff; width: 0%; }
