@@ -368,6 +368,21 @@ export function logAttack(context, attackType, status, opts) {
     const work = (async () => {
       await _ensureAttackTable(env);
 
+      // Who made this request? If they were signed in, resolve the session to
+      // their account so the owner can see exactly which user was behind it and
+      // open their profile. Anonymous attackers simply have no account here.
+      try {
+        const who = await requireUser(request, env);
+        if (who) {
+          info.meta.account = {
+            id: who.id,
+            nickname: who.nickname || '',
+            email: who.email || '',
+            role: who.role || 'member',
+          };
+        }
+      } catch (e) { /* attribution is a bonus, never required */ }
+
       // Is this a NEW attacking source, or one we've already seen today? Checked
       // before the insert so a fresh IP reads as 0 prior hits. Drives the owner
       // alert — we ping when someone new starts, not on every repeated knock.

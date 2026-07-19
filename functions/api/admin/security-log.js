@@ -69,6 +69,17 @@ export async function onRequestGet(context) {
     ).all().catch(() => ({ results: [] }));
     const bannedSet = (bans.results || []).map((b) => b.ip);
 
+    // attack_logs timestamps are written with SQLite datetime('now'), which
+    // produces "YYYY-MM-DD HH:MM:SS" with no timezone marker — the browser then
+    // parses that as LOCAL time and shows nonsense like "-7592s ago". Tag them
+    // as the UTC they actually are so the client reads them correctly.
+    const utc = (s) => (s && typeof s === 'string' && s.indexOf('T') < 0)
+      ? s.replace(' ', 'T') + 'Z' : s;
+    (results || []).forEach((r) => { r.created_at = utc(r.created_at); });
+    (offenders.results || []).forEach((o) => {
+      o.first_seen = utc(o.first_seen); o.last_seen = utc(o.last_seen);
+    });
+
     // Current state of the "text my phone on attack" toggle (default ON).
     const alertRow = await env.DB.prepare(
       "SELECT value FROM app_settings WHERE key = 'sec_push_alerts'"

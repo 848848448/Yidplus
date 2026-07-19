@@ -2644,6 +2644,28 @@ function _secRenderOffenders(offenders, banned) {
   }).join('');
 }
 
+// If the attacker was signed in, show which account it was, with a button to
+// open their full profile in the admin. Anonymous attackers show nothing here.
+function _secAccountBlock(meta) {
+  var a = meta && meta.account;
+  if (!a || !a.id) return '';
+  var name = escHtml(a.nickname || '(no name)');
+  var email = a.email ? escHtml(a.email) : '';
+  var role = a.role ? escHtml(a.role) : '';
+  var safeId = String(a.id).replace(/'/g, '');
+  return '<div style="margin-top:.35rem;padding:.4rem .5rem;background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.35);border-radius:8px">' +
+    '<div style="font-size:.66rem;font-weight:700">&#128100; Signed in as: ' + name +
+      (role ? ' <span style="font-size:.56rem;color:var(--muted)">(' + role + ')</span>' : '') + '</div>' +
+    (email ? '<div style="font-size:.62rem;color:var(--muted);word-break:break-all">&#9993;&#65039; ' + email + '</div>' : '') +
+    '<button class="save-pill" style="font-size:.58rem;margin-top:.3rem" onclick="secViewAccount(\'' + safeId + '\')">&#128269; View account</button>' +
+  '</div>';
+}
+
+window.secViewAccount = function (userId) {
+  if (typeof openUserDetailModal === 'function') { openUserDetailModal(userId); }
+  else { toast('User: ' + userId); }
+};
+
 function _secRenderFeed(logs, banned, newIds) {
   newIds = newIds || {};
   var el = document.getElementById('security-list');
@@ -2682,6 +2704,7 @@ function _secRenderFeed(logs, banned, newIds) {
             escHtml(l.method || '') + ' ' + escHtml(l.path || '') + '</div>' +
           (l.user_agent ? '<div style="font-size:.6rem;color:var(--muted);margin-top:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">&#128421;&#65039; ' + escHtml(l.user_agent) + '</div>' : '') +
           '<div style="font-size:.62rem;color:var(--muted);margin-top:.15rem">&#128336; ' + timeAgo(l.created_at) + '</div>' +
+          _secAccountBlock(meta) +
           '<div id="secd-' + idx + '" style="display:none;margin-top:.5rem;padding:.5rem;background:var(--card2,rgba(0,0,0,.05));border-radius:8px">' +
             _secDetailHtml(l, meta) + '</div>' +
           '<div style="margin-top:.35rem;display:flex;gap:.3rem;flex-wrap:wrap">' +

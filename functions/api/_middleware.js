@@ -37,7 +37,12 @@ export async function onRequest(context) {
   const suspiciousPatterns = [
     { rx: /(union\s+select|drop\s+table|insert\s+into|delete\s+from|update\s+\w+\s+set)/i, type: 'SQL Injection' },
     { rx: /(\bor\s+1\s*=\s*1|\band\s+1\s*=\s*1)/i,     type: 'SQL Injection' },
-    { rx: /(<script|javascript:|on\w+\s*=|<iframe|<img\s)/i, type: 'XSS (script injection)' },
+    { rx: /(<script|javascript:|<iframe|<img\s|<svg\s)/i, type: 'XSS (script injection)' },
+    // Real HTML event-handler injection (onerror=, onclick=, onload=, …). The
+    // handler name is enumerated on purpose: a loose /on\w+=/ falsely flagged
+    // ordinary query params that merely END in "on" — permissions=, options=,
+    // session=, reason= — as attacks (the admin's own traffic).
+    { rx: /\bon(abort|blur|change|click|contextmenu|copy|cut|dblclick|drag|drop|error|focus|input|keydown|keypress|keyup|load|mousedown|mousemove|mouseout|mouseover|mouseup|paste|pointer\w+|reset|resize|scroll|select|submit|toggle|touchstart|touchmove|touchend|unload|wheel|animation\w+|transitionend)\s*=/i, type: 'XSS (script injection)' },
     { rx: /\.\.[\/\\]/,                                 type: 'Path traversal' },
     { rx: /\/etc\/(passwd|shadow)/i,                    type: 'System file probe' },
     { rx: /\$\{.*\}/,                                    type: 'Template injection' },
