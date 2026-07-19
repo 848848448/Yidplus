@@ -350,6 +350,10 @@ function buildAdminPanel(id) {
   var content = document.getElementById('admin-content');
   if (!content) return;
 
+  // Switching panels always tears down the live Attacks monitor, so its poll
+  // never keeps running in the background after you've navigated away.
+  if (window._secLiveTimer) { clearInterval(window._secLiveTimer); window._secLiveTimer = null; }
+
   if (id === 'growth') {
     buildGrowthPanel(content); return;
   }
@@ -2398,6 +2402,22 @@ function _attackColor(type) {
 }
 
 function buildSecurityPanel(content) {
+  // Inject the new-attack flash animation once.
+  if (!document.getElementById('sec-flash-style')) {
+    var st = document.createElement('style');
+    st.id = 'sec-flash-style';
+    st.textContent = '@keyframes secflash{0%{background:rgba(192,57,43,.35)}100%{background:transparent}}' +
+      '.sec-new{animation:secflash 2.6s ease}' +
+      '@keyframes secpulse{0%,100%{opacity:1}50%{opacity:.35}}' +
+      '.sec-live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#e53935;animation:secpulse 1.4s ease-in-out infinite;margin-inline-end:.35rem;vertical-align:middle}';
+    document.head.appendChild(st);
+  }
+
+  // Fresh monitoring state each time the panel opens.
+  window._secSeenIds = null;      // Set of attack ids already shown (null = first load)
+  window._secNewCount = 0;        // new attacks since the panel opened
+  window._secPaused = false;
+
   content.innerHTML =
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
@@ -2405,7 +2425,15 @@ function buildSecurityPanel(content) {
           '<span>&#128737;&#65039; Security &mdash; Intrusion Log</span>' +
           '<button class="save-pill" style="font-size:.62rem;background:var(--red)" onclick="adminClearSecurityLog()">Clear log</button>' +
         '</div>' +
-        '<div id="security-stats" style="display:flex;gap:.5rem;margin:.4rem 0 .7rem"></div>' +
+        // Live monitor bar
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;background:var(--card2,rgba(0,0,0,.06));border-radius:10px;padding:.5rem .6rem;margin:.3rem 0 .6rem">' +
+          '<div style="min-width:0">' +
+            '<div id="sec-live-status" style="font-size:.72rem;font-weight:700"><span class="sec-live-dot"></span>Watching live&hellip;</div>' +
+            '<div id="sec-live-sub" style="font-size:.6rem;color:var(--muted);margin-top:.1rem">Checking every few seconds. New attacks appear at the top and flash.</div>' +
+          '</div>' +
+          '<button id="sec-pause-btn" class="save-pill" style="font-size:.6rem;flex-shrink:0" onclick="secToggleLive()">&#9208;&#65039; Pause</button>' +
+        '</div>' +
+        '<div id="security-stats" style="display:flex;gap:.5rem;margin:.2rem 0 .7rem"></div>' +
         '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem;line-height:1.45">' +
           'Every request below was <strong>automatically blocked</strong> before it could do anything. ' +
           'For each one you can see where it came from, everything the attacker\'s own request revealed, ' +
@@ -2423,22 +2451,92 @@ function buildSecurityPanel(content) {
       '</div>' +
     '</div>';
 
-  api.get('/admin/security-log?limit=150')
+  _secRefresh();
+
+  // Poll while the panel is open. buildAdminPanel() clears this the moment you
+  // switch to any other panel, so it never runs in the background.
+  if (window._secLiveTimer) clearInterval(window._secLiveTimer);
+  window._secLiveTimer = setInterval(function () {
+    if (window._secPaused) return;
+    // Stop cleanly if the panel is no longer on screen.
+    if (!document.getElementById('security-list')) {
+      clearInterval(window._secLiveTimer); window._secLiveTimer = null; return;
+    }
+    _secRefresh();
+  }, 8000);
+}
+
+// Fetch latest and render. Detects attacks not seen before and flashes them,
+// updating the live status line with when we last checked and how many new
+// attacks have come in since the panel was opened.
+function _secRefresh() {
+  return api.get('/admin/security-log?limit=150')
     .then(function (res) {
       var logs = res.logs || [];
       var stats = res.stats || {};
       var offenders = res.offenders || [];
       var banned = res.banned || [];
 
+      // Work out which ids are new since last check.
+      var newIds = {};
+      if (window._secSeenIds === null) {
+        // First load — everything is "already seen", nothing flashes.
+        window._secSeenIds = {};
+        logs.forEach(function (l) { window._secSeenIds[l.id] = 1; });
+      } else {
+        var freshest = null;
+        logs.forEach(function (l) {
+          if (!window._secSeenIds[l.id]) {
+            newIds[l.id] = 1;
+            window._secSeenIds[l.id] = 1;
+            window._secNewCount++;
+            if (!freshest) freshest = l;
+          }
+        });
+        if (freshest) {
+          var where = [_flagEmoji(freshest.country), freshest.ip].filter(Boolean).join(' ');
+          toast('\u26A0 New attack: ' + (freshest.attack_type || 'blocked') + ' \u2014 ' + (where || 'unknown'));
+        }
+      }
+
       _secRenderStats(stats);
       _secRenderOffenders(offenders, banned);
-      _secRenderFeed(logs, banned);
+      _secRenderFeed(logs, banned, newIds);
+      _secUpdateLiveStatus();
     })
     .catch(function (err) {
       var el = document.getElementById('security-list');
-      if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
+      if (el && el.querySelector('.spinner')) {
+        el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
+      }
     });
 }
+
+function _secUpdateLiveStatus() {
+  var s = document.getElementById('sec-live-status');
+  var sub = document.getElementById('sec-live-sub');
+  if (!s) return;
+  if (window._secPaused) {
+    s.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted);margin-inline-end:.35rem;vertical-align:middle"></span>Paused';
+  } else {
+    s.innerHTML = '<span class="sec-live-dot"></span>Watching live' +
+      (window._secNewCount ? ' &middot; <span style="color:#e53935">' + window._secNewCount + ' new</span>' : '');
+  }
+  if (sub) {
+    var t = new Date();
+    var hh = ('0' + t.getHours()).slice(-2), mm = ('0' + t.getMinutes()).slice(-2), ss = ('0' + t.getSeconds()).slice(-2);
+    sub.textContent = 'Last checked ' + hh + ':' + mm + ':' + ss + (window._secPaused ? ' (paused)' : '');
+  }
+}
+
+window.secToggleLive = function () {
+  window._secPaused = !window._secPaused;
+  var b = document.getElementById('sec-pause-btn');
+  if (b) b.innerHTML = window._secPaused ? '\u25B6\uFE0F Resume' : '\u23F8\uFE0F Pause';
+  if (!window._secPaused) _secRefresh();
+  _secUpdateLiveStatus();
+};
+
 
 // Is a source already banned? Checks its exact IP, its whole country, and its
 // whole network against the ban list returned by the server.
@@ -2501,7 +2599,8 @@ function _secRenderOffenders(offenders, banned) {
   }).join('');
 }
 
-function _secRenderFeed(logs, banned) {
+function _secRenderFeed(logs, banned, newIds) {
+  newIds = newIds || {};
   var el = document.getElementById('security-list');
   if (!el) return;
   if (!logs.length) {
@@ -2525,7 +2624,8 @@ function _secRenderFeed(logs, banned) {
       ? '<span style="font-size:.62rem;font-weight:700;color:var(--red);flex-shrink:0">&#9989; Banned</span>'
       : '<button class="save-pill" style="font-size:.62rem;flex-shrink:0" onclick="secBanIp(\'' + safeIp + '\')">&#128683; Ban</button>';
 
-    return '<div style="padding:.6rem 0;border-bottom:.5px solid var(--border)">' +
+    var isNew = !!newIds[l.id];
+    return '<div class="' + (isNew ? 'sec-new' : '') + '" style="padding:.6rem 0;border-bottom:.5px solid var(--border)">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">' +
         '<div style="min-width:0;flex:1">' +
           '<span style="display:inline-block;font-size:.62rem;font-weight:700;color:#fff;background:' + color + ';padding:.12rem .4rem;border-radius:5px;margin-bottom:.25rem">' +
