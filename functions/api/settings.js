@@ -18,7 +18,13 @@ export async function onRequestGet(context) {
     context.waitUntil ? context.waitUntil(activateDueScheduledBroadcasts(env)) : await activateDueScheduledBroadcasts(env);
     const { results } = await env.DB.prepare(`SELECT key, value FROM app_settings`).all();
     const settings = {};
-    for (const row of results) settings[row.key] = row.value;
+    // These are owner-only config that the frontend never needs — don't broadcast
+    // them to every visitor (e.g. the AI's custom instructions / system prompt).
+    const PRIVATE_KEYS = { ai_instructions: 1 };
+    for (const row of results) {
+      if (PRIVATE_KEYS[row.key]) continue;
+      settings[row.key] = row.value;
+    }
     return json({ ok: true, settings });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);

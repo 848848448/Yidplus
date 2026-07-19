@@ -6342,6 +6342,8 @@ var AI_state = { messages: [], sending: false, loaded: false };
 // The pinned entry in the chat list.
 function _aiChatRow() {
   try {
+    // Owner turned it off for everyone -> it disappears from the chat list.
+    if (window.STATE && STATE.settings && STATE.settings.ai_enabled === 'false') return '';
     if (typeof CHAT_activeFolder !== 'undefined' && CHAT_activeFolder) return '';
     if (typeof CHAT_tab !== 'undefined' && !(CHAT_tab === 'all' || CHAT_tab === 'private')) return '';
     if (typeof CHAT_search !== 'undefined' && CHAT_search) {

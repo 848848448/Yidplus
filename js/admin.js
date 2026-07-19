@@ -3188,8 +3188,8 @@ function buildAIPanel(content) {
 
         // Enable toggle
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:.9rem 0 .3rem">' +
-          '<div><div style="font-weight:700;font-size:.85rem">Turn on for everyone</div>' +
-            '<div style="font-size:.66rem;color:var(--muted)">When off, no one can use the AI.</div></div>' +
+          '<div><div style="font-weight:700;font-size:.85rem">Show YID PLUS AI for everyone</div>' +
+            '<div style="font-size:.66rem;color:var(--muted)">Off = it disappears from everyone\'s chat list and no one can use it. On = it comes back.</div></div>' +
           '<input type="checkbox" id="ai-enabled"' + (s.enabled ? ' checked' : '') + ' style="width:22px;height:22px;cursor:pointer;accent-color:#7C3AED;flex-shrink:0">' +
         '</div>' +
 
