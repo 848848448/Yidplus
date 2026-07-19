@@ -527,11 +527,11 @@ body.night {
 /* Auto-hiding scrub bar — sits at the very bottom of the slide, fades in
    while the video is playing/being scrubbed, fades out after a few
    seconds of inactivity (YouTube Shorts style). */
-.scrub-wrap   { position: absolute; left: 0; right: 0; bottom: calc(58px + env(safe-area-inset-bottom, 0px)); height: 28px; z-index: 40; display: flex; align-items: center; padding: 0 10px; opacity: 1; transition: opacity .25s; touch-action: none; }
+.scrub-wrap   { position: absolute; left: 0; right: 0; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); height: 14px; z-index: 45; display: flex; align-items: center; padding: 0 12px; opacity: 1; transition: opacity .25s; touch-action: none; }
 .scrub-wrap.show { opacity: 1; }
-.scrub-track  { position: relative; flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.3); cursor: pointer; }
-.scrub-fill   { position: absolute; top: 0; left: 0; height: 100%; border-radius: 2px; background: #fff; width: 0%; }
-.scrub-handle { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: #fff; transform: translate(-50%,-50%); left: 0%; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.scrub-track  { position: relative; flex: 1; height: 5px; border-radius: 3px; background: rgba(0,0,0,.4); box-shadow: 0 0 0 .5px rgba(255,255,255,.25), 0 1px 3px rgba(0,0,0,.4); cursor: pointer; }
+.scrub-fill   { position: absolute; top: 0; left: 0; height: 100%; border-radius: 3px; background: #fff; width: 0%; }
+.scrub-handle { position: absolute; top: 50%; width: 15px; height: 15px; border-radius: 50%; background: #fff; transform: translate(-50%,-50%); left: 0%; border: 2px solid rgba(0,0,0,.35); box-shadow: 0 1px 5px rgba(0,0,0,.5); }
 
 /* Brief center play/pause flash — shows for an instant then fades, never
    stays on screen (YouTube Shorts style), replacing the old persistent ⏸. */
