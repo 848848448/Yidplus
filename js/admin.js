@@ -164,6 +164,7 @@ var ADMIN_ICONS = {
   'banned-devices': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
   'ip-logs':      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
   'security':     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  'diagnostics':  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
   'channels-mgr': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
   'shorts-mod':   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
   'chat-watch':   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
@@ -218,6 +219,7 @@ var ADMIN_PANELS = [
   { id:'banned-devices', label:'Banned',          roles:['owner'] },
   { id:'ip-logs',        label:'IP Logs',         roles:['owner'] },
   { id:'security',       label:'Attacks',         roles:['owner'] },
+  { id:'diagnostics',    label:'Health Check',    roles:['owner'] },
   { id:'sessions',       label:'Sessions',        roles:['owner'] },
   { id:'audit-logs',     label:'Audit Logs',      roles:['owner'] },
   { id:'ads',            label:'Ads',             roles:['owner'] },
@@ -245,7 +247,7 @@ var ADMIN_CATEGORIES = [
   { id:'content',    label:'Content',    desc:'Announce, broadcast, channels, more',  color:'#534AB7', bg:'#EEEDFE', bgd:'#3C3489',
     panels:['announcements','broadcast','channels-mgr','telegram','email-templates','featured'] },
   { id:'system',     label:'System',     desc:'Features, app, ads, logs, export',     color:'#5F5E5A', bg:'#F1EFE8', bgd:'#2C2C2A',
-    panels:['features','app-settings','ads','maintenance','antispam','health','security','ip-logs','audit-logs','export','nuclear','admin-settings'] },
+    panels:['features','app-settings','ads','maintenance','antispam','health','security','diagnostics','ip-logs','audit-logs','export','nuclear','admin-settings'] },
 ];
 
 var ADMIN_CAT_ICONS = {
@@ -556,6 +558,9 @@ function buildAdminPanel(id) {
     buildIpLogsPanel(content);
   } else if (id === 'security') {
     buildSecurityPanel(content);
+
+  } else if (id === 'diagnostics') {
+    buildDiagnosticsPanel(content);
 
   } else if (id === 'channels-mgr') {
     buildChannelsMgrPanel(content);
@@ -2777,6 +2782,184 @@ window.adminClearSecurityLog = function () {
       .catch(function (err) { toast('❌ ' + err.message); });
   });
 };
+
+/* ══════════════════════════════════
+   HEALTH CHECK / DIAGNOSTICS PANEL
+   A whole-site self-check: server-side config/storage/database/data checks
+   (from /api/admin/diagnostics) plus live in-browser probes of every major
+   endpoint, so the owner can see at a glance what's broken, half-broken,
+   misconfigured or missing. Owner-only.
+══════════════════════════════════ */
+
+function _diagColor(status) {
+  if (status === 'ok')   return '#0F6E56';
+  if (status === 'warn') return '#B7791F';
+  if (status === 'fail') return '#C0392B';
+  return '#7A7A7A'; // skip / unknown
+}
+function _diagLabel(status) {
+  if (status === 'ok')   return 'OK';
+  if (status === 'warn') return 'Check';
+  if (status === 'fail') return 'Problem';
+  return 'Skipped';
+}
+function _diagRow(status, label, detail, fix) {
+  var c = _diagColor(status);
+  return '<div style="display:flex;gap:.55rem;padding:.5rem 0;border-bottom:.5px solid var(--border)">' +
+    '<div style="width:9px;height:9px;border-radius:50%;background:' + c + ';flex-shrink:0;margin-top:.28rem"></div>' +
+    '<div style="min-width:0;flex:1">' +
+      '<div style="font-size:.78rem;font-weight:700">' + escHtml(label) +
+        ' <span style="font-size:.58rem;font-weight:700;color:' + c + ';text-transform:uppercase;letter-spacing:.04em">&middot; ' + _diagLabel(status) + '</span></div>' +
+      (detail ? '<div style="font-size:.66rem;color:var(--muted);margin-top:.1rem;line-height:1.4">' + escHtml(detail) + '</div>' : '') +
+      (fix ? '<div style="font-size:.64rem;color:var(--gold);margin-top:.15rem;line-height:1.4">&#128295; ' + escHtml(fix) + '</div>' : '') +
+    '</div>' +
+  '</div>';
+}
+
+function buildDiagnosticsPanel(content) {
+  content.innerHTML =
+    '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title" style="display:flex;justify-content:space-between;align-items:center">' +
+          '<span>&#129658; Health Check</span>' +
+          '<button class="save-pill" style="font-size:.62rem" onclick="var c=document.getElementById(\'admin-content\');if(c)buildDiagnosticsPanel(c)">&#8635; Re-run</button>' +
+        '</div>' +
+        '<div style="font-size:.68rem;color:var(--muted);line-height:1.45;margin-bottom:.5rem">' +
+          'A full sweep of the site: configuration, storage, the database, your data, and a live test of every major feature. ' +
+          'Anything <strong>red</strong> is broken, <strong>amber</strong> needs a look, <strong>green</strong> is fine.' +
+        '</div>' +
+        '<div id="diag-summary" style="display:flex;gap:.5rem;margin-bottom:.3rem"></div>' +
+      '</div>' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">&#128225; Live feature test</div>' +
+        '<div style="font-size:.64rem;color:var(--muted);margin-bottom:.4rem">Each of these calls a real part of the site right now and checks it responds.</div>' +
+        '<div id="diag-client"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">&#128295; Configuration &amp; data</div>' +
+        '<div id="diag-server"><div class="feed-state"><div class="spinner"></div></div></div>' +
+      '</div>' +
+    '</div>';
+
+  _diagRunServer();
+  _diagRunClient();
+}
+
+// Server-side battery.
+function _diagRunServer() {
+  api.get('/admin/diagnostics')
+    .then(function (res) {
+      var checks = res.checks || [];
+      var summary = res.summary || {};
+      window._diagServerSummary = summary;
+      _diagRenderSummary();
+
+      // Group by category, preserving first-seen order.
+      var order = [], groups = {};
+      checks.forEach(function (c) {
+        if (!groups[c.category]) { groups[c.category] = []; order.push(c.category); }
+        groups[c.category].push(c);
+      });
+
+      var html = order.map(function (cat) {
+        var rows = groups[cat].map(function (c) { return _diagRow(c.status, c.label, c.detail, c.fix); }).join('');
+        return '<div style="margin-bottom:.6rem">' +
+          '<div style="font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:.3rem 0 .1rem">' + escHtml(cat) + '</div>' +
+          rows + '</div>';
+      }).join('');
+
+      var el = document.getElementById('diag-server');
+      if (el) el.innerHTML = html || '<div style="font-size:.75rem;color:var(--muted)">No checks returned.</div>';
+    })
+    .catch(function (err) {
+      var el = document.getElementById('diag-server');
+      if (el) el.innerHTML = '<div style="padding:.6rem;color:var(--red);font-size:.78rem">Could not run server checks: ' + escHtml(err.message) + '</div>';
+    });
+}
+
+// Live in-browser probes: hit each major endpoint and the device's own push
+// readiness, so a feature that's throwing errors right now shows up even if
+// the config looks fine.
+function _diagRunClient() {
+  var probes = [
+    { label: 'Feed / posts',      url: '/api/posts' },
+    { label: 'Chat rooms',        url: '/api/chat/rooms' },
+    { label: 'Shorts',            url: '/api/shorts' },
+    { label: 'Music',             url: '/api/music' },
+    { label: 'Status updates',    url: '/api/statuses' },
+    { label: 'Channels',          url: '/api/channels' },
+    { label: 'Your session',      url: '/api/auth/me' },
+    { label: 'Admin stats',       url: '/api/admin/stats' },
+  ];
+
+  var results = new Array(probes.length);
+  var done = 0;
+
+  var render = function () {
+    var el = document.getElementById('diag-client');
+    if (!el) return;
+    var rows = results.map(function (r) {
+      if (!r) return '';
+      return _diagRow(r.status, r.label, r.detail, r.fix);
+    }).join('');
+
+    // Device push readiness (local browser facts).
+    var extra = '';
+    var perm = (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported';
+    if (perm === 'granted') {
+      extra += _diagRow('ok', 'Notifications allowed on this device', 'This device can receive push + attack alerts.');
+    } else if (perm === 'denied') {
+      extra += _diagRow('fail', 'Notifications blocked on this device', 'You blocked notifications — attack alerts can\'t arrive here.', 'Allow notifications for the site in your browser/phone settings.');
+    } else {
+      extra += _diagRow('warn', 'Notifications not enabled on this device', 'You haven\'t turned on notifications yet.', 'Enable notifications in the app so attack alerts reach this phone.');
+    }
+
+    el.innerHTML = rows + extra;
+  };
+
+  probes.forEach(function (p, i) {
+    var t0 = Date.now();
+    fetch(p.url, { credentials: 'include', headers: { 'Accept': 'application/json' } })
+      .then(function (resp) {
+        var ms = Date.now() - t0;
+        return resp.text().then(function (txt) {
+          var okBody = true, parsed = null;
+          try { parsed = JSON.parse(txt); if (parsed && parsed.ok === false) okBody = false; } catch (e) { /* non-JSON is fine for some */ }
+          if (resp.ok && okBody) {
+            results[i] = { status: 'ok', label: p.label, detail: 'Responded ' + resp.status + ' in ' + ms + 'ms.' };
+          } else if (resp.status === 401 || resp.status === 403) {
+            // Not an outage — just needs auth/permission (e.g. admin stats when not owner).
+            results[i] = { status: 'ok', label: p.label, detail: 'Reachable (' + resp.status + ' — needs sign-in/permission).' };
+          } else {
+            results[i] = { status: 'fail', label: p.label, detail: 'Returned ' + resp.status + (parsed && parsed.error ? ' — ' + parsed.error : '') + '.', fix: 'This feature is erroring right now.' };
+          }
+          done++; render();
+        });
+      })
+      .catch(function (err) {
+        results[i] = { status: 'fail', label: p.label, detail: 'No response: ' + err.message + '.', fix: 'The endpoint is unreachable.' };
+        done++; render();
+      });
+  });
+
+  // Kick an initial render so the section isn't stuck on a spinner if fetches lag.
+  setTimeout(render, 400);
+}
+
+function _diagRenderSummary() {
+  var el = document.getElementById('diag-summary');
+  if (!el) return;
+  var s = window._diagServerSummary || {};
+  var pill = function (n, label, color) {
+    return '<div style="flex:1;background:var(--card2,rgba(0,0,0,.06));border-radius:10px;padding:.5rem .3rem;text-align:center">' +
+      '<div style="font-size:1.1rem;font-weight:800;color:' + color + '">' + (n || 0) + '</div>' +
+      '<div style="font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em">' + label + '</div></div>';
+  };
+  el.innerHTML =
+    pill(s.fail, 'Problems', '#C0392B') +
+    pill(s.warn, 'To check', '#B7791F') +
+    pill(s.ok, 'Healthy', '#0F6E56');
+}
 
 /* ══════════════════════════════════
    CHANNELS MANAGER PANEL
