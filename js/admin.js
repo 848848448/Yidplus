@@ -2433,7 +2433,9 @@ function buildSecurityPanel(content) {
           '</div>' +
           '<button id="sec-pause-btn" class="save-pill" style="font-size:.6rem;flex-shrink:0" onclick="secToggleLive()">&#9208;&#65039; Pause</button>' +
         '</div>' +
-        '<div id="security-stats" style="display:flex;gap:.5rem;margin:.2rem 0 .7rem"></div>' +
+        '<div id="security-stats" style="display:flex;gap:.5rem;margin:.2rem 0 .5rem"></div>' +
+        // Phone alert toggle
+        '<div id="sec-alerts-row" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;background:var(--card2,rgba(0,0,0,.06));border-radius:10px;padding:.5rem .6rem;margin-bottom:.6rem"></div>' +
         '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem;line-height:1.45">' +
           'Every request below was <strong>automatically blocked</strong> before it could do anything. ' +
           'For each one you can see where it came from, everything the attacker\'s own request revealed, ' +
@@ -2500,6 +2502,7 @@ function _secRefresh() {
       }
 
       _secRenderStats(stats);
+      _secRenderAlerts(res.alerts !== false);
       _secRenderOffenders(offenders, banned);
       _secRenderFeed(logs, banned, newIds);
       _secUpdateLiveStatus();
@@ -2535,6 +2538,43 @@ window.secToggleLive = function () {
   if (b) b.innerHTML = window._secPaused ? '\u25B6\uFE0F Resume' : '\u23F8\uFE0F Pause';
   if (!window._secPaused) _secRefresh();
   _secUpdateLiveStatus();
+};
+
+// Phone-alert toggle: when on, the owner's phone gets a push the moment a NEW
+// source starts attacking (throttled server-side to one per 10 min).
+function _secRenderAlerts(on) {
+  var el = document.getElementById('sec-alerts-row');
+  if (!el) return;
+  window._secAlertsOn = on;
+  el.innerHTML =
+    '<div style="min-width:0">' +
+      '<div style="font-size:.72rem;font-weight:700">' + (on ? '\uD83D\uDD14' : '\uD83D\uDD15') + ' Phone alerts: ' +
+        '<span style="color:' + (on ? '#0F6E56' : 'var(--muted)') + '">' + (on ? 'ON' : 'OFF') + '</span></div>' +
+      '<div style="font-size:.6rem;color:var(--muted);margin-top:.1rem">Sends a notification to the phone where you\u2019ve turned on YID PLUS notifications, when someone new starts attacking.</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:.3rem;flex-shrink:0">' +
+      (on ? '<button class="save-pill" style="font-size:.6rem;background:var(--muted)" onclick="secTestAlert(this)">\uD83D\uDCF2 Send test</button>' : '') +
+      '<button class="save-pill" style="font-size:.6rem" onclick="secToggleAlerts(' + (on ? 'false' : 'true') + ')">' + (on ? 'Turn off' : 'Turn on') + '</button>' +
+    '</div>';
+}
+
+window.secToggleAlerts = function (turnOn) {
+  api.post('/admin/security-log', { alerts: !!turnOn })
+    .then(function () {
+      toast(turnOn ? '\uD83D\uDD14 Phone alerts on' : '\uD83D\uDD15 Phone alerts off');
+      _secRenderAlerts(!!turnOn);
+    })
+    .catch(function (err) { toast('\u274C ' + err.message); });
+};
+
+window.secTestAlert = function (btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending\u2026'; }
+  api.post('/admin/security-log', { test: true })
+    .then(function () {
+      toast('\uD83D\uDCF2 Test sent \u2014 check your phone. If nothing arrives, enable notifications in Settings.');
+    })
+    .catch(function (err) { toast('\u274C ' + err.message); })
+    .then(function () { if (btn) { btn.disabled = false; btn.innerHTML = '\uD83D\uDCF2 Send test'; } });
 };
 
 

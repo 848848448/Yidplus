@@ -2,6 +2,8 @@
 // Shared helpers for Cloudflare Pages Functions.
 // Import with: import { requireUser, json, corsHeaders, getCookie } from '../_helpers.js';
 
+import { sendWebPush } from './_webpush.js';
+
 export const corsHeaders = {
   'Content-Type': 'application/json',
   // The frontend and API live on the same origin (Cloudflare Pages serves
@@ -365,6 +367,19 @@ export function logAttack(context, attackType, status, opts) {
 
     const work = (async () => {
       await _ensureAttackTable(env);
+
+      // Is this a NEW attacking source, or one we've already seen today? Checked
+      // before the insert so a fresh IP reads as 0 prior hits. Drives the owner
+      // alert — we ping when someone new starts, not on every repeated knock.
+      let priorHits = 1;
+      if (info.ip && info.ip !== 'unknown') {
+        const p = await env.DB.prepare(
+          `SELECT COUNT(*) AS c FROM attack_logs
+           WHERE ip = ? AND created_at > datetime('now', '-24 hours')`
+        ).bind(info.ip).first().catch(() => ({ c: 1 }));
+        priorHits = (p && typeof p.c === 'number') ? p.c : 1;
+      }
+
       await env.DB.prepare(
         `INSERT INTO attack_logs
            (id, ip, country, city, region, asn, method, path, attack_type,
@@ -375,6 +390,13 @@ export function logAttack(context, attackType, status, opts) {
         info.asn, method, path, attackType, info.user_agent, info.referer, st,
         JSON.stringify(info.meta)
       ).run().catch(() => {});
+
+      // Alert the owner's phone when a NEW source starts attacking (the helper
+      // throttles to at most one alert per 10 min and respects the on/off
+      // toggle, so this can't become a flood).
+      if (priorHits === 0) {
+        await notifyOwnerAttack(env, attackType, info);
+      }
 
       // ── Auto-ban repeat offenders ──
       // Someone who trips the defenses again and again isn't a one-off typo —
@@ -441,4 +463,88 @@ export async function findBan(env, request) {
   } catch (e) {
     return null; // a ban-lookup failure must never wall off the whole site
   }
+}
+
+// Push a "someone is attacking the site" alert to the owner's phone (and the
+// co-owner). Deliberately throttled and only ever fired for a NEW attacking
+// source, so it's a heads-up when trouble starts — not a stream of pings for
+// every background scanner. Controlled by the app setting 'sec_push_alerts'
+// (a toggle in the Attacks panel); silently does nothing if turned off, if no
+// owner device is subscribed to push, or if VAPID isn't configured. Entirely
+// best-effort — it must never affect the request it's attached to.
+export async function notifyOwnerAttack(env, attackType, info) {
+  try {
+    if (!env || !env.DB) return;
+
+    // Respect the on/off toggle. Missing row => treat as ON (the owner asked
+    // for this), so it works the moment they flip nothing.
+    const setting = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'sec_push_alerts'"
+    ).first().catch(() => null);
+    if (setting && setting.value === 'false') return;
+
+    // Throttle: at most one attack alert every 10 minutes, however many new
+    // sources appear, so a burst can never turn into a flood of buzzes.
+    const THROTTLE_MIN = 10;
+    const last = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'sec_last_push_at'"
+    ).first().catch(() => null);
+    if (last && last.value) {
+      const lastMs = Date.parse(last.value);
+      if (!isNaN(lastMs) && (Date.now() - lastMs) < THROTTLE_MIN * 60 * 1000) return;
+    }
+
+    // Who to alert: owner + co-owner.
+    const emails = [env.OWNER_EMAIL, 'jmittelman2@gmail.com'].filter(Boolean);
+    const placeholders = emails.map(() => '?').join(',');
+    const owners = await env.DB.prepare(
+      `SELECT id FROM users WHERE lower(email) IN (${placeholders})`
+    ).bind(...emails.map((e) => e.toLowerCase())).all().catch(() => ({ results: [] }));
+    const ownerIds = (owners.results || []).map((r) => r.id);
+    if (!ownerIds.length) return;
+
+    const idPlaceholders = ownerIds.map(() => '?').join(',');
+    const subs = await env.DB.prepare(
+      `SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id IN (${idPlaceholders})`
+    ).bind(...ownerIds).all().catch(() => ({ results: [] }));
+    if (!subs.results || !subs.results.length) return;
+
+    // Mark the throttle now (before sending) so two near-simultaneous attacks
+    // don't both fire. Upsert into app_settings.
+    const nowIso = new Date().toISOString();
+    await env.DB.prepare(
+      `INSERT INTO app_settings (key, value, updated_at) VALUES ('sec_last_push_at', ?, datetime('now'))
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
+    ).bind(nowIso).run().catch(async () => {
+      // Fallback for schemas without a unique constraint on key.
+      await env.DB.prepare("UPDATE app_settings SET value = ? WHERE key = 'sec_last_push_at'")
+        .bind(nowIso).run().catch(() => {});
+    });
+
+    const flag = _ccToFlag(info.country);
+    const where = [flag, info.ip].filter(Boolean).join(' ');
+    const locBits = [info.city, info.country].filter(Boolean).join(', ');
+    const payload = {
+      title: '🛡️ YID PLUS — attack detected',
+      body: (attackType || 'Blocked attempt') + (where ? ' from ' + where : '') + (locBits ? ' (' + locBits + ')' : ''),
+      icon: '/images/logo.png',
+      badge: '/images/logo.png',
+      url: '/admin',
+      tag: 'yp-security',        // same tag => a new alert replaces the old one
+    };
+
+    for (const s of subs.results) {
+      try {
+        await sendWebPush({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, env);
+      } catch (e) { /* one dead device must not stop the others */ }
+    }
+  } catch (e) { /* alerting must never break anything */ }
+}
+
+// 2-letter country code -> flag emoji (server-side twin of the panel's helper).
+function _ccToFlag(cc) {
+  if (!cc || cc.length !== 2 || !/^[A-Za-z]{2}$/.test(cc)) return '';
+  const A = 0x1F1E6;
+  return String.fromCodePoint(A + cc.toUpperCase().charCodeAt(0) - 65) +
+         String.fromCodePoint(A + cc.toUpperCase().charCodeAt(1) - 65);
 }

@@ -5,7 +5,7 @@
 // the brute-force guard record: who tried to attack the site, from where, and
 // what they tried.
 
-import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner, notifyOwnerAttack } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -69,13 +69,60 @@ export async function onRequestGet(context) {
     ).all().catch(() => ({ results: [] }));
     const bannedSet = (bans.results || []).map((b) => b.ip);
 
+    // Current state of the "text my phone on attack" toggle (default ON).
+    const alertRow = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'sec_push_alerts'"
+    ).first().catch(() => null);
+    const alertsOn = !(alertRow && alertRow.value === 'false');
+
     return json({
       ok: true,
       logs: results || [],
       stats: stats || {},
       offenders: offenders.results || [],
       banned: bannedSet,
+      alerts: alertsOn,
     });
+  } catch (err) {
+    return json({ ok: false, error: err.message }, 500);
+  }
+}
+
+// POST /api/admin/security-log
+//   { alerts: true|false }  -> turn phone alerts on/off
+//   { test: true }          -> send a test alert to the owner's phone right now
+export async function onRequestPost(context) {
+  const { request, env } = context;
+  try {
+    const user = await requireUser(request, env);
+    if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
+    if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
+
+    const body = await request.json().catch(() => ({}));
+
+    if (typeof body.alerts === 'boolean') {
+      await env.DB.prepare(
+        `INSERT INTO app_settings (key, value, updated_at)
+         VALUES ('sec_push_alerts', ?, datetime('now'))
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
+      ).bind(body.alerts ? 'true' : 'false').run().catch(() => {});
+      return json({ ok: true, alerts: body.alerts });
+    }
+
+    if (body.test) {
+      // Bypass the throttle for a test so the owner can confirm it works: clear
+      // the last-sent marker, then fire.
+      await env.DB.prepare("DELETE FROM app_settings WHERE key = 'sec_last_push_at'").run().catch(() => {});
+      await env.DB.prepare(
+        `INSERT INTO app_settings (key, value, updated_at)
+         VALUES ('sec_push_alerts', 'true', datetime('now'))
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
+      ).bind().run().catch(() => {});
+      await notifyOwnerAttack(env, 'Test alert', { ip: '203.0.113.7', country: 'US', city: 'Test City' });
+      return json({ ok: true, tested: true });
+    }
+
+    return json({ ok: false, error: 'Nothing to do' }, 400);
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
