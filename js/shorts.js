@@ -98,7 +98,6 @@ function renderShorts() {
       ? '<div class="short-avatar" style="background-image:url(' + s.photo_url + ');background-size:cover;background-position:center"></div>'
       : '<div class="short-avatar">' + escHtml((s.nick || '?').slice(0, 1).toUpperCase()) + '</div>';
 
-    var tagsHTML = '#YidPlus #JewishContent';
     var verifiedBadge = s.verified ? '<span style="font-size:.75rem">✅</span>' : '';
     var likedIcon = s.liked ? ICON_HEART_FILLED : ICON_HEART_OUTLINE;
     var likedClass = s.liked ? ' liked' : '';
@@ -119,7 +118,6 @@ function renderShorts() {
           '<span class="short-nick">@' + escHtml(s.nick) + '</span>' + verifiedBadge +
         '</div>' +
         '<div class="short-caption">' + escHtml(s.caption || '') + '</div>' +
-        '<div class="short-tags"><span class="short-tag">' + tagsHTML + '</span></div>' +
       '</div>' +
       '<div class="slide-actions">' +
         '<div class="action-avatar-wrap" onclick="event.stopPropagation();openShortChannel(' + i + ')">' +
@@ -148,6 +146,8 @@ function renderShorts() {
     var video = slide.querySelector('.slide-video');
     video.muted = !SHORTS_soundOn; // honor the session-wide sound preference
     video.loop  = true;
+    // Load the first video right away so the feed opens on a frame, not black.
+    if (i === 0) { video.preload = 'auto'; video.load(); }
 
     _wireSlideInteractions(slide, video, i);
 
@@ -255,19 +255,11 @@ function canDeleteShort(s) {
 function setupShortsObserver() {
   if (SHORTS_observer) SHORTS_observer.disconnect();
 
-  // Prevent fast swipes from flying past multiple slides
-  var cont = document.getElementById('swipe-cont');
-  var _isScrolling = false;
-  if (cont) {
-    cont.addEventListener('touchstart', function () { _isScrolling = false; }, { passive: true });
-    cont.addEventListener('scroll', function () {
-      if (_isScrolling) return;
-      _isScrolling = true;
-      // After scroll snaps, disable scroll briefly to prevent chaining
-      cont.style.overflow = 'hidden';
-      setTimeout(function () { cont.style.overflow = ''; _isScrolling = false; }, 600);
-    }, { passive: true });
-  }
+  // One-slide-at-a-time is handled natively by CSS: each .short-slide has
+  // `scroll-snap-align:start` + `scroll-snap-stop:always`, which the browser
+  // enforces reliably across devices. (An old JS hack that toggled
+  // overflow:hidden mid-scroll used to FIGHT that — causing exactly the
+  // skipping/stuck-scroll people saw — so it's gone.)
 
   SHORTS_observer = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {
@@ -278,6 +270,13 @@ function setupShortsObserver() {
         SHORTS_curIdx = idx;
         // Preload this video immediately when it becomes active
         if (video.preload === 'none') video.preload = 'auto';
+        // Warm up the NEXT slide too, so swiping to it plays instantly
+        // instead of showing a black frame while it loads.
+        var nextSlide = entry.target.nextElementSibling;
+        if (nextSlide) {
+          var nextVid = nextSlide.querySelector('.slide-video');
+          if (nextVid && nextVid.preload === 'none') { nextVid.preload = 'auto'; nextVid.load(); }
+        }
 
         // Track a view exactly once per short per page load.
         var s = SHORTS_data[idx];

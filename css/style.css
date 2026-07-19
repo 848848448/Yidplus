@@ -935,8 +935,8 @@ html.dark-mode .admin-search { background-color: #232427; border-color: #2C2D31;
 .shorts-upload-btn { width: 36px; height: 36px; border-radius: 50%; background: rgba(31,111,92,.2); border: 1.5px solid var(--blue); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; cursor: pointer; pointer-events: auto; color: #fff; }
 .short-channel { display: inline-flex; align-items: center; gap: .4rem; margin-bottom: .5rem; cursor: pointer; }
 .short-avatar { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.12); border: 1.5px solid var(--blue); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
-.short-nick { font-size: .9rem; font-weight: 700; color: #fff; }
-.short-caption { font-size: .85rem; line-height: 1.5; color: rgba(255,255,255,.95); margin-bottom: .5rem; }
+.short-nick { font-size: .9rem; font-weight: 700; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.short-caption { font-size: .85rem; line-height: 1.5; color: rgba(255,255,255,.95); margin-bottom: .5rem; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
 .short-tags { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .3rem; }
 .short-tag { font-size: .7rem; color: var(--blue); }
 .action-avatar-wrap { position: relative; cursor: pointer; }
