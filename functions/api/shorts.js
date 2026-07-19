@@ -24,7 +24,8 @@ export async function onRequestGet(context) {
     if (singleId) {
       const row = await env.DB.prepare(
         `SELECT s.id, s.owner_id, s.media_key, s.caption, s.likes, s.views, s.created_at,
-                u.nickname, u.verified, u.photo_url
+                u.nickname, u.verified, u.photo_url,
+                (SELECT COUNT(*) FROM short_comments WHERE short_id = s.id) AS comment_count
          FROM shorts s JOIN users u ON u.id = s.owner_id
          WHERE s.id = ?`
       ).bind(singleId).first();
@@ -38,7 +39,7 @@ export async function onRequestGet(context) {
         ok: true,
         shorts: [{
           id: row.id, owner_id: row.owner_id, nick: row.nickname, photo_url: row.photo_url || null,
-          verified: !!row.verified, caption: row.caption, likes: row.likes, views: row.views,
+          verified: !!row.verified, caption: row.caption, likes: row.likes, views: row.views, comments: row.comment_count || 0,
           media_url: `/api/media/${encodeURIComponent(row.media_key)}`, created_at: row.created_at, liked,
         }],
       });
@@ -62,7 +63,8 @@ export async function onRequestGet(context) {
     try {
       const stmt = env.DB.prepare(
         `SELECT s.id, s.owner_id, s.media_key, s.caption, s.likes, s.views, s.created_at,
-                u.nickname, u.verified, u.photo_url
+                u.nickname, u.verified, u.photo_url,
+                (SELECT COUNT(*) FROM short_comments WHERE short_id = s.id) AS comment_count
          FROM shorts s
          JOIN users u ON u.id = s.owner_id
          WHERE (s.hidden IS NULL OR s.hidden = 0)` + ownerClause + `
@@ -75,7 +77,8 @@ export async function onRequestGet(context) {
       // hidden column not migrated yet
       const stmt = env.DB.prepare(
         `SELECT s.id, s.owner_id, s.media_key, s.caption, s.likes, s.views, s.created_at,
-                u.nickname, u.verified, u.photo_url
+                u.nickname, u.verified, u.photo_url,
+                (SELECT COUNT(*) FROM short_comments WHERE short_id = s.id) AS comment_count
          FROM shorts s
          JOIN users u ON u.id = s.owner_id
          WHERE 1=1` + ownerClause + `
@@ -112,6 +115,7 @@ export async function onRequestGet(context) {
       caption: row.caption,
       likes: row.likes,
       views: row.views,
+      comments: row.comment_count || 0,
       created_at: row.created_at,
       media_url: `/api/media/${encodeURIComponent(row.media_key)}`,
       liked: likedIds.has(row.id),

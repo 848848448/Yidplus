@@ -522,6 +522,7 @@ body.night {
 .s-icon      { width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.15); backdrop-filter: blur(6px); border: .5px solid rgba(255,255,255,.3); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
 .s-action.liked .s-icon { background: rgba(211,47,47,.3); border-color: #ef5350; }
 .s-count     { font-size: .68rem; color: rgba(255,255,255,.95); text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+.short-cmt-badge { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box; border-radius: 9px; background: #E53935; color: #fff; font-size: .6rem; font-weight: 700; line-height: 18px; text-align: center; border: 1.5px solid rgba(0,0,0,.25); box-shadow: 0 1px 4px rgba(0,0,0,.4); }
 
 /* Auto-hiding scrub bar — sits at the very bottom of the slide, fades in
    while the video is playing/being scrubbed, fades out after a few

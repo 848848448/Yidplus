@@ -128,7 +128,9 @@ function renderShorts() {
           '<div class="s-icon" id="like-icon-' + i + '">' + likedIcon + '</div><div class="s-count" id="like-count-' + i + '">' + fmtN(s.likes) + '</div>' +
         '</div>' +
         '<div class="s-action" onclick="openComments(' + i + ')">' +
-          '<div class="s-icon">' + ICON_COMMENT + '</div><div class="s-count">Chat</div>' +
+          '<div class="s-icon" id="cmt-icon-' + i + '" style="position:relative">' + ICON_COMMENT +
+            ((s.comments > 0) ? '<span class="short-cmt-badge">' + (s.comments > 99 ? '99+' : s.comments) + '</span>' : '') +
+          '</div><div class="s-count">Chat</div>' +
         '</div>' +
         '<div class="s-action' + (s.saved ? ' liked' : '') + '" id="save-' + i + '" onclick="toggleShortSave(' + i + ')">' +
           '<div class="s-icon" id="save-icon-' + i + '">' + (s.saved ? '🔖' : '🏷️') + '</div><div class="s-count">Save</div>' +
@@ -430,6 +432,7 @@ window.openComments = function (idx) {
     .then(function (res) {
       var comments = res.comments || [];
       countEl.textContent = '(' + comments.length + ')';
+      _updateCmtBadge(idx, comments.length);
       if (!comments.length) {
         list.innerHTML = '<div style="text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.85rem">No comments yet.<br>Be the first!</div>';
         return;
@@ -453,6 +456,27 @@ window.openComments = function (idx) {
 window.closeCmts = function () {
   document.getElementById('cmt-drawer').classList.remove('open');
 };
+
+// Keep the little red comment-count badge on the video in sync (on open, and
+// after posting a comment).
+function _updateCmtBadge(idx, count) {
+  if (SHORTS_data[idx]) SHORTS_data[idx].comments = count;
+  var iconEl = document.getElementById('cmt-icon-' + idx);
+  if (!iconEl) return;
+  var badge = iconEl.querySelector('.short-cmt-badge');
+  if (count > 0) {
+    var label = count > 99 ? '99+' : String(count);
+    if (badge) { badge.textContent = label; }
+    else {
+      badge = document.createElement('span');
+      badge.className = 'short-cmt-badge';
+      badge.textContent = label;
+      iconEl.appendChild(badge);
+    }
+  } else if (badge) {
+    badge.remove();
+  }
+}
 
 window.sendCmt = function () {
   if (!STATE.user) return toast('⚠ Please sign in first.');
