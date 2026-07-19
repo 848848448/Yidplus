@@ -3088,6 +3088,13 @@ function buildChannelsMgrPanel(content) {
       '<div class="admin-card">' +
         '<div class="admin-card-title">📨 Telegram channels</div>' +
         '<div style="font-size:.76rem;color:var(--muted);margin-bottom:.7rem">Add a <b>public</b> Telegram channel by its @username (e.g. <code>@channelname</code>). It shows in the Channels tab and streams its posts from Telegram, read-only.<br><b>Note:</b> private invite links (t.me/+…) can\'t be embedded — only public channels with a @username.</div>' +
+        '<div style="display:flex;gap:.4rem;margin-bottom:.5rem">' +
+          '<input id="tgc-user" placeholder="@channelusername" style="flex:1;padding:.55rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem">' +
+          '<button class="save-pill" onclick="tgcAdd()">Add</button>' +
+        '</div>' +
+        '<input id="tgc-title" placeholder="Display name (optional)" style="width:100%;box-sizing:border-box;padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem;margin-bottom:.4rem">' +
+        '<label style="font-size:.72rem;color:var(--muted)">Photo (optional)</label>' +
+        '<input type="file" id="tgc-photo" accept="image/*" style="width:100%;font-size:.75rem;margin:.2rem 0 .7rem">' +
         '<div id="tgc-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
         '</div>' +
       '<div class="admin-card">' +
