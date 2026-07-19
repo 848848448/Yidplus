@@ -6525,7 +6525,8 @@ function _aiSend() {
     })
     .catch(function (err) {
       AI_state.sending = false;
-      AI_state.messages.push({ role: 'assistant', content: '⚠️ ' + (err.message || 'Connection error') });
+      var msg = (err && err.data && err.data.message) || (err && err.message) || 'Connection error';
+      AI_state.messages.push({ role: 'assistant', content: '⚠️ ' + msg });
       _aiRenderMessages();
       _aiSetSubtitle('גרייט צו העלפן');
     });

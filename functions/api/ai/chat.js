@@ -203,18 +203,27 @@ async function generateReply(env, system, messages) {
   // ── Free fallback: Cloudflare Workers AI ──
   if (env.AI) {
     try {
-      const model = env.CF_AI_MODEL || '@cf/meta/llama-3.1-8b-instruct';
-      const out = await env.AI.run(model, {
+      const model = env.CF_AI_MODEL || '@cf/meta/llama-3.1-8b-instruct-fast';
+      // Guard against a hung inference: if the model doesn't answer in time,
+      // fail cleanly with JSON instead of letting the Function hit a platform
+      // limit and return a raw 502 page.
+      const timeout = new Promise((_, rej) =>
+        setTimeout(() => rej(new Error('AI timed out')), 25000));
+      const run = env.AI.run(model, {
         messages: [{ role: 'system', content: system }].concat(messages),
-        max_tokens: 1024,
+        max_tokens: 640,
       });
-      // Workers AI text models return { response: "..." }.
-      const reply = (out && (out.response || out.result || '')) || '';
-      return { ok: true, reply: String(reply) };
+      const out = await Promise.race([run, timeout]);
+      // Workers AI text models return { response: "..." }; be defensive.
+      let reply = '';
+      if (typeof out === 'string') reply = out;
+      else if (out && typeof out.response === 'string') reply = out.response;
+      else if (out && out.result && typeof out.result.response === 'string') reply = out.result.response;
+      return { ok: true, reply: String(reply || '') };
     } catch (e) {
-      return { ok: false, error: 'ai_error', status: 502,
-        message: 'The free AI model returned an error. It may be busy — please try again.',
-        detail: String(e && e.message || e) };
+      return { ok: false, error: 'ai_error', status: 200,
+        message: 'The free AI model errored: ' + String((e && e.message) || e) + '. Please try again in a moment.',
+        detail: String((e && e.stack) || '') };
     }
   }
 
