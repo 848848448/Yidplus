@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://yidplus.com">
 <meta property="og:type" content="website">
 <title>YID PLUS — Chats</title>
-<link rel="stylesheet" href="css/style.css?v=202607200202">
+<link rel="stylesheet" href="css/style.css?v=202607200347">
 <script>
 (function () {
   try {
@@ -236,6 +236,10 @@
 
   <!-- Input bar -->
   <div id="msg-opts-badge" onclick="_resetMsgOptions()" style="display:none;margin:0 .75rem .35rem;padding:.35rem .6rem;background:var(--gold);color:#fff;border-radius:10px;font-size:.72rem;font-weight:600;cursor:pointer;align-self:flex-start"></div>
+  <div id="readonly-bar" style="display:none;align-items:center;justify-content:center;gap:.5rem;background:var(--bg);border-top:1px solid var(--line);padding:.95rem 1rem;flex-shrink:0;color:var(--muted);font-size:.85rem;text-align:center">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    <span id="readonly-bar-text">Only admins can send messages in this group</span>
+  </div>
   <div class="chat-input-bar" id="chat-input-bar">
     <div class="attach-wrap" style="position:relative;flex-shrink:0">
       <button class="chat-attach-circle" onclick="toggleAttach(event)">
@@ -653,10 +657,10 @@
 #chat-options-menu { position: fixed; }
 </style>
 
-<script src="js/state.js?v=202607200202"></script>
-<script src="js/theme.js?v=202607200202"></script>
-<script src="js/app.js?v=202607200202"></script>
-<script src="js/chat.js?v=202607200202"></script>
+<script src="js/state.js?v=202607200347"></script>
+<script src="js/theme.js?v=202607200347"></script>
+<script src="js/app.js?v=202607200347"></script>
+<script src="js/chat.js?v=202607200347"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
@@ -1061,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="js/ads.js?v=202607200202"></script>
+<script src="js/ads.js?v=202607200347"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");</script>
 </body>
 </html>

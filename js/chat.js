@@ -467,6 +467,8 @@ window.openTelegramChannel = function (username, title) {
   // follows the channel here on YID PLUS.
   var bar = document.getElementById('chat-input-bar');
   if (bar) bar.style.display = 'none';
+  var _roBar = document.getElementById('readonly-bar');
+  if (_roBar) _roBar.style.display = 'none';
   _tgRenderJoinBar(username, meta);
 
   // Body → Telegram feed via the OFFICIAL widget (t.me/s iframes are X-Frame
@@ -1607,16 +1609,31 @@ window.openChatRoom = function (roomId, topicId, topicName) {
   var inputDisabled = needsJoin || lockedForReadOnly || !!room.admin_spectating;
 
   var ib = document.getElementById('chat-input-bar');
-  ib.style.display = '';   // restore in case a Telegram channel had hidden it
+  var roBar = document.getElementById('readonly-bar');
   var _jb = document.getElementById('tg-join-bar');
   if (_jb) _jb.remove();   // ...and drop that channel's Join bar
-  ib.style.opacity = inputDisabled ? '.4' : '1';
-  ib.style.pointerEvents = inputDisabled ? 'none' : 'all';
 
-  // Make a silent lockout impossible to miss — explain exactly why typing/attaching is blocked.
   if (lockedForReadOnly) {
-    toast('🔒 This group is read-only. Only admins can send messages.');
-  } else if (room.admin_spectating) {
+    // No composer at all — replace it with a clear "only admins can post" bar,
+    // exactly like an announcement group. (The server also blocks non-admin
+    // posts, so this can't be bypassed.)
+    ib.style.display = 'none';
+    if (roBar) {
+      roBar.style.display = 'flex';
+      var rbt = document.getElementById('readonly-bar-text');
+      if (rbt) rbt.textContent = 'Only admins can send messages in this group';
+    }
+  } else {
+    if (roBar) roBar.style.display = 'none';
+    ib.style.display = '';   // restore in case a Telegram channel/read-only hid it
+    // needsJoin / admin-spectating still dim the composer but leave it visible.
+    var softDisabled = needsJoin || !!room.admin_spectating;
+    ib.style.opacity = softDisabled ? '.4' : '1';
+    ib.style.pointerEvents = softDisabled ? 'none' : 'all';
+  }
+
+  // Explain the other (non-read-only) lockouts.
+  if (room.admin_spectating) {
     toast('👁 You are viewing as Admin. Join the group to send messages.');
   }
 
