@@ -116,22 +116,14 @@ export async function onRequestPost(context) {
     }
     if (user.blocked) return json({ ok: false, error: 'Account suspended. Contact support.' }, 403);
 
-    // The requirement is only meaningful if it's actually enforced here: the
-    // password being right doesn't prove the address belongs to them. Checked
-    // at login rather than baked into the account, so turning the setting on
-    // applies to everyone from that moment, and turning it off lets them in
-    // again — accounts made while it was off are already marked verified.
+    // Email verification is a soft reminder now, not a hard gate — signing in
+    // never locks someone out of their own account. If the setting is on and
+    // this account hasn't confirmed yet, we let them in but flag it so the app
+    // can gently nudge them to verify.
     const verifySetting = await env.DB.prepare(
       "SELECT value FROM app_settings WHERE key = 'require_email_verify'"
     ).first().catch(() => null);
-    if (verifySetting && verifySetting.value === 'true' && !user.email_verified) {
-      return json({
-        ok: false,
-        error: 'Please confirm your email address first — check your inbox for the link we sent.',
-        needs_verification: true,
-        email: user.email,
-      }, 403);
-    }
+    const unverified = !!(verifySetting && verifySetting.value === 'true' && !user.email_verified);
 
     const sessionId = generateSessionToken();
     const now = new Date().toISOString();
@@ -147,6 +139,7 @@ export async function onRequestPost(context) {
     const headers = { ...corsHeaders, 'Set-Cookie': `yp_session=${sessionId}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=2592000` };
     const { password_hash, ...safeUser } = user;
     safeUser.is_owner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
+    safeUser.unverified = unverified;
     return new Response(JSON.stringify({ ok: true, user: safeUser }), { status: 200, headers: { 'Content-Type': 'application/json', ...headers } });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);

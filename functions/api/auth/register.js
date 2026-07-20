@@ -187,14 +187,12 @@ export async function onRequestPost(context) {
       await env.DB.prepare('UPDATE users SET email_verified = 1 WHERE id = ?').bind(userId).run().catch(() => {});
     }
 
-    // Only hand out a session if the address doesn't need proving. Registering
-    // used to log you straight in either way, which made the whole requirement
-    // decorative: an address that wasn't yours still got you a working account,
-    // and the verification mail simply went to a stranger.
-    const headers = requireVerify
-      ? { ...corsHeaders }
-      : { ...corsHeaders, 'Set-Cookie': `yp_session=${sessionId}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=2592000` };
-    return new Response(JSON.stringify({ ok: true, user: { id: userId, email, nickname, role, verified: 0 }, email_verify_required: requireVerify }), { status: 201, headers: { 'Content-Type': 'application/json', ...headers } });
+    // Log the new account straight in — no second trip to the sign-in screen.
+    // If verification is enabled we still send the confirmation email (above)
+    // and flag the session as unverified so the app can nudge them, but we
+    // never make them sign in twice just to reach their own new account.
+    const headers = { ...corsHeaders, 'Set-Cookie': `yp_session=${sessionId}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=2592000` };
+    return new Response(JSON.stringify({ ok: true, user: { id: userId, email, nickname, role, verified: 0 }, unverified: requireVerify }), { status: 201, headers: { 'Content-Type': 'application/json', ...headers } });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
