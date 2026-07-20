@@ -67,6 +67,7 @@ function AUTH_goHome() {
     return;
   }
   applyRoleUI();
+  if (typeof renderVerifyBanner === 'function') renderVerifyBanner();
   if (typeof loadAppSettings === 'function') loadAppSettings();
   var page = localStorage.getItem('yp_page');
   var INDEX_SCREENS = ['explore', 'settings', 'profile', 'channel'];
@@ -242,3 +243,44 @@ document.addEventListener('DOMContentLoaded', function () {
     }, 400);
   } catch (e) {}
 });
+
+/* ── Soft "verify your email" reminder banner ──────────────────────────
+   Shown at the top of the home screen when the account hasn't confirmed its
+   email (and the requirement is on). Never blocks anything — dismissible for
+   the session, with a one-tap Resend. */
+window.renderVerifyBanner = function () {
+  try {
+    var show = STATE.user && STATE.user.unverified &&
+               sessionStorage.getItem('yp_verify_dismissed') !== '1';
+    var existing = document.getElementById('verify-banner');
+    if (!show) { if (existing) existing.remove(); return; }
+    if (existing) return;
+
+    var home = document.getElementById('screen-home');
+    if (!home) return;
+    var b = document.createElement('div');
+    b.id = 'verify-banner';
+    b.style.cssText = 'display:flex;align-items:center;gap:.55rem;background:#FFF4E5;color:#7A4E00;' +
+      'border-bottom:1px solid #F0C88A;padding:.6rem .85rem;font-size:.8rem;line-height:1.35';
+    b.innerHTML =
+      '<span style="font-size:1rem">📧</span>' +
+      '<span style="flex:1">Please verify your email to secure your account.</span>' +
+      '<button id="vb-resend" style="background:#1F6F5C;color:#fff;border:none;border-radius:14px;padding:.32rem .75rem;font-size:.72rem;font-weight:600;cursor:pointer;flex-shrink:0">Resend</button>' +
+      '<button onclick="dismissVerifyBanner()" aria-label="Dismiss" style="background:none;border:none;color:inherit;font-size:1.15rem;line-height:1;cursor:pointer;padding:0 .15rem;flex-shrink:0">&times;</button>';
+    home.insertBefore(b, home.firstChild);
+
+    document.getElementById('vb-resend').onclick = function () {
+      var btn = this; btn.disabled = true; btn.textContent = 'Sending…';
+      api.post('/auth/send-verification', {})
+        .then(function () { toast('📧 Verification email sent — check your inbox.'); })
+        .catch(function (e) { toast('❌ ' + (e.message || 'Could not send')); })
+        .then(function () { var el = document.getElementById('vb-resend'); if (el) { el.disabled = false; el.textContent = 'Resend'; } });
+    };
+  } catch (e) { /* a reminder banner must never break the app */ }
+};
+
+window.dismissVerifyBanner = function () {
+  try { sessionStorage.setItem('yp_verify_dismissed', '1'); } catch (e) {}
+  var b = document.getElementById('verify-banner');
+  if (b) b.remove();
+};

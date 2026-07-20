@@ -10,6 +10,13 @@ export async function onRequestGet(context) {
     // Computed server-side so the client never needs to know WHICH emails
     // are the owners' — keeps them out of the downloadable JS source.
     user.is_owner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
+    // Soft "please verify your email" state — on only if the requirement is
+    // enabled AND this account hasn't confirmed yet. Never blocks anything;
+    // just lets the app show a gentle reminder banner.
+    const verifySetting = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'require_email_verify'"
+    ).first().catch(() => null);
+    user.unverified = !!(verifySetting && verifySetting.value === 'true' && !user.email_verified);
     return json({ ok: true, user, impersonating: !!user._impersonatorId });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);

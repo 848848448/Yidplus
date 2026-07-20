@@ -587,6 +587,7 @@ window.AUTH = {
       STATE.user = res.user;
       STATE.impersonating = !!res.impersonating;
       _renderImpersonationBanner();
+      if (typeof renderVerifyBanner === 'function') renderVerifyBanner();
       Presence.start();
       return res.user;
     }).catch(function () {
