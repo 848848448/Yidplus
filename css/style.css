@@ -516,8 +516,8 @@ body.night {
 .slide-bg    { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 8rem; filter: blur(30px); opacity: .3; transform: scale(1.2); pointer-events: none; }
 .slide-center { font-size: 6rem; z-index: 1; animation: floatUp 3s ease-in-out infinite; pointer-events: none; }
 .slide-grad  { position: absolute; bottom: 0; left: 0; right: 0; height: 38%; background: linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,.25) 55%, transparent); pointer-events: none; z-index: 2; }
-.slide-info  { position: absolute; bottom: 90px; left: 0; right: 80px; padding: 0 1rem; z-index: 3; }
-.slide-actions { position: absolute; bottom: 90px; right: .75rem; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 1.2rem; }
+.slide-info  { position: absolute; bottom: calc(120px + env(safe-area-inset-bottom, 0px)); left: 0; right: 80px; padding: 0 1rem; z-index: 3; }
+.slide-actions { position: absolute; bottom: calc(120px + env(safe-area-inset-bottom, 0px)); right: .75rem; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 1.2rem; }
 .s-action    { display: flex; flex-direction: column; align-items: center; gap: .2rem; cursor: pointer; }
 .s-icon      { width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.15); backdrop-filter: blur(6px); border: .5px solid rgba(255,255,255,.3); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
 .s-action.liked .s-icon { background: rgba(211,47,47,.3); border-color: #ef5350; }
@@ -527,7 +527,7 @@ body.night {
 /* Auto-hiding scrub bar — sits at the very bottom of the slide, fades in
    while the video is playing/being scrubbed, fades out after a few
    seconds of inactivity (YouTube Shorts style). */
-.scrub-wrap   { position: absolute; left: 0; right: 0; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); height: 14px; z-index: 45; display: flex; align-items: center; padding: 0 12px; opacity: 1; transition: opacity .25s; touch-action: none; }
+.scrub-wrap   { position: absolute; left: 0; right: 0; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); height: 18px; z-index: 45; display: flex; align-items: center; padding: 0 12px; opacity: 1; transition: opacity .25s; touch-action: none; }
 .scrub-wrap.show { opacity: 1; }
 .scrub-track  { position: relative; flex: 1; height: 5px; border-radius: 3px; background: rgba(0,0,0,.4); box-shadow: 0 0 0 .5px rgba(255,255,255,.25), 0 1px 3px rgba(0,0,0,.4); cursor: pointer; }
 .scrub-fill   { position: absolute; top: 0; left: 0; height: 100%; border-radius: 3px; background: #fff; width: 0%; }
