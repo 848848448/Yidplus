@@ -2119,6 +2119,9 @@ window.addEventListener('popstate', function (e) {
   window.addEventListener('touchstart', function (e) {
     if (!e.touches || e.touches.length !== 1) { tracking = false; return; }
     var t = e.touches[0];
+    // Don't hijack swipes that begin on a chat message — those belong to
+    // swipe-to-reply. Back-swipe still works from empty areas, the topbar, etc.
+    if (e.target && e.target.closest && e.target.closest('.msg-wrap, .bubble, .swipe-reply-icon')) { tracking = false; return; }
     tracking = t.clientX <= EDGE;
     movedHoriz = false;
     sx = t.clientX; sy = t.clientY; startT = Date.now();
