@@ -359,17 +359,17 @@ body.night {
 @keyframes splashDot    { 0%,80%,100% { transform: translateY(0); opacity:.4; } 40% { transform: translateY(-6px); opacity:1; } }
 .splash-overlay {
   position: fixed; inset: 0; z-index: 99999;
-  background: linear-gradient(160deg, #14503F 0%, #1F6F5C 55%, #2B8A73 100%);
+  background: #FFFFFF;
   display: none; flex-direction: column; align-items: center; justify-content: center;
   gap: .9rem;
 }
 .splash-overlay.show { display: flex; }
 .splash-mark { animation: splashLogoIn .5s cubic-bezier(.2,.9,.3,1.3) both; }
-.splash-logo { height: 84px; width: auto; object-fit: contain; border-radius: 20px; box-shadow: 0 8px 28px rgba(0,0,0,.25); }
-.splash-logo-text { display: none; font-size: 2.6rem; font-weight: 800; letter-spacing: -.02em; color: #fff; }
-.splash-word { font-size: 1rem; font-weight: 700; letter-spacing: .32em; color: rgba(255,255,255,.92); animation: splashWordIn .5s ease .15s both; }
+.splash-logo { height: 92px; width: auto; object-fit: contain; }
+.splash-logo-text { display: none; font-size: 2.6rem; font-weight: 800; letter-spacing: -.02em; color: #14151A; }
+.splash-word { display: none; }
 .splash-dots { display: flex; gap: 6px; margin-top: .3rem; animation: splashWordIn .5s ease .25s both; }
-.splash-dots span { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.85); animation: splashDot 1.1s ease-in-out infinite; }
+.splash-dots span { width: 8px; height: 8px; border-radius: 50%; background: #1F6F5C; animation: splashDot 1.1s ease-in-out infinite; }
 .splash-dots span:nth-child(2) { animation-delay: .15s; }
 .splash-dots span:nth-child(3) { animation-delay: .3s; }
 

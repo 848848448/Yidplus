@@ -19,7 +19,7 @@
 <meta name="twitter:description" content="A Yiddish social platform for the Jewish community">
 <meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>YID PLUS</title>
-<link rel="stylesheet" href="css/style.css?v=202607210352">
+<link rel="stylesheet" href="css/style.css?v=202607210417">
 <script>
 // Apply saved user theme ASAP (before paint) to avoid flash-of-default-colors
 (function () {
@@ -40,8 +40,8 @@
   } catch (e) {}
 })();
 </script>
-<link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="/images/apple-touch-icon.png?v=202607210416">
+<link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png?v=202607210416">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="YID PLUS">
@@ -551,11 +551,11 @@
 <!-- ════════════════════════════════
      SCRIPTS — ORDER MATTERS!
 ════════════════════════════════ -->
-<script src="js/state.js?v=202607210352"></script>
-<script src="js/theme.js?v=202607210352"></script>
+<script src="js/state.js?v=202607210417"></script>
+<script src="js/theme.js?v=202607210417"></script>
 <script src="js/app.js?v=202607210352"></script>
-<script src="js/auth.js?v=202607210352"></script>
-<script src="js/home.js?v=202607210352"></script>
+<script src="js/auth.js?v=202607210417"></script>
+<script src="js/home.js?v=202607210417"></script>
 
 <script>
 // ── POSTS FEED (Cloudflare D1 via /api/posts) ──
@@ -630,6 +630,9 @@ window.submitFeedback = function () {
 
 // ── BOOT ──
 document.addEventListener('DOMContentLoaded', function () {
+  // Branded white loading screen on every open, held for ~6s.
+  if (typeof showSplash === 'function') showSplash();
+  setTimeout(function () { if (typeof hideSplash === 'function') hideSplash(); }, 6000);
   AUTH.restore().then(function (user) {
     if (!user) {
       return new Promise(function (resolve) { setTimeout(resolve, 300); })
