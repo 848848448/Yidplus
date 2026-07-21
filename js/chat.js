@@ -1673,11 +1673,12 @@ window.openChatRoom = function (roomId, topicId, topicName) {
   loadMessages(true);
   clearInterval(CHAT_pollTimer);
   CHAT_pollTimer = setInterval(function () {
-    // Don't poll while the tab is in the background — saves a huge amount of
-    // server load at scale. We refresh instantly when the user comes back.
+    // Don't poll while the tab is in the background — saves server load. We
+    // refresh instantly when the user comes back. 3s keeps incoming messages
+    // (text, photos, video, files) arriving quickly for everyone.
     if (document.hidden) return;
     loadMessages(false);
-  }, 8000);
+  }, 3000);
 
   // Load members list for groups
   if (isGroup) loadGroupMembers(roomId);
