@@ -2033,3 +2033,116 @@ window.addEventListener('popstate', function (e) {
   window._navFromPop = true;
   try { navTo(target); } finally { window._navFromPop = false; }
 });
+
+/* ══════════════════════════════════════════════════════════════════════
+   UNIVERSAL EDGE-SWIPE-BACK — swipe from the left edge to go back, on EVERY
+   page (home, chats, music, shorts). Loaded from state.js so it's available
+   everywhere. Order of preference: close the top open overlay -> click the
+   page's visible back control -> history.back() (one step, never exits the
+   app). A light, clearly-horizontal drag from the left third is enough.
+   ═════════════════════════════════════════════════════════════════════ */
+(function () {
+  var sx = 0, sy = 0, tracking = false, startT = 0, movedHoriz = false;
+  var EDGE = Math.max(90, Math.round(window.innerWidth / 3));
+  var THRESHOLD = 55, MAX_VERTICAL = 45;
+
+  function _vis(el) { return el && el.offsetParent !== null; }
+
+  function _closeTopOverlay() {
+    // Full-screen media viewer (chat photos/videos)
+    var mv = document.getElementById('media-viewer');
+    if (mv && (mv.style.display === 'flex' || mv.style.display === 'block')) {
+      if (typeof _mediaViewerClose === 'function') _mediaViewerClose(); else mv.style.display = 'none';
+      return true;
+    }
+    // Shorts comments drawer
+    var cd = document.querySelector('.cmt-drawer.open');
+    if (cd) { if (typeof closeCmts === 'function') closeCmts(); else cd.classList.remove('open'); return true; }
+    // AI chat overlay
+    var ai = document.getElementById('ai-chat-overlay');
+    if (ai && (ai.classList.contains('open') || ai.style.display === 'flex')) {
+      if (typeof closeAIChat === 'function') closeAIChat(); else ai.remove();
+      return true;
+    }
+    // Generic overlays / bottom-sheets
+    var overlays = document.querySelectorAll(
+      '[id^="comments-modal-"], #history-overlay, #profile-more-overlay, #msg-opts-overlay, ' +
+      '#schedule-overlay, #support-chat-overlay, #sc-thread-overlay, #tg-info, .modal-overlay.open'
+    );
+    if (overlays.length) {
+      var top = overlays[overlays.length - 1];
+      if (top.classList.contains('modal-overlay')) top.classList.remove('open'); else top.remove();
+      return true;
+    }
+    return false;
+  }
+
+  function _findBackTarget() {
+    // Channel topbar (home page)
+    var chTop = document.getElementById('channel-topbar-fixed');
+    if (chTop && chTop.style.display !== 'none') { var cb = chTop.querySelector('[onclick]'); if (_vis(cb)) return cb; }
+    // Any visible back control on the page (chat room back, chat list, nav back…)
+    var els = document.querySelectorAll(
+      '[onclick*="chatroomBack"], [onclick*="closeChatRoom"], [onclick*="navBack"], ' +
+      '[onclick*="showChatList"], [data-back], .topbar-back, [onclick*="goBack"]'
+    );
+    for (var i = 0; i < els.length; i++) {
+      if (els[i].classList.contains('nav-item')) continue;
+      if (_vis(els[i])) return els[i];
+    }
+    return null;
+  }
+
+  function _activeContainer() {
+    var chTop = document.getElementById('channel-topbar-fixed');
+    if (chTop && chTop.style.display !== 'none') return document.getElementById('screen-channel');
+    var cr = document.getElementById('screen-chatroom');
+    if (cr && cr.classList.contains('active')) return cr;
+    return document.querySelector('.screen.active') || cr;
+  }
+
+  function _goBack() {
+    if (_closeTopOverlay()) return;
+    var t = _findBackTarget();
+    if (t) { t.click(); return; }
+    try {
+      if (typeof navBack === 'function') navBack();
+      else if (history.length > 1) history.back();
+    } catch (e) {}
+  }
+
+  function _reset() {
+    var el = _activeContainer();
+    if (el) { el.style.transition = 'transform .18s ease'; el.style.transform = ''; setTimeout(function () { if (el) el.style.transition = ''; }, 200); }
+  }
+
+  window.addEventListener('touchstart', function (e) {
+    if (!e.touches || e.touches.length !== 1) { tracking = false; return; }
+    var t = e.touches[0];
+    tracking = t.clientX <= EDGE;
+    movedHoriz = false;
+    sx = t.clientX; sy = t.clientY; startT = Date.now();
+  }, { passive: true, capture: true });
+
+  window.addEventListener('touchmove', function (e) {
+    if (!tracking || !e.touches || !e.touches.length) return;
+    var t = e.touches[0];
+    var dx = t.clientX - sx, dy = Math.abs(t.clientY - sy);
+    if (dx > 14 && dx > dy * 1.5) {
+      movedHoriz = true;
+      var el = _activeContainer();
+      if (el) { el.style.transition = 'none'; el.style.transform = 'translateX(' + Math.min(dx, 120) + 'px)'; }
+    }
+  }, { passive: true, capture: true });
+
+  window.addEventListener('touchend', function (e) {
+    if (!tracking) return;
+    tracking = false;
+    var t = e.changedTouches && e.changedTouches[0];
+    if (!t) { _reset(); return; }
+    var dx = t.clientX - sx, dy = Math.abs(t.clientY - sy), dt = Date.now() - startT;
+    var velocity = dx / Math.max(1, dt);
+    _reset();
+    if (movedHoriz && dy <= MAX_VERTICAL && (dx >= THRESHOLD || (dx >= 30 && velocity > 0.3))) _goBack();
+  }, { passive: true, capture: true });
+})();
