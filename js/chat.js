@@ -1142,9 +1142,16 @@ var _mediaList = [];
 var _mediaIdx  = 0;
 
 window._openMediaViewer = function (msgId) {
-  // Build list of all image/video messages in this chat
+  // Build list of all image/video messages in this chat — including files that
+  // are actually images/videos, so they open in the viewer like normal photos.
   _mediaList = CHAT_messages.filter(function (m) {
-    return m.type === 'media' && m.media_url;
+    if (!m.media_url) return false;
+    if (m.type === 'media') return true;
+    if (m.type === 'file') {
+      var k = ((m.text || '') + ' ' + (m.media_key || '')).toLowerCase();
+      return /\.(jpe?g|png|gif|webp|bmp|heic|heif|mp4|webm|mov|mkv|m4v|avi)(\?|$|\s)/i.test(k);
+    }
+    return false;
   }).map(function (m) {
     return {
       id:      m.id,
@@ -1153,7 +1160,7 @@ window._openMediaViewer = function (msgId) {
       text:    m.text && m.text !== '__once__' ? m.text : '',
       sender:  m.sender_nick || 'User',
       time:    m.created_at ? _fmt12(m.created_at) : '',
-      isVideo: /\.(mp4|webm|mov)$/i.test(m.media_key || ''),
+      isVideo: /\.(mp4|webm|mov|mkv|m4v|avi)(\?|$|\s)/i.test(((m.text || '') + ' ' + (m.media_key || '')).toLowerCase()),
     };
   });
   _mediaIdx = _mediaList.findIndex(function (v) { return v.id === msgId; });
@@ -2406,16 +2413,24 @@ function renderMessages(scrollDown) {
       var isImageFile = /\.(jpe?g|png|gif|webp|bmp|heic|heif)(\?|$|\s)/i.test(nameKey);
       var isVideoFile = /\.(mp4|webm|mov|mkv|m4v|avi)(\?|$|\s)/i.test(nameKey);
       if (isImageFile) {
-        // An image that came through as a "file" — show it inline, not a
-        // download card. Tap to open full-size.
-        inner += '<img src="' + m.media_url + '" onerror="this.style.display=&#39;none&#39;" style="max-width:260px;width:100%;max-height:340px;border-radius:10px;display:block;cursor:pointer;object-fit:contain;background:#000" loading="lazy" onclick="window.open(this.src,&#39;_blank&#39;)">';
+        // An image that came through as a "file" — show it inline and open it
+        // in the full-screen viewer on tap, exactly like a normal photo.
+        inner += '<img src="' + m.media_url + '" onerror="this.style.display=&#39;none&#39;" style="max-width:260px;width:100%;max-height:340px;border-radius:10px;display:block;cursor:pointer;object-fit:contain;background:#000" loading="lazy" onclick="_openMediaViewer(\'' + m.id + '\')">';
         if (m.text && !/\.(jpe?g|png|gif|webp|bmp|heic|heif)\s*$/i.test((m.text || '').trim())) {
           var _ic = /[\u0590-\u05FF]/.test(m.text);
           inner += '<div style="margin-top:.3rem;font-size:.85rem;unicode-bidi:plaintext;' + (_ic ? 'direction:rtl;text-align:right' : '') + '">' + _linkify(escHtml(m.text), isMe) + '</div>';
         }
       } else if (isVideoFile) {
-        // A video that came through as a "file" — play it inline.
-        inner += '<video src="' + m.media_url + '" controls preload="metadata" playsinline style="max-width:260px;width:100%;border-radius:10px;display:block;background:#000"></video>';
+        // A video that came through as a "file" — tap to play in the viewer,
+        // just like a normal video message.
+        inner += '<div class="video-bubble-wrap" onclick="_openMediaViewer(\'' + m.id + '\')">' +
+          '<video src="' + m.media_url + '" preload="metadata" playsinline></video>' +
+          '<div class="video-bubble-play"><div class="video-bubble-play-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>' +
+        '</div>';
+        if (m.text && !/\.(mp4|webm|mov|mkv|m4v|avi)\s*$/i.test((m.text || '').trim())) {
+          var _vc = /[\u0590-\u05FF]/.test(m.text);
+          inner += '<div style="margin-top:.3rem;font-size:.85rem;unicode-bidi:plaintext;' + (_vc ? 'direction:rtl;text-align:right' : '') + '">' + _linkify(escHtml(m.text), isMe) + '</div>';
+        }
       } else if (isAudioFile) {
         // Telegram/WhatsApp-style music card: round play/pause, title, artist •
         // duration, and a thin progress bar that fills during playback.
