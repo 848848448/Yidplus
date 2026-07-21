@@ -2401,8 +2401,22 @@ function renderMessages(scrollDown) {
     } else if (m.type === 'file' && m.media_url) {
       var fk = (m.media_key || m.media_url || '').toLowerCase();
       var fname = escHtml(m.text || 'File');
-      var isAudioFile = /\.(mp3|m4a|aac|ogg|wav|flac|opus)$/i.test(fk);
-      if (isAudioFile) {
+      var nameKey = ((m.text || '') + ' ' + fk).toLowerCase();
+      var isAudioFile = /\.(mp3|m4a|aac|ogg|wav|flac|opus)(\?|$|\s)/i.test(nameKey);
+      var isImageFile = /\.(jpe?g|png|gif|webp|bmp|heic|heif)(\?|$|\s)/i.test(nameKey);
+      var isVideoFile = /\.(mp4|webm|mov|mkv|m4v|avi)(\?|$|\s)/i.test(nameKey);
+      if (isImageFile) {
+        // An image that came through as a "file" — show it inline, not a
+        // download card. Tap to open full-size.
+        inner += '<img src="' + m.media_url + '" onerror="this.style.display=&#39;none&#39;" style="max-width:260px;width:100%;max-height:340px;border-radius:10px;display:block;cursor:pointer;object-fit:contain;background:#000" loading="lazy" onclick="window.open(this.src,&#39;_blank&#39;)">';
+        if (m.text && !/\.(jpe?g|png|gif|webp|bmp|heic|heif)\s*$/i.test((m.text || '').trim())) {
+          var _ic = /[\u0590-\u05FF]/.test(m.text);
+          inner += '<div style="margin-top:.3rem;font-size:.85rem;unicode-bidi:plaintext;' + (_ic ? 'direction:rtl;text-align:right' : '') + '">' + _linkify(escHtml(m.text), isMe) + '</div>';
+        }
+      } else if (isVideoFile) {
+        // A video that came through as a "file" — play it inline.
+        inner += '<video src="' + m.media_url + '" controls preload="metadata" playsinline style="max-width:260px;width:100%;border-radius:10px;display:block;background:#000"></video>';
+      } else if (isAudioFile) {
         // Telegram/WhatsApp-style music card: round play/pause, title, artist •
         // duration, and a thin progress bar that fills during playback.
         var titleClean = fname.replace(/\.(mp3|m4a|aac|ogg|wav|flac|opus)$/i, '');
@@ -2417,10 +2431,10 @@ function renderMessages(scrollDown) {
         '</div>';
       } else {
         var ficon = /\.pdf$/i.test(fk) ? '📕' : /\.(zip|rar|7z)$/i.test(fk) ? '🗜️' : /\.(doc|docx)$/i.test(fk) ? '📘' : /\.(xls|xlsx|csv)$/i.test(fk) ? '📊' : /\.(ppt|pptx)$/i.test(fk) ? '📙' : '📄';
-        inner += '<a href="' + m.media_url + '" target="_blank" download style="display:flex;align-items:center;gap:.6rem;text-decoration:none;color:inherit;min-width:180px">' +
+        inner += '<a href="' + m.media_url + '" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:.6rem;text-decoration:none;color:inherit;min-width:180px">' +
           '<div style="font-size:2rem;flex-shrink:0">' + ficon + '</div>' +
           '<div style="min-width:0"><div style="font-size:.83rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px" dir="auto">' + fname + '</div>' +
-          '<div style="font-size:.68rem;opacity:.65;margin-top:.1rem">Tap to download</div></div>' +
+          '<div style="font-size:.68rem;opacity:.65;margin-top:.1rem">Tap to open</div></div>' +
         '</a>';
       }
 
