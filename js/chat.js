@@ -627,7 +627,7 @@ function _xPostCard(p, username, chTitle) {
           '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
         '</div><span style="font-size:.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(p.media_name || 'Download file') + '</span></a>';
     } else {
-      media = '<div style="position:relative;margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;display:block;cursor:pointer" loading="lazy">' + stamp + '</div>';
+      media = '<div style="position:relative;margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" onerror="var d=this.closest(&#39;div&#39;);if(d)d.style.display=&#39;none&#39;" style="width:100%;display:block;cursor:pointer" loading="lazy">' + stamp + '</div>';
     }
   }
 
@@ -946,6 +946,9 @@ function _tgEntityTags(e) {
       if (/(?:t|telegram)\.me\//i.test(u)) return ['<span style="color:#168acd">', '</span>'];
       return ['<a href="' + escHtml(u) + '" target="_blank" rel="noopener" style="color:#168acd;text-decoration:none">', '</a>'];
     case 'messageEntityUrl':
+      // A bare URL — the link text IS the URL, so open its own text on tap.
+      if (/(?:t|telegram)\.me\//i.test(u)) return ['<span style="color:#168acd">', '</span>'];
+      return ['<a href="#" onclick="event.preventDefault();event.stopPropagation();var u=this.textContent.trim();window.open(/^https?:/i.test(u)?u:&#39;https://&#39;+u,&#39;_blank&#39;,&#39;noopener&#39;)" style="color:#168acd;text-decoration:none">', '</a>'];
     case 'messageEntityMention':
     case 'messageEntityHashtag':
     case 'messageEntityCashtag':
@@ -6726,20 +6729,27 @@ function _tgLoadLinkPreviews() {
 
       api.get('/link-preview?url=' + encodeURIComponent(url))
         .then(function (res) {
-          if (!res || !res.ok || !res.title) return;
+          // If there's no preview image, show NOTHING — just leave the link
+          // clickable. Never a broken/empty box.
+          if (!res || !res.ok || !res.image) return;
           var host = '';
           try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) {}
-          el.onclick = function () { window.open(url, '_blank'); };
-          el.style.cssText = 'display:block;margin-top:.5rem;border-radius:10px;overflow:hidden;border:1px solid var(--border);cursor:pointer;background:#fff;max-width:100%';
-          el.innerHTML =
-            (res.image
-              ? '<img src="' + escHtml(res.image) + '" onerror="this.style.display=&#39;none&#39;" style="width:100%;aspect-ratio:1.91/1;max-height:180px;object-fit:cover;display:block;background:#e6ebee" loading="lazy">'
-              : '') +
-            '<div style="padding:.5rem .7rem">' +
-              '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(host) + '</div>' +
-              '<div style="font-size:.85rem;font-weight:700;color:#000;line-height:1.3">' + escHtml(String(res.title).slice(0, 90)) + '</div>' +
-              (res.description ? '<div style="font-size:.74rem;color:var(--muted);margin-top:.2rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + escHtml(String(res.description).slice(0, 140)) + '</div>' : '') +
-            '</div>';
+          // Preload the image; only reveal the card once it actually loads, so
+          // a broken image URL never leaves an empty grey box behind.
+          var probe = new Image();
+          probe.onload = function () {
+            el.onclick = function () { window.open(url, '_blank'); };
+            el.style.cssText = 'display:block;margin-top:.5rem;border-radius:10px;overflow:hidden;border:1px solid var(--border);cursor:pointer;background:#fff;max-width:100%';
+            el.innerHTML =
+              '<img src="' + escHtml(res.image) + '" style="width:100%;aspect-ratio:1.91/1;max-height:180px;object-fit:cover;display:block;background:#e6ebee" loading="lazy">' +
+              '<div style="padding:.5rem .7rem">' +
+                '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(host) + '</div>' +
+                (res.title ? '<div style="font-size:.85rem;font-weight:700;color:#000;line-height:1.3">' + escHtml(String(res.title).slice(0, 90)) + '</div>' : '') +
+                (res.description ? '<div style="font-size:.74rem;color:var(--muted);margin-top:.2rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + escHtml(String(res.description).slice(0, 140)) + '</div>' : '') +
+              '</div>';
+          };
+          probe.onerror = function () { /* broken image → show nothing */ };
+          probe.src = res.image;
         })
         .catch(function () {});
     })(els[i]);
