@@ -511,6 +511,7 @@ window.openTelegramChannel = function (username, title) {
 
     slot.innerHTML = _tgRenderPosts(ordered, username, title);
     _tgInitScroll(ordered.length);
+    _tgLoadLinkPreviews();
     _tgStartLivePoll(username);   // keep the open channel live
   }).catch(function (e) {
     var state = document.getElementById('tg-feed-state');
@@ -664,7 +665,7 @@ function _xPostCard(p, username, chTitle) {
       '<div style="background:#fff;border-radius:12px;border-bottom-left-radius:4px;padding:.5rem .6rem;' + bubbleW + ';box-shadow:0 1px 1px rgba(0,0,0,.08);box-sizing:border-box">' +
         '<div style="font-weight:600;font-size:.84rem;color:#168acd;margin-bottom:.2rem;text-align:left;unicode-bidi:plaintext;direction:ltr">' + name + '</div>' +
         media +
-        (text ? '<div style="font-size:.94rem;line-height:1.4;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' : '') +
+        (text ? '<div style="font-size:.94rem;line-height:1.4;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' + _tgLpPlaceholder(p) : '') +
         reactRow +
         '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;margin-top:.25rem;color:#8a9aa5;font-size:.68rem">' +
           delBtn +
@@ -797,6 +798,7 @@ function _tgRerender() {
   var slot = document.getElementById('tg-feed-slot');
   if (!slot || !TG_posts.length) return;
   slot.innerHTML = _tgRenderPosts(TG_posts, TG_curChannel, TG_curTitle);
+  _tgLoadLinkPreviews();
 }
 var TG_reactions = {};    // { tg_msg_id: { counts:{emoji:n}, my_reaction } }
 
@@ -1061,7 +1063,7 @@ function _tgAlbumCard(group, username, chTitle) {
       '<div style="background:#fff;border-radius:12px;border-bottom-left-radius:4px;padding:.5rem .6rem;width:100%;max-width:min(82%,420px);box-shadow:0 1px 1px rgba(0,0,0,.08);box-sizing:border-box">' +
         '<div style="font-weight:600;font-size:.84rem;color:#168acd;margin-bottom:.3rem;text-align:left;unicode-bidi:plaintext;direction:ltr">' + name + '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:.4rem">' + cells + '</div>' +
-        (text ? '<div style="font-size:.94rem;line-height:1.4;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' : '') +
+        (text ? '<div style="font-size:.94rem;line-height:1.4;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' + _tgLpPlaceholder(p) : '') +
         '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;margin-top:.25rem;color:#8a9aa5;font-size:.68rem">' +
           delBtn + eye + '<span>' + _xNum(lead.views || 0) + '</span>' +
           '<span style="margin-left:.2rem">' + when + '</span>' +
@@ -6642,6 +6644,7 @@ function _tgStartLivePoll(username) {
           TG_posts = first;
           slot.innerHTML = _tgRenderPosts(first, username, TG_curTitle);
           _tgInitScroll(first.length);
+          _tgLoadLinkPreviews();
           return;
         }
 
@@ -6667,6 +6670,7 @@ function _tgStartLivePoll(username) {
         } catch (e) {}
 
         slot.insertAdjacentHTML('beforeend', html);
+        _tgLoadLinkPreviews();
         for (var k = 0; k < fresh.length; k++) TG_posts.push(fresh[k]);
 
         if (atBottom) {
@@ -6684,4 +6688,60 @@ function _tgStartLivePoll(username) {
       })
       .catch(function () { /* transient — try again next tick */ });
   }, 25000);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   TELEGRAM CHANNELS — link preview cards. If a post's text contains a URL
+   (YouTube, news, etc.), show a nice card underneath: YouTube embeds inline,
+   everything else gets an og:image + title card (via /api/link-preview),
+   exactly like chat messages.
+   ═════════════════════════════════════════════════════════════════════ */
+function _tgLpPlaceholder(p) {
+  try {
+    if (!p || !p.text) return '';
+    var m = String(p.text).match(/https?:\/\/[^\s<]+/i);
+    if (!m) return '';
+    var url = m[0].replace(/[.,;:!?)\]]+$/, '');
+    return '<div class="tg-lp" id="tglp-' + p.tg_msg_id + '" data-url="' + escHtml(url) + '" style="display:none"></div>';
+  } catch (e) { return ''; }
+}
+
+function _tgLoadLinkPreviews() {
+  var els = document.querySelectorAll('.tg-lp[data-url]:not([data-loaded])');
+  for (var i = 0; i < els.length; i++) {
+    (function (el) {
+      el.dataset.loaded = '1';
+      var url = el.dataset.url;
+      if (!url) return;
+      // Internal links have no useful preview.
+      if (/yidplus\.com\/(chat|invite)|\/chat\?join=/i.test(url)) return;
+
+      // YouTube → inline player.
+      var yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/live\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+      if (yt) {
+        el.style.cssText = 'display:block;margin-top:.5rem;border-radius:10px;overflow:hidden;background:#000;position:relative;padding-top:56.25%';
+        el.innerHTML = '<iframe src="https://www.youtube.com/embed/' + yt[1] + '?rel=0" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen loading="lazy"></iframe>';
+        return;
+      }
+
+      api.get('/link-preview?url=' + encodeURIComponent(url))
+        .then(function (res) {
+          if (!res || !res.ok || !res.title) return;
+          var host = '';
+          try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) {}
+          el.onclick = function () { window.open(url, '_blank'); };
+          el.style.cssText = 'display:block;margin-top:.5rem;border-radius:10px;overflow:hidden;border:1px solid var(--border);cursor:pointer;background:#fff;max-width:100%';
+          el.innerHTML =
+            (res.image
+              ? '<img src="' + escHtml(res.image) + '" onerror="this.style.display=&#39;none&#39;" style="width:100%;aspect-ratio:1.91/1;max-height:180px;object-fit:cover;display:block;background:#e6ebee" loading="lazy">'
+              : '') +
+            '<div style="padding:.5rem .7rem">' +
+              '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(host) + '</div>' +
+              '<div style="font-size:.85rem;font-weight:700;color:#000;line-height:1.3">' + escHtml(String(res.title).slice(0, 90)) + '</div>' +
+              (res.description ? '<div style="font-size:.74rem;color:var(--muted);margin-top:.2rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + escHtml(String(res.description).slice(0, 140)) + '</div>' : '') +
+            '</div>';
+        })
+        .catch(function () {});
+    })(els[i]);
+  }
 }

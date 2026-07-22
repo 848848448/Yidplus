@@ -73,6 +73,17 @@ export async function onRequestGet(context) {
     const searchQ = url.searchParams.get('search');
     const limitParam = Math.min(parseInt(url.searchParams.get('limit'), 10) || 100, 5000);
 
+    // Backfill: every user should have a channel, but accounts created before
+    // channels were auto-made on signup don't — so they never showed up here.
+    // This creates the missing rows (idempotent: a no-op once everyone has one).
+    await env.DB.prepare(
+      `INSERT INTO channels (id, owner_id, nickname, followers, following, total_views, verified, created_at)
+       SELECT lower(hex(randomblob(16))), u.id, u.nickname, 0, 0, 0, 0, datetime('now')
+       FROM users u
+       WHERE (u.blocked IS NULL OR u.blocked = 0)
+         AND NOT EXISTS (SELECT 1 FROM channels c WHERE c.owner_id = u.id)`
+    ).run().catch(() => {});
+
     let results;
     let fellBack = null;
     try {
