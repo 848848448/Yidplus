@@ -703,7 +703,10 @@ document.addEventListener('DOMContentLoaded', function () {
             } else if (gp && GUEST_SCREENS.indexOf(gp) !== -1) {
               navTo(gp); initAds(gp);
             } else {
-              goPage('/chat');
+              // Guests browse the public home feed — NOT the chat page, which
+              // needs an account and used to bounce them back to sign-in
+              // (the flicker). Stay right here on index.
+              navTo('home'); initAds('home');
             }
           } else {
             // Guest Mode OFF — must login
