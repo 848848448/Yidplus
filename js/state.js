@@ -1827,19 +1827,27 @@ function _interceptGuestActions() {
       return;
     }
 
-    // Things that should trigger login popup
+    // Specific WRITE/act functions only — never the open*/view* browse ones, so
+    // guests can still look at photos, comments, statuses, profiles, etc. freely.
     var actionPatterns = [
-      'sendChatMsg', 'postToFeed', 'likePost', 'likeShort',
+      'sendChatMsg', 'sendMessage', 'sendCmt', '_aiSend', 'sendReply', 'sendStatus', 'sendVoice',
+      'postToFeed', 'publishPost', 'publishShort', 'uploadShort',
+      'likePost', 'likeShort', 'toggleShortLike', 'toggleLike', 'heartTrack', 'heartComment',
+      'toggleReaction', 'tgReact', 'reactMsg', 'addReaction',
+      'submitComment', 'postComment', 'sendComment',
+      'followUser', 'toggleFollow', 'requestFollow',
       'openNewChatModal', 'openNewGroupModal', 'openNewChannelModal',
-      'submitComment', 'submitFeedback', 'followUser',
-      'handleChatMedia', 'startRecord', 'toggleReaction',
-      'heartTrack', 'sendStatus',
+      'createGroup', 'submitCreateGroup', 'submitCreateTopic', 'createChannel', 'tgcAdd',
+      'handleChatMedia', 'startRecord', 'toggleAttach', 'sendSticker',
+      'joinRoom', 'joinGroup', 'joinChannel', 'tgcJoin', 'joinPublicGroup', '_tgJoin',
+      'saveShort', 'toggleSaveShort', 'bookmarkMsg', 'toggleBookmark',
+      'votePoll', 'submitPoll', 'createPoll',
+      'setNickname', 'saveProfile', 'publishStatus',
     ];
-
-    var isAction = actionPatterns.some(function(p){ return onclick.includes(p); });
-    // Also catch common action words in button text
-    var actionWords = ['post', 'send', 'like', 'follow', 'comment', 'join', 'upload'];
-    var isActionText = actionWords.some(function(w){ return text === w; });
+    var isAction = actionPatterns.some(function (p) { return onclick.indexOf(p) !== -1; });
+    // Also catch plain action-labelled buttons (exact word only, to stay safe).
+    var actionWords = ['post', 'send', 'like', 'follow', 'comment', 'join', 'upload', 'reply', 'subscribe'];
+    var isActionText = actionWords.some(function (w) { return text === w; });
 
     if (isAction || isActionText) {
       e.preventDefault();
