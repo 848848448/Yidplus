@@ -2009,7 +2009,7 @@ function _loadExploreAll() {
       FeatureBlock.renderBlockedScreen(body, 'channels', channelsBlock);
       return;
     }
-    api.get('/channels?limit=300', true).catch(function(){ return { channels: [] }; }).then(function (res) {
+    api.get('/channels?limit=5000', true).catch(function(){ return { channels: [] }; }).then(function (res) {
       var channels = res.channels || [];
       if (!channels.length) {
         body.innerHTML = '<div style="padding:3.5rem 1.5rem;text-align:center;color:var(--muted)">' +
