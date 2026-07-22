@@ -71,7 +71,7 @@ export async function onRequestGet(context) {
     }
 
     const searchQ = url.searchParams.get('search');
-    const limitParam = Math.min(parseInt(url.searchParams.get('limit'), 10) || 20, 50);
+    const limitParam = Math.min(parseInt(url.searchParams.get('limit'), 10) || 100, 500);
 
     let results;
     let fellBack = null;

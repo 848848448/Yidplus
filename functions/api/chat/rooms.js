@@ -195,16 +195,34 @@ export async function onRequestGet(context) {
       // timestamp instead, so unread counts are accurate per-person.
       if (privateRoomIds.length) {
         const privPlaceholders = privateRoomIds.map(() => '?').join(',');
-        const { results: unreadRows } = await env.DB.prepare(
-          `SELECT room_id, COUNT(*) AS c FROM messages
-           WHERE room_id IN (${privPlaceholders}) AND sender_id != ? AND read = 0
-           GROUP BY room_id`
-        ).bind(...privateRoomIds, user.id).all().catch(() => ({ results: [] }));
-        for (const u of unreadRows) unreadByRoom[u.room_id] = u.c;
+        const nowIso = new Date().toISOString();
+        let unreadRows;
+        try {
+          // Only count messages that will actually SHOW when the chat is opened
+          // — never hidden/auto-moderated, not a still-pending scheduled message,
+          // and not an already-expired disappearing one. Otherwise the badge says
+          // "new message" but there's nothing to see.
+          ({ results: unreadRows } = await env.DB.prepare(
+            `SELECT room_id, COUNT(*) AS c FROM messages
+             WHERE room_id IN (${privPlaceholders}) AND sender_id != ? AND read = 0
+               AND COALESCE(hidden,0) = 0
+               AND (scheduled_for IS NULL OR scheduled_for <= ?)
+               AND (expires_at IS NULL OR expires_at > ?)
+             GROUP BY room_id`
+          ).bind(...privateRoomIds, user.id, nowIso, nowIso).all());
+        } catch (e) {
+          ({ results: unreadRows } = await env.DB.prepare(
+            `SELECT room_id, COUNT(*) AS c FROM messages
+             WHERE room_id IN (${privPlaceholders}) AND sender_id != ? AND read = 0
+             GROUP BY room_id`
+          ).bind(...privateRoomIds, user.id).all().catch(() => ({ results: [] })));
+        }
+        for (const u of (unreadRows || [])) unreadByRoom[u.room_id] = u.c;
       }
 
       if (groupRoomIds.length) {
         const grpPlaceholders = groupRoomIds.map(() => '?').join(',');
+        const nowIso2 = new Date().toISOString();
         try {
           const { results: unreadRows } = await env.DB.prepare(
             `SELECT m.room_id, COUNT(*) AS c
@@ -212,8 +230,11 @@ export async function onRequestGet(context) {
              JOIN room_members rm ON rm.room_id = m.room_id AND rm.user_id = ?
              WHERE m.room_id IN (${grpPlaceholders}) AND m.sender_id != ?
                AND (rm.last_read_at IS NULL OR m.created_at > rm.last_read_at)
+               AND COALESCE(m.hidden,0) = 0
+               AND (m.scheduled_for IS NULL OR m.scheduled_for <= ?)
+               AND (m.expires_at IS NULL OR m.expires_at > ?)
              GROUP BY m.room_id`
-          ).bind(user.id, ...groupRoomIds, user.id).all();
+          ).bind(user.id, ...groupRoomIds, user.id, nowIso2, nowIso2).all();
           for (const u of unreadRows) unreadByRoom[u.room_id] = u.c;
         } catch (e) {
           // last_read_at not migrated yet — fall back to the old shared
