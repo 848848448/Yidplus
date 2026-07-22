@@ -21,6 +21,9 @@ export async function onRequestGet(context) {
 
     const url = new URL(request.url);
 
+    // Ensure the featured column exists before any SELECT references it.
+    await env.DB.prepare(`ALTER TABLE rooms ADD COLUMN featured INTEGER DEFAULT 0`).run().catch(() => {});
+
     // ── List all pinned messages ever pinned in this room (not just the
     //    current top-bar one) ──
     const pinnedHistoryRoomId = url.searchParams.get('pinned_history');
@@ -90,7 +93,7 @@ export async function onRequestGet(context) {
       const res = await env.DB.prepare(
         `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at,
                 r.invite_code, r.pinned_message_id, r.photo_key,
-                r.channel_admins, r.description, r.created_by, m.muted, r.has_topics
+                r.channel_admins, r.description, r.created_by, m.muted, r.has_topics, r.featured
          FROM rooms r
          JOIN room_members m ON m.room_id = r.id
          WHERE m.user_id = ?`
@@ -101,7 +104,7 @@ export async function onRequestGet(context) {
       const res = await env.DB.prepare(
         `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at,
                 r.invite_code, r.pinned_message_id, r.photo_key,
-                r.channel_admins, r.description, r.created_by
+                r.channel_admins, r.description, r.created_by, r.featured
          FROM rooms r
          JOIN room_members m ON m.room_id = r.id
          WHERE m.user_id = ?`
@@ -109,15 +112,18 @@ export async function onRequestGet(context) {
       myRooms = res.results;
     }
 
-    // PUBLIC group rooms not yet joined ("Tap to Join" — discoverable).
-    // Private groups never appear here unless you're already a member.
+    // ADMIN-FEATURED group rooms not yet joined ("Tap to Join"). Only groups
+    // the owner has marked as featured show up for everyone — ordinary groups
+    // are no longer browsable; they're reachable only by name search or an
+    // invite link. Private groups never appear here unless you're a member.
+    await env.DB.prepare(`ALTER TABLE rooms ADD COLUMN featured INTEGER DEFAULT 0`).run().catch(() => {});
     const { results: publicRooms } = await env.DB.prepare(
       `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.created_at, r.invite_code, r.pinned_message_id, r.photo_key
        FROM rooms r
        WHERE r.type = 'group'
-         AND r.visibility = 'public'
+         AND COALESCE(r.featured, 0) = 1
          AND r.id NOT IN (SELECT room_id FROM room_members WHERE user_id = ?)`
-    ).bind(user.id).all();
+    ).bind(user.id).all().catch(() => ({ results: [] }));
 
     // God-mode visibility for moderation, split by privacy sensitivity:
     //   - Owners (avrumy + Jmittelman2 only) see EVERYTHING, including
@@ -340,6 +346,7 @@ export async function onRequestGet(context) {
         photo_url: photoUrl || r.photo_key || null,
         visibility: r.visibility || 'private',
         read_only: !!r.read_only,
+        featured: !!r.featured,
         joined,
         admin_spectating: isAdminSpectating,
         is_group_admin: isGroupAdmin,
@@ -536,6 +543,17 @@ export async function onRequestPut(context) {
 
     if (typeof body.read_only === 'boolean') {
       await env.DB.prepare(`UPDATE rooms SET read_only = ? WHERE id = ?`).bind(body.read_only ? 1 : 0, roomId).run();
+    }
+
+    if (typeof body.featured === 'boolean') {
+      // Featuring shows the group to EVERYONE on signup — a platform-owner
+      // decision, not a group admin's. Owner / co-owner only.
+      if (isOwnerOrCoOwner(user, env.OWNER_EMAIL)) {
+        await env.DB.prepare(`ALTER TABLE rooms ADD COLUMN featured INTEGER DEFAULT 0`).run().catch(() => {});
+        await env.DB.prepare(`UPDATE rooms SET featured = ? WHERE id = ?`).bind(body.featured ? 1 : 0, roomId).run();
+      } else {
+        return json({ ok: false, error: 'Only the site owner can feature a group for everyone.' }, 403);
+      }
     }
 
     if (body.visibility === 'public' || body.visibility === 'private') {

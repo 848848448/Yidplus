@@ -1750,6 +1750,13 @@ window.openChatInfo = function () {
   if (canManageGroup) {
     document.getElementById('group-readonly-toggle').classList.toggle('on', !CHAT_curRoom.read_only);
     document.getElementById('group-visibility-toggle').classList.toggle('on', CHAT_curRoom.visibility === 'public');
+    // "Show to everyone" is owner-only.
+    var featRow = document.getElementById('group-featured-row');
+    if (featRow) {
+      var isOwner = !!(window.STATE && STATE.user && STATE.user.is_owner);
+      featRow.style.display = isOwner ? 'flex' : 'none';
+      if (isOwner) document.getElementById('group-featured-toggle').classList.toggle('on', !!CHAT_curRoom.featured);
+    }
     var adLabel = document.getElementById('auto-delete-label');
     if (adLabel) {
       var mins = CHAT_curRoom.auto_delete_minutes;
@@ -1840,6 +1847,23 @@ window.toggleGroupReadOnly = function () {
     .catch(function (err) {
       toggle.classList.toggle('on', !nowEveryoneCanWrite); // revert on failure
       toast('❌ ' + err.message);
+    });
+};
+
+window.toggleGroupFeatured = function () {
+  if (!CHAT_curRoom) return;
+  var toggle = document.getElementById('group-featured-toggle');
+  var nowFeatured = !toggle.classList.contains('on');
+  toggle.classList.toggle('on', nowFeatured);
+
+  api.put('/chat/rooms', { room_id: CHAT_curRoom.id, featured: nowFeatured })
+    .then(function () {
+      CHAT_curRoom.featured = nowFeatured;
+      toast(nowFeatured ? '⭐ Everyone will see this group' : 'Group hidden from discovery — reachable by search or link');
+    })
+    .catch(function (err) {
+      toggle.classList.toggle('on', !nowFeatured); // revert on failure
+      toast('❌ ' + ((err && err.message) || 'Could not update'));
     });
 };
 
