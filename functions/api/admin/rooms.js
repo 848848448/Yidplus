@@ -120,10 +120,25 @@ export async function onRequestGet(context) {
       ).bind(...c).all().catch(() => ({ results: [] }));
       for (const m of (lms.results || [])) if (!lastMsgByRoom[m.room_id]) lastMsgByRoom[m.room_id] = m;
 
-      // Unread per room
-      const urs = await env.DB.prepare(
-        `SELECT room_id, COUNT(*) AS c FROM messages WHERE room_id IN (${ph}) AND sender_id != ? AND read = 0 GROUP BY room_id`
-      ).bind(...c, user.id).all().catch(() => ({ results: [] }));
+      // Unread per room — only messages that actually show (never hidden/
+      // auto-moderated, not a still-pending scheduled one, not expired), so the
+      // admin count matches what a member sees when they open the chat.
+      const _nowIso = new Date().toISOString();
+      let urs;
+      try {
+        urs = await env.DB.prepare(
+          `SELECT room_id, COUNT(*) AS c FROM messages
+           WHERE room_id IN (${ph}) AND sender_id != ? AND read = 0
+             AND COALESCE(hidden,0) = 0
+             AND (scheduled_for IS NULL OR scheduled_for <= ?)
+             AND (expires_at IS NULL OR expires_at > ?)
+           GROUP BY room_id`
+        ).bind(...c, user.id, _nowIso, _nowIso).all();
+      } catch (e) {
+        urs = await env.DB.prepare(
+          `SELECT room_id, COUNT(*) AS c FROM messages WHERE room_id IN (${ph}) AND sender_id != ? AND read = 0 GROUP BY room_id`
+        ).bind(...c, user.id).all().catch(() => ({ results: [] }));
+      }
       for (const u of (urs.results || [])) unreadByRoom[u.room_id] = u.c;
 
       // Member counts
