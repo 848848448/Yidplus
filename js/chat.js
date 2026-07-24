@@ -1013,15 +1013,17 @@ function _tgRenderPosts(list, username, title) {
     // Fold an album back into one bubble. Telegram sends it as several separate
     // messages sharing a grouped_id, so one-per-bubble — what we were doing —
     // turns a five-photo post into five posts. They arrive together, so a run
-    // of matching ids is the whole album.
-    if (p.grouped_id) {
-      var group = [p];
-      var j = i + 1;
-      while (j < list.length && list[j].grouped_id === p.grouped_id) { group.push(list[j]); j++; }
-      if (group.length > 1) { out += _tgAlbumCard(group, username, title); i = j; continue; }
-    }
-
-    out += _xPostCard(p, username, title);
+    // of matching ids is the whole album. Each card is wrapped so a single
+    // malformed post can never throw and blank the entire channel.
+    try {
+      if (p.grouped_id) {
+        var group = [p];
+        var j = i + 1;
+        while (j < list.length && list[j].grouped_id === p.grouped_id) { group.push(list[j]); j++; }
+        if (group.length > 1) { out += _tgAlbumCard(group, username, title); i = j; continue; }
+      }
+      out += _xPostCard(p, username, title);
+    } catch (e) { /* skip a bad post rather than lose the whole feed */ }
     i++;
   }
   return out;
@@ -1066,7 +1068,7 @@ function _tgAlbumCard(group, username, chTitle) {
       '<div style="background:#fff;border-radius:12px;border-bottom-left-radius:4px;padding:.5rem .6rem;width:100%;max-width:min(82%,420px);box-shadow:0 1px 1px rgba(0,0,0,.08);box-sizing:border-box">' +
         '<div style="font-weight:600;font-size:.84rem;color:#168acd;margin-bottom:.3rem;text-align:left;unicode-bidi:plaintext;direction:ltr">' + name + '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:.4rem">' + cells + '</div>' +
-        (text ? '<div style="font-size:.94rem;line-height:1.4;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' + _tgLpPlaceholder(p) : '') +
+        (text ? '<div style="font-size:.94rem;line-height:1.4;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' + _tgLpPlaceholder(withText) : '') +
         '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;margin-top:.25rem;color:#8a9aa5;font-size:.68rem">' +
           delBtn + eye + '<span>' + _xNum(lead.views || 0) + '</span>' +
           '<span style="margin-left:.2rem">' + when + '</span>' +
