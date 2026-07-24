@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://yidplus.com">
 <meta property="og:type" content="website">
 <title>YID PLUS — Chats</title>
-<link rel="stylesheet" href="css/style.css?v=202607212104">
+<link rel="stylesheet" href="css/style.css?v=202607241607">
 <script>
 (function () {
   try {
@@ -664,10 +664,10 @@
 #chat-options-menu { position: fixed; }
 </style>
 
-<script src="js/state.js?v=202607222232"></script>
+<script src="js/state.js?v=202607241607"></script>
 <script src="js/theme.js?v=202607212104"></script>
-<script src="js/app.js?v=202607212104"></script>
-<script src="js/chat.js?v=202607222229"></script>
+<script src="js/app.js?v=202607241607"></script>
+<script src="js/chat.js?v=202607241607"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
@@ -999,7 +999,19 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     return user;
   }).then(function (user) {
-    if (!user) { goPage('/'); return; }
+    if (!user) {
+      // No account. If Guest Mode is on, let them VIEW the chat (public/
+      // featured groups) — actions still prompt sign-in. Otherwise sign-in.
+      fetch('/api/admin/guest-mode').then(function (r) { return r.json(); }).then(function (res) {
+        if (!(res && res.enabled)) { goPage('/'); return; }
+        window.GUEST_MODE = true; try { GUEST_MODE = true; } catch (e) {}
+        if (typeof _applyGuestMode === 'function') _applyGuestMode();
+        if (typeof applyRoleUI === 'function') applyRoleUI();
+        if (typeof loadChatRooms === 'function') loadChatRooms();
+        if (typeof initAds === 'function') initAds('chat');
+      }).catch(function () { goPage('/'); });
+      return;
+    }
 
     applyRoleUI();
 

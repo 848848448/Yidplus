@@ -17,9 +17,32 @@ export async function onRequestGet(context) {
 
   try {
     const user = await requireUser(request, env);
-    if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-
     const url = new URL(request.url);
+
+    if (!user) {
+      // Guest browsing (view-only): if Guest Mode is on, hand back the featured
+      // groups so a guest can look around the chat like a signed-in user
+      // (actions still prompt sign-in on the client; write endpoints reject guests).
+      const gm = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'guest_mode'").first().catch(() => null);
+      if (!(gm && gm.value === 'true')) return json({ ok: false, error: 'Not signed in' }, 401);
+      await env.DB.prepare(`ALTER TABLE rooms ADD COLUMN featured INTEGER DEFAULT 0`).run().catch(() => {});
+      const { results: gRooms } = await env.DB.prepare(
+        `SELECT r.id, r.type, r.name, r.emoji, r.visibility, r.read_only, r.photo_key, r.pinned_message_id, r.invite_code,
+                (SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) AS members
+         FROM rooms r
+         WHERE r.type = 'group' AND COALESCE(r.featured, 0) = 1
+         ORDER BY r.created_at DESC`
+      ).all().catch(() => ({ results: [] }));
+      const guestRooms = (gRooms || []).map(function (r) {
+        return {
+          id: r.id, type: 'group', name: r.name, nick: r.name, emoji: r.emoji,
+          visibility: r.visibility, read_only: !!r.read_only, featured: true,
+          photo_url: r.photo_key || null, members: r.members || 0,
+          preview: '', unread: 0, guest_view: true, admin_spectating: true, last_time: null,
+        };
+      });
+      return json({ ok: true, rooms: guestRooms });
+    }
 
     // Ensure the featured column exists before any SELECT references it.
     await env.DB.prepare(`ALTER TABLE rooms ADD COLUMN featured INTEGER DEFAULT 0`).run().catch(() => {});

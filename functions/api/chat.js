@@ -55,11 +55,42 @@ export async function onRequestGet(context) {
 
   try {
     const user = await requireUser(request, env);
-    if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
-
     const url = new URL(request.url);
     const searchQ = url.searchParams.get('search');
     const roomId  = url.searchParams.get('room_id');
+
+    if (!user) {
+      // Guest read-only access to FEATURED groups only (Guest Mode).
+      const gm = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'guest_mode'").first().catch(() => null);
+      if (!(gm && gm.value === 'true')) return json({ ok: false, error: 'Not signed in' }, 401);
+      if (!roomId) return json({ ok: true, messages: [] });
+      const room = await env.DB.prepare(`SELECT id, type, featured FROM rooms WHERE id = ?`).bind(roomId).first().catch(() => null);
+      if (!room || room.type !== 'group' || !room.featured) {
+        return json({ ok: false, error: 'Sign in to view this chat' }, 403);
+      }
+      const nowIso = new Date().toISOString();
+      const { results: gMsgs } = await env.DB.prepare(
+        `SELECT m.id, m.sender_id, m.text, m.type, m.media_key, m.created_at, m.reply_to, m.edited,
+                u.nickname AS sender_nick, u.photo_url AS sender_photo, u.verified AS sender_verified
+         FROM messages m LEFT JOIN users u ON u.id = m.sender_id
+         WHERE m.room_id = ? AND COALESCE(m.hidden,0) = 0
+           AND (m.scheduled_for IS NULL OR m.scheduled_for <= ?)
+           AND (m.expires_at IS NULL OR m.expires_at > ?)
+         ORDER BY m.created_at ASC LIMIT 200`
+      ).bind(roomId, nowIso, nowIso).all().catch(() =>
+        env.DB.prepare(
+          `SELECT m.id, m.sender_id, m.text, m.type, m.media_key, m.created_at, m.reply_to,
+                  u.nickname AS sender_nick, u.photo_url AS sender_photo
+           FROM messages m LEFT JOIN users u ON u.id = m.sender_id
+           WHERE m.room_id = ? ORDER BY m.created_at ASC LIMIT 200`
+        ).bind(roomId).all().catch(() => ({ results: [] }))
+      );
+      const guestMsgs = (gMsgs.results || []).map(function (r) {
+        if (r.media_key) r.media_url = '/api/media/' + encodeURIComponent(r.media_key);
+        return r;
+      });
+      return json({ ok: true, messages: guestMsgs, guest_view: true });
+    }
 
     // ── Search mode: look across every room the user is a member of ──
     if (searchQ && searchQ.trim()) {
