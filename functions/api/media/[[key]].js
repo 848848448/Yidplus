@@ -1,23 +1,51 @@
 // Serves R2 objects — catch-all route for /api/media/...
+// Supports HTTP Range requests (206 Partial Content) so video/audio can seek
+// and large files stream instead of downloading whole — Safari in particular
+// refuses to play a video without ranged responses.
 export async function onRequestGet(context) {
-  const { params, env } = context;
+  const { params, env, request } = context;
   try {
     const key = decodeURIComponent((params.key || []).join('/'));
     if (!key) return new Response('Not found', { status: 404 });
 
-    const obj = await env.MY_BUCKET.get(key);
-    if (!obj) return new Response('Not found', { status: 404 });
     const headers = new Headers();
-    obj.writeHttpMetadata(headers);
+    let obj = null;
+    let status = 200;
+
+    const rangeHeader = request.headers.get('Range');
+    const m = rangeHeader && /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+    if (m) {
+      const head = await env.MY_BUCKET.head(key);
+      if (!head) return new Response('Not found', { status: 404 });
+      const size = head.size;
+      let start = m[1] === '' ? undefined : parseInt(m[1], 10);
+      let end   = m[2] === '' ? undefined : parseInt(m[2], 10);
+      if (start === undefined) { start = Math.max(0, size - (end || 0)); end = size - 1; } // suffix "bytes=-N"
+      else if (end === undefined || end >= size) { end = size - 1; }
+      if (isNaN(start) || start > end || start >= size) {
+        return new Response('Range Not Satisfiable', { status: 416, headers: { 'Content-Range': 'bytes */' + size, 'Accept-Ranges': 'bytes' } });
+      }
+      obj = await env.MY_BUCKET.get(key, { range: { offset: start, length: end - start + 1 } });
+      if (!obj) return new Response('Not found', { status: 404 });
+      obj.writeHttpMetadata(headers);
+      headers.set('Content-Range', 'bytes ' + start + '-' + end + '/' + size);
+      headers.set('Content-Length', String(end - start + 1));
+      status = 206;
+    } else {
+      obj = await env.MY_BUCKET.get(key);
+      if (!obj) return new Response('Not found', { status: 404 });
+      obj.writeHttpMetadata(headers);
+      if (obj.size != null) headers.set('Content-Length', String(obj.size));
+    }
+
+    headers.set('Accept-Ranges', 'bytes');
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
     headers.set('Access-Control-Allow-Origin', '*');
+    headers.set('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
     headers.set('X-Content-Type-Options', 'nosniff');
 
-    // Defense in depth: this route serves user uploads from the app's OWN
-    // origin. If anything script-capable (html, svg, xml, js...) is ever
-    // in the bucket — e.g. uploaded before the upload-side restrictions
-    // existed — force it to download instead of render, so it can never
-    // execute as a page on this origin.
+    // Defense in depth: force anything script-capable to download, never render
+    // as a page on this origin.
     const ct = (headers.get('Content-Type') || '').toLowerCase();
     const renderable = ct.startsWith('image/') || ct.startsWith('video/') || ct.startsWith('audio/');
     if (!renderable || ct === 'image/svg+xml') {
@@ -25,11 +53,16 @@ export async function onRequestGet(context) {
       headers.set('Content-Disposition', 'attachment');
     }
 
-    return new Response(obj.body, { headers });
+    return new Response(obj.body, { status, headers });
   } catch (err) {
     return new Response('Error: ' + err.message, { status: 500 });
   }
 }
 export async function onRequestOptions() {
-  return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET', 'Access-Control-Max-Age': '86400' } });
+  return new Response(null, { status: 204, headers: {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+    'Access-Control-Allow-Headers': 'Range',
+    'Access-Control-Max-Age': '86400',
+  } });
 }
