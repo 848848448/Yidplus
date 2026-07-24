@@ -11,7 +11,7 @@ export async function onRequestOptions() {
 }
 
 export async function onRequestGet(context) {
-  const { env } = context;
+  const { request, env } = context;
   try {
     // Lazy scheduler tick — publishes any due scheduled broadcasts. Throttled
     // internally and fully guarded, so it never affects the settings response.
@@ -25,6 +25,28 @@ export async function onRequestGet(context) {
       if (PRIVATE_KEYS[row.key]) continue;
       settings[row.key] = row.value;
     }
+
+    // Per-feature exception lists ("who may still see this while it's off").
+    // The list itself is other people's names, so it never leaves the server —
+    // we resolve it here and send back only a yes/no for THIS visitor.
+    const viewer = await requireUser(request, env).catch(() => null);
+    const viewerIsOwner = viewer ? isOwnerOrCoOwner(viewer, env.OWNER_EMAIL) : false;
+    const myKeys = [];
+    if (viewer) {
+      if (viewer.nickname) myKeys.push(String(viewer.nickname).trim().toLowerCase());
+      if (viewer.email) myKeys.push(String(viewer.email).trim().toLowerCase());
+      if (viewer.id) myKeys.push(String(viewer.id).trim().toLowerCase());
+    }
+    for (const key of Object.keys(settings)) {
+      if (!key.endsWith('_allow')) continue;
+      const raw = settings[key] || '';
+      // The owner edits this list in Admin, so they keep the raw value.
+      if (!viewerIsOwner) delete settings[key];   // keep the name list private
+      if (!myKeys.length) continue;
+      const allowed = raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+      if (allowed.some(a => myKeys.includes(a))) settings[key + 'ed_me'] = 'true';
+    }
+
     return json({ ok: true, settings });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);

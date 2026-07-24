@@ -4779,20 +4779,32 @@ function buildFeaturesPanel(content) {
     var rows = FEATURE_FLAGS.map(function (f) {
       // Default ON unless explicitly set to 'off'
       var on = s[f.key] !== 'off';
-      return '<div style="display:flex;align-items:center;gap:.75rem;padding:.85rem 0;border-bottom:.5px solid var(--border)">' +
-          '<div style="font-size:1.4rem">' + f.icon + '</div>' +
-          '<div style="flex:1"><div style="font-size:.9rem;font-weight:700">' + f.label + '</div>' +
-          '<div style="font-size:.72rem;color:var(--muted)">' + f.desc + '</div></div>' +
-          '<button id="ff-' + f.key + '" onclick="toggleFeature(\'' + f.key + '\',' + (on ? 'false' : 'true') + ',this)" ' +
-            'style="width:52px;height:30px;border-radius:999px;border:none;cursor:pointer;position:relative;transition:background .15s;background:' + (on ? '#16A34A' : '#9AA0A6') + '">' +
-            '<span style="position:absolute;top:3px;left:' + (on ? '25px' : '3px') + ';width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s"></span>' +
-          '</button>' +
+      var allow = s[f.key + '_allow'] || '';
+      return '<div style="padding:.85rem 0;border-bottom:.5px solid var(--border)">' +
+          '<div style="display:flex;align-items:center;gap:.75rem">' +
+            '<div style="font-size:1.4rem">' + f.icon + '</div>' +
+            '<div style="flex:1"><div style="font-size:.9rem;font-weight:700">' + f.label + '</div>' +
+            '<div style="font-size:.72rem;color:var(--muted)">' + f.desc + '</div></div>' +
+            '<button id="ff-' + f.key + '" onclick="toggleFeature(\'' + f.key + '\',' + (on ? 'false' : 'true') + ',this)" ' +
+              'style="width:52px;height:30px;border-radius:999px;border:none;cursor:pointer;position:relative;transition:background .15s;background:' + (on ? '#16A34A' : '#9AA0A6') + '">' +
+              '<span style="position:absolute;top:3px;left:' + (on ? '25px' : '3px') + ';width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s"></span>' +
+            '</button>' +
+          '</div>' +
+          // Exception list — only meaningful while the feature is OFF.
+          '<div style="margin-top:.55rem;' + (on ? 'display:none' : '') + '" id="ffx-' + f.key + '">' +
+            '<div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem">👁 Who can still see it (nicknames or emails, comma-separated). Leave empty = nobody.</div>' +
+            '<div style="display:flex;gap:.4rem">' +
+              '<input id="ffa-' + f.key + '" value="' + escHtmlA(allow) + '" placeholder="e.g. Ahron, moshe@mail.com" ' +
+                'style="flex:1;padding:.5rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.8rem">' +
+              '<button onclick="saveFeatureAllow(\'' + f.key + '\')" style="padding:.5rem .9rem;border:none;border-radius:10px;background:#1F6F5C;color:#fff;font-weight:700;font-size:.78rem;cursor:pointer;font-family:inherit">Save</button>' +
+            '</div>' +
+          '</div>' +
         '</div>';
     }).join('');
     p.innerHTML =
       '<div class="admin-card">' +
         '<div class="admin-card-title">🎛️ Feature toggles</div>' +
-        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem">Turn a section off for the whole app. Off = hidden from the bottom nav and its page is blocked. You (owner/admins) are never affected.</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem">Turn a section off for the whole app. Off = the tab disappears from the bottom nav for <b>everyone</b> — including you and the admins — and its page is blocked. Turn it back on anytime. While it\'s off you can list specific people who may still see it.</div>' +
         rows +
       '</div>' +
       '<div class="admin-card">' +
@@ -4822,6 +4834,27 @@ function buildFeaturesPanel(content) {
     if (p) p.innerHTML = '<div class="admin-card" style="color:var(--red)">Could not load: ' + escHtmlA(err.message) + '</div>';
   });
 }
+
+window.saveFeatureAllow = function (key) {
+  var el = document.getElementById('ffa-' + key);
+  if (!el) return;
+  // Tidy the list: trim, drop blanks, de-duplicate.
+  var seen = {}, list = [];
+  el.value.split(',').forEach(function (n) {
+    var v = n.trim();
+    if (!v || seen[v.toLowerCase()]) return;
+    seen[v.toLowerCase()] = 1;
+    list.push(v);
+  });
+  var val = list.join(', ');
+  api.put('/settings', { key: key + '_allow', value: val })
+    .then(function () {
+      if (STATE.settings) STATE.settings[key + '_allow'] = val;
+      el.value = val;
+      toast(list.length ? '👁 ' + list.length + ' can still see it' : 'Nobody can see it while off');
+    })
+    .catch(function (err) { toast('❌ ' + err.message); });
+};
 
 window.toggleFeature = function (key, turnOn, btn) {
   api.put('/settings', { key: key, value: turnOn ? 'on' : 'off' })

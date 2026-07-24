@@ -829,28 +829,47 @@ window.applyAppSettings = function () {
   _applyFeatureFlags(s);
 };
 
-// Global feature toggles (set in Admin → Features). Off = hidden nav entry +
-// blocked page. Owner/admins are never restricted so they can still manage.
+// Global feature toggles (set in Admin → Features). Off = the entry disappears
+// from the bottom nav for EVERYONE — admins and the owner included — and the
+// page itself is blocked. The only exception is people the owner has explicitly
+// added to that feature's allow-list (Admin → Features → "Who can still see it").
 window._applyFeatureFlags = function (s) {
   s = s || (STATE && STATE.settings) || {};
-  var r = STATE.user && STATE.user.role;
-  var isStaff = (r === 'owner' || r === 'admin_super' || r === 'admin_limited');
+
+  // Is this feature hidden for the current viewer?
+  var hidden = function (key) {
+    if (s['feat_' + key] !== 'off') return false;          // feature is on
+    if (s['feat_' + key + '_allowed_me'] === 'true') return false; // on the allow-list
+    return true;
+  };
 
   var setNav = function (nav, off) {
     document.querySelectorAll('.nav-item[data-nav="' + nav + '"]').forEach(function (b) {
-      b.style.display = (off && !isStaff) ? 'none' : '';
+      b.style.display = off ? 'none' : '';
     });
   };
-  setNav('shorts',  s.feat_shorts   === 'off');
-  setNav('music',   s.feat_music    === 'off');
-  setNav('explore', s.feat_channels === 'off');
+  var shortsOff = hidden('shorts'), musicOff = hidden('music'), channelsOff = hidden('channels');
+  setNav('shorts',  shortsOff);
+  setNav('music',   musicOff);
+  setNav('explore', channelsOff);
 
-  // Block direct page access for non-staff (typed URL / stale link)
-  if (!isStaff) {
-    var path = window.location.pathname;
-    if (s.feat_shorts === 'off' && /shorts/.test(path)) { toast && toast('Shorts is currently unavailable'); goPage('/chat'); return; }
-    if (s.feat_music  === 'off' && /music/.test(path))  { toast && toast('Music is currently unavailable');  goPage('/chat'); return; }
-  }
+  // Also hide any home-screen shortcut tiles / links to a hidden section.
+  var hideLinks = function (off, matcher) {
+    if (!off) return;
+    document.querySelectorAll('[onclick]').forEach(function (el) {
+      if (el.classList.contains('nav-item')) return;
+      var oc = el.getAttribute('onclick') || '';
+      if (matcher.test(oc)) el.style.display = 'none';
+    });
+  };
+  hideLinks(shortsOff,   /goPage\(['"]\/shorts/);
+  hideLinks(musicOff,    /goPage\(['"]\/music/);
+  hideLinks(channelsOff, /navTo\(['"]explore/);
+
+  // Block direct page access (typed URL / stale link / bookmark).
+  var path = window.location.pathname;
+  if (shortsOff && /shorts/.test(path)) { if (window.toast) toast('Shorts is currently unavailable'); goPage('/chat'); return; }
+  if (musicOff  && /music/.test(path))  { if (window.toast) toast('Music is currently unavailable');  goPage('/chat'); return; }
 
   // Guest mode off → hide the "continue as guest" button if present
   var gb = document.getElementById('guest-login-btn') || document.querySelector('[data-guest-btn]');
