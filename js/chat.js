@@ -5508,10 +5508,12 @@ window._applyChannelInputState = function (room) {
 
   // This runs after openChatRoom and used to unconditionally re-show the
   // composer for any non-channel room — undoing the hide for guests and for
-  // admins-only groups. Respect those first.
+  // admins-only groups. Use the SAME test openChatRoom uses, so the two can
+  // never disagree.
   var isGuest = !!(window.GUEST_MODE || (room && room.guest_view)) && !(window.STATE && STATE.user);
-  var lockedRO = !!(room && room.read_only) &&
-                 !(typeof isAnyAdmin === 'function' && isAnyAdmin()) && !(room && room.is_group_admin);
+  var _isSuper = !!(window.STATE && STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner));
+  var lockedRO = !!(room && room.type === 'group' &&
+                    room.read_only && !room.is_group_admin && !_isSuper);
   if (isGuest || lockedRO) {
     if (ib) ib.style.display = 'none';
     var roBar0 = document.getElementById('readonly-bar');

@@ -1813,7 +1813,7 @@ window._showGuestLoginPopup = function (msg) {
   overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:1.5rem';
   overlay.innerHTML =
     '<div style="background:var(--surface);border-radius:20px;padding:2rem 1.5rem;width:100%;max-width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">' +
-      '<img src="images/logo.png" alt="YID PLUS" style="height:42px;width:auto;object-fit:contain;margin-bottom:.9rem" onerror="this.style.display=\'none\'">' +
+      '<img src="/images/logo.png?v=6" alt="YID PLUS" style="height:42px;width:auto;object-fit:contain;margin-bottom:.9rem" onerror="this.style.display=\'none\'">' +
       '<div style="font-size:.85rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.5">' +
         (msg || 'Sign in to interact with the YID PLUS community') +
       '</div>' +
