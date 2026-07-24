@@ -6802,3 +6802,14 @@ function _tgLoadLinkPreviews() {
     })(els[i]);
   }
 }
+
+// Status-viewer mute. The chat page has the 🔊 button but this lived only in
+// home.js (not loaded here), so tapping it threw and did nothing.
+var CHAT_svMuted = false;
+window.svToggleMute = window.svMute = function () {
+  CHAT_svMuted = !CHAT_svMuted;
+  var btn = document.getElementById('sv-mute');
+  if (btn) btn.textContent = CHAT_svMuted ? '🔇' : '🔊';
+  var vid = document.querySelector('#sv-slide video');
+  if (vid) vid.muted = CHAT_svMuted;
+};
