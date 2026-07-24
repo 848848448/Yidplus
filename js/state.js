@@ -1793,6 +1793,16 @@ function _addNavLoginBtn() {
   topbar.appendChild(btn);
 }
 
+// Leave guest browsing and go straight to the sign-in screen. Plain
+// goPage('index.html') wasn't enough: index's boot sees Guest Mode is on and
+// restores the last guest page (Settings, Explore…), so the sign-in screen
+// never appeared. The ?signin=1 flag tells it to show sign-in instead, and we
+// clear the remembered page so nothing pulls us back.
+window._guestGoSignIn = function () {
+  try { localStorage.removeItem('yp_page'); } catch (e) {}
+  goPage('/?signin=1');
+};
+
 // Show login popup
 window._showGuestLoginPopup = function (msg) {
   var existing = document.getElementById('guest-login-popup');
@@ -1803,12 +1813,11 @@ window._showGuestLoginPopup = function (msg) {
   overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:1.5rem';
   overlay.innerHTML =
     '<div style="background:var(--surface);border-radius:20px;padding:2rem 1.5rem;width:100%;max-width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">' +
-      '<div style="font-size:2.5rem;margin-bottom:.75rem">✡️</div>' +
-      '<div style="font-size:1.1rem;font-weight:800;margin-bottom:.4rem">YID PLUS</div>' +
+      '<img src="images/logo.png" alt="YID PLUS" style="height:42px;width:auto;object-fit:contain;margin-bottom:.9rem" onerror="this.style.display=\'none\'">' +
       '<div style="font-size:.85rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.5">' +
         (msg || 'Sign in to interact with the YID PLUS community') +
       '</div>' +
-      '<button onclick="goPage(\'index.html\')" style="width:100%;padding:.75rem;background:linear-gradient(135deg,#1F6F5C,#2B8A73);color:#fff;border:none;border-radius:14px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:.5rem;display:flex;align-items:center;justify-content:center;gap:.5rem">' +
+      '<button onclick="_guestGoSignIn()" style="width:100%;padding:.75rem;background:linear-gradient(135deg,#1F6F5C,#2B8A73);color:#fff;border:none;border-radius:14px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:.5rem;display:flex;align-items:center;justify-content:center;gap:.5rem">' +
         '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>' +
         'Sign In' +
       '</button>' +

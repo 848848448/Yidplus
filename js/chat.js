@@ -1626,31 +1626,13 @@ window.openChatRoom = function (roomId, topicId, topicName) {
   if (_jb) _jb.remove();   // ...and drop that channel's Join bar
 
   var _isGuest = !!(window.GUEST_MODE || room.guest_view) && !(window.STATE && STATE.user);
-  if (_isGuest) {
-    // Guest: viewing only. No composer — a tappable bar invites them to sign in.
+  if (_isGuest || lockedForReadOnly) {
+    // Nothing to write with, so show nothing at all: the composer and the
+    // notice bar are both removed, and the messages run to the bottom of the
+    // screen. (Guests, and members of an admins-only group. The server also
+    // rejects their posts, so this can't be bypassed.)
     ib.style.display = 'none';
-    if (roBar) {
-      roBar.style.display = 'flex';
-      roBar.style.cursor = 'pointer';
-      roBar.onclick = function () {
-        if (typeof _showGuestLoginPopup === 'function') _showGuestLoginPopup('Sign in to send messages');
-        else goPage('/');
-      };
-      var gbt = document.getElementById('readonly-bar-text');
-      if (gbt) gbt.textContent = 'Sign in to send messages';
-    }
-  } else if (lockedForReadOnly) {
-    // No composer at all — replace it with a clear "only admins can post" bar,
-    // exactly like an announcement group. (The server also blocks non-admin
-    // posts, so this can't be bypassed.)
-    ib.style.display = 'none';
-    if (roBar) {
-      roBar.style.display = 'flex';
-      roBar.style.cursor = '';
-      roBar.onclick = null;
-      var rbt = document.getElementById('readonly-bar-text');
-      if (rbt) rbt.textContent = 'Only admins can send messages in this group';
-    }
+    if (roBar) { roBar.style.display = 'none'; roBar.onclick = null; }
   } else {
     if (roBar) roBar.style.display = 'none';
     ib.style.display = '';   // restore in case a Telegram channel/read-only hid it
