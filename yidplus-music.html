@@ -9,7 +9,7 @@
 <meta property="og:description" content="Listen to Jewish music on YID PLUS">
 <meta property="og:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>YID PLUS — Music</title>
-<link rel="stylesheet" href="css/style.css?v=202607241607">
+<link rel="stylesheet" href="css/style.css?v=202607241613">
 <script>
 (function () {
   try {
@@ -451,10 +451,10 @@
 
 <div id="app-toast"></div>
 
-<script src="js/state.js?v=202607241607"></script>
-<script src="js/theme.js?v=202607212104"></script>
-<script src="js/app.js?v=202607241607"></script>
-<script src="js/music.js?v=202607212104"></script>
+<script src="js/state.js?v=202607241613"></script>
+<script src="js/theme.js?v=202607241613"></script>
+<script src="js/app.js?v=202607241613"></script>
+<script src="js/music.js?v=202607241613"></script>
 
 <script>
 // Override tab class for YM style
@@ -493,7 +493,19 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!user) return new Promise(function(r){setTimeout(r,300)}).then(function(){return AUTH.restore();});
     return user;
   }).then(function (user) {
-    if (!user) { goPage('/'); return; }
+    if (!user) {
+      // No account: with Guest Mode on, let them LISTEN (actions still prompt
+      // sign-in). Otherwise send them to sign-in.
+      fetch('/api/admin/guest-mode').then(function (r) { return r.json(); }).then(function (res) {
+        if (!(res && res.enabled)) { goPage('/'); return; }
+        window.GUEST_MODE = true; try { GUEST_MODE = true; } catch (e) {}
+        if (typeof _applyGuestMode === 'function') _applyGuestMode();
+        if (typeof applyRoleUI === 'function') applyRoleUI();
+        if (typeof loadAppSettings === 'function') loadAppSettings();
+        navTo('music');
+      }).catch(function () { goPage('/'); });
+      return;
+    }
     applyRoleUI();
     if (typeof loadAppSettings === 'function') loadAppSettings();
     navTo('music');
