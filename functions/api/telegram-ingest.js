@@ -106,7 +106,7 @@ export async function onRequestGet(context) {
     const username = (new URL(request.url).searchParams.get('username') || '').replace(/^@/, '').replace(/[^a-zA-Z0-9_]/g, '');
     if (!username) return json({ ok: true, posts: [] });
     const res = await env.DB.prepare(
-      'SELECT tg_msg_id, text, media_url, media_type, media_title, media_performer, media_duration, media_name, media_thumb, entities, grouped_id, link, posted_at, author_name, author_handle, author_avatar, views, forwards FROM telegram_posts WHERE username = ? ORDER BY tg_msg_id DESC LIMIT 150'
+      'SELECT tg_msg_id, text, media_url, media_type, media_title, media_performer, media_duration, media_name, media_thumb, entities, grouped_id, link, posted_at, author_name, author_handle, author_avatar, views, forwards FROM telegram_posts WHERE username = ? ORDER BY tg_msg_id DESC LIMIT 20000'
     ).bind(username).all();
     return json({ ok: true, posts: res.results || [] });
   } catch (err) {
