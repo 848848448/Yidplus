@@ -5328,7 +5328,12 @@ function _exitSelectMode() {
   if (bar) bar.style.display = 'none';
   document.querySelectorAll('.msg-selected').forEach(function (el) { el.classList.remove('msg-selected'); });
   var ib = document.getElementById('chat-input-bar');
-  if (ib) ib.style.display = 'flex';
+  // Only restore the composer if this viewer is actually allowed to write —
+  // otherwise leaving select mode would bring it back for guests / read-only.
+  if (ib) {
+    if (typeof _applyChannelInputState === 'function') _applyChannelInputState(CHAT_curRoom);
+    else ib.style.display = 'flex';
+  }
 }
 
 function _updateSelectBar(count) {
@@ -5500,6 +5505,22 @@ window._applyChannelInputState = function (room) {
   var ib = document.getElementById('chat-input-bar');
   var recBar = document.getElementById('rec-live-bar');
   var recLock = document.getElementById('rec-lock-indicator');
+
+  // This runs after openChatRoom and used to unconditionally re-show the
+  // composer for any non-channel room — undoing the hide for guests and for
+  // admins-only groups. Respect those first.
+  var isGuest = !!(window.GUEST_MODE || (room && room.guest_view)) && !(window.STATE && STATE.user);
+  var lockedRO = !!(room && room.read_only) &&
+                 !(typeof isAnyAdmin === 'function' && isAnyAdmin()) && !(room && room.is_group_admin);
+  if (isGuest || lockedRO) {
+    if (ib) ib.style.display = 'none';
+    var roBar0 = document.getElementById('readonly-bar');
+    if (roBar0) roBar0.style.display = 'none';
+    if (recBar) recBar.classList.remove('show');
+    if (recLock) recLock.classList.remove('show');
+    return;
+  }
+
   if (!room || room.type !== 'channel') {
     if (ib) ib.style.display = 'flex';
     return;
