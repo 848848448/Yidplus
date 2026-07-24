@@ -38,7 +38,7 @@ export async function onRequestGet(context) {
           id: r.id, type: 'group', name: r.name, nick: r.name, emoji: r.emoji,
           visibility: r.visibility, read_only: !!r.read_only, featured: true,
           photo_url: r.photo_key || null, members: r.members || 0,
-          preview: '', unread: 0, guest_view: true, admin_spectating: true, last_time: null,
+          preview: '', unread: 0, guest_view: true, last_time: null,
         };
       });
       return json({ ok: true, rooms: guestRooms });

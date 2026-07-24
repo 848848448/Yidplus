@@ -1612,8 +1612,10 @@ window.openChatRoom = function (roomId, topicId, topicName) {
     st.style.color = 'var(--muted)';
   }
 
-  // Join banner
-  var needsJoin = (!room.joined && isGroup);
+  // Join banner — never for guests: they're only looking, and joining needs
+  // an account. They sign in from the Sign In button in the top bar.
+  var _guestViewing = !!(window.GUEST_MODE || room.guest_view) && !(window.STATE && STATE.user);
+  var needsJoin = (!room.joined && isGroup && !_guestViewing);
   document.getElementById('join-banner').style.display = needsJoin ? 'flex' : 'none';
 
   // Read-only enforcement: lock input unless the viewer is a group admin or Super Admin.

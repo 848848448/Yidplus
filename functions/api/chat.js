@@ -85,7 +85,7 @@ export async function onRequestGet(context) {
            WHERE m.room_id = ? ORDER BY m.created_at ASC LIMIT 200`
         ).bind(roomId).all().catch(() => ({ results: [] }))
       );
-      const guestMsgs = (gMsgs.results || []).map(function (r) {
+      const guestMsgs = (gMsgs || []).map(function (r) {
         if (r.media_key) r.media_url = '/api/media/' + encodeURIComponent(r.media_key);
         return r;
       });
