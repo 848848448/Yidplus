@@ -69,22 +69,34 @@ export async function onRequestGet(context) {
         return json({ ok: false, error: 'Sign in to view this chat' }, 403);
       }
       const nowIso = new Date().toISOString();
-      const { results: gMsgs } = await env.DB.prepare(
-        `SELECT m.id, m.sender_id, m.text, m.type, m.media_key, m.created_at, m.reply_to, m.edited,
-                u.nickname AS sender_nick, u.photo_url AS sender_photo, u.verified AS sender_verified
-         FROM messages m LEFT JOIN users u ON u.id = m.sender_id
-         WHERE m.room_id = ? AND COALESCE(m.hidden,0) = 0
-           AND (m.scheduled_for IS NULL OR m.scheduled_for <= ?)
-           AND (m.expires_at IS NULL OR m.expires_at > ?)
-         ORDER BY m.created_at ASC LIMIT 200`
-      ).bind(roomId, nowIso, nowIso).all().catch(() =>
-        env.DB.prepare(
-          `SELECT m.id, m.sender_id, m.text, m.type, m.media_key, m.created_at, m.reply_to,
-                  u.nickname AS sender_nick, u.photo_url AS sender_photo
+      // NOTE: these column names must match the real schema — sender_nick lives
+      // on messages, and it's reply_to_id / edited_at (not reply_to / edited).
+      // Getting them wrong makes the query throw and every guest sees an empty
+      // room.
+      let gMsgs = [];
+      try {
+        const r1 = await env.DB.prepare(
+          `SELECT m.id, m.room_id, m.sender_id, m.sender_nick, m.type, m.text, m.media_key,
+                  m.reply_to_id, m.view_once, m.opened, m.edited_at, m.created_at, m.topic_id,
+                  u.photo_url AS sender_photo
+           FROM messages m LEFT JOIN users u ON u.id = m.sender_id
+           WHERE m.room_id = ? AND COALESCE(m.hidden,0) = 0
+             AND (m.scheduled_for IS NULL OR m.scheduled_for <= ?)
+             AND (m.expires_at IS NULL OR m.expires_at > ?)
+           ORDER BY m.created_at ASC LIMIT 200`
+        ).bind(roomId, nowIso, nowIso).all();
+        gMsgs = r1.results || [];
+      } catch (e) {
+        // Older DB without hidden/scheduled/expires columns.
+        const r2 = await env.DB.prepare(
+          `SELECT m.id, m.room_id, m.sender_id, m.sender_nick, m.type, m.text, m.media_key,
+                  m.reply_to_id, m.view_once, m.opened, m.created_at,
+                  u.photo_url AS sender_photo
            FROM messages m LEFT JOIN users u ON u.id = m.sender_id
            WHERE m.room_id = ? ORDER BY m.created_at ASC LIMIT 200`
-        ).bind(roomId).all().catch(() => ({ results: [] }))
-      );
+        ).bind(roomId).all().catch(() => ({ results: [] }));
+        gMsgs = r2.results || [];
+      }
       const guestMsgs = (gMsgs || []).map(function (r) {
         if (r.media_key) r.media_url = '/api/media/' + encodeURIComponent(r.media_key);
         return r;
