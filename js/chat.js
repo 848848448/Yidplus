@@ -477,7 +477,7 @@ window.openTelegramChannel = function (username, title) {
   if (!msgs) return;
   msgs.innerHTML =
     '<div style="height:100%;display:flex;flex-direction:column;position:relative">' +
-      '<div id="tg-feed-scroll" style="flex:1;overflow-y:auto;background:var(--tg-bg,#eef1f4);padding:.7rem .5rem 1rem">' +
+      '<div id="tg-feed-scroll" style="flex:1;overflow-y:auto;background:linear-gradient(180deg,#c5d3e8 0%,#d7e0ec 100%);background-attachment:local;padding:.6rem .5rem 1rem">' +
         '<div id="tg-feed-slot" style="max-width:640px;margin:0 auto"></div>' +
         '<div id="tg-feed-state" style="text-align:center;color:var(--muted);font-size:.85rem;padding:2rem 1rem">Loading posts…</div>' +
       '</div>' +
@@ -593,7 +593,7 @@ function _xPostCard(p, username, chTitle) {
       // someone actually presses play, and then the prefetch has the field to
       // itself.
       var _vlink = p.link || ('https://t.me/' + encodeURIComponent(username) + '/' + p.tg_msg_id);
-      media = '<div class="tgvid" style="position:relative;margin:.1rem 0;overflow:hidden;background:#000">' +
+      media = '<div class="tgvid" style="position:relative;margin:0;overflow:hidden;background:#000">' +
           '<video src="' + src + '" controls playsinline preload="none"' +
             (p.media_thumb ? ' poster="' + src + '&thumb=1"' : '') +
             ' onerror="_tgVidFail(this,\'' + _vlink + '\')"' +
@@ -634,7 +634,7 @@ function _xPostCard(p, username, chTitle) {
           '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
         '</div><span style="font-size:.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(p.media_name || 'Download file') + '</span></a>';
     } else {
-      media = '<div style="position:relative;margin:.1rem 0;overflow:hidden"><img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" onerror="var d=this.closest(&#39;div&#39;);if(d)d.style.display=&#39;none&#39;" style="width:100%;display:block;cursor:pointer;max-height:75vh;object-fit:cover" loading="lazy">' + stamp + '</div>';
+      media = '<div style="position:relative;margin:0;overflow:hidden"><img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" onerror="var d=this.closest(&#39;div&#39;);if(d)d.style.display=&#39;none&#39;" style="width:100%;display:block;cursor:pointer;max-height:75vh;object-fit:cover" loading="lazy">' + stamp + '</div>';
     }
   }
 
@@ -656,28 +656,25 @@ function _xPostCard(p, username, chTitle) {
       '<span class="reaction-pill" onclick="event.stopPropagation();tgOpenReactPicker(' + p.tg_msg_id + ',this)" style="opacity:.6">🙂+</span>' +
     '</div>';
 
-  // Clean feed card (like a modern social feed / Telegram's channel view),
-  // not a chat bubble: full-width card, header with avatar + name + time, the
-  // media, the text, then a reactions + views footer.
+  // Telegram channel bubble: left-aligned, white, rounded with a small tail;
+  // media fills the top edge-to-edge (the bubble clips it round), text and a
+  // views + time footer sit underneath. No per-post avatar — just like Telegram.
   var canDelete = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
   var delBtn = canDelete
-    ? '<span onclick="event.stopPropagation();tgDeletePost(' + p.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.9rem;padding:.2rem;flex-shrink:0">🗑</span>'
+    ? '<span onclick="event.stopPropagation();tgDeletePost(' + p.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-right:auto">🗑</span>'
     : '';
 
-  return '<div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.09);margin:0 auto .7rem;max-width:560px;width:100%;overflow:hidden;box-sizing:border-box">' +
-      '<div style="display:flex;align-items:center;gap:.55rem;padding:.65rem .8rem .5rem">' +
-        avatar +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="font-weight:700;font-size:.9rem;color:#111;text-align:left;unicode-bidi:plaintext;direction:ltr;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div>' +
-          '<div style="font-size:.68rem;color:#8a9aa5">' + when + '</div>' +
+  return '<div style="display:flex;justify-content:flex-start;margin-bottom:.35rem">' +
+      '<div style="background:#fff;border-radius:14px 14px 14px 5px;max-width:' + (media ? '82%' : '80%') + ';min-width:120px;overflow:hidden;box-shadow:0 1px 1.5px rgba(0,0,0,.14);box-sizing:border-box">' +
+        media +
+        '<div style="padding:' + (media && !text ? '.35rem .55rem .4rem' : '.45rem .6rem .4rem') + '">' +
+          (text ? '<div style="font-size:.95rem;line-height:1.45;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' + _tgLpPlaceholder(p) : '') +
+          reactRow +
+          '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.25rem;margin-top:.15rem;color:#8a9aa5;font-size:.66rem">' +
+            delBtn + eye + '<span>' + _xNum(p.views || 0) + '</span>' +
+            '<span style="margin-left:.15rem">' + when + '</span>' +
+          '</div>' +
         '</div>' +
-        delBtn +
-      '</div>' +
-      media +
-      (text ? '<div style="font-size:.95rem;line-height:1.5;color:#111;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext;padding:.15rem .85rem .3rem">' + text + '</div>' + '<div style="padding:0 .85rem">' + _tgLpPlaceholder(p) + '</div>' : '') +
-      '<div style="padding:.15rem .8rem">' + reactRow + '</div>' +
-      '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;padding:.1rem .85rem .65rem;color:#8a9aa5;font-size:.7rem">' +
-        eye + '<span>' + _xNum(p.views || 0) + '</span>' +
       '</div>' +
     '</div>';
 }
@@ -1058,7 +1055,7 @@ function _tgAlbumCard(group, username, chTitle) {
     var inner = p.media_type === 'video'
       ? '<video src="' + src + '" controls playsinline preload="none" style="width:100%;height:100%;object-fit:cover;display:block;background:#000"></video>'
       : '<img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;height:100%;object-fit:cover;display:block;cursor:pointer" loading="lazy">';
-    return '<div style="position:relative;' + span + 'aspect-ratio:1;overflow:hidden;border-radius:6px">' + inner + stamp + '</div>';
+    return '<div style="position:relative;' + span + 'aspect-ratio:1;overflow:hidden">' + inner + stamp + '</div>';
   }).join('');
 
   var text = withText ? _tgFormat(withText.text, withText.entities) : '';
@@ -1070,19 +1067,16 @@ function _tgAlbumCard(group, username, chTitle) {
     ? '<span onclick="event.stopPropagation();tgDeletePost(' + lead.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-right:auto">🗑</span>'
     : '';
 
-  return '<div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.09);margin:0 auto .7rem;max-width:560px;width:100%;overflow:hidden;box-sizing:border-box">' +
-      '<div style="display:flex;align-items:center;gap:.55rem;padding:.65rem .8rem .5rem">' +
-        avatar +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="font-weight:700;font-size:.9rem;color:#111;text-align:left;unicode-bidi:plaintext;direction:ltr;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div>' +
-          '<div style="font-size:.68rem;color:#8a9aa5">' + when + '</div>' +
+  return '<div style="display:flex;justify-content:flex-start;margin-bottom:.35rem">' +
+      '<div style="background:#fff;border-radius:14px 14px 14px 5px;max-width:82%;overflow:hidden;box-shadow:0 1px 1.5px rgba(0,0,0,.14);box-sizing:border-box">' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px">' + cells + '</div>' +
+        '<div style="padding:.45rem .6rem .4rem">' +
+          (text ? '<div style="font-size:.95rem;line-height:1.45;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' + _tgLpPlaceholder(withText) : '') +
+          '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.25rem;margin-top:.15rem;color:#8a9aa5;font-size:.66rem">' +
+            delBtn + eye + '<span>' + _xNum(lead.views || 0) + '</span>' +
+            '<span style="margin-left:.15rem">' + when + '</span>' +
+          '</div>' +
         '</div>' +
-        delBtn +
-      '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:0 .5rem">' + cells + '</div>' +
-      (text ? '<div style="font-size:.95rem;line-height:1.5;color:#111;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext;padding:.5rem .85rem .3rem">' + text + '</div>' + '<div style="padding:0 .85rem">' + _tgLpPlaceholder(withText) + '</div>' : '<div style="height:.5rem"></div>') +
-      '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;padding:.1rem .85rem .65rem;color:#8a9aa5;font-size:.7rem">' +
-        eye + '<span>' + _xNum(lead.views || 0) + '</span>' +
       '</div>' +
     '</div>';
 }
