@@ -2191,3 +2191,105 @@ window.addEventListener('popstate', function (e) {
     if (movedHoriz && dy <= MAX_VERTICAL && (dx >= THRESHOLD || (dx >= 30 && velocity > 0.3))) _goBack();
   }, { passive: true, capture: true });
 })();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   IN-APP NOTIFICATIONS — a banner that slides down from the top when a new
+   message arrives while you're using the app, like Telegram / WhatsApp. Works
+   on every page (this file loads everywhere). Tapping it opens the chat.
+   ═════════════════════════════════════════════════════════════════════════ */
+(function () {
+  var snapshot = null;        // { roomId: unreadCount } from the previous check
+  var primed = false;         // don't fire for the initial load, only real new ones
+  var timer = null;
+  var lastShownAt = 0;
+
+  function ensureEl() {
+    var el = document.getElementById('inapp-notif');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'inapp-notif';
+    el.style.cssText = [
+      'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:100000',
+      'margin:calc(env(safe-area-inset-top) + 8px) 8px 0', 'padding:.7rem .85rem',
+      'background:var(--surface,#fff)', 'color:var(--text,#111)',
+      'border-radius:16px', 'box-shadow:0 8px 30px rgba(0,0,0,.28)',
+      'display:flex', 'align-items:center', 'gap:.65rem', 'cursor:pointer',
+      'transform:translateY(-160%)', 'transition:transform .32s cubic-bezier(.2,.9,.3,1)',
+      'max-width:520px', 'margin-left:auto', 'margin-right:auto', 'border:1px solid var(--border,#e5e7eb)'
+    ].join(';');
+    el.innerHTML =
+      '<div id="ian-av" style="width:40px;height:40px;border-radius:50%;background:var(--blue,#168acd);color:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;background-size:cover;background-position:center"></div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div id="ian-title" style="font-size:.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>' +
+        '<div id="ian-body" style="font-size:.78rem;color:var(--muted,#667);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext"></div>' +
+      '</div>';
+    (document.body || document.documentElement).appendChild(el);
+    // Swipe up / tap dismisses; tap opens.
+    var sy = 0;
+    el.addEventListener('touchstart', function (e) { sy = e.touches[0].clientY; }, { passive: true });
+    el.addEventListener('touchend', function (e) {
+      if (sy - e.changedTouches[0].clientY > 30) { e.stopPropagation(); hide(); }
+    });
+    return el;
+  }
+
+  function hide() {
+    var el = document.getElementById('inapp-notif');
+    if (el) el.style.transform = 'translateY(-160%)';
+  }
+
+  function show(room) {
+    var el = ensureEl();
+    var av = document.getElementById('ian-av');
+    var nick = room.nick || room.name || 'New message';
+    if (room.photo_url) { av.style.backgroundImage = "url('" + room.photo_url + "')"; av.textContent = ''; }
+    else { av.style.backgroundImage = ''; av.textContent = (nick[0] || '?').toUpperCase(); }
+    document.getElementById('ian-title').textContent = nick;
+    document.getElementById('ian-body').textContent = room.preview || 'New message';
+    el.onclick = function () {
+      hide();
+      if (/yidplus-chat/.test(location.pathname) && typeof openChatRoom === 'function') {
+        var r = (window.CHAT_rooms || []).find(function (x) { return x.id === room.id; });
+        if (r) { openChatRoom(r); return; }
+        if (typeof openChatRoom === 'function') { openChatRoom(room.id); return; }
+      }
+      goPage('/chat?room=' + encodeURIComponent(room.id));
+    };
+    requestAnimationFrame(function () { el.style.transform = 'translateY(0)'; });
+    lastShownAt = Date.now();
+    clearTimeout(el._t);
+    el._t = setTimeout(hide, 4800);
+  }
+
+  function tick() {
+    if (!(window.STATE && STATE.user)) return;         // only when signed in
+    if (document.hidden) return;                        // tab in background → OS push handles it
+    api.get('/chat/rooms').then(function (res) {
+      var rooms = (res && res.rooms) || [];
+      var next = {};
+      var newest = null;
+      rooms.forEach(function (r) {
+        next[r.id] = r.unread || 0;
+        if (!primed || !snapshot) return;
+        var before = snapshot[r.id] || 0;
+        // A real new message: unread went up, it's not muted, and it's not the
+        // room you're already looking at.
+        if ((r.unread || 0) > before && !r.muted && r.id !== window.CHAT_curRoom) {
+          if (!newest || (r.last_time || '') > (newest.last_time || '')) newest = r;
+        }
+      });
+      snapshot = next;
+      primed = true;
+      if (newest && Date.now() - lastShownAt > 1200) show(newest);
+    }).catch(function () {});
+  }
+
+  function start() {
+    if (timer) return;
+    tick();                          // prime the snapshot
+    timer = setInterval(tick, 6000);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
