@@ -2264,7 +2264,7 @@ window.addEventListener('popstate', function (e) {
   function tick() {
     if (!(window.STATE && STATE.user)) return;         // only when signed in
     if (document.hidden) return;                        // tab in background → OS push handles it
-    api.get('/chat/rooms').then(function (res) {
+    api.get('/chat/rooms', true).then(function (res) {
       var rooms = (res && res.rooms) || [];
       var next = {};
       var newest = null;
