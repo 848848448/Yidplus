@@ -6589,11 +6589,19 @@ function _aiRenderMessages() {
     var wname = AI_state.name || 'YID PLUS AI';
     var wtext = AI_state.welcome || 'פרעג מיר וואס דו ווילסט — פֿראגעס, שרייבן, איבערזעצן, אידעען, ערקלערונגען, און נאך. איך רעד אידיש.';
     html +=
-      '<div style="text-align:center;color:var(--muted);padding:1.5rem .5rem">' +
-        '<div style="font-size:3rem;margin-bottom:.4rem">🤖</div>' +
-        '<div style="font-size:1.05rem;font-weight:800;color:var(--text);margin-bottom:.3rem">' + escHtml(wname) + '</div>' +
-        '<div style="font-size:.82rem;line-height:1.5;max-width:280px;margin:0 auto" dir="auto">' + escHtml(wtext) + '</div>' +
+      '<div style="text-align:center;color:var(--muted);padding:1.75rem .5rem .5rem">' +
+        '<div style="width:64px;height:64px;margin:0 auto .6rem;border-radius:20px;background:linear-gradient(135deg,#7C3AED,#229ED9);display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 8px 24px rgba(124,58,237,.35)">🤖</div>' +
+        '<div style="font-size:1.15rem;font-weight:800;color:var(--text);margin-bottom:.3rem">' + escHtml(wname) + '</div>' +
+        '<div style="font-size:.84rem;line-height:1.5;max-width:300px;margin:0 auto" dir="auto">' + escHtml(wtext) + '</div>' +
       '</div>';
+    if (!AI_state.disabled && !AI_state.notConfigured) {
+      var chips = ['שרייב מיר א מעסעדזש', 'טייטש איבער אויף ענגליש', 'גיב מיר אן אידעע', 'ערקלער מיר עפעס'];
+      html += '<div style="display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;padding:.5rem 1rem 1rem;max-width:420px;margin:0 auto">' +
+        chips.map(function (c) {
+          return '<button onclick="_aiQuick(this)" data-q="' + escHtml(c) + '" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:.5rem .8rem;border-radius:14px;font-size:.8rem;cursor:pointer;font-family:inherit">' + escHtml(c) + '</button>';
+        }).join('') +
+      '</div>';
+    }
     if (AI_state.disabled) {
       html += '<div style="align-self:center;background:rgba(128,128,128,.15);border:1px solid var(--border);color:var(--text);padding:.6rem .8rem;border-radius:12px;font-size:.78rem;max-width:90%;text-align:center">⏸️ YID PLUS AI איז יעצט אויסגעשאלטן.</div>';
     } else if (AI_state.notConfigured) {
@@ -6646,6 +6654,15 @@ function _aiSend() {
     });
 }
 window._aiSend = _aiSend;
+
+// A tapped suggestion chip: drop its text into the input and send it.
+window._aiQuick = function (btn) {
+  var q = btn && btn.getAttribute('data-q');
+  if (!q) return;
+  var input = document.getElementById('ai-input');
+  if (input) { input.value = q; _aiAutogrow(input); }
+  _aiSend();
+};
 
 function _aiSetSubtitle(t) {
   var s = document.getElementById('ai-subtitle');

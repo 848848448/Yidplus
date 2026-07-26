@@ -203,7 +203,9 @@ async function generateReply(env, system, messages) {
   // ── Free fallback: Cloudflare Workers AI ──
   if (env.AI) {
     try {
-      const model = env.CF_AI_MODEL || '@cf/meta/llama-3.1-8b-instruct-fast';
+      // Best free-tier Workers AI text model: Llama 3.3 70B (fp8, fast). Far
+      // stronger than the old 8B. Overridable via the CF_AI_MODEL secret.
+      const model = env.CF_AI_MODEL || '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
       // Guard against a hung inference: if the model doesn't answer in time,
       // fail cleanly with JSON instead of letting the Function hit a platform
       // limit and return a raw 502 page.
@@ -211,7 +213,7 @@ async function generateReply(env, system, messages) {
         setTimeout(() => rej(new Error('AI timed out')), 25000));
       const run = env.AI.run(model, {
         messages: [{ role: 'system', content: system }].concat(messages),
-        max_tokens: 640,
+        max_tokens: 800,
       });
       const out = await Promise.race([run, timeout]);
       // Workers AI text models return { response: "..." }; be defensive.
