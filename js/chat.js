@@ -1329,12 +1329,17 @@ window._mvDownload = function () {
   document.addEventListener('DOMContentLoaded', function () {
     var mv = document.getElementById('media-viewer');
     if (!mv) return;
+    var _startInCaption = false;
     mv.addEventListener('touchstart', function (e) {
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       startT = Date.now();
+      // A touch that begins inside the caption is a read-scroll — let it scroll
+      // natively and never treat it as a swipe to close or change photo.
+      _startInCaption = !!(e.target && e.target.closest && e.target.closest('#mv-caption'));
     }, { passive: true });
     mv.addEventListener('touchend', function (e) {
+      if (_startInCaption) { _startInCaption = false; return; }
       if (_mvZoom > 1) return; // panning a zoomed photo — don't navigate/close
       var dx = e.changedTouches[0].clientX - startX;
       var dy = e.changedTouches[0].clientY - startY;
