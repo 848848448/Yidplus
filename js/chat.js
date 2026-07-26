@@ -592,7 +592,14 @@ function _xPostCard(p, username, chTitle) {
       // (media_duration), and the card shows it. So nothing is fetched until
       // someone actually presses play, and then the prefetch has the field to
       // itself.
-      media = '<div style="position:relative;margin:.1rem 0;overflow:hidden;background:#000"><video src="' + src + '" controls playsinline preload="none" style="width:100%;display:block;background:#000;max-height:70vh"></video>' + stamp + '</div>';
+      var _vlink = p.link || ('https://t.me/' + encodeURIComponent(username) + '/' + p.tg_msg_id);
+      media = '<div class="tgvid" style="position:relative;margin:.1rem 0;overflow:hidden;background:#000">' +
+          '<video src="' + src + '" controls playsinline preload="none"' +
+            (p.media_thumb ? ' poster="' + src + '&thumb=1"' : '') +
+            ' onerror="_tgVidFail(this,\'' + _vlink + '\')"' +
+            ' style="width:100%;display:block;background:#000;max-height:70vh"></video>' +
+          stamp +
+        '</div>';
     } else if (p.media_type === 'audio') {
       // Telegram shows a track as a card — name, performer, running time — not a
       // bare player reading 0:00. All of that rides along in the post now, so
@@ -6853,4 +6860,20 @@ window.svToggleMute = window.svMute = function () {
   if (btn) btn.textContent = CHAT_svMuted ? '🔇' : '🔊';
   var vid = document.querySelector('#sv-slide video');
   if (vid) vid.muted = CHAT_svMuted;
+};
+
+// If a channel video can't load (the file wasn't captured, or the stream is
+// unavailable), swap the dead 0:00 player for a clean "Watch on Telegram" card
+// so the post is still usable instead of just broken.
+window._tgVidFail = function (videoEl, link) {
+  var box = videoEl && videoEl.closest('.tgvid');
+  if (!box) return;
+  box.style.background = 'linear-gradient(135deg,#2b5876,#4e4376)';
+  box.innerHTML =
+    '<a href="' + link + '" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:#fff;padding:1.6rem 1rem;text-align:center">' +
+      '<div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;margin:0 auto .5rem">' +
+        '<svg width="26" height="26" viewBox="0 0 24 24" fill="#2b5876"><polygon points="6 4 20 12 6 20 6 4"/></svg>' +
+      '</div>' +
+      '<div style="font-weight:700;font-size:.9rem">קוק דעם ווידעא אויף Telegram</div>' +
+    '</a>';
 };
