@@ -2138,12 +2138,18 @@ window.addEventListener('popstate', function (e) {
   }
 
   function _goBack() {
+    // 1) Close whatever overlay is on top (media viewer, sheet, drawer…).
     if (_closeTopOverlay()) return;
+    // 2) An explicit in-page back control (chat-room back, channel back) is a
+    //    single step and the most reliable, so prefer it when one is showing.
     var t = _findBackTarget();
     if (t) { t.click(); return; }
+    // 3) Otherwise behave exactly like the phone's Back button: step back one
+    //    entry in history. Every screen/room/channel pushes a history state and
+    //    has a popstate handler, so this walks back one level — it does NOT
+    //    jump to the home page (the old navBack() fallback did that).
     try {
-      if (typeof navBack === 'function') navBack();
-      else if (history.length > 1) history.back();
+      if (history.length > 1) history.back();
     } catch (e) {}
   }
 

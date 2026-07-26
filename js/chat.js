@@ -2681,12 +2681,13 @@ function _attachMessageGestures(cont) {
       // If the user is selecting text, let the native selection happen — don't
       // hijack the drag for swipe-reply.
       if (window.getSelection && String(window.getSelection()).length > 0) return;
-      // Only allow rightward swipe (reply gesture), clamp the drag distance.
-      if (dx > 0 && Math.abs(dy) < 40) {
-        var clamped = Math.min(dx, 70);
+      // Only allow LEFTWARD swipe (right-to-left) for reply, so it never
+      // fights the left-to-right edge-swipe that goes Back. Clamp the drag.
+      if (dx < 0 && Math.abs(dy) < 40) {
+        var clamped = Math.max(dx, -70);
         bubble.style.transform = 'translateX(' + clamped + 'px)';
         var icon = bubble.querySelector('.swipe-reply-icon');
-        if (icon) icon.style.opacity = Math.min(1, clamped / 50);
+        if (icon) icon.style.opacity = Math.min(1, Math.abs(clamped) / 50);
       }
     }, { passive: true });
 
@@ -2695,7 +2696,7 @@ function _attachMessageGestures(cont) {
       dragging = false;
       var transform = bubble.style.transform;
       var dx = 0;
-      var match = transform.match(/translateX\(([\d.]+)px\)/);
+      var match = transform.match(/translateX\((-?[\d.]+)px\)/);
       if (match) dx = parseFloat(match[1]);
 
       bubble.style.transition = 'transform .2s ease';
@@ -2704,7 +2705,8 @@ function _attachMessageGestures(cont) {
       var icon = bubble.querySelector('.swipe-reply-icon');
       if (icon) icon.style.opacity = '0';
 
-      if (dx > 45) {
+      // Far enough LEFT → open reply.
+      if (dx < -45) {
         if (window.getSelection && String(window.getSelection()).length > 0) return;
         var msg = CHAT_messages.find(function (m) { return m.id === msgId; });
         if (msg) _setReply(msg);
