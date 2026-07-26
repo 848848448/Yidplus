@@ -6572,9 +6572,16 @@ function _aiBubble(role, content, isTyping) {
   var align = mine ? 'flex-end' : 'flex-start';
   var radius = mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px';
   var border = mine ? 'none' : '1px solid var(--border)';
+  // A generated image is carried in the content as [img:URL].
+  var imgHtml = '', text = content || '';
+  var im = text.match(/\[img:([^\]]+)\]/);
+  if (im) {
+    text = text.replace(/\[img:[^\]]+\]/, '').trim();
+    imgHtml = '<img src="' + escHtml(im[1]) + '" onclick="window.open(this.src,\'_blank\')" style="display:block;margin-top:' + (text ? '.45rem' : '0') + ';max-width:100%;width:288px;max-width:100%;border-radius:12px;cursor:pointer" loading="lazy">';
+  }
   var inner = isTyping
     ? '<span class="ai-typing"><span></span><span></span><span></span></span>'
-    : _aiFormat(content);
+    : (text ? _aiFormat(text) : '') + imgHtml;
   return '<div style="align-self:' + align + ';max-width:85%;background:' + bg + ';color:' + col + ';border:' + border + ';padding:.55rem .75rem;border-radius:' + radius + ';font-size:.9rem;line-height:1.5;word-break:break-word;white-space:normal;unicode-bidi:plaintext" dir="auto">' + inner + '</div>';
 }
 
@@ -6587,7 +6594,7 @@ function _aiRenderMessages() {
   // Welcome / intro when empty.
   if (!AI_state.messages.length) {
     var wname = AI_state.name || 'YID PLUS AI';
-    var wtext = AI_state.welcome || 'פרעג מיר וואס דו ווילסט — פֿראגעס, שרייבן, איבערזעצן, אידעען, ערקלערונגען, און נאך. איך רעד אידיש.';
+    var wtext = AI_state.welcome || 'פרעג מיר וואס דו ווילסט — פֿראגעס, שרייבן, איבערזעצן, אידעען, ערקלערונגען, און אפֿילו מאכן בילדער 🎨. איך רעד אידיש.';
     html +=
       '<div style="text-align:center;color:var(--muted);padding:1.75rem .5rem .5rem">' +
         '<div style="width:64px;height:64px;margin:0 auto .6rem;border-radius:20px;background:linear-gradient(135deg,#7C3AED,#229ED9);display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 8px 24px rgba(124,58,237,.35)">🤖</div>' +
@@ -6595,7 +6602,7 @@ function _aiRenderMessages() {
         '<div style="font-size:.84rem;line-height:1.5;max-width:300px;margin:0 auto" dir="auto">' + escHtml(wtext) + '</div>' +
       '</div>';
     if (!AI_state.disabled && !AI_state.notConfigured) {
-      var chips = ['שרייב מיר א מעסעדזש', 'טייטש איבער אויף ענגליש', 'גיב מיר אן אידעע', 'ערקלער מיר עפעס'];
+      var chips = ['מאך מיר א בילד 🎨', 'שרייב מיר א מעסעדזש', 'טייטש איבער אויף ענגליש', 'גיב מיר אן אידעע'];
       html += '<div style="display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;padding:.5rem 1rem 1rem;max-width:420px;margin:0 auto">' +
         chips.map(function (c) {
           return '<button onclick="_aiQuick(this)" data-q="' + escHtml(c) + '" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:.5rem .8rem;border-radius:14px;font-size:.8rem;cursor:pointer;font-family:inherit">' + escHtml(c) + '</button>';
@@ -6631,13 +6638,18 @@ function _aiSend() {
   AI_state.messages.push({ role: 'user', content: text });
   AI_state.sending = true;
   _aiRenderMessages();
-  _aiSetSubtitle('טיפט…');
+  var _looksImg = /\b(draw|picture|image|photo|sketch|paint)\b/i.test(text) || /בילד|צייכן|געמעל|מאל\s+מיר/.test(text);
+  _aiSetSubtitle(_looksImg ? 'מאכט א בילד… (א רגע)' : 'טיפט…');
 
   api.post('/ai/chat', { message: text })
     .then(function (res) {
       AI_state.sending = false;
-      if (res && res.ok && res.reply) {
-        AI_state.messages.push({ role: 'assistant', content: res.reply });
+      if (res && res.ok) {
+        // An image reply carries the picture in res.image — fold it into the
+        // message content as a marker so the bubble renders it.
+        var content = res.reply || '';
+        if (res.image) content = (res.reply || '') + '\n[img:' + res.image + ']';
+        AI_state.messages.push({ role: 'assistant', content: content });
       } else {
         var msg = (res && res.message) || 'עפעס איז שיף געגאנגען. פרוביר נאכאמאל.';
         AI_state.messages.push({ role: 'assistant', content: '⚠️ ' + msg });

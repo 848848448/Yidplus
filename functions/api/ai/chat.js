@@ -70,6 +70,45 @@ function systemPrompt(user, settings) {
   return base.concat(custom).concat(who).join('\n');
 }
 
+// Does this message ask for a picture/drawing? (English + Yiddish/Hebrew)
+function isImageRequest(msg) {
+  var m = (msg || '').toLowerCase();
+  if (/\b(draw|sketch|paint|render|generate (an? )?(image|picture|photo)|create (an? )?(image|picture|photo)|make (me )?(an? )?(image|picture|photo|drawing)|picture of|image of|photo of)\b/.test(m)) return true;
+  // Yiddish/Hebrew: בילד (picture), צייכן (draw), געמעל, מאל מיר, מאך א בילד
+  if (/מאך\s+(מיר\s+)?א\s*בילד|מאכ?\s*מיר\s*א\s*בילד|צייכ[עֶ]?ן|א\s*בילד\s+פֿ?ון|בילד\s+פֿ?ון|געמעל|מאל\s+מיר|קען\s*סט?\s*דו\s*מאכן\s*א\s*בילד/.test(msg || '')) return true;
+  return false;
+}
+
+// Turn a (usually Yiddish) request into a concise English prompt — image models
+// work far better in English. Falls back to the raw text if this call fails.
+async function toImagePrompt(env, userMsg) {
+  try {
+    var out = await env.AI.run(env.CF_AI_MODEL || '@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+      messages: [
+        { role: 'system', content: 'Convert the user\'s image request into ONE concise English image-generation prompt: just a vivid visual description, no preamble, no quotes, under 60 words. Keep it modest and appropriate for a religious Jewish community (no immodest or inappropriate imagery).' },
+        { role: 'user', content: userMsg },
+      ],
+      max_tokens: 120,
+    });
+    var p = (out && (typeof out.response === 'string' ? out.response : out)) || '';
+    p = String(p).trim().replace(/^["']+|["']+$/g, '');
+    return p || userMsg;
+  } catch (e) { return userMsg; }
+}
+
+// Generate an image with FLUX.1 [schnell] and store it in R2, returning its URL.
+async function generateImage(env, prompt) {
+  var res = await env.AI.run('@cf/black-forest-labs/flux-1-schnell', { prompt: prompt, steps: 6 });
+  var b64 = res && res.image;
+  if (!b64) throw new Error('no image returned');
+  var bin = atob(b64);
+  var bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  var key = 'ai-images/' + crypto.randomUUID() + '.jpg';
+  await env.MY_BUCKET.put(key, bytes, { httpMetadata: { contentType: 'image/jpeg' } });
+  return '/api/media/' + encodeURIComponent(key);
+}
+
 // GET → history
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -126,6 +165,31 @@ export async function onRequestPost(context) {
     if ((recent?.c || 0) >= HOURLY_CAP) {
       return json({ ok: false, error: 'rate_limited',
         message: 'You\'ve reached the hourly limit. Please try again a little later.' }, 429);
+    }
+
+    // ── Image request? Generate a picture instead of a text reply. Needs the
+    //    Cloudflare Workers AI binding (env.AI). ──
+    if (isImageRequest(message)) {
+      if (!env.AI) {
+        return json({ ok: false, error: 'no_image',
+          message: 'בילד-מאכן פֿאדערט די פֿרייע Cloudflare Workers AI — דער אייגנטומער דארף עס אנצינדן.' }, 503);
+      }
+      try {
+        const prompt = await toImagePrompt(env, message);
+        const imgUrl = await generateImage(env, prompt);
+        const caption = 'אָט איז דיין בילד 🎨';
+        const content = caption + '\n[img:' + imgUrl + ']';
+        const nowI = new Date();
+        await env.DB.prepare('INSERT INTO ai_messages (id, user_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)')
+          .bind(crypto.randomUUID(), user.id, 'user', message, nowI.toISOString()).run().catch(() => {});
+        await env.DB.prepare('INSERT INTO ai_messages (id, user_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)')
+          .bind(crypto.randomUUID(), user.id, 'assistant', content, new Date(nowI.getTime() + 1).toISOString()).run().catch(() => {});
+        return json({ ok: true, reply: caption, image: imgUrl });
+      } catch (e) {
+        return json({ ok: false, error: 'image_failed',
+          message: 'איך האב נישט געקענט מאכן דאס בילד. פרוביר נאכאמאל מיט אן אנדער באשרייבונג.',
+          detail: String((e && e.message) || e).slice(0, 200) }, 502);
+      }
     }
 
     // ── Build context from recent history (last ~20 turns) ──
