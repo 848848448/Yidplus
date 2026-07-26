@@ -477,7 +477,7 @@ window.openTelegramChannel = function (username, title) {
   if (!msgs) return;
   msgs.innerHTML =
     '<div style="height:100%;display:flex;flex-direction:column;position:relative">' +
-      '<div id="tg-feed-scroll" style="flex:1;overflow-y:auto;background:var(--tg-bg,#e6ebee);padding:.5rem .35rem">' +
+      '<div id="tg-feed-scroll" style="flex:1;overflow-y:auto;background:var(--tg-bg,#eef1f4);padding:.7rem .5rem 1rem">' +
         '<div id="tg-feed-slot" style="max-width:640px;margin:0 auto"></div>' +
         '<div id="tg-feed-state" style="text-align:center;color:var(--muted);font-size:.85rem;padding:2rem 1rem">Loading posts…</div>' +
       '</div>' +
@@ -592,7 +592,7 @@ function _xPostCard(p, username, chTitle) {
       // (media_duration), and the card shows it. So nothing is fetched until
       // someone actually presses play, and then the prefetch has the field to
       // itself.
-      media = '<div style="position:relative;margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><video src="' + src + '" controls playsinline preload="none" style="width:100%;display:block;background:#000"></video>' + stamp + '</div>';
+      media = '<div style="position:relative;margin:.1rem 0;overflow:hidden;background:#000"><video src="' + src + '" controls playsinline preload="none" style="width:100%;display:block;background:#000;max-height:70vh"></video>' + stamp + '</div>';
     } else if (p.media_type === 'audio') {
       // Telegram shows a track as a card — name, performer, running time — not a
       // bare player reading 0:00. All of that rides along in the post now, so
@@ -609,7 +609,7 @@ function _xPostCard(p, username, chTitle) {
             '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>' +
           '</div>';
       media =
-        '<div style="margin-bottom:.45rem">' +
+        '<div style="margin-bottom:.45rem;padding:0 .85rem">' +
           '<div style="display:flex;align-items:center;gap:.55rem;margin-bottom:.3rem">' +
             art +
             '<div style="flex:1;min-width:0">' +
@@ -622,12 +622,12 @@ function _xPostCard(p, username, chTitle) {
           '<audio src="' + src + '" controls preload="none" class="tg-audio" onended="_tgPlayNext(this)" onplay="_tgSoloPlay(this)" style="display:block;width:100%;min-width:250px;height:38px"></audio>' +
         '</div>';
     } else if (p.media_type === 'file') {
-      media = '<a href="' + src + '" target="_blank" style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem;text-decoration:none;color:#168acd">' +
+      media = '<a href="' + src + '" target="_blank" style="display:flex;align-items:center;gap:.5rem;margin:.2rem .85rem .45rem;text-decoration:none;color:#168acd">' +
         '<div style="width:36px;height:36px;border-radius:50%;background:#168acd;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
           '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
         '</div><span style="font-size:.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(p.media_name || 'Download file') + '</span></a>';
     } else {
-      media = '<div style="position:relative;margin:-.1rem -.1rem .45rem;border-radius:10px;overflow:hidden"><img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" onerror="var d=this.closest(&#39;div&#39;);if(d)d.style.display=&#39;none&#39;" style="width:100%;display:block;cursor:pointer" loading="lazy">' + stamp + '</div>';
+      media = '<div style="position:relative;margin:.1rem 0;overflow:hidden"><img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" onerror="var d=this.closest(&#39;div&#39;);if(d)d.style.display=&#39;none&#39;" style="width:100%;display:block;cursor:pointer;max-height:75vh;object-fit:cover" loading="lazy">' + stamp + '</div>';
     }
   }
 
@@ -649,29 +649,29 @@ function _xPostCard(p, username, chTitle) {
       '<span class="reaction-pill" onclick="event.stopPropagation();tgOpenReactPicker(' + p.tg_msg_id + ',this)" style="opacity:.6">🙂+</span>' +
     '</div>';
 
-  // Telegram channel layout: avatar on the left, one light bubble holding the
-  // channel name, the post, and a views + time footer on the right.
-  // A bubble shrinks to fit its text, which squeezed the audio controls to
-  // nothing — so a bubble carrying media gets a floor to sit on.
-  var bubbleW = media ? 'width:100%;max-width:min(82%,420px)' : 'max-width:82%';
-  // Only the main admins can pull a post off the site.
+  // Clean feed card (like a modern social feed / Telegram's channel view),
+  // not a chat bubble: full-width card, header with avatar + name + time, the
+  // media, the text, then a reactions + views footer.
   var canDelete = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
   var delBtn = canDelete
-    ? '<span onclick="event.stopPropagation();tgDeletePost(' + p.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-right:auto">🗑</span>'
+    ? '<span onclick="event.stopPropagation();tgDeletePost(' + p.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.9rem;padding:.2rem;flex-shrink:0">🗑</span>'
     : '';
 
-  return '<div style="display:flex;align-items:flex-end;gap:.45rem;margin-bottom:.55rem">' +
-      avatar +
-      '<div style="background:#fff;border-radius:12px;border-bottom-left-radius:4px;padding:.5rem .6rem;' + bubbleW + ';box-shadow:0 1px 1px rgba(0,0,0,.08);box-sizing:border-box">' +
-        '<div style="font-weight:600;font-size:.84rem;color:#168acd;margin-bottom:.2rem;text-align:left;unicode-bidi:plaintext;direction:ltr">' + name + '</div>' +
-        media +
-        (text ? '<div style="font-size:.94rem;line-height:1.4;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' + _tgLpPlaceholder(p) : '') +
-        reactRow +
-        '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;margin-top:.25rem;color:#8a9aa5;font-size:.68rem">' +
-          delBtn +
-          eye + '<span>' + _xNum(p.views || 0) + '</span>' +
-          '<span style="margin-left:.2rem">' + when + '</span>' +
-        '</div>' +      '</div>' +
+  return '<div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.09);margin:0 auto .7rem;max-width:560px;width:100%;overflow:hidden;box-sizing:border-box">' +
+      '<div style="display:flex;align-items:center;gap:.55rem;padding:.65rem .8rem .5rem">' +
+        avatar +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-weight:700;font-size:.9rem;color:#111;text-align:left;unicode-bidi:plaintext;direction:ltr;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div>' +
+          '<div style="font-size:.68rem;color:#8a9aa5">' + when + '</div>' +
+        '</div>' +
+        delBtn +
+      '</div>' +
+      media +
+      (text ? '<div style="font-size:.95rem;line-height:1.5;color:#111;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext;padding:.15rem .85rem .3rem">' + text + '</div>' + '<div style="padding:0 .85rem">' + _tgLpPlaceholder(p) + '</div>' : '') +
+      '<div style="padding:.15rem .8rem">' + reactRow + '</div>' +
+      '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;padding:.1rem .85rem .65rem;color:#8a9aa5;font-size:.7rem">' +
+        eye + '<span>' + _xNum(p.views || 0) + '</span>' +
+      '</div>' +
     '</div>';
 }
 // Audio in a channel behaves like a playlist: only one clip plays at a time,
@@ -1063,16 +1063,19 @@ function _tgAlbumCard(group, username, chTitle) {
     ? '<span onclick="event.stopPropagation();tgDeletePost(' + lead.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-right:auto">🗑</span>'
     : '';
 
-  return '<div style="display:flex;align-items:flex-end;gap:.45rem;margin-bottom:.55rem">' +
-      avatar +
-      '<div style="background:#fff;border-radius:12px;border-bottom-left-radius:4px;padding:.5rem .6rem;width:100%;max-width:min(82%,420px);box-shadow:0 1px 1px rgba(0,0,0,.08);box-sizing:border-box">' +
-        '<div style="font-weight:600;font-size:.84rem;color:#168acd;margin-bottom:.3rem;text-align:left;unicode-bidi:plaintext;direction:ltr">' + name + '</div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:.4rem">' + cells + '</div>' +
-        (text ? '<div style="font-size:.94rem;line-height:1.4;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' + _tgLpPlaceholder(withText) : '') +
-        '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;margin-top:.25rem;color:#8a9aa5;font-size:.68rem">' +
-          delBtn + eye + '<span>' + _xNum(lead.views || 0) + '</span>' +
-          '<span style="margin-left:.2rem">' + when + '</span>' +
+  return '<div style="background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.09);margin:0 auto .7rem;max-width:560px;width:100%;overflow:hidden;box-sizing:border-box">' +
+      '<div style="display:flex;align-items:center;gap:.55rem;padding:.65rem .8rem .5rem">' +
+        avatar +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-weight:700;font-size:.9rem;color:#111;text-align:left;unicode-bidi:plaintext;direction:ltr;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div>' +
+          '<div style="font-size:.68rem;color:#8a9aa5">' + when + '</div>' +
         '</div>' +
+        delBtn +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:0 .5rem">' + cells + '</div>' +
+      (text ? '<div style="font-size:.95rem;line-height:1.5;color:#111;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext;padding:.5rem .85rem .3rem">' + text + '</div>' + '<div style="padding:0 .85rem">' + _tgLpPlaceholder(withText) + '</div>' : '<div style="height:.5rem"></div>') +
+      '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;padding:.1rem .85rem .65rem;color:#8a9aa5;font-size:.7rem">' +
+        eye + '<span>' + _xNum(lead.views || 0) + '</span>' +
       '</div>' +
     '</div>';
 }
