@@ -592,13 +592,19 @@ function _xPostCard(p, username, chTitle) {
       // (media_duration), and the card shows it. So nothing is fetched until
       // someone actually presses play, and then the prefetch has the field to
       // itself.
-      var _vlink = p.link || ('https://t.me/' + encodeURIComponent(username) + '/' + p.tg_msg_id);
-      media = '<div class="tgvid" style="position:relative;margin:0;overflow:hidden;background:#000">' +
-          '<video src="' + src + '" controls playsinline preload="none"' +
-            (p.media_thumb ? ' poster="' + src + '&thumb=1"' : '') +
-            ' onerror="_tgVidFail(this,\'' + _vlink + '\')"' +
-            ' style="width:100%;display:block;background:#000;max-height:70vh"></video>' +
-          stamp +
+      // Telegram-style: a poster with a big play button. Tapping opens the
+      // fullscreen player (same swipeable viewer as the photos), which actually
+      // plays the video — no dead inline player, no link-out.
+      var vthumb = src + (src.indexOf('?') > -1 ? '&' : '?') + 'thumb=1';
+      var vdur = p.media_duration ? '<div style="position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.6);color:#fff;font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:6px;pointer-events:none">' + _tgDur(p.media_duration) + '</div>' : '';
+      media = '<div onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="position:relative;margin:0;overflow:hidden;background:#0b0b0b;cursor:pointer;min-height:170px">' +
+          '<img src="' + vthumb + '" onerror="this.style.display=&#39;none&#39;" style="width:100%;display:block;max-height:70vh;object-fit:cover">' +
+          '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">' +
+            '<div style="width:58px;height:58px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center">' +
+              '<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" style="margin-left:3px"><polygon points="6 4 20 12 6 20 6 4"/></svg>' +
+            '</div>' +
+          '</div>' +
+          vdur + stamp +
         '</div>';
     } else if (p.media_type === 'audio') {
       // Telegram shows a track as a card — name, performer, running time — not a
@@ -1187,7 +1193,7 @@ function _mediaViewerLoad(idx) {
 
   var body = document.getElementById('mv-body');
   if (item.isVideo) {
-    body.innerHTML = '<video src="' + item.url + '" controls autoplay playsinline style="max-width:100%;max-height:80vh;object-fit:contain"></video>';
+    body.innerHTML = '<video src="' + item.url + '" controls autoplay playsinline webkit-playsinline preload="auto" style="max-width:100%;max-height:80vh;object-fit:contain;background:#000">Your browser cannot play this video.</video>';
     _mvZoom = 1;
   } else {
     body.innerHTML = '<img id="mv-img" src="' + item.url + '" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:4px;touch-action:none;will-change:transform" draggable="false">';
@@ -6856,18 +6862,3 @@ window.svToggleMute = window.svMute = function () {
   if (vid) vid.muted = CHAT_svMuted;
 };
 
-// If a channel video can't load (the file wasn't captured, or the stream is
-// unavailable), swap the dead 0:00 player for a clean "Watch on Telegram" card
-// so the post is still usable instead of just broken.
-window._tgVidFail = function (videoEl, link) {
-  var box = videoEl && videoEl.closest('.tgvid');
-  if (!box) return;
-  box.style.background = 'linear-gradient(135deg,#2b5876,#4e4376)';
-  box.innerHTML =
-    '<a href="' + link + '" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:#fff;padding:1.6rem 1rem;text-align:center">' +
-      '<div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;margin:0 auto .5rem">' +
-        '<svg width="26" height="26" viewBox="0 0 24 24" fill="#2b5876"><polygon points="6 4 20 12 6 20 6 4"/></svg>' +
-      '</div>' +
-      '<div style="font-weight:700;font-size:.9rem">קוק דעם ווידעא אויף Telegram</div>' +
-    '</a>';
-};
