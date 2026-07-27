@@ -862,9 +862,16 @@ window._openTgMediaViewer = function (msgId) {
   _mediaList = TG_posts.filter(function (p) {
     return p.media_type === 'photo' || p.media_type === 'video';
   }).map(function (p) {
+    // Videos play through our proxy (/api/tgvid) which caches to R2 and serves
+    // with Range support, so any size plays and seeks. Photos stream directly.
+    var vurl = p.media_url
+      ? p.media_url
+      : (p.media_type === 'video'
+          ? '/api/tgvid?ch=' + encodeURIComponent(TG_curChannel) + '&id=' + p.tg_msg_id
+          : base.replace(/\/$/, '') + '/media?ch=' + encodeURIComponent(TG_curChannel) + '&id=' + p.tg_msg_id);
     return {
       id: p.tg_msg_id,
-      url: p.media_url || (base.replace(/\/$/, '') + '/media?ch=' + encodeURIComponent(TG_curChannel) + '&id=' + p.tg_msg_id),
+      url: vurl,
       key: '',
       text: p.text || '',
       sender: p.author_name || TG_curChannel || '',
@@ -1058,9 +1065,17 @@ function _tgAlbumCard(group, username, chTitle) {
   var cells = group.map(function (p, idx) {
     var src = p.media_url || (base.replace(/\/$/, '') + '/media?ch=' + encodeURIComponent(username) + '&id=' + p.tg_msg_id);
     var span = (group.length % 2 === 1 && idx === group.length - 1) ? 'grid-column:1/-1;' : '';
-    var inner = p.media_type === 'video'
-      ? '<video src="' + src + '" controls playsinline preload="none" style="width:100%;height:100%;object-fit:cover;display:block;background:#000"></video>'
-      : '<img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;height:100%;object-fit:cover;display:block;cursor:pointer" loading="lazy">';
+    var inner;
+    if (p.media_type === 'video') {
+      // Poster + play; tap opens the fullscreen viewer, which plays via the
+      // R2-caching proxy so any size works.
+      inner = '<div onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;height:100%;position:relative;background:#000;cursor:pointer">' +
+          '<img src="' + src + '&thumb=1" onerror="this.style.display=&#39;none&#39;" style="width:100%;height:100%;object-fit:cover;display:block">' +
+          '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" style="margin-left:2px"><polygon points="6 4 20 12 6 20 6 4"/></svg></div></div>' +
+        '</div>';
+    } else {
+      inner = '<img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;height:100%;object-fit:cover;display:block;cursor:pointer" loading="lazy">';
+    }
     return '<div style="position:relative;' + span + 'aspect-ratio:1;overflow:hidden">' + inner + stamp + '</div>';
   }).join('');
 
