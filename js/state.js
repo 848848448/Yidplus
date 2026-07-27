@@ -384,9 +384,15 @@ window.escHtml = function (s) {
 // Telegram-style: every user gets a consistent color derived from their id/name,
 // instead of every avatar being flat gray or identical blue.
 var _AV_PALETTE = [
-  ['#FF6B6B', '#EE5253'], ['#FF9F43', '#EE8B2F'], ['#FECA57', '#E8B23D'],
-  ['#1DD1A1', '#10AC84'], ['#54A0FF', '#2E86DE'], ['#5F72FF', '#4834D4'],
-  ['#A55EEA', '#8854D0'], ['#FD79A8', '#E84393'], ['#26C6DA', '#00ACC1'],
+  ['#4DB6AC', '#399189'], // teal
+  ['#5C9CE0', '#4179BE'], // soft blue
+  ['#7E9E5B', '#63823F'], // sage
+  ['#9C7EC9', '#7E5CB0'], // muted purple
+  ['#E0A15C', '#C7823B'], // warm amber
+  ['#D98A8A', '#BE6B6B'], // soft rose
+  ['#6B9BD1', '#4A7CAF'], // steel blue
+  ['#57A88F', '#3E8770'], // green-teal
+  ['#B08AC9', '#9268AE'], // lavender
 ];
 window.avatarColor = function (seed) {
   var s = String(seed || '?');

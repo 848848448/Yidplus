@@ -567,7 +567,8 @@ body.night {
 .ctab { flex: 1; padding: .65rem; text-align: center; font-size: .78rem; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; transition: all .2s; }
 .ctab.active { color: #000; border-bottom-color: #000; font-weight: 700; }
 
-.chat-item-wrap { position: relative; overflow: hidden; border-bottom: 1px solid var(--border); }
+.chat-item-wrap { position: relative; overflow: hidden; }
+.chat-item-wrap:not(:last-child) .chat-item::after { content: ''; position: absolute; left: 78px; right: 0; bottom: 0; height: 1px; background: var(--border); }
 .chat-item { display: flex; align-items: center; gap: .85rem; padding: .75rem 1rem; cursor: pointer; background: var(--surface); transition: background .12s; position: relative; z-index: 2; touch-action: pan-y; }
 .chat-item:hover  { background: var(--bg2); }
 .chat-item:active { background: var(--bg3); }
