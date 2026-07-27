@@ -25,7 +25,7 @@ async function serveFromR2(env, key, request) {
   let obj, status = 200;
   if (m) {
     const head = await env.MY_BUCKET.head(key);
-    if (!head) return null;
+    if (!head || !head.size) return null;   // 0-byte cache = treat as miss
     const size = head.size;
     let start = m[1] === '' ? undefined : parseInt(m[1], 10);
     let end   = m[2] === '' ? undefined : parseInt(m[2], 10);
@@ -43,6 +43,7 @@ async function serveFromR2(env, key, request) {
   } else {
     obj = await env.MY_BUCKET.get(key);
     if (!obj) return null;
+    if (obj.size === 0) return null;         // 0-byte cache = treat as miss
     obj.writeHttpMetadata(headers);
     if (obj.size != null) headers.set('Content-Length', String(obj.size));
   }
@@ -78,11 +79,21 @@ export async function onRequestGet(context) {
     const ct = upstream.headers.get('Content-Type') || 'video/mp4';
     const len = upstream.headers.get('Content-Length');
 
+    // If the worker handed back an empty body, don't cache it (that would
+    // poison future requests) and surface a clear 502.
+    if (len === '0') {
+      return new Response('video not available from source', { status: 502, headers: corsHeaders() });
+    }
+
     const [toClient, toR2] = upstream.body.tee();
-    // Store in the background so the next request is fully Range-capable.
-    context.waitUntil(
-      env.MY_BUCKET.put(key, toR2, { httpMetadata: { contentType: ct } }).catch(() => {})
-    );
+    // Store in the background so the next request is fully Range-capable — but
+    // only if it isn't empty.
+    context.waitUntil((async () => {
+      try {
+        const put = await env.MY_BUCKET.put(key, toR2, { httpMetadata: { contentType: ct } });
+        if (put && put.size === 0) await env.MY_BUCKET.delete(key).catch(() => {});
+      } catch (e) {}
+    })());
 
     const h = new Headers(corsHeaders());
     h.set('Content-Type', ct);
