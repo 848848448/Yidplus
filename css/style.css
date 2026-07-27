@@ -274,7 +274,7 @@ body.night {
   transition: background .25s;
   flex-shrink: 0;
 }
-.toggle-sw.on { background: #000; border-color: #000; }
+.toggle-sw.on { background: var(--accent); border-color: var(--accent); }
 .toggle-sw::after {
   content: '';
   position: absolute;
@@ -488,7 +488,7 @@ body.night {
   border-radius: 6px; color: #333; font-size: .7rem;
   cursor: pointer; font-family: inherit; transition: all .2s;
 }
-.follow-pill.following { background: #000; border-color: #000; color: #fff; }
+.follow-pill.following { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 /* Feed posts */
 .feed-post { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); margin-bottom: 1rem; overflow: hidden; box-shadow: none; }
@@ -559,7 +559,7 @@ body.night {
    ============================================= */
 .chat-search-wrap { padding: .6rem 1rem; background: var(--bg2); flex-shrink: 0; position: relative; }
 .chat-search-input { width: 100%; padding: .55rem 1rem .55rem 2.4rem; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; color: var(--text); font-size: .85rem; font-family: inherit; outline: none; }
-.chat-search-input:focus { border-color: #000; }
+.chat-search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(31,111,92,.12); }
 
 .chat-tabs-row { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--surface); }
 .ctab { flex: 1; padding: .65rem; text-align: center; font-size: .78rem; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; transition: all .2s; }
@@ -861,7 +861,7 @@ html.dark-mode .admin-search { background-color: #232427; border-color: #2C2D31;
 .admin-search:focus { border-color: #1F6F5C; }
 
 .status-bg-sw { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; flex-shrink: 0; transition: transform .15s; }
-.status-bg-sw.active { border-color: #000; transform: scale(1.1); }
+.status-bg-sw.active { border-color: var(--accent); transform: scale(1.1); }
 
 /* =============================================
    THEME PICKER — user-customizable colors
@@ -871,7 +871,7 @@ html.dark-mode .admin-search { background-color: #232427; border-color: #2C2D31;
 .theme-swatch-row { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .theme-swatch { width: 36px; height: 36px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: transform .15s, border-color .15s; flex-shrink: 0; }
 .theme-swatch:hover { transform: scale(1.1); }
-.theme-swatch.active { border-color: #000; transform: scale(1.12); }
+.theme-swatch.active { border-color: var(--accent); transform: scale(1.12); }
 .theme-custom-row { display: flex; align-items: center; gap: .6rem; margin-top: .5rem; }
 .theme-custom-row label { font-size: .8rem; color: var(--muted); flex: 1; }
 .theme-custom-row input[type="color"] { width: 44px; height: 32px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; background: none; padding: 2px; }
