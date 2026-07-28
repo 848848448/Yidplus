@@ -5846,6 +5846,23 @@ window.openSV = function (userIdx) {
 };
 window.openStatusViewer = window.openSV;
 
+// Turn URLs (and bare domains like "Yidplus.com") in status text into
+// tappable links. onclick stops the tap from also navigating the story.
+function _svLinkify(text) {
+  var esc = escHtml(text || '');
+  var linkStyle = 'color:#6cb2ff;text-decoration:underline;word-break:break-all';
+  // Full URLs first.
+  esc = esc.replace(/(https?:\/\/[^\s<]+)/gi, function (u) {
+    return '<a href="' + u + '" target="_blank" rel="noopener" style="' + linkStyle + '" onclick="event.stopPropagation()">' + u + '</a>';
+  });
+  // Then bare domains not already inside a link (word.tld[/path]).
+  esc = esc.replace(/(^|[\s>(])((?:www\.)?[a-z0-9-]+\.(?:com|org|net|co|io|me|il|info|gov|edu|app|shop|news)(?:\/[^\s<]*)?)/gi,
+    function (m, pre, dom) {
+      return pre + '<a href="https://' + dom + '" target="_blank" rel="noopener" style="' + linkStyle + '" onclick="event.stopPropagation()">' + dom + '</a>';
+    });
+  return esc;
+}
+
 function _svShowSlide() {
   var s     = HOME_svStatuses[HOME_svUserIdx];
   if (!s || !s.slides || !s.slides.length) { closeSV(); return; }
@@ -5928,7 +5945,7 @@ function _svShowSlide() {
       if (slide.text) {
         var cap = document.createElement('div');
         cap.style.cssText = 'position:absolute;bottom:80px;left:0;right:0;padding:.75rem 1rem;background:rgba(0,0,0,.5);color:#fff;font-size:.9rem;text-align:center';
-        cap.textContent = slide.text;
+        cap.innerHTML = _svLinkify(slide.text);
         el.appendChild(cap);
       }
       _svStartBar();
@@ -5942,7 +5959,7 @@ function _svShowSlide() {
     el.style.textAlign     = 'center';
     el.style.padding       = '2rem';
     el.style.lineHeight    = '1.5';
-    el.textContent = slide.text || '';
+    el.innerHTML = '<div style="max-width:90%;unicode-bidi:plaintext">' + _svLinkify(slide.text || '') + '</div>';
     _svStartBar();
   }
 
@@ -5985,6 +6002,28 @@ window.svNext = function () {
     _svShowSlide();
   } else {
     closeSV();
+  }
+};
+
+// Jump straight to the NEXT person's statuses (WhatsApp horizontal swipe).
+window.svNextUser = function () {
+  if (HOME_svUserIdx < HOME_svStatuses.length - 1) {
+    HOME_svUserIdx++;
+    HOME_svSlideIdx = 0;
+    _svShowSlide();
+  } else {
+    closeSV();
+  }
+};
+// Jump to the PREVIOUS person's first status.
+window.svPrevUser = function () {
+  if (HOME_svUserIdx > 0) {
+    HOME_svUserIdx--;
+    HOME_svSlideIdx = 0;
+    _svShowSlide();
+  } else {
+    HOME_svSlideIdx = 0;
+    _svShowSlide();
   }
 };
 
@@ -6034,6 +6073,11 @@ window.svTouchEnd = function (e) {
   var dy = touch.clientY - _svTouchY;
   var dx = touch.clientX - _svTouchX;
 
+  // A tap on a link opens the link — don't treat it as a navigation tap.
+  if (!_svTouchMoved && e.target && e.target.closest && e.target.closest('a')) {
+    return;
+  }
+
   if (wasLongPress) {
     // Releasing after long press → resume silently
     HOME_svPaused = false;
@@ -6041,15 +6085,19 @@ window.svTouchEnd = function (e) {
     if (vid) vid.play().catch(function(){});
     _svResyncBar();
   } else if (!_svTouchMoved) {
-    // Normal tap → navigate
+    // Normal tap → navigate within the current person's slides
     if (touch.clientX < window.innerWidth * 0.3) {
       svPrev();
     } else {
       svNext();
     }
-  } else if (dy > 80 && Math.abs(dy) > Math.abs(dx) * 2) {
-    // Swipe down → close
+  } else if (dy > 60 && dy > Math.abs(dx)) {
+    // Swipe down (vertical wins) → close the viewer
     closeSV();
+  } else if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy)) {
+    // Horizontal swipe → jump to the next / previous PERSON (WhatsApp-style)
+    if (dx < 0) svNextUser();
+    else svPrevUser();
   }
 };
 
