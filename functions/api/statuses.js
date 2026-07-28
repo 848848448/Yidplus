@@ -148,12 +148,37 @@ export async function onRequestPut(context) {
       return json({ ok: true });
     }
 
-    // Record a view
+    // Record a view — once per person (WhatsApp-style unique count), and keep a
+    // row per viewer so the owner can see who watched.
     if (body.view && body.id) {
-      await env.DB.prepare(
-        'UPDATE statuses SET views = COALESCE(views, 0) + 1 WHERE id = ? AND user_id != ?'
-      ).bind(body.id, user.id).run().catch(() => {});
+      // Owner viewing their own status doesn't count.
+      const st = await env.DB.prepare('SELECT user_id FROM statuses WHERE id = ?').bind(body.id).first().catch(() => null);
+      if (st && st.user_id !== user.id) {
+        await env.DB.prepare(
+          'CREATE TABLE IF NOT EXISTS status_views (status_id TEXT, viewer_id TEXT, viewed_at TEXT, PRIMARY KEY (status_id, viewer_id))'
+        ).run().catch(() => {});
+        const before = await env.DB.prepare('SELECT 1 FROM status_views WHERE status_id = ? AND viewer_id = ?')
+          .bind(body.id, user.id).first().catch(() => null);
+        if (!before) {
+          await env.DB.prepare('INSERT OR IGNORE INTO status_views (status_id, viewer_id, viewed_at) VALUES (?, ?, ?)')
+            .bind(body.id, user.id, new Date().toISOString()).run().catch(() => {});
+          await env.DB.prepare('UPDATE statuses SET views = COALESCE(views, 0) + 1 WHERE id = ?')
+            .bind(body.id).run().catch(() => {});
+        }
+      }
       return json({ ok: true });
+    }
+
+    // Owner asks who viewed a status.
+    if (body.viewers && body.id) {
+      const st = await env.DB.prepare('SELECT user_id FROM statuses WHERE id = ?').bind(body.id).first().catch(() => null);
+      if (!st || st.user_id !== user.id) return json({ ok: false, error: 'Forbidden' }, 403);
+      const { results } = await env.DB.prepare(
+        `SELECT u.id, u.nickname, u.photo_url, u.verified, sv.viewed_at
+         FROM status_views sv JOIN users u ON u.id = sv.viewer_id
+         WHERE sv.status_id = ? ORDER BY sv.viewed_at DESC LIMIT 200`
+      ).bind(body.id).all().catch(() => ({ results: [] }));
+      return json({ ok: true, viewers: results || [] });
     }
 
     return json({ ok: false, error: 'Unknown action' }, 400);

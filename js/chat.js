@@ -6923,3 +6923,59 @@ window.svToggleMute = window.svMute = function () {
   if (vid) vid.muted = CHAT_svMuted;
 };
 
+
+// Owner taps the eye → sheet listing who viewed this status (WhatsApp-style).
+window.svShowViewers = function () {
+  var s = HOME_svStatuses[HOME_svUserIdx];
+  if (!s) return;
+  var slide = s.slides[HOME_svSlideIdx];
+  if (!slide || !slide.id) return;
+  if (!(STATE.user && s.user_id === STATE.user.id)) return; // only the owner
+
+  HOME_svPaused = true;
+  var vid = document.querySelector('#sv-slide video');
+  if (vid) vid.pause();
+
+  var sheet = document.getElementById('sv-viewers-sheet');
+  if (!sheet) {
+    sheet = document.createElement('div');
+    sheet.id = 'sv-viewers-sheet';
+    sheet.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:100010;background:var(--surface,#fff);color:var(--text,#111);border-radius:20px 20px 0 0;max-height:70vh;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .28s cubic-bezier(.2,.9,.3,1);box-shadow:0 -8px 30px rgba(0,0,0,.3)';
+    sheet.innerHTML =
+      '<div style="padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)">' +
+        '<div style="font-weight:800;font-size:.95rem" id="sv-viewers-title">Viewed by</div>' +
+        '<div onclick="svCloseViewers()" style="cursor:pointer;font-size:1.3rem;line-height:1;color:var(--muted)">✕</div>' +
+      '</div>' +
+      '<div id="sv-viewers-list" style="overflow-y:auto;padding:.5rem 0"></div>';
+    document.body.appendChild(sheet);
+  }
+  var list = document.getElementById('sv-viewers-list');
+  list.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-size:.85rem">Loading…</div>';
+  requestAnimationFrame(function () { sheet.style.transform = 'translateY(0)'; });
+
+  api.put('/statuses', { viewers: true, id: slide.id }).then(function (res) {
+    var vw = (res && res.viewers) || [];
+    document.getElementById('sv-viewers-title').textContent = 'Viewed by ' + vw.length;
+    if (!vw.length) {
+      list.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-size:.85rem">No views yet</div>';
+      return;
+    }
+    list.innerHTML = vw.map(function (u) {
+      var av = u.photo_url
+        ? '<div style="width:40px;height:40px;border-radius:50%;background-image:url(' + u.photo_url + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
+        : '<div style="width:40px;height:40px;border-radius:50%;background:' + avatarColor(u.nickname) + ';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">' + escHtml((u.nickname || '?').slice(0, 1).toUpperCase()) + '</div>';
+      return '<div style="display:flex;align-items:center;gap:.7rem;padding:.55rem 1rem">' + av +
+        '<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:.9rem">' + escHtml(u.nickname || 'User') + (u.verified ? ' ✔️' : '') + '</div>' +
+        '<div style="font-size:.72rem;color:var(--muted)">' + (u.viewed_at ? timeAgo(u.viewed_at) : '') + '</div></div></div>';
+    }).join('');
+  }).catch(function () {
+    list.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-size:.85rem">Could not load viewers</div>';
+  });
+};
+window.svCloseViewers = function () {
+  var sheet = document.getElementById('sv-viewers-sheet');
+  if (sheet) sheet.style.transform = 'translateY(100%)';
+  HOME_svPaused = false;
+  var vid = document.querySelector('#sv-slide video');
+  if (vid) vid.play().catch(function () {});
+};

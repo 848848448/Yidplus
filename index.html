@@ -379,7 +379,7 @@
 
   <!-- Bottom: reply input + views count (for owner) -->
   <div style="position:absolute;bottom:0;left:0;right:0;padding:.75rem 1rem max(.75rem,env(safe-area-inset-bottom));display:flex;align-items:center;gap:.6rem;background:linear-gradient(to top,rgba(0,0,0,.85),transparent);z-index:10">
-    <div id="sv-views-row" style="display:none;align-items:center;gap:.35rem;color:rgba(255,255,255,.8);font-size:.8rem">
+    <div id="sv-views-row" onclick="event.stopPropagation();svShowViewers()" style="display:none;align-items:center;gap:.35rem;color:rgba(255,255,255,.8);font-size:.8rem;cursor:pointer">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       <span id="sv-views-count">0</span>
     </div>
