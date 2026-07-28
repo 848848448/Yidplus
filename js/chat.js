@@ -6488,10 +6488,10 @@ function _aiChatRow() {
   } catch (e) {}
   return '<div class="chat-item-wrap">' +
     '<div class="chat-item" onclick="openAIChat()" style="background:linear-gradient(90deg,rgba(34,158,217,.10),transparent)">' +
-      '<div class="chat-av chat-av-round" style="background:linear-gradient(135deg,#7C3AED,#229ED9);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem">🤖</div>' +
+      '<div class="chat-av chat-av-round" style="background:linear-gradient(135deg,#2B8A73,#1F6F5C);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem">🤖</div>' +
       '<div style="flex:1;min-width:0">' +
         '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
-          '<div style="font-size:.94rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">YID PLUS AI <span style="font-size:.6rem;font-weight:700;color:#fff;background:#7C3AED;padding:.05rem .3rem;border-radius:4px;vertical-align:middle">AI</span></div>' +
+          '<div style="font-size:.94rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">YID PLUS AI <span style="font-size:.6rem;font-weight:700;color:#fff;background:#1F6F5C;padding:.05rem .3rem;border-radius:4px;vertical-align:middle">AI</span></div>' +
         '</div>' +
         '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">פרעג מיר וואס דו ווילסט · Ask me anything</div>' +
       '</div>' +
@@ -6521,7 +6521,7 @@ window.openAIChat = function () {
     'position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;flex-direction:column';
   ov.innerHTML =
     // Header
-    '<div style="flex-shrink:0;display:flex;align-items:center;gap:.6rem;padding:calc(.6rem + env(safe-area-inset-top,0px)) .8rem .6rem;background:linear-gradient(135deg,#7C3AED,#229ED9);color:#fff">' +
+    '<div style="flex-shrink:0;display:flex;align-items:center;gap:.6rem;padding:calc(.6rem + env(safe-area-inset-top,0px)) .8rem .6rem;background:linear-gradient(135deg,#2B8A73,#1F6F5C);color:#fff">' +
       '<button onclick="closeAIChat()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;padding:.1rem .3rem;line-height:1">‹</button>' +
       '<div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🤖</div>' +
       '<div style="flex:1;min-width:0">' +
@@ -6535,7 +6535,7 @@ window.openAIChat = function () {
     // Input bar
     '<div style="flex-shrink:0;display:flex;gap:.5rem;align-items:flex-end;padding:.6rem .7rem calc(.6rem + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);background:var(--surface)">' +
       '<textarea id="ai-input" rows="1" placeholder="שרייב א נאכריכט…" oninput="_aiAutogrow(this)" onkeydown="_aiInputKey(event)" style="flex:1;resize:none;max-height:120px;padding:.6rem .7rem;border:1px solid var(--border);border-radius:20px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.9rem;unicode-bidi:plaintext" dir="auto"></textarea>' +
-      '<button id="ai-send" onclick="_aiSend()" style="flex-shrink:0;width:42px;height:42px;border-radius:50%;border:none;background:#7C3AED;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>' +
+      '<button id="ai-send" onclick="_aiSend()" style="flex-shrink:0;width:42px;height:42px;border-radius:50%;border:none;background:#1F6F5C;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>' +
     '</div>';
   document.body.appendChild(ov);
 
@@ -6590,7 +6590,7 @@ function _aiFormat(text) {
 
 function _aiBubble(role, content, isTyping) {
   var mine = role === 'user';
-  var bg = mine ? '#7C3AED' : 'var(--surface)';
+  var bg = mine ? '#1F6F5C' : 'var(--surface)';
   var col = mine ? '#fff' : 'var(--text)';
   var align = mine ? 'flex-end' : 'flex-start';
   var radius = mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px';
@@ -6620,7 +6620,7 @@ function _aiRenderMessages() {
     var wtext = AI_state.welcome || 'פרעג מיר וואס דו ווילסט — פֿראגעס, שרייבן, איבערזעצן, אידעען, ערקלערונגען, און אפֿילו מאכן בילדער 🎨. איך רעד אידיש.';
     html +=
       '<div style="text-align:center;color:var(--muted);padding:1.75rem .5rem .5rem">' +
-        '<div style="width:64px;height:64px;margin:0 auto .6rem;border-radius:20px;background:linear-gradient(135deg,#7C3AED,#229ED9);display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 8px 24px rgba(124,58,237,.35)">🤖</div>' +
+        '<div style="width:64px;height:64px;margin:0 auto .6rem;border-radius:20px;background:linear-gradient(135deg,#2B8A73,#1F6F5C);display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 8px 24px rgba(31,111,92,.32)">🤖</div>' +
         '<div style="font-size:1.15rem;font-weight:800;color:var(--text);margin-bottom:.3rem">' + escHtml(wname) + '</div>' +
         '<div style="font-size:.84rem;line-height:1.5;max-width:300px;margin:0 auto" dir="auto">' + escHtml(wtext) + '</div>' +
       '</div>';
