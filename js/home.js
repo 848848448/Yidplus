@@ -1454,6 +1454,8 @@ function _renderChannelHeader(ch) {
   document.getElementById('ch-followers').textContent = fmtN(ch.followers || 0);
   document.getElementById('ch-following').textContent = fmtN(ch.following || 0);
   document.getElementById('ch-views').textContent = fmtN(ch.total_views || 0);
+  var shortsCtEl = document.getElementById('ch-shorts-ct');
+  if (shortsCtEl && ch.shorts_count != null) shortsCtEl.textContent = fmtN(ch.shorts_count);
 
   // Follow button — hide for your own channel, show privacy toggle instead
   var isOwnChannel = STATE.user && STATE.user.id === ch.owner_id;

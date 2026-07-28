@@ -26,6 +26,31 @@ export async function onRequestGet(context) {
       ).bind(ownerId).first().catch(() => ({ c: 0 }));
       channel.followers = followerCountRow ? followerCountRow.c : 0;
 
+      // Following = how many channels THIS user follows. Computed live, like
+      // followers — the stored c.following column was never kept up to date.
+      const followingCountRow = await env.DB.prepare(
+        `SELECT COUNT(*) as c FROM channel_followers WHERE follower_id = ?`
+      ).bind(ownerId).first().catch(() => ({ c: 0 }));
+      channel.following = followingCountRow ? followingCountRow.c : 0;
+
+      // Views = total views across their shorts (+ posts if they carry a view
+      // count). Summed live so it reflects reality instead of a stale 0.
+      const viewsRow = await env.DB.prepare(
+        `SELECT COALESCE(SUM(views),0) as v FROM shorts WHERE owner_id = ?`
+      ).bind(ownerId).first().catch(() => ({ v: 0 }));
+      let totalViews = viewsRow ? Number(viewsRow.v) || 0 : 0;
+      const postViewsRow = await env.DB.prepare(
+        `SELECT COALESCE(SUM(views),0) as v FROM posts WHERE user_id = ?`
+      ).bind(ownerId).first().catch(() => ({ v: 0 }));
+      totalViews += postViewsRow ? Number(postViewsRow.v) || 0 : 0;
+      channel.total_views = totalViews;
+
+      // Shorts count for the header stat.
+      const shortsCountRow = await env.DB.prepare(
+        `SELECT COUNT(*) as c FROM shorts WHERE owner_id = ?`
+      ).bind(ownerId).first().catch(() => ({ c: 0 }));
+      channel.shorts_count = shortsCountRow ? shortsCountRow.c : 0;
+
       const user = await requireUser(request, env).catch(() => null);
       const isOwner = user && user.id === ownerId;
       const isAdmin = user && (user.role === 'admin_super' || user.role === 'admin_limited');
