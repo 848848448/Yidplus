@@ -280,9 +280,10 @@ function setupShortsObserver() {
           if (nextVid && nextVid.preload === 'none') { nextVid.preload = 'auto'; nextVid.load(); }
         }
 
-        // Track a view exactly once per short per page load.
+        // Track a view exactly once per short per page load — but never count
+        // the owner watching their own short (that only inflated the number).
         var s = SHORTS_data[idx];
-        if (s && !s._viewed) {
+        if (s && !s._viewed && !(STATE.user && s.owner_id === STATE.user.id)) {
           s._viewed = true;
           if (STATE.user) api.post('/history', { item_type: 'short', item_id: s.id }).catch(function () {});
           api.put('/shorts', { id: s.id, view: true })
