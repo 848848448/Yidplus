@@ -652,11 +652,13 @@ async function streamMedia(env, request, ctx) {
   }
   if (!bytes || !bytes.length) return new Response('', { status: 416 });
 
-  // Get the following slices ready while this one plays. Skipped when this
-  // request IS a prefetch, so they don't cascade.
-  if (ctx && !url.searchParams.has('nopf')) {
-    prefetchNext(ctx, request, username, msgId, alignedStart, total);
-  }
+  // NOTE: we deliberately do NOT prefetch ahead. Prefetching fired several
+  // concurrent subrequests, each opening its own MTProto connection with the
+  // SAME Telegram auth key — Telegram treats that as the key being used from
+  // multiple places at once and kills the session with AUTH_KEY_DUPLICATED,
+  // which takes down ALL media (video, photos, sync) until you log in again.
+  // Serving one slice per request, sequentially, keeps a single connection in
+  // flight and the session alive.
 
   let body = bytes.subarray(skip);
   // Honour the requested end. A player seeking sends a bounded range like
