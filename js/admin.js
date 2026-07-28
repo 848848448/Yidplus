@@ -3244,6 +3244,14 @@ function buildMaintenancePanel(content) {
   content.innerHTML =
     '<div class="admin-panel">' +
 
+      // ── Reset view counts (Owner only) ──
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🔢 Reset View Counts</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">Sets every short and post view count back to 0, so the numbers start clean and real from now on. This cannot be undone.</div>' +
+        '<div id="reset-views-status" style="font-size:.85rem;font-weight:700;margin-bottom:.75rem;text-align:center"></div>' +
+        '<button class="save-pill" style="width:100%;background:#DC2626" onclick="resetAllViews()">Reset all views to 0</button>' +
+      '</div>' +
+
       // ── Email Verification (Owner only) ──
       '<div class="admin-card">' +
         '<div class="admin-card-title">📧 Email Verification</div>' +
@@ -5003,4 +5011,22 @@ window.decideVerify = function (id, action, btn) {
       if (row && row.parentElement) row.parentElement.removeChild(row);
     })
     .catch(function (err) { toast('❌ ' + err.message); });
+};
+
+// Owner-only: zero out all view counts.
+window.resetAllViews = function () {
+  if (!confirm('Reset ALL short and post view counts to 0? This cannot be undone.')) return;
+  var el = document.getElementById('reset-views-status');
+  if (el) { el.style.color = 'var(--muted)'; el.textContent = 'Resetting…'; }
+  api.post('/admin/reset-views', {})
+    .then(function (res) {
+      if (res && res.ok) {
+        if (el) { el.style.color = '#16A34A'; el.textContent = '✓ Done — ' + (res.shorts_reset || 0) + ' shorts, ' + (res.posts_reset || 0) + ' posts reset to 0.'; }
+      } else {
+        if (el) { el.style.color = '#DC2626'; el.textContent = (res && res.error) || 'Failed'; }
+      }
+    })
+    .catch(function (e) {
+      if (el) { el.style.color = '#DC2626'; el.textContent = 'Error: ' + (e && e.message ? e.message : 'failed'); }
+    });
 };
