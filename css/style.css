@@ -770,7 +770,7 @@ html.dark-mode .chat-input-pill { background: #232427; border-color: #2C2D31; }
 .channel-topbar-over > * { pointer-events: all; }
 .ch-cover-over { position: absolute; top: 0; left: 0; right: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; background: linear-gradient(to bottom, rgba(0,0,0,.4), transparent); }
 .ch-cover-emoji { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.9); z-index: 1; }
-.ch-avatar-big { width: 88px; height: 88px; border-radius: 26px; background: var(--surface); border: 4px solid var(--surface); display: flex; align-items: center; justify-content: center; font-size: 2.4rem; font-weight: 800; color: var(--gold); background-size: cover; background-position: center; box-shadow: 0 4px 16px rgba(0,0,0,.16); overflow: hidden; }
+.ch-avatar-big { width: 96px; height: 96px; border-radius: 50%; background: var(--surface); border: 3px solid var(--surface); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: 800; color: var(--gold); background-size: cover; background-position: center; box-shadow: 0 3px 14px rgba(0,0,0,.12); overflow: hidden; }
 .ch-stats-row { display: flex; padding: .5rem 1rem 1rem; gap: 0; }
 .ch-stats-row > div { flex: 1; }
 .ch-stat-val { font-size: 1.05rem; font-weight: 800; color: var(--text); }
