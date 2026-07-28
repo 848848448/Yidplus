@@ -572,7 +572,7 @@ async function streamMedia(env, request, ctx) {
   }
 
   const total = info.size || 0;
-  const range = request.headers.get('Range') || '';
+  let range = request.headers.get('Range') || '';
 
   // ?thumb=1 asks for the cover art rather than the file itself.
   if (url.searchParams.has('thumb')) return streamThumb(env, mtproto, info, username, msgId);
@@ -605,15 +605,12 @@ async function streamMedia(env, request, ctx) {
         return new Response('Stream error: ' + (e.error_message || e.message), { status: 502 });
       }
     }
-    // Too big for one run: advertise ranges and let the player ask properly.
-    return new Response('', {
-      status: 200,
-      headers: {
-        'Content-Type': info.mime || 'application/octet-stream',
-        'Accept-Ranges': 'bytes',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
+    // Too big for one run. Rather than an empty 200 (which some players — and
+    // any plain fetch — treat as a 0-byte, unplayable file), behave as if the
+    // player had asked for bytes=0-: fall through and return the first slice as
+    // 206 with the real total size. Every video player accepts that and keeps
+    // requesting the rest by range.
+    range = 'bytes=0-';
   }
 
   // Work out which slice the player asked for.

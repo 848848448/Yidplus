@@ -862,13 +862,11 @@ window._openTgMediaViewer = function (msgId) {
   _mediaList = TG_posts.filter(function (p) {
     return p.media_type === 'photo' || p.media_type === 'video';
   }).map(function (p) {
-    // Videos play through our proxy (/api/tgvid) which caches to R2 and serves
-    // with Range support, so any size plays and seeks. Photos stream directly.
+    // Videos stream straight from the worker, which serves Range/206 so the
+    // player can seek and play any size. Photos stream directly too.
     var vurl = p.media_url
       ? p.media_url
-      : (p.media_type === 'video'
-          ? '/api/tgvid?ch=' + encodeURIComponent(TG_curChannel) + '&id=' + p.tg_msg_id
-          : base.replace(/\/$/, '') + '/media?ch=' + encodeURIComponent(TG_curChannel) + '&id=' + p.tg_msg_id);
+      : base.replace(/\/$/, '') + '/media?ch=' + encodeURIComponent(TG_curChannel) + '&id=' + p.tg_msg_id;
     return {
       id: p.tg_msg_id,
       url: vurl,
