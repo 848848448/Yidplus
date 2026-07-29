@@ -304,9 +304,10 @@ function renderChatList() {
     var avStyle  = hasPhoto
       ? "background-image:url('" + c.photo_url + "'), " + _avGrad + ";background-size:cover;background-position:center;"
       : 'background:' + _avGrad + ';';
-    // Always render the initial as a fallback — if the photo URL 404s, the letter
-    // stays visible underneath instead of leaving a blank white circle.
-    var avatarContent = initial;
+    // Show the initial only when there's no photo. When a photo is set it
+    // fills the avatar (with the gradient as a fallback if it fails to load),
+    // so we don't want the letter sitting on top of the picture.
+    var avatarContent = hasPhoto ? '' : initial;
     var onlineDot = (!isGroup && c.online && isAnyAdmin()) ? '<div class="online-dot"></div>' : '';
     var previewText = c.preview || '';
     // Filter bad words in preview
