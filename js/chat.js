@@ -6979,3 +6979,31 @@ window.svCloseViewers = function () {
   var vid = document.querySelector('#sv-slide video');
   if (vid) vid.play().catch(function () {});
 };
+
+// Show a badge on the status button = how many people have an active status
+// right now (like WhatsApp's recent-updates count). Refreshed with the list.
+window._updateStatusBadge = function () {
+  api.get('/statuses', true).then(function (res) {
+    var list = (res && res.statuses) || [];
+    var myId = STATE.user && STATE.user.id;
+    // Count distinct people with at least one active status (excluding myself).
+    var seen = {};
+    var n = 0;
+    list.forEach(function (s) {
+      var uid = s.user_id || s.owner_id;
+      if (!uid || uid === myId || seen[uid]) return;
+      seen[uid] = 1; n++;
+    });
+    var badge = document.getElementById('status-fab-badge');
+    if (!badge) return;
+    if (n > 0) { badge.textContent = n > 99 ? '99+' : String(n); badge.style.display = 'block'; }
+    else badge.style.display = 'none';
+  }).catch(function () {});
+};
+// Keep it fresh: on load and every 45s.
+if (!window._statusBadgeTimer) {
+  window._statusBadgeTimer = setInterval(function () {
+    if (document.getElementById('status-fab-btn')) window._updateStatusBadge();
+  }, 45000);
+  setTimeout(function () { if (window._updateStatusBadge) window._updateStatusBadge(); }, 1500);
+}
