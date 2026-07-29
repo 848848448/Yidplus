@@ -2516,7 +2516,7 @@ function renderMessages(scrollDown) {
     } else if (m.type === 'text' || !m.type) {
       // Text — detect links, auto-detect RTL for Hebrew/Yiddish
       var isRTL = /[\u0590-\u05FF\uFB1D-\uFB4F]/.test(m.text || '');
-      var txtStyle = 'unicode-bidi:plaintext;display:block;word-break:break-word;overflow-wrap:anywhere;' + (isRTL ? 'direction:rtl;text-align:right' : '');
+      var txtStyle = 'unicode-bidi:plaintext;display:block;overflow-wrap:break-word;word-break:normal;' + (isRTL ? 'direction:rtl;text-align:right' : '');
       var filteredTxt = (typeof filterContent === 'function') ? filterContent(_linkify(escHtml(m.text || ''), isMe)) : _linkify(escHtml(m.text || ''), isMe);
       if (isChannel) {
         inner += '<div class="ch-text" style="' + txtStyle + '">' + filteredTxt + '</div>';
@@ -4216,9 +4216,14 @@ function _fakeBars(n) {
 
 function _linkify(text, isMe) {
   var c = isMe ? 'rgba(255,255,255,.9)' : 'var(--blue)';
-  var out = text.replace(/(https?:\/\/[^\s<>"]+)/g, function (url) {
-    return '<a href="' + url + '" target="_blank" style="color:' + c + ';word-break:break-all;text-decoration:underline">' + url + '</a>';
-  });
+  var mkA = function (href, label) {
+    return '<a href="' + href + '" target="_blank" rel="noopener" style="color:' + c + ';overflow-wrap:break-word;text-decoration:underline">' + label + '</a>';
+  };
+  // Full URLs first.
+  var out = text.replace(/(https?:\/\/[^\s<>"]+)/g, function (url) { return mkA(url, url); });
+  // Then bare domains like "Yidplus.com" or "www.site.org/x" (not already linked).
+  out = out.replace(/(^|[\s(>])((?:www\.)?[a-z0-9-]+\.(?:com|org|net|co|io|me|il|info|gov|edu|app|shop|news|xyz|online)(?:\/[^\s<]*)?)/gi,
+    function (m, pre, dom) { return pre + mkA('https://' + dom, dom); });
   // Lightweight WhatsApp/Telegram-style inline formatting. Order matters:
   // code first (so *, _, ~ inside a code span are left alone), then bold,
   // then italic, then strikethrough. Each requires non-space content
