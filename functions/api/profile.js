@@ -3,7 +3,7 @@
 // PUT  /api/profile             -> update own profile
 // DELETE /api/profile           -> delete own account
 
-import { json, corsHeaders, requireUser, hashPassword, cleanupUserReferences } from './_helpers.js';
+import { json, corsHeaders, requireUser, hashPassword, cleanupUserReferences, isOwnerOrCoOwner } from './_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -26,7 +26,10 @@ export async function onRequestGet(context) {
          FROM users WHERE id = ?`
       ).bind(targetId).first());
       if (!profile) return json({ ok: false, error: 'User not found' }, 404);
-      if (profile.privacy_profile === 'private' && (!user || user.id !== targetId)) {
+      // A private profile is visible to the owner themselves and to the main
+      // admin (owner / co-owner) only — no other viewer.
+      if (profile.privacy_profile === 'private' &&
+          (!user || (user.id !== targetId && !isOwnerOrCoOwner(user, env.OWNER_EMAIL)))) {
         return json({ ok: false, error: 'Profile is private' }, 403);
       }
 

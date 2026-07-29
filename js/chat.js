@@ -6093,22 +6093,37 @@ window.svTouchEnd = function (e) {
   clearTimeout(HOME_svLongTimer);
   HOME_svLongTimer = null;
 
-  // Reset any drag-down transform applied during the move.
   var overlay = document.getElementById('sv-overlay');
-  if (overlay) { overlay.style.transition = 'transform .2s ease, opacity .2s ease'; overlay.style.transform = ''; overlay.style.opacity = ''; setTimeout(function(){ if(overlay) overlay.style.transition=''; }, 220); }
-
   var touch = e.changedTouches[0];
   var dy = touch.clientY - _svTouchY;
   var dx = touch.clientX - _svTouchX;
 
-  // A tap on a link opens the link — don't navigate and DON'T preventDefault
-  // (the click needs to fire).
+  // A tap on a link opens the link — don't navigate and DON'T preventDefault.
   if (!_svTouchMoved && e.target && e.target.closest && e.target.closest('a')) {
+    if (overlay) { overlay.style.transition = 'transform .18s ease, opacity .18s ease'; overlay.style.transform = ''; overlay.style.opacity = ''; }
     return;
   }
-  // Otherwise suppress the synthetic mouse events the browser fires after a
-  // touch — svMouseDown/Up would reset the gesture and break navigation.
+  // Suppress the synthetic mouse events the browser fires after a touch.
   if (e.cancelable) e.preventDefault();
+
+  // Did the user drag down far enough to dismiss?
+  var willClose = _svTouchMoved && dy > 70 && dy > Math.abs(dx);
+
+  if (overlay) {
+    if (willClose) {
+      // Slide the rest of the way out, then close — no bounce.
+      overlay.style.transition = 'transform .18s ease, opacity .18s ease';
+      overlay.style.transform = 'translateY(100%)';
+      overlay.style.opacity = '0';
+      setTimeout(function () { closeSV(); }, 170);
+      return;
+    }
+    // Not dismissing → settle back into place.
+    overlay.style.transition = 'transform .2s ease, opacity .2s ease';
+    overlay.style.transform = '';
+    overlay.style.opacity = '';
+    setTimeout(function () { if (overlay) overlay.style.transition = ''; }, 220);
+  }
 
   if (wasLongPress) {
     // Releasing after long press → resume silently
@@ -6123,9 +6138,6 @@ window.svTouchEnd = function (e) {
     } else {
       svNext();
     }
-  } else if (dy > 60 && dy > Math.abs(dx)) {
-    // Swipe down (vertical wins) → close the viewer
-    closeSV();
   } else if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy)) {
     // Horizontal swipe → jump to the next / previous PERSON (WhatsApp-style)
     if (dx < 0) svNextUser();
