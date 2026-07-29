@@ -6064,10 +6064,36 @@ window.svTouchStart = function (e) {
   }, 400);
 };
 
+// Track finger movement: mark as moved (so it isn't a tap) and give a live
+// drag-down feedback so swiping down to close feels responsive.
+window.svTouchMove = function (e) {
+  if (!e.touches || !e.touches[0]) return;
+  var t = e.touches[0];
+  var dx = t.clientX - _svTouchX;
+  var dy = t.clientY - _svTouchY;
+  if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+    _svTouchMoved = true;
+    if (HOME_svLongTimer) { clearTimeout(HOME_svLongTimer); HOME_svLongTimer = null; }
+  }
+  // Dragging down (vertical wins) → move the whole viewer with the finger.
+  if (dy > 0 && dy > Math.abs(dx)) {
+    var overlay = document.getElementById('sv-overlay');
+    if (overlay) {
+      overlay.style.transition = '';
+      overlay.style.transform = 'translateY(' + Math.min(dy, 260) + 'px)';
+      overlay.style.opacity = String(Math.max(0.35, 1 - dy / 600));
+    }
+  }
+};
+
 window.svTouchEnd = function (e) {
   var wasLongPress = !HOME_svLongTimer; // timer already fired = long press
   clearTimeout(HOME_svLongTimer);
   HOME_svLongTimer = null;
+
+  // Reset any drag-down transform applied during the move.
+  var overlay = document.getElementById('sv-overlay');
+  if (overlay) { overlay.style.transition = 'transform .2s ease, opacity .2s ease'; overlay.style.transform = ''; overlay.style.opacity = ''; setTimeout(function(){ if(overlay) overlay.style.transition=''; }, 220); }
 
   var touch = e.changedTouches[0];
   var dy = touch.clientY - _svTouchY;
