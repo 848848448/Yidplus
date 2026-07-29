@@ -348,10 +348,23 @@ window.copyProfileLink = function () {
 
 window.confirmDeleteAccount = function () {
   if (!confirm('⚠️ Delete your account permanently? All data will be lost!')) return;
-  if (!confirm('Are you 100% sure? This CANNOT be undone!')) return;
-  api.del('/profile')
-    .then(function () { toast('Account deleted'); doLogout(); })
-    .catch(function (err) { toast('❌ ' + err.message); });
+  _confirmWithPassword({
+    title: 'Delete account',
+    message: 'Enter your password to permanently delete your account. This cannot be undone.',
+    actionText: 'Delete forever',
+    danger: true,
+    onOk: function () {
+      api.del('/profile')
+        .then(function () {
+          toast('Account deleted');
+          // Account is gone — log out directly (no second password prompt).
+          if (typeof AUTH !== 'undefined' && AUTH.logout) {
+            AUTH.logout().then(function () { localStorage.removeItem('yp_page'); goPage('/'); }).catch(function () { goPage('/'); });
+          } else { goPage('/'); }
+        })
+        .catch(function (err) { toast('❌ ' + err.message); });
+    }
+  });
 };
 
 window.togglePushNotifications = function (el) {

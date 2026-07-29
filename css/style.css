@@ -1433,7 +1433,7 @@ html.dark-mode .settings-card { box-shadow: 0 1px 6px rgba(0,0,0,.25); }
 
 /* ── Scroll fix — no jump ── */
 /* Note: main .screen rules are defined above in SCREEN SYSTEM section */
-.scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scroll-behavior: auto; }
+.scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; scroll-behavior: auto; }
 
 /* ── Performance: smooth transitions ── */
 * { -webkit-tap-highlight-color: transparent; }

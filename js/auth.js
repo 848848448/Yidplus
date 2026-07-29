@@ -167,13 +167,20 @@ window.doRegister = function () {
 
 // ── LOGOUT ───────────────────────────────────────
 window.doLogout = function () {
-  if (!confirm('Sign out of YID PLUS?')) return;
-  AUTH.logout().then(function () {
-    localStorage.removeItem('yp_page');
-    toast('👋 Signed out successfully.');
-    navTo('auth');
-  }).catch(function (err) {
-    toast('❌ ' + err.message);
+  _confirmWithPassword({
+    title: 'Sign out',
+    message: 'Enter your password to sign out.',
+    actionText: 'Sign out',
+    danger: false,
+    onOk: function () {
+      AUTH.logout().then(function () {
+        localStorage.removeItem('yp_page');
+        toast('👋 Signed out successfully.');
+        navTo('auth');
+      }).catch(function (err) {
+        toast('❌ ' + err.message);
+      });
+    }
   });
 };
 

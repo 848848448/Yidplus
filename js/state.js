@@ -2299,3 +2299,57 @@ window.addEventListener('popstate', function (e) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
 })();
+
+/* Ask the user to re-enter their password before a sensitive action (sign out,
+   delete account) so an accidental tap can't do it. OAuth-only accounts (no
+   password) fall back to a simple confirm. onOk runs only on success. */
+window._confirmWithPassword = function (opts) {
+  opts = opts || {};
+  var title = opts.title || 'Confirm';
+  var message = opts.message || 'Enter your password to continue.';
+  var actionText = opts.actionText || 'Confirm';
+  var danger = opts.danger !== false;
+  var onOk = opts.onOk || function () {};
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  overlay.innerHTML =
+    '<div style="background:var(--surface,#fff);color:var(--text,#111);border-radius:18px;width:100%;max-width:360px;padding:1.25rem;box-shadow:0 12px 40px rgba(0,0,0,.3)">' +
+      '<div style="font-weight:800;font-size:1.05rem;margin-bottom:.4rem">' + escHtml(title) + '</div>' +
+      '<div style="font-size:.85rem;color:var(--muted);margin-bottom:.9rem">' + escHtml(message) + '</div>' +
+      '<input type="password" id="pwc-input" autocomplete="current-password" placeholder="Password" style="width:100%;padding:.8rem 1rem;border:1px solid var(--border);border-radius:12px;font-size:.95rem;font-family:inherit;background:var(--bg);color:var(--text);outline:none;box-sizing:border-box">' +
+      '<div id="pwc-err" style="color:#DC2626;font-size:.78rem;min-height:1.1rem;margin:.35rem .1rem 0"></div>' +
+      '<div style="display:flex;gap:.6rem;margin-top:.6rem">' +
+        '<button id="pwc-cancel" style="flex:1;padding:.8rem;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:700;font-family:inherit;cursor:pointer">Cancel</button>' +
+        '<button id="pwc-ok" style="flex:1;padding:.8rem;border-radius:12px;border:none;background:' + (danger ? '#DC2626' : 'var(--accent)') + ';color:#fff;font-weight:700;font-family:inherit;cursor:pointer">' + escHtml(actionText) + '</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  var input = overlay.querySelector('#pwc-input');
+  var err = overlay.querySelector('#pwc-err');
+  var okBtn = overlay.querySelector('#pwc-ok');
+  var close = function () { overlay.remove(); };
+  overlay.querySelector('#pwc-cancel').onclick = close;
+  overlay.onclick = function (e) { if (e.target === overlay) close(); };
+  setTimeout(function () { input.focus(); }, 100);
+
+  var submit = function () {
+    var pw = input.value;
+    if (!pw) { err.textContent = 'Please enter your password.'; return; }
+    okBtn.disabled = true; okBtn.textContent = 'Checking…';
+    api.post('/auth/verify-password', { password: pw }).then(function (res) {
+      if (res && res.ok && res.valid) { close(); onOk(); }
+      else { err.textContent = 'Incorrect password.'; okBtn.disabled = false; okBtn.textContent = actionText; input.select(); }
+    }).catch(function () { err.textContent = 'Something went wrong. Try again.'; okBtn.disabled = false; okBtn.textContent = actionText; });
+  };
+  okBtn.onclick = submit;
+  input.onkeydown = function (e) { if (e.key === 'Enter') submit(); };
+
+  // OAuth accounts have no password — confirm without one.
+  api.post('/auth/verify-password', {}).then(function (res) {
+    if (res && res.no_password) {
+      close();
+      if (confirm(title + '\n\n' + message)) onOk();
+    }
+  }).catch(function () {});
+};
