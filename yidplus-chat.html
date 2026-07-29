@@ -665,10 +665,10 @@
 #chat-options-menu { position: fixed; }
 </style>
 
-<script src="js/state.js?v=202607290554"></script>
-<script src="js/theme.js?v=202607290554"></script>
-<script src="js/app.js?v=202607290554"></script>
-<script src="js/chat.js?v=202607291701"></script>
+<script src="js/state.js?v=202607291705"></script>
+<script src="js/theme.js?v=202607291705"></script>
+<script src="js/app.js?v=202607291705"></script>
+<script src="js/chat.js?v=202607291705"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
@@ -1093,8 +1093,23 @@ document.addEventListener('DOMContentLoaded', function () {
     var hashMatch = (window.location.hash || '').match(/room=([^&]+)/);
     if (hashMatch) {
       var hashRoom = decodeURIComponent(hashMatch[1]);
+      // Switch to the chat-room screen right away (with a spinner) so a refresh
+      // keeps you inside the group instead of flashing the list and animating
+      // back in.
+      var _scL = document.getElementById('screen-chats');
+      var _scR = document.getElementById('screen-chatroom');
+      if (_scL) _scL.classList.add('hidden');
+      if (_scR) _scR.classList.remove('hidden');
+      var _msgsEl = document.getElementById('chat-msgs');
+      if (_msgsEl) _msgsEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)"><div style="width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></div></div>';
       loadChatRooms(function () {
-        if (typeof openChatRoom === 'function') openChatRoom(hashRoom);
+        if (typeof openChatRoom === 'function' && CHAT_rooms.find(function (r) { return r.id === hashRoom; })) {
+          openChatRoom(hashRoom);
+        } else {
+          // Not available → fall back to the list rather than a blank screen.
+          if (_scL) _scL.classList.remove('hidden');
+          if (_scR) _scR.classList.add('hidden');
+        }
       });
       initAds('chat');
       return;
@@ -1106,7 +1121,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="js/ads.js?v=202607290554"></script>
+<script src="js/ads.js?v=202607291705"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");</script>
 </body>
 </html>
