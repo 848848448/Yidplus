@@ -206,6 +206,7 @@ var ADMIN_PANELS = [
   { id:'leaderboard',    label:'Leaderboard',     roles:['admin_limited','admin_super','owner'] },
   { id:'announcements',  label:'Announcements',   roles:['admin_limited','admin_super','owner'] },
   { id:'shorts-mod',     label:'Shorts',          roles:['admin_limited','admin_super','owner'] },
+  { id:'statuses-mod',   label:'Statuses',        roles:['admin_super','owner'] },
   { id:'music-mod',      label:'Music',           roles:['admin_limited','admin_super','owner'] },
   { id:'feedback',       label:'Feedback',        roles:['admin_limited','admin_super','owner'] },
   { id:'support-chats',  label:'Support',         roles:['admin_limited','admin_super','owner'] },
@@ -510,6 +511,8 @@ function buildAdminPanel(id) {
 
   } else if (id === 'shorts-mod') {
     buildShortsModPanel(content);
+  } else if (id === 'statuses-mod') {
+    buildStatusesModPanel(content);
 
   } else if (id === 'chat-watch') {
     buildChatWatchPanel(content);
@@ -5029,4 +5032,54 @@ window.resetAllViews = function () {
     .catch(function (e) {
       if (el) { el.style.color = '#DC2626'; el.textContent = 'Error: ' + (e && e.message ? e.message : 'failed'); }
     });
+};
+
+// ── Statuses moderation (see & remove anyone's status) ──
+function buildStatusesModPanel(content) {
+  content.innerHTML = '<div class="admin-panel"><div style="text-align:center;color:var(--muted);padding:2rem;font-size:.85rem">Loading statuses…</div></div>';
+  api.get('/admin/statuses').then(function (res) {
+    var list = (res && res.statuses) || [];
+    if (!list.length) {
+      content.innerHTML = '<div class="admin-panel"><div class="admin-card"><div class="admin-card-title">📸 Statuses</div><div style="color:var(--muted);font-size:.85rem;text-align:center;padding:1.5rem">No active statuses right now.</div></div></div>';
+      return;
+    }
+    var cards = list.map(function (s) {
+      var nick = escHtmlA(s.nickname || 'User');
+      var when = s.created_at ? timeAgo(s.created_at) : '';
+      var preview;
+      if (s.type === 'text' || !s.media_url) {
+        preview = '<div style="flex:1;min-width:0;padding:.5rem .7rem;background:' + (s.bg || '#1a0a2e') + ';color:' + (s.color || '#fff') + ';border-radius:10px;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" dir="auto">' + escHtmlA(s.text || '(text)') + '</div>';
+      } else if (s.type === 'video') {
+        preview = '<div style="flex:1;display:flex;align-items:center;gap:.4rem;color:var(--muted);font-size:.82rem"><span style="font-size:1.2rem">🎬</span> Video status' + (s.text ? ' — ' + escHtmlA(s.text) : '') + '</div>';
+      } else {
+        preview = '<img src="' + s.media_url + '" style="width:46px;height:46px;border-radius:10px;object-fit:cover;flex-shrink:0"><div style="flex:1;min-width:0;font-size:.82rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtmlA(s.text || 'Photo status') + '</div>';
+      }
+      var priv = s.privacy && s.privacy !== 'public' ? ' · 🔒 ' + escHtmlA(s.privacy) : '';
+      return '<div class="admin-card" style="display:flex;flex-direction:column;gap:.55rem">' +
+          '<div style="display:flex;align-items:center;gap:.5rem">' +
+            '<div style="font-weight:700;font-size:.88rem">@' + nick + (s.verified ? ' ✔️' : '') + '</div>' +
+            '<div style="font-size:.72rem;color:var(--muted)">' + when + ' · 👁 ' + fmtN(s.views || 0) + priv + '</div>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:.6rem">' + preview + '</div>' +
+          '<button class="save-pill" style="background:#DC2626" onclick="adminDeleteStatus(\'' + s.id + '\',\'' + nick + '\')">🗑 Delete for everyone</button>' +
+        '</div>';
+    }).join('');
+    content.innerHTML = '<div class="admin-panel">' +
+      '<div style="font-size:.78rem;color:var(--muted);padding:0 .25rem .5rem">' + list.length + ' active status' + (list.length === 1 ? '' : 'es') + ' (last 24h). Deleting removes it for everyone, including the person who posted it.</div>' +
+      cards + '</div>';
+  }).catch(function (e) {
+    content.innerHTML = '<div class="admin-panel"><div class="admin-card" style="color:#DC2626">Failed to load: ' + escHtmlA((e && e.message) || 'error') + '</div></div>';
+  });
+}
+
+window.adminDeleteStatus = function (id, nick) {
+  if (!confirm('Delete @' + nick + "'s status for everyone? This cannot be undone.")) return;
+  api.put('/statuses', { action: 'delete', id: id }).then(function (res) {
+    if (res && res.ok) {
+      toast('🗑 Status deleted.');
+      buildStatusesModPanel(document.getElementById('admin-content'));
+    } else {
+      toast((res && res.error) || 'Failed');
+    }
+  }).catch(function () { toast('Failed to delete'); });
 };
