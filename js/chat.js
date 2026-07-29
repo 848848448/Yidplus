@@ -184,8 +184,29 @@ window.init_chats = function () {
   // the room list is loaded — so refreshing keeps you in the same conversation.
   var m = (location.hash || '').match(/room=([^&]+)/);
   var wantRoom = m ? decodeURIComponent(m[1]) : null;
+
+  if (wantRoom) {
+    // Show the chat-room screen right away so a refresh doesn't flash the chat
+    // list and then animate back into the room — you just stay inside it.
+    var scList = document.getElementById('screen-chats');
+    var scRoom = document.getElementById('screen-chatroom');
+    if (scList) scList.classList.add('hidden');
+    if (scRoom) scRoom.classList.remove('hidden');
+    // A quiet loading state so the room screen isn't blank while rooms load.
+    var msgsEl = document.getElementById('chat-msgs');
+    if (msgsEl) msgsEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)"><div class="spinner" style="width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></div></div>';
+  }
+
   loadChatRooms(wantRoom ? function () {
-    if (CHAT_rooms.find(function (r) { return r.id === wantRoom; })) window.openChatRoom(wantRoom);
+    if (CHAT_rooms.find(function (r) { return r.id === wantRoom; })) {
+      window.openChatRoom(wantRoom);
+    } else {
+      // Room isn't available — fall back to the list instead of a blank screen.
+      var scList2 = document.getElementById('screen-chats');
+      var scRoom2 = document.getElementById('screen-chatroom');
+      if (scList2) scList2.classList.remove('hidden');
+      if (scRoom2) scRoom2.classList.add('hidden');
+    }
   } : null);
 };
 
