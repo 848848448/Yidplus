@@ -6071,17 +6071,19 @@ window.svTouchMove = function (e) {
   var t = e.touches[0];
   var dx = t.clientX - _svTouchX;
   var dy = t.clientY - _svTouchY;
-  if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+  // Only treat it as a real move past ~16px, so a normal tap (with a little
+  // finger jitter) still counts as a tap and navigates.
+  if (Math.abs(dx) > 16 || Math.abs(dy) > 16) {
     _svTouchMoved = true;
     if (HOME_svLongTimer) { clearTimeout(HOME_svLongTimer); HOME_svLongTimer = null; }
   }
-  // Dragging down (vertical wins) → move the whole viewer with the finger.
-  if (dy > 0 && dy > Math.abs(dx)) {
+  // Clear downward drag → move the viewer with the finger (feedback for close).
+  if (dy > 24 && dy > Math.abs(dx) * 1.4) {
     var overlay = document.getElementById('sv-overlay');
     if (overlay) {
       overlay.style.transition = '';
-      overlay.style.transform = 'translateY(' + Math.min(dy, 260) + 'px)';
-      overlay.style.opacity = String(Math.max(0.35, 1 - dy / 600));
+      overlay.style.transform = 'translateY(' + Math.min(dy, 300) + 'px)';
+      overlay.style.opacity = String(Math.max(0.3, 1 - dy / 650));
     }
   }
 };
@@ -6131,7 +6133,7 @@ window.svTouchEnd = function (e) {
 document.addEventListener('touchmove', function (e) {
   if (!document.getElementById('sv-overlay').classList.contains('open')) return;
   var t = e.touches[0];
-  if (Math.abs(t.clientX - _svTouchX) > 10 || Math.abs(t.clientY - _svTouchY) > 10) {
+  if (Math.abs(t.clientX - _svTouchX) > 16 || Math.abs(t.clientY - _svTouchY) > 16) {
     _svTouchMoved = true;
     if (HOME_svLongTimer) { clearTimeout(HOME_svLongTimer); HOME_svLongTimer = null; }
   }
@@ -6193,7 +6195,8 @@ window.closeSV = function () {
   HOME_svPaused = false;
   var vid = document.querySelector('#sv-slide video');
   if (vid) { vid.pause(); vid.src = ''; }
-  document.getElementById('sv-overlay').classList.remove('open');
+  var ov = document.getElementById('sv-overlay');
+  if (ov) { ov.style.transition = ''; ov.style.transform = ''; ov.style.opacity = ''; ov.classList.remove('open'); }
 };
 
 // ── Mute ─────────────────────────────────────────────────
