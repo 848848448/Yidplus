@@ -6101,10 +6101,14 @@ window.svTouchEnd = function (e) {
   var dy = touch.clientY - _svTouchY;
   var dx = touch.clientX - _svTouchX;
 
-  // A tap on a link opens the link — don't treat it as a navigation tap.
+  // A tap on a link opens the link — don't navigate and DON'T preventDefault
+  // (the click needs to fire).
   if (!_svTouchMoved && e.target && e.target.closest && e.target.closest('a')) {
     return;
   }
+  // Otherwise suppress the synthetic mouse events the browser fires after a
+  // touch — svMouseDown/Up would reset the gesture and break navigation.
+  if (e.cancelable) e.preventDefault();
 
   if (wasLongPress) {
     // Releasing after long press → resume silently
