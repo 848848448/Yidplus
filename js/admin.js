@@ -4372,6 +4372,17 @@ function buildTelegramPanel(content) {
   content.innerHTML =
     '<div class="admin-panel">' +
 
+      // ── Bot → Email forwarding ──
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">📧 Forward bot posts to email</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">When this is on, anything posted to your Telegram bot (video, photo, file or text) is emailed to the people you list. Big videos are emailed as a link.</div>' +
+        '<label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;margin-bottom:.6rem;cursor:pointer"><input type="checkbox" id="bmail-enabled" style="width:18px;height:18px"> Turn on email forwarding</label>' +
+        '<label style="font-size:.75rem;color:var(--muted)">Send to these email addresses — one per line:</label>' +
+        '<textarea id="bmail-recipients" rows="3" placeholder="me@example.com" style="width:100%;box-sizing:border-box;padding:.6rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:inherit;font-size:.85rem;margin:.3rem 0 .6rem"></textarea>' +
+        '<div id="bmail-status" style="font-size:.78rem;margin-bottom:.5rem"></div>' +
+        '<button class="save-pill" style="width:100%" onclick="bmailSave(this)">Save</button>' +
+      '</div>' +
+
       // ── Channel session (MTProto userbot) re-login ──
       '<div class="admin-card">' +
         '<div class="admin-card-title">📡 Channel Session (login)</div>' +
@@ -4448,6 +4459,7 @@ function buildTelegramPanel(content) {
   loadTelegramBridges();
   tgWebhookStatus();
   tgPostStatus();
+  bmailLoad();
 }
 
 window.tgPostStatus = function () {
@@ -5171,3 +5183,33 @@ window.tgSessCheck    = function (btn) { _tgSessSay('Checking…'); _tgSessCall(
 window.tgSessLogin    = function (btn) { var p = document.getElementById('tg-sess-phone'); _tgSessCall('login', { phone: p ? p.value.trim() : '' }, btn); };
 window.tgSessCode     = function (btn) { var c = document.getElementById('tg-sess-code'); _tgSessCall('code', { code: c ? c.value.trim() : '' }, btn); };
 window.tgSessPassword = function (btn) { var w = document.getElementById('tg-sess-pw'); _tgSessCall('password', { password: w ? w.value : '' }, btn); };
+
+// ── Bot → email forwarding config ──
+(function () {
+  var _origBuildTg = window.buildTelegramPanel;
+})();
+window.bmailLoad = function () {
+  api.get('/admin/bot-email').then(function (res) {
+    if (!res || !res.ok) return;
+    var en = document.getElementById('bmail-enabled');
+    var rc = document.getElementById('bmail-recipients');
+    if (en) en.checked = !!res.enabled;
+    if (rc) rc.value = (res.recipients || []).join('\n');
+  }).catch(function () {});
+};
+window.bmailSave = function (btn) {
+  var en = (document.getElementById('bmail-enabled') || {}).checked ? true : false;
+  var rc = (document.getElementById('bmail-recipients') || {}).value || '';
+  var st = document.getElementById('bmail-status');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  api.post('/admin/bot-email', { enabled: en, recipients: rc }).then(function (res) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+    if (res && res.ok) {
+      if (st) { st.style.color = '#16A34A'; st.textContent = '✓ Saved — ' + (res.recipients || []).length + ' recipient(s).'; }
+      var rcEl = document.getElementById('bmail-recipients'); if (rcEl) rcEl.value = (res.recipients || []).join('\n');
+    } else if (st) { st.style.color = '#DC2626'; st.textContent = (res && res.error) || 'Failed'; }
+  }).catch(function (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+    if (st) { st.style.color = '#DC2626'; st.textContent = (e && e.message) || 'Failed'; }
+  });
+};
