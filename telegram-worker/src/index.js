@@ -754,6 +754,16 @@ export default {
       if (path === '/login') {
         const phone = url.searchParams.get('phone');
         if (!phone) return json({ ok: false, error: 'Add ?phone=+1XXXXXXXXXX' }, 400);
+        // Wipe any stored (possibly dead / AUTH_KEY_DUPLICATED) MTProto auth
+        // state so we do a brand-new handshake instead of reusing a bad key.
+        try {
+          let cursor;
+          do {
+            const listed = await env.TG_SESSION.list({ prefix: 'mtproto:', cursor });
+            for (const k of listed.keys) await env.TG_SESSION.delete(k.name).catch(() => {});
+            cursor = listed.list_complete ? null : listed.cursor;
+          } while (cursor);
+        } catch (e) { /* best effort */ }
         const mtproto = makeClient(env);
         const sent = await call(mtproto, 'auth.sendCode', {
           phone_number: phone,
