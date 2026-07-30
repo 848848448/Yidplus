@@ -5123,12 +5123,18 @@ function _tgSessCall(step, extra, btn) {
   return api.post('/admin/tg-login', payload).then(function (res) {
     if (btn) { btn.disabled = false; btn.textContent = label; }
     var r = res && res.result;
-    if (res && res.ok && r) {
-      if (r.logged_in) { _tgSessSay('✅ Logged in as ' + (r.as || 'the account') + '. New posts should start flowing again shortly.', true); }
-      else if (r.ok) { _tgSessSay('✅ ' + (r.message || r.status || 'Done — continue to the next step.'), true); }
-      else { _tgSessSay('⚠️ ' + (r.error || JSON.stringify(r)), false); }
+    if (r && r.logged_in) {
+      _tgSessSay('✅ Logged in as ' + (r.as || r.user || 'the account') + '. New posts should start flowing again shortly.', true);
+    } else if (r && r.sent) {
+      _tgSessSay('✅ Code sent! Check your <strong>Telegram app</strong> (a message from "Telegram") — it usually is NOT an SMS. Enter it in Step 2.', true);
+    } else if (r && r.needs_password) {
+      _tgSessSay('🔒 Two-step is on — enter your password in Step 3.', true);
+    } else if (r && r.ok) {
+      _tgSessSay('✅ ' + (r.message || r.next || 'Done — continue to the next step.'), true);
     } else {
-      _tgSessSay('⚠️ ' + ((r && r.error) || (res && res.error) || 'Failed'), false);
+      // Surface whatever the worker actually said.
+      var msg = (r && (r.error || r.raw)) || (res && res.error) || 'Failed';
+      _tgSessSay('⚠️ ' + msg, false);
     }
     return res;
   }).catch(function (e) {

@@ -34,7 +34,10 @@ export async function onRequestPost(context) {
       path = '/status';
     } else if (step === 'login') {
       if (!body.phone) return json({ ok: false, error: 'Phone number required' });
-      path = '/login'; q.set('phone', String(body.phone).trim());
+      // Telegram wants just + and digits — strip spaces, dashes, parens.
+      var phone = String(body.phone).replace(/[^\d+]/g, '');
+      if (phone && phone[0] !== '+') phone = '+' + phone;
+      path = '/login'; q.set('phone', phone);
     } else if (step === 'code') {
       if (!body.code) return json({ ok: false, error: 'Code required' });
       path = '/code'; q.set('code', String(body.code).trim());
