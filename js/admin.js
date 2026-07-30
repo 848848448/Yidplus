@@ -5132,9 +5132,10 @@ function _tgSessCall(step, extra, btn) {
     } else if (r && r.ok) {
       _tgSessSay('✅ ' + (r.message || r.next || 'Done — continue to the next step.'), true);
     } else {
-      // Surface whatever the worker actually said.
-      var msg = (r && (r.error || r.raw)) || (res && res.error) || 'Failed';
-      _tgSessSay('⚠️ ' + msg, false);
+      // Surface the entire worker response so we can see exactly what's wrong.
+      var dbg = '';
+      try { dbg = JSON.stringify(res && res.result ? res.result : res); } catch (e) { dbg = String(res); }
+      _tgSessSay('⚠️ Worker said: <code style="font-size:.7rem;word-break:break-all">' + escHtmlA(dbg) + '</code>', false);
     }
     return res;
   }).catch(function (e) {
