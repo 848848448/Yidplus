@@ -1,4 +1,4 @@
-import { json, corsHeaders } from './_helpers.js';
+import { json, corsHeaders, requireUser, isSuperOrOwner } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -105,6 +105,25 @@ export async function onRequestGet(context) {
     await ensureTable(env);
     const username = (new URL(request.url).searchParams.get('username') || '').replace(/^@/, '').replace(/[^a-zA-Z0-9_]/g, '');
     if (!username) return json({ ok: true, posts: [] });
+
+    // If this channel is private, only the admin and listed users may read it.
+    try {
+      const ch = await env.DB.prepare('SELECT is_private, allowed_users FROM telegram_channels WHERE username = ?').bind(username).first();
+      if (ch && ch.is_private) {
+        const user = await requireUser(request, env).catch(() => null);
+        const admin = user && isSuperOrOwner(user, env.OWNER_EMAIL);
+        let ok = admin;
+        if (!ok && user) {
+          let list = [];
+          try { list = JSON.parse(ch.allowed_users || '[]'); } catch (e) { list = []; }
+          const nick = String(user.nickname || '').toLowerCase();
+          const email = String(user.email || '').toLowerCase();
+          ok = list.some((x) => { const v = String(x || '').toLowerCase().replace(/^@/, ''); return v && (v === nick || v === email); });
+        }
+        if (!ok) return json({ ok: true, posts: [], private: true });
+      }
+    } catch (e) { /* if the check fails, fall through — table may be mid-migration */ }
+
     const res = await env.DB.prepare(
       'SELECT tg_msg_id, text, media_url, media_type, media_title, media_performer, media_duration, media_name, media_thumb, entities, grouped_id, link, posted_at, author_name, author_handle, author_avatar, views, forwards FROM telegram_posts WHERE username = ? ORDER BY tg_msg_id DESC LIMIT 20000'
     ).bind(username).all();

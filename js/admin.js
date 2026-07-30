@@ -3001,6 +3001,7 @@ function _tgcLoad() {
   if (!el) return;
   api.get('/telegram-channels').then(function (res) {
     var chans = (res && res.channels) || [];
+    window._tgcChannels = chans;
     if (!chans.length) { el.innerHTML = '<div style="font-size:.78rem;color:var(--muted);text-align:center;padding:.5rem">No Telegram channels yet.</div>'; return; }
     el.innerHTML = chans.map(function (c) {
       var av = c.photo_url
@@ -3008,7 +3009,7 @@ function _tgcLoad() {
         : '<div style="width:32px;height:32px;border-radius:50%;background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">📨</div>';
       return '<div style="display:flex;align-items:center;gap:.5rem;padding:.45rem 0;border-bottom:1px solid var(--border)">' +
         av +
-        '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:plaintext">' + escHtml(c.title || c.username) + '</div>' +
+        '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:plaintext">' + (c.is_private ? '🔒 ' : '') + escHtml(c.title || c.username) + '</div>' +
         '<div style="font-size:.68rem;color:var(--muted)">@' + escHtml(c.username) + ' · ' + (c.members || 0) + ' joined here</div></div>' +
         '<button onclick="tgcEdit(\'' + c.id + '\')" style="background:none;color:var(--gold);border:none;font-size:.78rem;cursor:pointer">Edit</button>' +
         '<button onclick="tgcRemove(\'' + c.id + '\',this)" style="background:none;color:var(--red);border:none;font-size:.78rem;cursor:pointer">Remove</button>' +
@@ -3057,24 +3058,47 @@ window.tgcEdit = function (id) {
       '<input id="tge-title" placeholder="Channel name" style="width:100%;box-sizing:border-box;padding:.55rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;margin:.25rem 0 .7rem">' +
       '<label style="font-size:.75rem;color:var(--muted)">Photo</label>' +
       '<input type="file" id="tge-photo" accept="image/*" style="width:100%;font-size:.78rem;margin:.25rem 0 .9rem">' +
+      '<label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;margin-bottom:.5rem;cursor:pointer">' +
+        '<input type="checkbox" id="tge-private" onchange="document.getElementById(\'tge-allowed-wrap\').style.display=this.checked?\'block\':\'none\'" style="width:18px;height:18px"> 🔒 Private channel (only people you list can see it)' +
+      '</label>' +
+      '<div id="tge-allowed-wrap" style="display:none;margin-bottom:.9rem">' +
+        '<label style="font-size:.75rem;color:var(--muted)">Allowed people — one @username (or email) per line:</label>' +
+        '<textarea id="tge-allowed" rows="4" placeholder="@yanky\n@moshe" style="width:100%;box-sizing:border-box;padding:.55rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;margin-top:.25rem"></textarea>' +
+        '<div style="font-size:.68rem;color:var(--muted);margin-top:.25rem">You (the admin) can always see every channel.</div>' +
+      '</div>' +
       '<div style="display:flex;gap:.5rem;justify-content:flex-end">' +
         '<button onclick="document.getElementById(\'tgc-edit\').remove()" style="background:none;border:none;color:var(--muted);font-size:.85rem;cursor:pointer;padding:.4rem .8rem">Cancel</button>' +
         '<button class="save-pill" onclick="tgcSaveEdit(\'' + id + '\')">Save</button>' +
       '</div>' +
     '</div>';
   document.body.appendChild(ov);
+  // Pre-fill from the loaded channel (name, privacy, allow-list).
+  var ch = (window._tgcChannels || []).find(function (c) { return c.id === id; });
+  if (ch) {
+    var tEl = document.getElementById('tge-title'); if (tEl) tEl.value = ch.title || '';
+    if (ch.is_private) {
+      var pc = document.getElementById('tge-private'); if (pc) pc.checked = true;
+      var aw = document.getElementById('tge-allowed-wrap'); if (aw) aw.style.display = 'block';
+      var list = [];
+      try { list = JSON.parse(ch.allowed_users || '[]'); } catch (e) { list = []; }
+      var aEl = document.getElementById('tge-allowed'); if (aEl) aEl.value = list.map(function (x) { return '@' + x; }).join('\n');
+    }
+  }
 };
 
 window.tgcSaveEdit = function (id) {
   var title = (document.getElementById('tge-title') || {}).value || '';
   var fileEl = document.getElementById('tge-photo');
   var file = fileEl && fileEl.files && fileEl.files[0];
-  if (!title.trim() && !file) { toast('Change the name or pick a photo'); return; }
+  var isPrivate = (document.getElementById('tge-private') || {}).checked ? '1' : '0';
+  var allowed = (document.getElementById('tge-allowed') || {}).value || '';
 
   var fd = new FormData();
   fd.append('id', id);
   if (title.trim()) fd.append('title', title.trim());
   if (file) fd.append('photo', file);
+  fd.append('is_private', isPrivate);
+  fd.append('allowed_users', allowed);
 
   api.put('/telegram-channels', fd, true).then(function (res) {
     if (res.error) { toast('❌ ' + res.error); return; }

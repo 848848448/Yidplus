@@ -21,6 +21,9 @@ async function _migrate(env) {
   ).run().catch(() => {});
   // Lazy column: added after the table shipped.
   await env.DB.prepare('ALTER TABLE telegram_channels ADD COLUMN photo_key TEXT').run().catch(() => {});
+  // Private channels: only listed nicknames (plus admins) may see/join them.
+  await env.DB.prepare('ALTER TABLE telegram_channels ADD COLUMN is_private INTEGER DEFAULT 0').run().catch(() => {});
+  await env.DB.prepare('ALTER TABLE telegram_channels ADD COLUMN allowed_users TEXT').run().catch(() => {});
   // Who joined from OUR site. Deliberately not Telegram's subscriber count —
   // this is the audience on YID PLUS.
   await env.DB.prepare(
@@ -88,7 +91,7 @@ export async function onRequestGet(context) {
     const user = await requireUser(request, env).catch(() => null);
 
     const res = await env.DB.prepare(
-      `SELECT c.id, c.username, c.title, c.photo_key, c.created_at,
+      `SELECT c.id, c.username, c.title, c.photo_key, c.created_at, c.is_private, c.allowed_users,
               (SELECT COUNT(*) FROM telegram_channel_members m WHERE m.username = c.username) AS members,
               (SELECT MAX(p.posted_at) FROM telegram_posts p WHERE p.username = c.username) AS last_post_at,
               (SELECT p.text FROM telegram_posts p WHERE p.username = c.username ORDER BY p.tg_msg_id DESC LIMIT 1) AS last_text,
@@ -96,6 +99,21 @@ export async function onRequestGet(context) {
        FROM telegram_channels c
        ORDER BY c.sort_order ASC, c.created_at ASC`
     ).all();
+
+    const isAdmin = user && isSuperOrOwner(user, env.OWNER_EMAIL);
+    const myNick = user && user.nickname ? String(user.nickname).toLowerCase() : '';
+    const myEmail = user && user.email ? String(user.email).toLowerCase() : '';
+    // Can this viewer see a given private channel?
+    const canSeePrivate = (allowedRaw) => {
+      if (isAdmin) return true;
+      if (!user) return false;
+      let list = [];
+      try { list = JSON.parse(allowedRaw || '[]'); } catch (e) { list = []; }
+      return list.some((x) => {
+        const v = String(x || '').toLowerCase().replace(/^@/, '');
+        return v && (v === myNick || v === myEmail);
+      });
+    };
 
     let joined = [];
     let unreadBy = {};
@@ -116,21 +134,24 @@ export async function onRequestGet(context) {
       for (const row of (u.results || [])) unreadBy[row.username] = row.c;
     }
 
-    const channels = (res.results || []).map((c) => ({
-      id: c.id,
-      username: c.username,
-      title: c.title,
-      created_at: c.created_at,
-      members: c.members || 0,
-      joined: joined.indexOf(c.username) !== -1,
-      unread: unreadBy[c.username] || 0,
-      // What the chat list needs to behave like a chat list: when the channel
-      // last posted, and a preview of it.
-      last_post_at: c.last_post_at || null,
-      last_text: c.last_text || '',
-      last_media: c.last_media || '',
-      photo_url: c.photo_key ? '/api/media/' + c.photo_key : null,
-    }));
+    const channels = (res.results || [])
+      .filter((c) => !c.is_private || canSeePrivate(c.allowed_users))
+      .map((c) => ({
+        id: c.id,
+        username: c.username,
+        title: c.title,
+        created_at: c.created_at,
+        is_private: c.is_private ? 1 : 0,
+        // Only the admin needs the allow-list (to edit it); others never see it.
+        allowed_users: isAdmin ? (c.allowed_users || '[]') : undefined,
+        members: c.members || 0,
+        joined: joined.indexOf(c.username) !== -1,
+        unread: unreadBy[c.username] || 0,
+        last_post_at: c.last_post_at || null,
+        last_text: c.last_text || '',
+        last_media: c.last_media || '',
+        photo_url: c.photo_key ? '/api/media/' + c.photo_key : null,
+      }));
 
     return json({ ok: true, channels });
   } catch (err) { return json({ ok: true, channels: [], error: err.message }); }
@@ -184,16 +205,20 @@ export async function onRequestPut(context) {
     if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: true, error: 'Forbidden' });
     await ensureTable(env);
 
-    let id = '', title = null, photo = null;
+    let id = '', title = null, photo = null, isPrivate = null, allowedUsers = null;
     if ((request.headers.get('content-type') || '').includes('multipart/form-data')) {
       const form = await request.formData();
       id = (form.get('id') || '').toString();
       if (form.has('title')) title = (form.get('title') || '').toString().trim().slice(0, 80);
       photo = form.get('photo');
+      if (form.has('is_private')) isPrivate = (form.get('is_private') || '') === '1' ? 1 : 0;
+      if (form.has('allowed_users')) allowedUsers = (form.get('allowed_users') || '').toString();
     } else {
       const body = await request.json();
       id = body.id || '';
       if (body.title !== undefined) title = String(body.title).trim().slice(0, 80);
+      if (body.is_private !== undefined) isPrivate = body.is_private ? 1 : 0;
+      if (body.allowed_users !== undefined) allowedUsers = body.allowed_users;
     }
     if (!id) return json({ ok: true, error: 'id required' });
 
@@ -201,6 +226,15 @@ export async function onRequestPut(context) {
     if (!row) return json({ ok: true, error: 'Channel not found' });
 
     if (title) await env.DB.prepare('UPDATE telegram_channels SET title = ? WHERE id = ?').bind(title, id).run();
+    if (isPrivate !== null) await env.DB.prepare('UPDATE telegram_channels SET is_private = ? WHERE id = ?').bind(isPrivate, id).run();
+    if (allowedUsers !== null) {
+      // Normalize to a JSON array of lowercase handles/emails.
+      let list = [];
+      if (Array.isArray(allowedUsers)) list = allowedUsers;
+      else list = String(allowedUsers).split(/[\n,]+/);
+      list = list.map((s) => String(s).trim().toLowerCase().replace(/^@/, '')).filter(Boolean);
+      await env.DB.prepare('UPDATE telegram_channels SET allowed_users = ? WHERE id = ?').bind(JSON.stringify(list), id).run();
+    }
     if (photo && photo.size) {
       const key = await savePhoto(env, photo, row.username);
       await env.DB.prepare('UPDATE telegram_channels SET photo_key = ? WHERE id = ?').bind(key, id).run();
