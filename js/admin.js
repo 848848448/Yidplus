@@ -4372,15 +4372,26 @@ function buildTelegramPanel(content) {
   content.innerHTML =
     '<div class="admin-panel">' +
 
-      // ── Bot → Email forwarding ──
+      // ── Private bot → email (standalone, not YID PLUS) ──
       '<div class="admin-card">' +
-        '<div class="admin-card-title">📧 Forward bot posts to email</div>' +
-        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">When this is on, anything posted to your Telegram bot (video, photo, file or text) is emailed to the people you list. Big videos are emailed as a link.</div>' +
+        '<div class="admin-card-title">📧 Private bot → email</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">A separate, private Telegram bot (nothing to do with YID PLUS). Anything you post to it — video, photo, file or text — is emailed to the people you list below.</div>' +
+        '<div style="background:var(--bg3);border-radius:10px;padding:.7rem;margin-bottom:.7rem;font-size:.72rem;color:var(--muted);line-height:1.5">' +
+          '<strong style="color:var(--text)">One-time setup:</strong><br>' +
+          '1. In Telegram, message <strong>@BotFather</strong> → <em>/newbot</em> → follow the steps → it gives you a <strong>token</strong>.<br>' +
+          '2. In Cloudflare → your project → Settings → Variables, add:<br>' +
+          '&nbsp;&nbsp;• <code>PRIVATE_BOT_TOKEN</code> = that token<br>' +
+          '&nbsp;&nbsp;• <code>PRIVATE_BOT_WEBHOOK_SECRET</code> = any secret you choose<br>' +
+          '3. Come back here and press <strong>Connect bot</strong>.' +
+        '</div>' +
+        '<div id="pbot-status" style="font-size:.75rem;background:var(--bg3);border-radius:8px;padding:.6rem;margin-bottom:.6rem">Checking…</div>' +
+        '<button class="save-pill" style="width:100%;margin-bottom:.8rem" onclick="pbotConnect(this)">🔌 Connect bot</button>' +
+
         '<label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;margin-bottom:.6rem;cursor:pointer"><input type="checkbox" id="bmail-enabled" style="width:18px;height:18px"> Turn on email forwarding</label>' +
         '<label style="font-size:.75rem;color:var(--muted)">Send to these email addresses — one per line:</label>' +
         '<textarea id="bmail-recipients" rows="3" placeholder="me@example.com" style="width:100%;box-sizing:border-box;padding:.6rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:inherit;font-size:.85rem;margin:.3rem 0 .6rem"></textarea>' +
         '<div id="bmail-status" style="font-size:.78rem;margin-bottom:.5rem"></div>' +
-        '<button class="save-pill" style="width:100%" onclick="bmailSave(this)">Save</button>' +
+        '<button class="save-pill" style="width:100%" onclick="bmailSave(this)">Save recipients</button>' +
       '</div>' +
 
       // ── Channel session (MTProto userbot) re-login ──
@@ -4460,6 +4471,7 @@ function buildTelegramPanel(content) {
   tgWebhookStatus();
   tgPostStatus();
   bmailLoad();
+  pbotLoad();
 }
 
 window.tgPostStatus = function () {
@@ -5210,6 +5222,31 @@ window.bmailSave = function (btn) {
     } else if (st) { st.style.color = '#DC2626'; st.textContent = (res && res.error) || 'Failed'; }
   }).catch(function (e) {
     if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+    if (st) { st.style.color = '#DC2626'; st.textContent = (e && e.message) || 'Failed'; }
+  });
+};
+
+// ── Private bot connect / status ──
+window.pbotLoad = function () {
+  var st = document.getElementById('pbot-status');
+  api.get('/admin/private-bot-setup').then(function (res) {
+    if (!st) return;
+    if (!res || !res.ok) { st.style.color = '#DC2626'; st.textContent = (res && res.error) || 'Could not check.'; return; }
+    if (!res.has_token) { st.style.color = 'var(--muted)'; st.innerHTML = '⚠️ No <code>PRIVATE_BOT_TOKEN</code> set in Cloudflare yet — do the setup steps above.'; return; }
+    if (!res.has_secret) { st.style.color = 'var(--muted)'; st.innerHTML = '⚠️ No <code>PRIVATE_BOT_WEBHOOK_SECRET</code> set in Cloudflare yet.'; return; }
+    if (res.connected) { st.style.color = '#16A34A'; st.innerHTML = '✅ Connected' + (res.bot ? ' — ' + res.bot : '') + '. Post to your bot and it emails the recipients below.'; }
+    else { st.style.color = 'var(--muted)'; st.innerHTML = 'Bot ' + (res.bot || '') + ' found, but not connected yet — press Connect bot.'; }
+  }).catch(function () { if (st) { st.style.color = '#DC2626'; st.textContent = 'Could not check.'; } });
+};
+window.pbotConnect = function (btn) {
+  var st = document.getElementById('pbot-status');
+  if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
+  api.post('/admin/private-bot-setup', {}).then(function (res) {
+    if (btn) { btn.disabled = false; btn.textContent = '🔌 Connect bot'; }
+    if (res && res.ok) { if (st) { st.style.color = '#16A34A'; st.innerHTML = '✅ Connected! Post to your bot to test.'; } }
+    else if (st) { st.style.color = '#DC2626'; st.textContent = (res && res.error) || 'Failed'; }
+  }).catch(function (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '🔌 Connect bot'; }
     if (st) { st.style.color = '#DC2626'; st.textContent = (e && e.message) || 'Failed'; }
   });
 };
