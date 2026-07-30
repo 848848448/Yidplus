@@ -1660,13 +1660,13 @@ window.filterContent = function (html) {
   // Apply phrase filter first (multi-word — more specific)
   if (FILTER_phrase_regex && FILTER_phrases.length) {
     html = html.replace(FILTER_phrase_regex, function (match) {
-      return '<span class="blurred-word" title="Filtered content" onclick="this.style.filter=\'none\'">' + match + '</span>';
+      return '<span class="blurred-word" title="Filtered content">' + match + '</span>';
     });
   }
   // Apply single word filter
   if (FILTER_regex && FILTER_words.length) {
     html = html.replace(FILTER_regex, function (match) {
-      return '<span class="blurred-word" title="Filtered content" onclick="this.style.filter=\'none\'">' + match + '</span>';
+      return '<span class="blurred-word" title="Filtered content">' + match + '</span>';
     });
   }
   return html;

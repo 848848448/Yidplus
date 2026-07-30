@@ -1452,14 +1452,14 @@ img { opacity: 1; }
 ══════════════════════════════════ */
 .blurred-word {
   filter: blur(6px);
-  cursor: pointer;
+  cursor: default;
   user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
   border-radius: 3px;
   display: inline-block;
-  transition: filter .25s;
   background: rgba(220, 38, 38, .08);
 }
-.blurred-word:hover { filter: blur(4px); }
 
 .chart-bar { flex: 1; border-radius: 3px 3px 0 0; background: rgba(31,111,92,.25); min-height: 4px; cursor: pointer; transition: background .2s; }
 .chart-bar.today { background: #1F6F5C; }
