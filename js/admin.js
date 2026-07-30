@@ -4347,6 +4347,29 @@ window.removeBadPhrase = function (id) {
 function buildTelegramPanel(content) {
   content.innerHTML =
     '<div class="admin-panel">' +
+
+      // ── Channel session (MTProto userbot) re-login ──
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">📡 Channel Session (login)</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">This powers the <strong>Telegram channels feed and videos</strong>. If new posts stopped coming in, the session expired — log in again here. You\'ll need the worker\'s admin secret (Cloudflare → the worker → Settings → Variables → <code>WORKER_ADMIN_SECRET</code>).</div>' +
+        '<div id="tg-sess-status" style="font-size:.78rem;background:var(--bg3);border-radius:8px;padding:.6rem;margin-bottom:.6rem">Enter the secret and press Check.</div>' +
+        '<input id="tg-sess-secret" type="password" placeholder="Worker admin secret" style="width:100%;padding:.7rem .9rem;margin-bottom:.5rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:inherit;box-sizing:border-box">' +
+        '<button class="save-pill" style="width:100%;margin-bottom:.5rem;background:var(--bg3);color:var(--text);border:1px solid var(--border)" onclick="tgSessCheck(this)">Check session status</button>' +
+
+        '<div style="border-top:1px solid var(--border);margin:.6rem 0;padding-top:.6rem"></div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.35rem">Step 1 — your Telegram phone (with country code):</div>' +
+        '<input id="tg-sess-phone" type="tel" placeholder="+1XXXXXXXXXX" style="width:100%;padding:.7rem .9rem;margin-bottom:.5rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:inherit;box-sizing:border-box">' +
+        '<button class="save-pill" style="width:100%;margin-bottom:.6rem" onclick="tgSessLogin(this)">Send me a code</button>' +
+
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.35rem">Step 2 — the code Telegram texts you:</div>' +
+        '<input id="tg-sess-code" type="text" inputmode="numeric" placeholder="12345" style="width:100%;padding:.7rem .9rem;margin-bottom:.5rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:inherit;box-sizing:border-box">' +
+        '<button class="save-pill" style="width:100%;margin-bottom:.6rem" onclick="tgSessCode(this)">Confirm code</button>' +
+
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.35rem">Step 3 — only if you have two-step verification:</div>' +
+        '<input id="tg-sess-pw" type="password" placeholder="Two-step password" style="width:100%;padding:.7rem .9rem;margin-bottom:.5rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:inherit;box-sizing:border-box">' +
+        '<button class="save-pill" style="width:100%" onclick="tgSessPassword(this)">Submit password</button>' +
+      '</div>' +
+
       '<div class="admin-card">' +
         '<div class="admin-card-title">🔌 Bot Connection</div>' +
         '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">The bot only receives messages once it\'s <strong>connected</strong> here. Do this first — without it, nothing comes through.</div>' +
@@ -5084,3 +5107,36 @@ window.adminDeleteStatus = function (id, nick) {
     }
   }).catch(function () { toast('Failed to delete'); });
 };
+
+// ── Telegram channel session (re-login) handlers ──
+function _tgSessSecret() { var el = document.getElementById('tg-sess-secret'); return el ? el.value.trim() : ''; }
+function _tgSessSay(msg, ok) {
+  var el = document.getElementById('tg-sess-status');
+  if (el) { el.style.color = ok === true ? '#16A34A' : ok === false ? '#DC2626' : 'var(--text)'; el.innerHTML = msg; }
+}
+function _tgSessCall(step, extra, btn) {
+  var secret = _tgSessSecret();
+  if (!secret) { _tgSessSay('Enter the worker admin secret first.', false); return Promise.resolve(); }
+  var payload = Object.assign({ step: step, secret: secret }, extra || {});
+  var label = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
+  return api.post('/admin/tg-login', payload).then(function (res) {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+    var r = res && res.result;
+    if (res && res.ok && r) {
+      if (r.logged_in) { _tgSessSay('✅ Logged in as ' + (r.as || 'the account') + '. New posts should start flowing again shortly.', true); }
+      else if (r.ok) { _tgSessSay('✅ ' + (r.message || r.status || 'Done — continue to the next step.'), true); }
+      else { _tgSessSay('⚠️ ' + (r.error || JSON.stringify(r)), false); }
+    } else {
+      _tgSessSay('⚠️ ' + ((r && r.error) || (res && res.error) || 'Failed'), false);
+    }
+    return res;
+  }).catch(function (e) {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+    _tgSessSay('⚠️ ' + ((e && e.message) || 'Request failed'), false);
+  });
+}
+window.tgSessCheck    = function (btn) { _tgSessSay('Checking…'); _tgSessCall('status', {}, btn); };
+window.tgSessLogin    = function (btn) { var p = document.getElementById('tg-sess-phone'); _tgSessCall('login', { phone: p ? p.value.trim() : '' }, btn); };
+window.tgSessCode     = function (btn) { var c = document.getElementById('tg-sess-code'); _tgSessCall('code', { code: c ? c.value.trim() : '' }, btn); };
+window.tgSessPassword = function (btn) { var w = document.getElementById('tg-sess-pw'); _tgSessCall('password', { password: w ? w.value : '' }, btn); };
