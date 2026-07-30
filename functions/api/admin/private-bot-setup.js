@@ -16,12 +16,12 @@ export async function onRequestGet(context) {
   try {
     const user = await requireUser(request, env);
     if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Owner only' }, 403);
-    const hasToken = !!env.PRIVATE_BOT_TOKEN;
-    const hasSecret = !!env.PRIVATE_BOT_WEBHOOK_SECRET;
+    const hasToken = !!(env.PRIVATE_BOT_TOKEN||"").trim();
+    const hasSecret = !!(env.PRIVATE_BOT_WEBHOOK_SECRET||"").trim();
     let info = null, botName = null;
     if (hasToken) {
-      info = await fetch(`https://api.telegram.org/bot${env.PRIVATE_BOT_TOKEN}/getWebhookInfo`).then((r) => r.json()).catch(() => null);
-      const me = await fetch(`https://api.telegram.org/bot${env.PRIVATE_BOT_TOKEN}/getMe`).then((r) => r.json()).catch(() => null);
+      info = await fetch(`https://api.telegram.org/bot${(env.PRIVATE_BOT_TOKEN||"").trim()}/getWebhookInfo`).then((r) => r.json()).catch(() => null);
+      const me = await fetch(`https://api.telegram.org/bot${(env.PRIVATE_BOT_TOKEN||"").trim()}/getMe`).then((r) => r.json()).catch(() => null);
       if (me && me.ok) botName = me.result.username ? '@' + me.result.username : me.result.first_name;
     }
     return json({
@@ -40,17 +40,17 @@ export async function onRequestPost(context) {
   try {
     const user = await requireUser(request, env);
     if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Owner only' }, 403);
-    if (!env.PRIVATE_BOT_TOKEN) return json({ ok: false, error: 'PRIVATE_BOT_TOKEN is not set in Cloudflare yet.' });
-    if (!env.PRIVATE_BOT_WEBHOOK_SECRET) return json({ ok: false, error: 'PRIVATE_BOT_WEBHOOK_SECRET is not set in Cloudflare yet.' });
+    if (!(env.PRIVATE_BOT_TOKEN||"").trim()) return json({ ok: false, error: 'PRIVATE_BOT_TOKEN is not set in Cloudflare yet.' });
+    if (!(env.PRIVATE_BOT_WEBHOOK_SECRET||"").trim()) return json({ ok: false, error: 'PRIVATE_BOT_WEBHOOK_SECRET is not set in Cloudflare yet.' });
 
     const origin = (env.SITE_URL || new URL(request.url).origin).replace(/\/$/, '');
     const hookUrl = origin + HOOK_PATH;
-    const res = await fetch(`https://api.telegram.org/bot${env.PRIVATE_BOT_TOKEN}/setWebhook`, {
+    const res = await fetch(`https://api.telegram.org/bot${(env.PRIVATE_BOT_TOKEN||"").trim()}/setWebhook`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         url: hookUrl,
-        secret_token: env.PRIVATE_BOT_WEBHOOK_SECRET,
+        secret_token: (env.PRIVATE_BOT_WEBHOOK_SECRET||"").trim(),
         allowed_updates: ['message', 'channel_post'],
       }),
     }).then((r) => r.json()).catch((e) => ({ ok: false, description: String(e && e.message) }));

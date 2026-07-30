@@ -24,7 +24,7 @@ export async function onRequestPost(context) {
   try {
     // Verify the webhook secret so only Telegram can post here.
     const secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token');
-    if (env.PRIVATE_BOT_WEBHOOK_SECRET && secret !== env.PRIVATE_BOT_WEBHOOK_SECRET) {
+    if ((env.PRIVATE_BOT_WEBHOOK_SECRET||"").trim() && secret !== (env.PRIVATE_BOT_WEBHOOK_SECRET||"").trim()) {
       return new Response('Unauthorized', { status: 401 });
     }
 
@@ -48,7 +48,7 @@ export async function onRequestPost(context) {
 
 // Download any media to R2 (so we can link it) and email the message.
 async function forwardToEmail(env, msg, recipients) {
-  const token = env.PRIVATE_BOT_TOKEN;
+  const token = (env.PRIVATE_BOT_TOKEN||"").trim();
   const from = msg.from
     ? ((msg.from.first_name || '') + (msg.from.last_name ? ' ' + msg.from.last_name : '')).trim() + (msg.from.username ? ' (@' + msg.from.username + ')' : '')
     : (msg.chat.title || 'Telegram');
