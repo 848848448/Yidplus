@@ -1,10 +1,13 @@
 // TEMP — asks Telegram whether PRIVATE_BOT_TOKEN is valid. Reveals only the
 // bot's own username / Telegram's error, never the token. Remove after.
 export async function onRequestGet(context) {
-  const { env } = context;
-  const raw = env.PRIVATE_BOT_TOKEN || '';
+  const { env, request } = context;
+  const url = new URL(request.url);
+  // Allow testing a token directly via ?token= to isolate Cloudflare vs the token itself.
+  const raw = url.searchParams.get('token') || env.PRIVATE_BOT_TOKEN || '';
   const token = raw.trim();
   const out = {
+    source: url.searchParams.get('token') ? 'query param' : 'PRIVATE_BOT_TOKEN in Cloudflare',
     token_present: !!raw,
     token_length_raw: raw.length,
     token_length_trimmed: token.length,
