@@ -661,7 +661,7 @@ async function streamMedia(env, request, ctx) {
   if (ctx && !url.searchParams.has('nopf')) {
     ctx.waitUntil((async () => {
       try {
-        for (let i = 1; i <= 3; i++) {
+        for (let i = 1; i <= 6; i++) {
           const at = alignedStart + SLICE * i;
           if (total && at >= total) break;
           const k = sliceCacheKey(username, msgId, at);
