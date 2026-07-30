@@ -652,13 +652,25 @@ async function streamMedia(env, request, ctx) {
   }
   if (!bytes || !bytes.length) return new Response('', { status: 416 });
 
-  // NOTE: we deliberately do NOT prefetch ahead. Prefetching fired several
-  // concurrent subrequests, each opening its own MTProto connection with the
-  // SAME Telegram auth key — Telegram treats that as the key being used from
-  // multiple places at once and kills the session with AUTH_KEY_DUPLICATED,
-  // which takes down ALL media (video, photos, sync) until you log in again.
-  // Serving one slice per request, sequentially, keeps a single connection in
-  // flight and the session alive.
+  // Warm the next couple of slices on THIS SAME connection, one after another
+  // (never concurrently), so the player finds them already in the edge cache
+  // and doesn't stall waiting on a fresh Telegram round-trip for each one.
+  // Because it reuses this request's single mtproto client sequentially, the
+  // auth key is never used from two connections at once — so this can't trigger
+  // the AUTH_KEY_DUPLICATED that the old parallel-subrequest prefetch did.
+  if (ctx && !url.searchParams.has('nopf')) {
+    ctx.waitUntil((async () => {
+      try {
+        for (let i = 1; i <= 3; i++) {
+          const at = alignedStart + SLICE * i;
+          if (total && at >= total) break;
+          const k = sliceCacheKey(username, msgId, at);
+          if (await caches.default.match(k)) continue; // already warm
+          await readSlice(env, mtproto, info, username, msgId, at);
+        }
+      } catch (e) { /* best effort — the player can still fetch it itself */ }
+    })());
+  }
 
   let body = bytes.subarray(skip);
   // Honour the requested end. A player seeking sends a bounded range like
