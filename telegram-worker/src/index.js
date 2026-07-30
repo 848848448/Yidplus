@@ -404,7 +404,7 @@ async function downloadMedia(mtproto, info, maxBytes) {
 // the response even though the file itself reads fine. 128KB is ~10ms and
 // leaves headroom. Smaller slices just mean more requests, and requests are
 // the thing we have plenty of.
-const SLICE = 262144;         // 256KB per request — fewer round-trips = smoother playback, still light on CPU (multiple of 4096)
+const SLICE = 131072;         // 128KB per request — sized to stay within the Worker CPU budget (multiple of 4096). Larger slices time out.
 const ALIGN = 4096;           // Telegram requires offset/limit aligned to this
 
 // A file location holds raw bytes (file_reference) and possibly BigInt ids, and
