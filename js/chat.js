@@ -1228,7 +1228,16 @@ function _mediaViewerLoad(idx) {
 
   var body = document.getElementById('mv-body');
   if (item.isVideo) {
-    body.innerHTML = '<video src="' + item.url + '" controls autoplay playsinline webkit-playsinline preload="auto" style="max-width:100%;max-height:80vh;object-fit:contain;background:#000">Your browser cannot play this video.</video>';
+    body.innerHTML =
+      '<div style="position:relative;width:100%;display:flex;align-items:center;justify-content:center">' +
+        '<video src="' + item.url + '" controls autoplay playsinline webkit-playsinline preload="auto" ' +
+          'controlsList="nodownload noremoteplayback noplaybackrate" disablePictureInPicture ' +
+          'style="max-width:100%;max-height:82vh;object-fit:contain;background:#000;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.5)" ' +
+          'onwaiting="var s=this.parentNode.querySelector(\'.mv-spin\');if(s)s.style.display=\'flex\'" ' +
+          'onplaying="var s=this.parentNode.querySelector(\'.mv-spin\');if(s)s.style.display=\'none\'" ' +
+          'oncanplay="var s=this.parentNode.querySelector(\'.mv-spin\');if(s)s.style.display=\'none\'">Your browser cannot play this video.</video>' +
+        '<div class="mv-spin" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:46px;height:46px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite"></div></div>' +
+      '</div>';
     _mvZoom = 1;
   } else {
     body.innerHTML = '<img id="mv-img" src="' + item.url + '" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:4px;touch-action:none;will-change:transform" draggable="false">';
