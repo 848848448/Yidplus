@@ -45,7 +45,7 @@ export async function onRequestPost(context) {
 
     const MAX_FILE_BYTES = 250 * 1024 * 1024; // 250 MB
 
-    if (fileTarget && env.TELEGRAM_BOT_TOKEN) {
+    if (fileTarget && (env.TG_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)) {
       // Check file size before downloading
       const fileSize = fileTarget.file_size || 0;
       if (fileSize > MAX_FILE_BYTES) {
@@ -54,11 +54,11 @@ export async function onRequestPost(context) {
       } else
       try {
         const fileRes = await fetch(
-          `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileTarget.file_id}`
+          `https://api.telegram.org/bot${(env.TG_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)}/getFile?file_id=${fileTarget.file_id}`
         ).then(r => r.json());
 
         if (fileRes.ok) {
-          const fileUrl = `https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${fileRes.result.file_path}`;
+          const fileUrl = `https://api.telegram.org/file/bot${(env.TG_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)}/${fileRes.result.file_path}`;
           const ext     = fileRes.result.file_path.split('.').pop() || 'bin';
           const key     = `chat/${bridge.room_id}/${Date.now()}_tg.${ext}`;
           const fileResp = await fetch(fileUrl);

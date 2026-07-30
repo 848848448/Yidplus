@@ -62,8 +62,8 @@ export async function onRequestGet(context) {
       googleOk ? 'Google login is configured.' : 'Google keys missing — the "Sign in with Google" button will not work.',
       googleOk ? '' : 'Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET secrets.');
 
-    add('Configuration', 'Telegram bridge', has(env.TELEGRAM_BOT_TOKEN) ? 'ok' : 'skip',
-      has(env.TELEGRAM_BOT_TOKEN) ? 'Telegram bot token is set.' : 'No Telegram token — Telegram features are off (fine if unused).',
+    add('Configuration', 'Telegram bridge', has((env.TG_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)) ? 'ok' : 'skip',
+      has((env.TG_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)) ? 'Telegram bot token is set.' : 'No Telegram token — Telegram features are off (fine if unused).',
       '');
 
     /* ── SETTINGS SANITY ─────────────────────────────────────── */

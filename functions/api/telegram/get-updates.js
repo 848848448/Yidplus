@@ -8,7 +8,7 @@ export async function onRequestGet(context) {
     return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403 });
   }
   try {
-    const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/getUpdates?limit=20&offset=-20`);
+    const res = await fetch(`https://api.telegram.org/bot${(env.TG_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)}/getUpdates?limit=20&offset=-20`);
     const data = await res.json();
     return json({ ok: true, updates: data.result || [] });
   } catch (err) {

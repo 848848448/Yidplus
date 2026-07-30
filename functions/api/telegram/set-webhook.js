@@ -14,7 +14,7 @@ export async function onRequestOptions() {
 async function gate(request, env) {
   const user = await requireUser(request, env).catch(() => null);
   if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return { err: json({ ok: false, error: 'Forbidden' }, 403) };
-  if (!env.TELEGRAM_BOT_TOKEN) return { err: json({ ok: false, error: 'TELEGRAM_BOT_TOKEN is not configured in Cloudflare settings.' }, 500) };
+  if (!(env.TG_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)) return { err: json({ ok: false, error: 'TELEGRAM_BOT_TOKEN is not configured in Cloudflare settings.' }, 500) };
   return { user };
 }
 
@@ -33,7 +33,7 @@ export async function onRequestPost(context) {
     params.set('allowed_updates', JSON.stringify(['message', 'channel_post']));
     if (env.TELEGRAM_WEBHOOK_SECRET) params.set('secret_token', env.TELEGRAM_WEBHOOK_SECRET);
 
-    const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/setWebhook`, {
+    const res = await fetch(`https://api.telegram.org/bot${(env.TG_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)}/setWebhook`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params.toString(),
@@ -48,7 +48,7 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   const g = await gate(request, env); if (g.err) return g.err;
   try {
-    const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/getWebhookInfo`);
+    const res = await fetch(`https://api.telegram.org/bot${(env.TG_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)}/getWebhookInfo`);
     const data = await res.json();
     const info = data.result || {};
     return json({
@@ -68,7 +68,7 @@ export async function onRequestDelete(context) {
   const { request, env } = context;
   const g = await gate(request, env); if (g.err) return g.err;
   try {
-    const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/deleteWebhook?drop_pending_updates=false`);
+    const res = await fetch(`https://api.telegram.org/bot${(env.TG_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)}/deleteWebhook?drop_pending_updates=false`);
     const data = await res.json();
     return json({ ok: !!data.ok, telegram: data });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
