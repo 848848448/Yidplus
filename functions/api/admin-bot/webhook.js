@@ -45,9 +45,9 @@ export async function onRequestPost(context) {
         const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
         if (/^\/(start|hi|hello|connect)/i.test(text)) {
-          await reply('✅ Connected! You will get YID PLUS activity here.\n\nCommands:\n/users — latest people who signed up\n/allusers — everyone (up to 100)\n/stats — site totals\n/reports — open reports\n/help — this list');
+          await reply('✅ Connected! You will get YID PLUS activity here.\n\nCommands:\n/users — latest sign-ups\n/allusers — everyone (up to 100)\n/find &lt;name/email&gt; — search a person\n/block &lt;email&gt; · /unblock &lt;email&gt;\n/stats — site totals\n/posts — latest posts\n/online — who is online\n/reports — open reports\n/broadcast &lt;msg&gt; — announce to everyone');
         } else if (/^\/help/i.test(text)) {
-          await reply('Commands:\n/users — latest sign-ups\n/allusers — everyone (up to 100)\n/stats — site totals\n/reports — open reports');
+          await reply('Commands:\n/users — latest sign-ups\n/allusers — everyone (up to 100)\n/find &lt;name/email&gt; — search a person\n/block &lt;email&gt; · /unblock &lt;email&gt;\n/stats — site totals\n/posts — latest posts\n/online — who is online\n/reports — open reports\n/broadcast &lt;msg&gt; — announce to everyone');
         } else if (/^\/(users|allusers)/i.test(text)) {
           const all = /^\/allusers/i.test(text);
           const lim = all ? 100 : 20;
@@ -81,6 +81,59 @@ export async function onRequestPost(context) {
             let out = '🚩 <b>Open reports</b> (' + results.length + ')\n\n';
             for (const r of results) out += '• Against <b>' + esc(r.reported_nick || '?') + '</b>: ' + esc(r.reason || '') + '\n';
             await reply(out);
+          }
+        } else if (/^\/find\b/i.test(text)) {
+          const q = text.replace(/^\/find\s*/i, '').trim();
+          if (!q) { await reply('Usage: /find someone@email.com  (or part of a name)'); }
+          else {
+            const { results } = await env.DB.prepare(
+              "SELECT nickname, email, created_at, role, blocked FROM users WHERE email LIKE ? OR nickname LIKE ? ORDER BY created_at DESC LIMIT 20"
+            ).bind('%' + q + '%', '%' + q + '%').all().catch(() => ({ results: [] }));
+            if (!results || !results.length) { await reply('No user matches "' + esc(q) + '".'); }
+            else {
+              let out = '🔎 <b>Matches for "' + esc(q) + '"</b>\n\n';
+              for (const u of results) out += '• <b>' + esc(u.nickname || '?') + '</b>' + (u.blocked ? ' 🚫' : '') + '\n  ' + esc(u.email || '') + '\n';
+              await reply(out);
+            }
+          }
+        } else if (/^\/(block|unblock)\b/i.test(text)) {
+          const block = /^\/block/i.test(text);
+          const em = text.replace(/^\/(un)?block\s*/i, '').trim().toLowerCase();
+          if (!em) { await reply('Usage: /' + (block ? 'block' : 'unblock') + ' someone@email.com'); }
+          else {
+            const u = await env.DB.prepare('SELECT id, nickname FROM users WHERE lower(email) = ?').bind(em).first().catch(() => null);
+            if (!u) { await reply('No user with that email.'); }
+            else {
+              await env.DB.prepare('UPDATE users SET blocked = ? WHERE id = ?').bind(block ? 1 : 0, u.id).run().catch(() => {});
+              await reply((block ? '🚫 Blocked ' : '✅ Unblocked ') + '<b>' + esc(u.nickname) + '</b> (' + esc(em) + ').');
+            }
+          }
+        } else if (/^\/posts\b/i.test(text)) {
+          const { results } = await env.DB.prepare(
+            'SELECT username, caption, content, created_at FROM posts ORDER BY created_at DESC LIMIT 10'
+          ).all().catch(() => ({ results: [] }));
+          if (!results || !results.length) { await reply('No posts yet.'); }
+          else {
+            let out = '📝 <b>Latest posts</b>\n\n';
+            for (const p of results) out += '• <b>' + esc(p.username || '?') + '</b>: ' + esc(String(p.caption || p.content || '').slice(0, 120)) + '\n';
+            await reply(out);
+          }
+        } else if (/^\/online\b/i.test(text)) {
+          const { results } = await env.DB.prepare(
+            'SELECT nickname FROM users WHERE online = 1 ORDER BY nickname LIMIT 50'
+          ).all().catch(() => ({ results: [] }));
+          const n = (results || []).length;
+          if (!n) { await reply('Nobody is online right now.'); }
+          else await reply('🟢 <b>Online now (' + n + ')</b>\n' + results.map((u) => '• ' + esc(u.nickname || '?')).join('\n'));
+        } else if (/^\/broadcast\b/i.test(text)) {
+          const m = text.replace(/^\/broadcast\s*/i, '').trim();
+          if (!m) { await reply('Usage: /broadcast Your announcement here'); }
+          else {
+            try {
+              await env.DB.prepare('INSERT INTO pinned_announcements (id, text, created_by, created_at, active) VALUES (?, ?, ?, ?, 1)')
+                .bind(crypto.randomUUID(), m, 'Admin bot', new Date().toISOString()).run();
+              await reply('📢 Announcement posted to everyone:\n\n' + esc(m));
+            } catch (e) { await reply('Could not post the announcement.'); }
           }
         } else if (/^\//.test(text)) {
           await reply('Unknown command. Try /help');
