@@ -260,8 +260,7 @@ function _drawWatermarkText(ctx, canvasW, canvasH) {
   ctx.fillText(text, x, y);
 }
 
-window.watermarkImage = function (file) {
-  return new Promise(function (resolve) {
+window.watermarkImage = function (file) {  return new Promise(function (resolve) {
     try {
       if (!file || !file.type || !file.type.startsWith('image/') || file.type === 'image/gif') {
         return resolve(file); // GIFs would lose animation if redrawn to canvas — leave as-is
@@ -270,17 +269,28 @@ window.watermarkImage = function (file) {
       var url = URL.createObjectURL(file);
       img.onload = function () {
         var canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+        // Optimize: cap the largest side so huge phone photos (often 4000px+)
+        // become feed-sized — big load-speed and storage win with no visible
+        // quality loss on a phone screen.
+        var MAXDIM = 1600;
+        var w = img.naturalWidth, h = img.naturalHeight;
+        if (Math.max(w, h) > MAXDIM) {
+          var scale = MAXDIM / Math.max(w, h);
+          w = Math.round(w * scale); h = Math.round(h * scale);
+        }
+        canvas.width = w;
+        canvas.height = h;
         var ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, w, h);
         _drawWatermarkText(ctx, canvas.width, canvas.height);
         var outType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
         canvas.toBlob(function (blob) {
           URL.revokeObjectURL(url);
           if (!blob) return resolve(file);
+          // If we somehow made it bigger (tiny images), keep the smaller one.
+          if (blob.size >= file.size && Math.max(img.naturalWidth, img.naturalHeight) <= MAXDIM) return resolve(file);
           resolve(new File([blob], file.name, { type: outType }));
-        }, outType, 0.92);
+        }, outType, outType === 'image/png' ? undefined : 0.85);
       };
       img.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
       img.src = url;
@@ -2433,3 +2443,32 @@ window._confirmWithPassword = function (opts) {
     };
   }
 })();
+
+/* Shrink + compress an image before upload (for avatars and any non-watermarked
+   upload). Caps the largest side and re-encodes; returns the original on any
+   problem so uploads never fail. */
+window.optimizeImage = function (file, maxDim, quality) {
+  maxDim = maxDim || 1280; quality = quality || 0.85;
+  return new Promise(function (resolve) {
+    try {
+      if (!file || !file.type || !file.type.startsWith('image/') || file.type === 'image/gif') return resolve(file);
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function () {
+        var w = img.naturalWidth, h = img.naturalHeight;
+        if (Math.max(w, h) > maxDim) { var s = maxDim / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        var outType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        canvas.toBlob(function (blob) {
+          URL.revokeObjectURL(url);
+          if (!blob || (blob.size >= file.size && Math.max(img.naturalWidth, img.naturalHeight) <= maxDim)) return resolve(file);
+          resolve(new File([blob], file.name, { type: outType }));
+        }, outType, outType === 'image/png' ? undefined : quality);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    } catch (e) { resolve(file); }
+  });
+};
