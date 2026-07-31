@@ -96,7 +96,29 @@ export async function onRequest(context) {
   try {
     response = await next();
   } catch (e) {
-    return _deny(500); // never leak a stack trace to the client
+    // Record the server-side error so it appears in Admin → Code Errors, then
+    // return a clean 500 (never leak a stack trace to the client).
+    try {
+      const msg = ('Server: ' + (e && e.message ? e.message : String(e))).slice(0, 1000);
+      const src = request.method + ' ' + path;
+      const stack = (e && e.stack) ? String(e.stack).slice(0, 2000) : '';
+      context.waitUntil((async () => {
+        try {
+          await context.env.DB.prepare(
+            "CREATE TABLE IF NOT EXISTS error_log (id TEXT PRIMARY KEY, level TEXT DEFAULT 'error', message TEXT, source TEXT, line INTEGER, col INTEGER, stack TEXT, page TEXT, ua TEXT, user_id TEXT, nickname TEXT, count INTEGER DEFAULT 1, created_at TEXT)"
+          ).run();
+          await context.env.DB.prepare("ALTER TABLE error_log ADD COLUMN level TEXT DEFAULT 'error'").run().catch(() => {});
+          const ex = await context.env.DB.prepare("SELECT id FROM error_log WHERE message = ? AND source = ? LIMIT 1").bind(msg, src).first().catch(() => null);
+          if (ex) {
+            await context.env.DB.prepare("UPDATE error_log SET count = count + 1, created_at = ? WHERE id = ?").bind(new Date().toISOString(), ex.id).run();
+          } else {
+            await context.env.DB.prepare("INSERT INTO error_log (id, level, message, source, stack, page, count, created_at) VALUES (?,?,?,?,?,?,1,?)")
+              .bind(crypto.randomUUID(), 'server', msg, src, stack, path, new Date().toISOString()).run();
+          }
+        } catch (le) { /* logging must never break the response */ }
+      })());
+    } catch (le) {}
+    return _deny(500);
   }
 
   // ── Layer 5: harden response headers on every API response ──
