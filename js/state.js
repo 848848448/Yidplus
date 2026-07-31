@@ -2353,3 +2353,37 @@ window._confirmWithPassword = function (opts) {
     }
   }).catch(function () {});
 };
+
+/* Capture front-end errors so the owner can review them in Admin → Diagnostics.
+   Best-effort and throttled; never interferes with the app. */
+(function () {
+  if (window._errLogBound) return;
+  window._errLogBound = true;
+  var sent = {}, MAX = 25, count = 0;
+  function report(o) {
+    try {
+      var key = (o.message || '') + '|' + (o.source || '') + '|' + (o.line || '');
+      if (sent[key] || count > MAX) return;
+      sent[key] = 1; count++;
+      fetch('/api/error-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          message: String(o.message || '').slice(0, 1000),
+          source: String(o.source || '').slice(0, 300),
+          line: o.line || 0, col: o.col || 0,
+          stack: String(o.stack || '').slice(0, 2000),
+          url: location.pathname + location.hash,
+        }),
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  window.addEventListener('error', function (e) {
+    if (e && e.message) report({ message: e.message, source: e.filename, line: e.lineno, col: e.colno, stack: e.error && e.error.stack });
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e && e.reason;
+    report({ message: 'Unhandled promise: ' + (r && r.message ? r.message : String(r)), stack: r && r.stack });
+  });
+})();

@@ -208,6 +208,7 @@ var ADMIN_PANELS = [
   { id:'announcements',  label:'Announcements',   roles:['admin_limited','admin_super','owner'] },
   { id:'shorts-mod',     label:'Shorts',          roles:['admin_limited','admin_super','owner'] },
   { id:'statuses-mod',   label:'Statuses',        roles:['admin_super','owner'] },
+  { id:'code-errors',    label:'Code Errors',     roles:['admin_super','owner'] },
   { id:'music-mod',      label:'Music',           roles:['admin_limited','admin_super','owner'] },
   { id:'feedback',       label:'Feedback',        roles:['admin_limited','admin_super','owner'] },
   { id:'support-chats',  label:'Support',         roles:['admin_limited','admin_super','owner'] },
@@ -251,7 +252,7 @@ var ADMIN_CATEGORIES = [
   { id:'content',    label:'Content',    desc:'Announce, broadcast, channels, more',  color:'#534AB7', bg:'#EEEDFE', bgd:'#3C3489',
     panels:['announcements','broadcast','channels-mgr','ai','telegram','email-templates','featured'] },
   { id:'system',     label:'System',     desc:'Features, app, ads, logs, export',     color:'#5F5E5A', bg:'#F1EFE8', bgd:'#2C2C2A',
-    panels:['features','app-settings','ads','maintenance','antispam','health','security','diagnostics','ip-logs','audit-logs','export','nuclear','admin-settings'] },
+    panels:['features','app-settings','ads','maintenance','antispam','health','security','diagnostics','code-errors','ip-logs','audit-logs','export','nuclear','admin-settings'] },
 ];
 
 var ADMIN_CAT_ICONS = {
@@ -514,6 +515,8 @@ function buildAdminPanel(id) {
     buildShortsModPanel(content);
   } else if (id === 'statuses-mod') {
     buildStatusesModPanel(content);
+  } else if (id === 'code-errors') {
+    buildCodeErrorsPanel(content);
 
   } else if (id === 'chat-watch') {
     buildChatWatchPanel(content);
@@ -5367,4 +5370,62 @@ window.abotTest = function (btn) {
     if (res && res.ok && res.sent) { if (st) { st.style.color = '#16A34A'; st.innerHTML = '✅ Test sent — check Telegram!'; } }
     else if (st) { st.style.color = '#DC2626'; st.textContent = (res && res.error) || 'Failed'; }
   }).catch(function (e) { if (btn) { btn.disabled = false; btn.textContent = 'Send test'; } if (st) { st.style.color = '#DC2626'; st.textContent = (e && e.message) || 'Failed'; } });
+};
+
+// ── Code Errors panel (captured front-end errors + Copy for Claude) ──
+function buildCodeErrorsPanel(content) {
+  content.innerHTML = '<div class="admin-panel"><div style="text-align:center;color:var(--muted);padding:2rem;font-size:.85rem">Loading errors…</div></div>';
+  api.get('/error-log').then(renderCodeErrors).catch(function (e) {
+    content.innerHTML = '<div class="admin-panel"><div class="admin-card" style="color:#DC2626">Failed to load: ' + escHtmlA((e && e.message) || 'error') + '</div></div>';
+  });
+
+  function renderCodeErrors(res) {
+    var errs = (res && res.errors) || [];
+    var head = '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🐞 Code Errors</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">Real errors captured from people using the site. Tap <strong>Copy for Claude</strong> on any error and paste it to Claude — it includes the exact file and line so it can be fixed.</div>' +
+        '<div style="display:flex;gap:.5rem">' +
+          '<button class="save-pill" style="flex:1;background:var(--bg3);color:var(--text);border:1px solid var(--border)" onclick="buildCodeErrorsPanel(document.getElementById(\'admin-content\'))">🔄 Refresh</button>' +
+          (errs.length ? '<button class="save-pill" style="flex:1;background:#DC2626" onclick="codeErrClear()">Clear all</button>' : '') +
+        '</div>' +
+      '</div>';
+    if (!errs.length) {
+      content.innerHTML = head + '<div class="admin-card" style="text-align:center;color:#16A34A;padding:1.5rem">✅ No errors logged. Everything looks healthy!</div></div>';
+      return;
+    }
+    var cards = errs.map(function (e) {
+      var loc = (e.source ? e.source.replace(/^.*\//, '') : '') + (e.line ? ':' + e.line : '');
+      var when = e.created_at ? timeAgo(e.created_at) : '';
+      var copyText = 'Fix this error on YID PLUS:\n\n' +
+        'Error: ' + (e.message || '') + '\n' +
+        'File: ' + (e.source || '(unknown)') + (e.line ? ' line ' + e.line : '') + (e.col ? ' col ' + e.col : '') + '\n' +
+        'Page: ' + (e.page || '') + '\n' +
+        (e.stack ? 'Stack:\n' + e.stack + '\n' : '');
+      var enc = encodeURIComponent(copyText);
+      return '<div class="admin-card" style="display:flex;flex-direction:column;gap:.4rem">' +
+          '<div style="font-weight:700;font-size:.85rem;color:#DC2626;word-break:break-word">' + escHtmlA(e.message || '') + '</div>' +
+          '<div style="font-size:.75rem;color:var(--muted)">📄 ' + escHtmlA(loc || '(unknown location)') + (e.count > 1 ? ' · ×' + e.count : '') + (when ? ' · ' + when : '') + (e.nickname ? ' · ' + escHtmlA(e.nickname) : '') + '</div>' +
+          (e.stack ? '<pre style="font-size:.68rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem;overflow-x:auto;white-space:pre-wrap;word-break:break-word;max-height:120px;margin:0">' + escHtmlA(e.stack.slice(0, 500)) + '</pre>' : '') +
+          '<button class="save-pill" style="width:100%" onclick="codeErrCopy(decodeURIComponent(\'' + enc + '\'), this)">📋 Copy for Claude</button>' +
+        '</div>';
+    }).join('');
+    content.innerHTML = head + cards + '</div>';
+  }
+}
+window.codeErrCopy = function (text, btn) {
+  var done = function () { if (btn) { var o = btn.textContent; btn.textContent = '✅ Copied — paste to Claude'; setTimeout(function () { btn.textContent = o; }, 2000); } };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(function () { _codeErrFallback(text); done(); });
+  } else { _codeErrFallback(text); done(); }
+};
+function _codeErrFallback(text) {
+  var ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+}
+window.codeErrClear = function () {
+  if (!confirm('Clear all logged errors?')) return;
+  api.del('/error-log').then(function () { buildCodeErrorsPanel(document.getElementById('admin-content')); }).catch(function () {});
 };
