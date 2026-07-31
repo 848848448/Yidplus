@@ -1,6 +1,6 @@
 // GET /api/auth/google-callback?code=...&state=...
 // Exchanges the Google auth code for tokens, creates/logs in the user, sets session cookie.
-import { json, generateSessionToken } from '../_helpers.js';
+import { json, generateSessionToken, notifyAdmin } from '../_helpers.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -128,6 +128,10 @@ export async function onRequestGet(context) {
       ).bind(userId, email, nickname, 'GOOGLE_OAUTH_NO_PASSWORD', googlePhoto || null, now).run();
 
       user = { id: userId, email, nickname, role: 'member', verified: 0, blocked: 0, photo_url: googlePhoto };
+
+      // New Google sign-up → tell the owner's admin bot.
+      const _esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      context.waitUntil(notifyAdmin(env, '🆕 <b>New sign-up</b> (Google)\n👤 ' + _esc(nickname) + '\n📧 ' + _esc(email), 'signup'));
     } else if (googlePhoto && !user.photo_url) {
       // Backfill photo if missing
       await env.DB.prepare('UPDATE users SET photo_url = ? WHERE id = ?').bind(googlePhoto, user.id).run().catch(() => {});

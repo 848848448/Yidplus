@@ -1,4 +1,4 @@
-import { json, corsHeaders, hashPassword, isValidEmail, generateSessionToken, checkRateLimit } from '../_helpers.js';
+import { json, corsHeaders, hashPassword, isValidEmail, generateSessionToken, checkRateLimit, notifyAdmin } from '../_helpers.js';
 import { sendVerificationEmail } from './send-verification.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
@@ -186,6 +186,12 @@ export async function onRequestPost(context) {
     } else {
       await env.DB.prepare('UPDATE users SET email_verified = 1 WHERE id = ?').bind(userId).run().catch(() => {});
     }
+
+    // Tell the owner's admin bot about the new sign-up.
+    const esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    context.waitUntil(notifyAdmin(env,
+      '🆕 <b>New sign-up</b>\n👤 ' + esc(nickname) + '\n📧 ' + esc(email) + (phone ? '\n📱 ' + esc(phone) : ''),
+      'signup'));
 
     // Log the new account straight in — no second trip to the sign-in screen.
     // If verification is enabled we still send the confirmation email (above)

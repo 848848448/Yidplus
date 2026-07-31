@@ -583,3 +583,36 @@ export async function getPrivateBotCreds(env) {
   }
   return { token, secret };
 }
+
+// Admin activity bot: send a Telegram message to the owner's admin bot.
+// Token + chat id live in app_settings (set from the admin panel). Safe to call
+// anywhere; silently no-ops if not configured. Pass ctx to run in the
+// background (won't slow the request).
+export async function getAdminBot(env) {
+  let token = '', chatId = '', events = null;
+  try {
+    const rows = await env.DB.prepare(
+      "SELECT key, value FROM app_settings WHERE key IN ('admin_bot_token','admin_bot_chat_id','admin_bot_events')"
+    ).all();
+    for (const r of (rows.results || [])) {
+      if (r.key === 'admin_bot_token') token = (r.value || '').trim();
+      else if (r.key === 'admin_bot_chat_id') chatId = (r.value || '').trim();
+      else if (r.key === 'admin_bot_events') { try { events = JSON.parse(r.value); } catch (e) {} }
+    }
+  } catch (e) {}
+  return { token, chatId, events };
+}
+
+export async function notifyAdmin(env, text, eventKey) {
+  try {
+    const { token, chatId, events } = await getAdminBot(env);
+    if (!token || !chatId) return;
+    // If a per-event map exists and this event is explicitly off, skip.
+    if (events && eventKey && events[eventKey] === false) return;
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: String(text).slice(0, 3900), parse_mode: 'HTML', disable_web_page_preview: true }),
+    });
+  } catch (e) { /* never let notifications break the main flow */ }
+}

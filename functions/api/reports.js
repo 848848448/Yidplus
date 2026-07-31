@@ -3,7 +3,7 @@
 // POST /api/reports                -> { reported_id, reported_nick, room_id, message_id, reason, details }
 // PUT  /api/reports                -> { id, resolved } mark resolved (admin only)
 
-import { json, corsHeaders, requireUser, isAdminRole } from './_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, notifyAdmin } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -68,6 +68,10 @@ export async function onRequestPost(context) {
       }
     }
 
+    const _esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    context.waitUntil(notifyAdmin(env,
+      '🚩 <b>New report</b>\n👤 By: ' + _esc(user.nickname || user.id) + '\n🎯 Against: ' + _esc(body.reported_nick || reportedId) + '\n📋 Reason: ' + _esc(reason) + (body.details ? '\n' + _esc(String(body.details).slice(0, 300)) : ''),
+      'report'));
     return json({ ok: true }, 201);
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
