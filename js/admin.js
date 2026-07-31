@@ -4388,8 +4388,15 @@ function buildTelegramPanel(content) {
         '<button class="save-pill" style="width:100%;margin-bottom:.8rem" onclick="pbotConnect(this)">🔌 Connect bot</button>' +
 
         '<label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;margin-bottom:.6rem;cursor:pointer"><input type="checkbox" id="bmail-enabled" style="width:18px;height:18px"> Turn on email forwarding</label>' +
-        '<label style="font-size:.75rem;color:var(--muted)">Send to these email addresses — one per line:</label>' +
+        '<label style="font-size:.75rem;color:var(--muted)">Send to these email addresses:</label>' +
+        '<div id="bmail-chips" style="display:flex;flex-wrap:wrap;gap:.4rem;margin:.4rem 0"></div>' +
+        '<div style="display:flex;gap:.4rem;margin-bottom:.5rem">' +
+          '<input id="bmail-add" type="email" placeholder="add an email…" style="flex:1;padding:.6rem .8rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:inherit;font-size:.85rem" onkeydown="if(event.key===\'Enter\'){bmailAdd();event.preventDefault();}">' +
+          '<button class="save-pill" style="width:auto;padding:.6rem 1rem" onclick="bmailAdd()">Add</button>' +
+        '</div>' +
+        '<details style="margin-bottom:.5rem"><summary style="font-size:.72rem;color:var(--muted);cursor:pointer">Edit as a list (advanced)</summary>' +
         '<textarea id="bmail-recipients" rows="3" placeholder="me@example.com" style="width:100%;box-sizing:border-box;padding:.6rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:inherit;font-size:.85rem;margin:.3rem 0 .6rem"></textarea>' +
+        '</details>' +
         '<div id="bmail-status" style="font-size:.78rem;margin-bottom:.5rem"></div>' +
         '<button class="save-pill" style="width:100%" onclick="bmailSave(this)">Save recipients</button>' +
       '</div>' +
@@ -5207,7 +5214,39 @@ window.bmailLoad = function () {
     var rc = document.getElementById('bmail-recipients');
     if (en) en.checked = !!res.enabled;
     if (rc) rc.value = (res.recipients || []).join('\n');
+    _bmailRenderChips(res.recipients || []);
   }).catch(function () {});
+};
+function _bmailRecipients() {
+  var rc = (document.getElementById('bmail-recipients') || {}).value || '';
+  return rc.split(/[\n,]/).map(function (s) { return s.trim(); }).filter(Boolean);
+}
+function _bmailRenderChips(list) {
+  var box = document.getElementById('bmail-chips');
+  if (!box) return;
+  if (!list.length) { box.innerHTML = '<span style="font-size:.75rem;color:var(--muted)">No recipients yet.</span>'; return; }
+  box.innerHTML = list.map(function (e) {
+    var safe = escHtmlA(e);
+    return '<span style="display:inline-flex;align-items:center;gap:.35rem;background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:.3rem .5rem .3rem .7rem;font-size:.8rem">' +
+      safe + '<span onclick="bmailRemove(\'' + safe.replace(/'/g, "\\'") + '\')" style="cursor:pointer;width:18px;height:18px;border-radius:50%;background:var(--border2);color:var(--text);display:inline-flex;align-items:center;justify-content:center;font-size:.7rem" title="Remove">✕</span></span>';
+  }).join('');
+}
+window.bmailAdd = function () {
+  var inp = document.getElementById('bmail-add');
+  var email = inp ? inp.value.trim() : '';
+  if (!email || email.indexOf('@') === -1) { toast('Enter a valid email'); return; }
+  var list = _bmailRecipients();
+  if (list.indexOf(email) === -1) list.push(email);
+  var rc = document.getElementById('bmail-recipients'); if (rc) rc.value = list.join('\n');
+  if (inp) inp.value = '';
+  _bmailRenderChips(list);
+  bmailSave();
+};
+window.bmailRemove = function (email) {
+  var list = _bmailRecipients().filter(function (e) { return e !== email; });
+  var rc = document.getElementById('bmail-recipients'); if (rc) rc.value = list.join('\n');
+  _bmailRenderChips(list);
+  bmailSave();
 };
 window.bmailSave = function (btn) {
   var en = (document.getElementById('bmail-enabled') || {}).checked ? true : false;
@@ -5219,6 +5258,7 @@ window.bmailSave = function (btn) {
     if (res && res.ok) {
       if (st) { st.style.color = '#16A34A'; st.textContent = '✓ Saved — ' + (res.recipients || []).length + ' recipient(s).'; }
       var rcEl = document.getElementById('bmail-recipients'); if (rcEl) rcEl.value = (res.recipients || []).join('\n');
+      _bmailRenderChips(res.recipients || []);
     } else if (st) { st.style.color = '#DC2626'; st.textContent = (res && res.error) || 'Failed'; }
   }).catch(function (e) {
     if (btn) { btn.disabled = false; btn.textContent = 'Save'; }

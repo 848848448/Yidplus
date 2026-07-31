@@ -56,24 +56,40 @@ async function forwardToEmail(env, msg, recipients) {
   const text = msg.text || msg.caption || '';
 
   let mediaLink = '', mediaLabel = '';
+  const attachments = [];
   const fileTarget = msg.photo
     ? msg.photo[msg.photo.length - 1]
     : (msg.video || msg.audio || msg.voice || msg.document || null);
-  if (fileTarget && token && env.MY_BUCKET) {
+  if (fileTarget && token) {
     try {
       const fileRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileTarget.file_id}`).then((r) => r.json());
       if (fileRes.ok) {
         const filePath = fileRes.result.file_path;
         const ext = (filePath.split('.').pop() || 'bin').toLowerCase();
-        const key = `botmail/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const fileResp = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`);
         if (fileResp.ok) {
-          await env.MY_BUCKET.put(key, fileResp.body, {
-            httpMetadata: { contentType: fileResp.headers.get('content-type') || 'application/octet-stream' },
-          });
-          const origin = env.SITE_URL || 'https://yidplus.com';
-          mediaLink = origin.replace(/\/$/, '') + '/api/media/' + key;
-          mediaLabel = msg.video ? 'Video' : msg.photo ? 'Photo' : msg.audio ? 'Audio' : msg.voice ? 'Voice note' : 'File';
+          const buf = await fileResp.arrayBuffer();
+          const bytes = new Uint8Array(buf);
+          const ctype = fileResp.headers.get('content-type') || 'application/octet-stream';
+          mediaLabel = msg.video ? 'Video' : msg.photo ? 'Photo' : msg.audio ? 'Audio' : msg.voice ? 'Voice note' : (msg.document && msg.document.file_name) ? msg.document.file_name : 'File';
+          const niceName = (msg.document && msg.document.file_name) ? msg.document.file_name : (mediaLabel.replace(/\s+/g, '_').toLowerCase() + '.' + ext);
+
+          // Keep a copy in R2 for a link fallback (works for any size).
+          if (env.MY_BUCKET) {
+            try {
+              const key = `botmail/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+              await env.MY_BUCKET.put(key, bytes, { httpMetadata: { contentType: ctype } });
+              const origin = env.SITE_URL || 'https://yidplus.com';
+              mediaLink = origin.replace(/\/$/, '') + '/api/media/' + key;
+            } catch (e) { /* link optional */ }
+          }
+
+          // Attach the actual file so it arrives IN the email (not just a link).
+          // Email providers cap total size (~25-40MB); attach when it fits,
+          // otherwise the link covers it.
+          if (bytes.length <= 20 * 1024 * 1024) {
+            attachments.push({ filename: niceName, content: _b64(bytes), content_type: ctype });
+          }
         }
       }
     } catch (e) { /* media optional */ }
@@ -85,17 +101,31 @@ async function forwardToEmail(env, msg, recipients) {
   let html = '<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5">';
   html += '<p style="color:#666;margin:0 0 12px">New from your bot — <strong>' + esc(from) + '</strong></p>';
   if (text) html += '<p style="white-space:pre-wrap;font-size:16px">' + esc(text) + '</p>';
-  if (mediaLink) {
-    if (mediaLabel === 'Photo') html += '<p><img src="' + mediaLink + '" style="max-width:100%;border-radius:8px"></p>';
-    html += '<p><a href="' + mediaLink + '" style="display:inline-block;background:#1F6F5C;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Open / download the ' + esc(mediaLabel.toLowerCase()) + '</a></p>';
+  if (mediaLabel) {
+    const attached = attachments.length > 0;
+    if (mediaLabel === 'Photo' && mediaLink) html += '<p><img src="' + mediaLink + '" style="max-width:100%;border-radius:8px"></p>';
+    if (attached) html += '<p style="color:#666;font-size:13px">📎 ' + esc(mediaLabel) + ' attached to this email.</p>';
+    if (mediaLink) html += '<p><a href="' + mediaLink + '" style="display:inline-block;background:#1F6F5C;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Open / download</a></p>';
   }
-  if (!text && !mediaLink) html += '<p style="color:#999">(empty message)</p>';
+  if (!text && !mediaLabel) html += '<p style="color:#999">(empty message)</p>';
   html += '</div>';
 
   const fromAddr = env.RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>';
+  const payload = { from: fromAddr, to: recipients, subject, html };
+  if (attachments.length) payload.attachments = attachments;
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: fromAddr, to: recipients, subject, html }),
+    body: JSON.stringify(payload),
   }).catch(() => {});
+}
+
+// Base64-encode bytes in chunks (avoids call-stack limits on big files).
+function _b64(bytes) {
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
 }
