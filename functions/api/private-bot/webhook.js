@@ -93,7 +93,7 @@ async function forwardToEmail(env, msg, recipients) {
                 // can take ~50s to wake) — if it doesn't answer in time, we just
                 // send the original so the email still goes out.
                 const ac = new AbortController();
-                const timer = setTimeout(() => ac.abort(), 90000);
+                const timer = setTimeout(() => ac.abort(), 25000);
                 const cr = await fetch(env.VIDEO_CONVERTER_URL.replace(/\/$/, '') + '/convert?target_mb=8', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/octet-stream', 'X-Secret': (env.VIDEO_CONVERTER_SECRET || '') },
