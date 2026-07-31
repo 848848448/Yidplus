@@ -80,9 +80,26 @@ async function forwardToEmail(env, msg, recipients) {
           const niceName = (msg.document && msg.document.file_name) ? msg.document.file_name : (mediaLabel.replace(/\s+/g, '_').toLowerCase() + '.' + ext);
           const fileResp = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`);
           if (fileResp.ok) {
-            const ctype = fileResp.headers.get('content-type') || 'application/octet-stream';
+            let ctype = fileResp.headers.get('content-type') || 'application/octet-stream';
             const buf = await fileResp.arrayBuffer();
-            const bytes = new Uint8Array(buf);
+            let bytes = new Uint8Array(buf);
+
+            // If a converter is configured, shrink videos toward 8MB so they
+            // arrive as a clean attachment instead of a link.
+            const isVideo = !!msg.video || /video\//i.test(ctype) || /\.(mp4|mov|mkv|webm|avi|m4v)$/i.test(niceName);
+            if (env.VIDEO_CONVERTER_URL && isVideo && bytes.length > 2 * 1024 * 1024) {
+              try {
+                const cr = await fetch(env.VIDEO_CONVERTER_URL.replace(/\/$/, '') + '/convert?target_mb=8', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/octet-stream', 'X-Secret': (env.VIDEO_CONVERTER_SECRET || '') },
+                  body: bytes,
+                });
+                if (cr.ok) {
+                  const cbytes = new Uint8Array(await cr.arrayBuffer());
+                  if (cbytes.length && cbytes.length < bytes.length) { bytes = cbytes; ctype = 'video/mp4'; }
+                }
+              } catch (e) { /* converter optional — fall back to original */ }
+            }
             // Always keep a copy in R2 for a reliable link.
             if (env.MY_BUCKET) {
               try {
