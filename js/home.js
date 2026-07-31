@@ -487,13 +487,9 @@ function _updateNavBadges() {
       if (total > 0) { el.textContent = total > 99 ? '99+' : total; el.style.display = 'flex'; }
       else el.style.display = 'none';
     });
-    // Also update bell badge
-    var badge = document.getElementById('notif-badge');
-    if (badge) {
-      if (total > 0) { badge.textContent = total > 99 ? '99+' : total; badge.style.display = 'flex'; }
-      else badge.style.display = 'none';
-    }
   }).catch(function () {});
+  // The bell badge tracks real notifications (likes/follows/…), not chats.
+  if (typeof _updateNotifBadge === 'function') _updateNotifBadge();
 
   // New shorts since last visit
   var lastVisit = localStorage.getItem('yp_last_shorts_visit') || '1970-01-01';
@@ -509,9 +505,9 @@ function _updateNavBadges() {
 }
 
 function _updateNotifBadge() {
-  api.get('/chat/rooms')
+  api.get('/notifications?count=1')
     .then(function (res) {
-      var total = (res.rooms || []).reduce(function (sum, r) { return sum + (r.unread || 0); }, 0);
+      var total = (res && res.unread) || 0;
       var badge = document.getElementById('notif-badge');
       if (!badge) return;
       if (total > 0) {
@@ -2579,30 +2575,33 @@ window.openNotifPanel = function () {
     });
   }, 100);
 
-  // Load unread chats as notifications
-  api.get('/chat/rooms', true).then(function (res) {
+  // Load real notifications (likes, follows, comments, mentions…).
+  api.get('/notifications').then(function (res) {
     var el = document.getElementById('notif-panel-list');
     if (!el) return;
-    var rooms = (res.rooms || []).filter(function(r){ return r.unread > 0; });
-
-    if (!rooms.length) {
+    var list = (res && res.notifications) || [];
+    if (!list.length) {
       el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:.85rem">No new notifications 🎉</div>';
-      return;
+    } else {
+      var iconFor = function (t) {
+        return t === 'like' ? '❤️' : t === 'follow' ? '👤' : t === 'comment' ? '💬' : t === 'mention' ? '@' : '🔔';
+      };
+      el.innerHTML = list.map(function (n) {
+        var unreadDot = n.read ? '' : '<div style="width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0"></div>';
+        var link = n.link || '/';
+        return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem 1rem;border-bottom:.5px solid var(--border);cursor:pointer;background:' + (n.read ? 'transparent' : 'var(--bg3)') + '" onclick="document.getElementById(\'notif-panel-modal\').remove();goPage(\'' + link + '\')">' +
+          '<div style="width:38px;height:38px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">' + iconFor(n.type) + '</div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:.83rem;color:var(--text)">' + escHtml(n.text || '') + '</div>' +
+            '<div style="font-size:.7rem;color:var(--muted)">' + (typeof timeAgo === 'function' ? timeAgo(n.created_at) : '') + '</div>' +
+          '</div>' + unreadDot +
+        '</div>';
+      }).join('');
     }
-
-    el.innerHTML = rooms.map(function (r) {
-      var av = r.photo_url
-        ? '<div style="width:42px;height:42px;border-radius:50%;background-image:url(' + r.photo_url + ');background-size:cover;flex-shrink:0"></div>'
-        : '<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0">' + (r.nick||'?').slice(0,1).toUpperCase() + '</div>';
-      return '<div style="display:flex;align-items:center;gap:.65rem;padding:.65rem 1rem;border-bottom:.5px solid var(--border);cursor:pointer" onclick="document.getElementById(\'notif-panel-modal\').remove();goPage(\'/chat\')">' +
-        av +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:.85rem;font-weight:700">' + escHtml(r.nick || 'Chat') + '</div>' +
-          '<div style="font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(r.last_msg || 'New message') + '</div>' +
-        '</div>' +
-        '<div style="background:var(--gold);color:#fff;border-radius:10px;padding:.1rem .4rem;font-size:.72rem;font-weight:800;flex-shrink:0">' + r.unread + '</div>' +
-      '</div>';
-    }).join('');
+    // Opening the panel marks everything read and clears the bell badge.
+    api.post('/notifications', { read: 'all' }).catch(function () {});
+    var badge = document.getElementById('notif-badge');
+    if (badge) badge.style.display = 'none';
   }).catch(function () {
     var el = document.getElementById('notif-panel-list');
     if (el) el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-size:.85rem">Could not load notifications</div>';
