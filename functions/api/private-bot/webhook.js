@@ -55,44 +55,55 @@ async function forwardToEmail(env, msg, recipients) {
     : (msg.chat.title || 'Telegram');
   const text = msg.text || msg.caption || '';
 
-  let mediaLink = '', mediaLabel = '';
+  let mediaLink = '', mediaLabel = '', mediaNote = '';
   const attachments = [];
   const fileTarget = msg.photo
     ? msg.photo[msg.photo.length - 1]
     : (msg.video || msg.audio || msg.voice || msg.document || null);
   if (fileTarget && token) {
+    mediaLabel = msg.video ? 'Video' : msg.photo ? 'Photo' : msg.audio ? 'Audio' : msg.voice ? 'Voice note' : (msg.document && msg.document.file_name) ? msg.document.file_name : 'File';
+    const declaredSize = Number(fileTarget.file_size || 0);
+    const BOT_DL_LIMIT = 20 * 1024 * 1024;   // Telegram Bot API can't download bigger than this
+    const ATTACH_LIMIT = 10 * 1024 * 1024;   // only base64-attach up to here (keeps CPU sane)
     try {
-      const fileRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileTarget.file_id}`).then((r) => r.json());
-      if (fileRes.ok) {
-        const filePath = fileRes.result.file_path;
-        const ext = (filePath.split('.').pop() || 'bin').toLowerCase();
-        const fileResp = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`);
-        if (fileResp.ok) {
-          const buf = await fileResp.arrayBuffer();
-          const bytes = new Uint8Array(buf);
-          const ctype = fileResp.headers.get('content-type') || 'application/octet-stream';
-          mediaLabel = msg.video ? 'Video' : msg.photo ? 'Photo' : msg.audio ? 'Audio' : msg.voice ? 'Voice note' : (msg.document && msg.document.file_name) ? msg.document.file_name : 'File';
+      if (declaredSize && declaredSize > BOT_DL_LIMIT) {
+        // A bot literally cannot fetch files over 20MB — say so instead of silently dropping it.
+        mediaNote = mediaLabel + ' is ' + (declaredSize / 1048576).toFixed(1) + ' MB — too large for a Telegram bot to forward (bots can only download up to 20 MB).';
+      } else {
+        const fileRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileTarget.file_id}`).then((r) => r.json());
+        if (!fileRes.ok) {
+          mediaNote = 'Could not fetch the ' + mediaLabel.toLowerCase() + ' from Telegram' + (fileRes.description ? ' (' + fileRes.description + ')' : '') + '.';
+        } else {
+          const filePath = fileRes.result.file_path;
+          const ext = (filePath.split('.').pop() || 'bin').toLowerCase();
+          const size = Number(fileRes.result.file_size || declaredSize || 0);
           const niceName = (msg.document && msg.document.file_name) ? msg.document.file_name : (mediaLabel.replace(/\s+/g, '_').toLowerCase() + '.' + ext);
-
-          // Keep a copy in R2 for a link fallback (works for any size).
-          if (env.MY_BUCKET) {
-            try {
-              const key = `botmail/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-              await env.MY_BUCKET.put(key, bytes, { httpMetadata: { contentType: ctype } });
-              const origin = env.SITE_URL || 'https://yidplus.com';
-              mediaLink = origin.replace(/\/$/, '') + '/api/media/' + key;
-            } catch (e) { /* link optional */ }
-          }
-
-          // Attach the actual file so it arrives IN the email (not just a link).
-          // Email providers cap total size (~25-40MB); attach when it fits,
-          // otherwise the link covers it.
-          if (bytes.length <= 20 * 1024 * 1024) {
-            attachments.push({ filename: niceName, content: _b64(bytes), content_type: ctype });
+          const fileResp = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`);
+          if (fileResp.ok) {
+            const ctype = fileResp.headers.get('content-type') || 'application/octet-stream';
+            const buf = await fileResp.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            // Always keep a copy in R2 for a reliable link.
+            if (env.MY_BUCKET) {
+              try {
+                const key = `botmail/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+                await env.MY_BUCKET.put(key, bytes, { httpMetadata: { contentType: ctype } });
+                const origin = env.SITE_URL || 'https://yidplus.com';
+                mediaLink = origin.replace(/\/$/, '') + '/api/media/' + key;
+              } catch (e) { /* link optional */ }
+            }
+            // Attach the real file for smaller media so it lands IN the inbox.
+            if (bytes.length <= ATTACH_LIMIT) {
+              attachments.push({ filename: niceName, content: _b64(bytes), content_type: ctype });
+            } else {
+              mediaNote = mediaLabel + ' (' + (bytes.length / 1048576).toFixed(1) + ' MB) is linked below rather than attached — it is too large to attach.';
+            }
+          } else {
+            mediaNote = 'Could not download the ' + mediaLabel.toLowerCase() + ' from Telegram.';
           }
         }
       }
-    } catch (e) { /* media optional */ }
+    } catch (e) { mediaNote = 'The ' + mediaLabel.toLowerCase() + " couldn't be forwarded (" + (e && e.message ? e.message : 'error') + ').'; }
   }
 
   const esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -105,6 +116,7 @@ async function forwardToEmail(env, msg, recipients) {
     const attached = attachments.length > 0;
     if (mediaLabel === 'Photo' && mediaLink) html += '<p><img src="' + mediaLink + '" style="max-width:100%;border-radius:8px"></p>';
     if (attached) html += '<p style="color:#666;font-size:13px">📎 ' + esc(mediaLabel) + ' attached to this email.</p>';
+    if (mediaNote) html += '<p style="color:#B45309;font-size:13px">⚠️ ' + esc(mediaNote) + '</p>';
     if (mediaLink) html += '<p><a href="' + mediaLink + '" style="display:inline-block;background:#1F6F5C;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Open / download</a></p>';
   }
   if (!text && !mediaLabel) html += '<p style="color:#999">(empty message)</p>';
@@ -113,11 +125,22 @@ async function forwardToEmail(env, msg, recipients) {
   const fromAddr = env.RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>';
   const payload = { from: fromAddr, to: recipients, subject, html };
   if (attachments.length) payload.attachments = attachments;
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }).catch(() => {});
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    // If the attachment made it too big for Resend, retry once with just the link.
+    if (!r.ok && attachments.length) {
+      const lite = { from: fromAddr, to: recipients, subject, html };
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(lite),
+      }).catch(() => {});
+    }
+  } catch (e) { /* best effort */ }
 }
 
 // Base64-encode bytes in chunks (avoids call-stack limits on big files).
