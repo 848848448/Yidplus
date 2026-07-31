@@ -1,5 +1,5 @@
 // YID PLUS Service Worker v7
-const CACHE_NAME = 'yidplus-v9';
+const CACHE_NAME = 'yidplus-v10';
 const CACHE_CSS  = 'yidplus-css-v8';
 const CACHE_JS   = 'yidplus-js-v1';
 
@@ -91,6 +91,19 @@ self.addEventListener('fetch', function (e) {
         return caches.match(e.request).then(function (c) {
           return c || new Response('Offline', { status: 503 });
         });
+      })
+    );
+    return;
+  }
+
+  // Never cache navigations (HTML documents). Clean URLs like /yidplus-admin,
+  // /yidplus-chat, etc. have no .html extension, so the NEVER_CACHE list below
+  // misses them — and a cached page would keep loading an OLD ?v= script bundle
+  // after a deploy. Treat any document/navigation request as network-first.
+  if (e.request.mode === 'navigate' || (e.request.headers.get('accept') || '').includes('text/html')) {
+    e.respondWith(
+      fetch(e.request).catch(function () {
+        return caches.match(e.request).then(function (c) { return c || new Response('Offline', { status: 503 }); });
       })
     );
     return;
