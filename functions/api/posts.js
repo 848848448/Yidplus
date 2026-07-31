@@ -4,7 +4,7 @@
 // PUT    /api/posts            -> { id, like: true|false } toggle like
 // DELETE /api/posts?id=xxx     -> delete own post, or any post if Moderator/Admin (cascades likes+comments)
 
-import { json, corsHeaders, requireUser, canDeleteContent, isAdminRole, logAudit, notifyAdmin } from './_helpers.js';
+import { json, corsHeaders, requireUser, canDeleteContent, isAdminRole, logAudit, notifyAdmin, notifyUser } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -152,6 +152,13 @@ export async function onRequestPut(context) {
       await env.DB.prepare(`INSERT INTO post_likes (post_id, user_id, created_at) VALUES (?, ?, ?)`)
         .bind(id, user.id, new Date().toISOString()).run();
       await env.DB.prepare(`UPDATE posts SET likes = likes + 1 WHERE id = ?`).bind(id).run();
+      try {
+        const owner = await env.DB.prepare('SELECT user_id FROM posts WHERE id = ?').bind(id).first();
+        if (owner && owner.user_id) notifyUser(env, context, owner.user_id, {
+          type: 'like', actor_id: user.id, actor_nick: user.nickname,
+          text: (user.nickname || 'Someone') + ' liked your post', link: '/',
+        });
+      } catch (e) {}
     } else if (!like && existing) {
       await env.DB.prepare(`DELETE FROM post_likes WHERE post_id = ? AND user_id = ?`).bind(id, user.id).run();
       await env.DB.prepare(`UPDATE posts SET likes = MAX(0, likes - 1) WHERE id = ?`).bind(id).run();

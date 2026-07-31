@@ -7,7 +7,7 @@
 // DELETE /api/follows?user_id=X                -> unfollow
 // DELETE /api/follows?user_id=X&request=1      -> cancel my own pending request, or reject an incoming one
 
-import { json, corsHeaders, requireUser } from './_helpers.js';
+import { json, corsHeaders, requireUser, notifyUser } from './_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -127,6 +127,11 @@ export async function onRequestPost(context) {
     await env.DB.prepare(
       'INSERT OR IGNORE INTO user_follows (id, follower_id, following_id, created_at) VALUES (?, ?, ?, ?)'
     ).bind(crypto.randomUUID(), me.id, user_id, new Date().toISOString()).run();
+
+    notifyUser(env, context, user_id, {
+      type: 'follow', actor_id: me.id, actor_nick: me.nickname,
+      text: (me.nickname || 'Someone') + ' started following you', link: '/yidplus-chat',
+    });
 
     return json({ ok: true });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }

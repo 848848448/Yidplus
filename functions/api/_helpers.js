@@ -627,3 +627,36 @@ export async function getConfig(env, key) {
   } catch (e) {}
   return '';
 }
+
+// In-app + push notification to a specific user. Inserts a notifications row and
+// (best-effort) sends a web push to that user's devices. Never throws.
+export async function notifyUser(env, ctx, userId, notif) {
+  try {
+    if (!userId) return;
+    if (notif.actor_id && String(notif.actor_id) === String(userId)) return; // don't notify yourself
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT, type TEXT,
+        actor_id TEXT, actor_nick TEXT, text TEXT, link TEXT, read INTEGER DEFAULT 0, created_at TEXT)`
+    ).run().catch(() => {});
+    await env.DB.prepare(
+      'INSERT INTO notifications (id, user_id, type, actor_id, actor_nick, text, link, read, created_at) VALUES (?,?,?,?,?,?,?,0,?)'
+    ).bind(crypto.randomUUID(), userId, notif.type || '', notif.actor_id || null, notif.actor_nick || '',
+      (notif.text || '').slice(0, 300), notif.link || '', new Date().toISOString()).run();
+    // Trim to the latest 100 per user.
+    await env.DB.prepare(
+      'DELETE FROM notifications WHERE user_id = ? AND id NOT IN (SELECT id FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 100)'
+    ).bind(userId, userId).run().catch(() => {});
+
+    const push = async () => {
+      try {
+        const { sendWebPush } = await import('./_webpush.js');
+        const subs = await env.DB.prepare('SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?').bind(userId).all().catch(() => ({ results: [] }));
+        for (const s of (subs.results || [])) {
+          await sendWebPush({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+            { title: 'YID PLUS', body: (notif.text || '').slice(0, 120), url: notif.link || '/', tag: 'yp-notif' }, env).catch(() => {});
+        }
+      } catch (e) {}
+    };
+    if (ctx && ctx.waitUntil) ctx.waitUntil(push()); else await push();
+  } catch (e) { /* notifications must never break the main action */ }
+}
