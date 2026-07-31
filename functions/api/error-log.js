@@ -12,10 +12,11 @@ async function ensure(env) {
   await env.DB.prepare(
     `CREATE TABLE IF NOT EXISTS error_log (
       id TEXT PRIMARY KEY, message TEXT, source TEXT, line INTEGER, col INTEGER,
-      stack TEXT, page TEXT, ua TEXT, user_id TEXT, nickname TEXT, count INTEGER DEFAULT 1,
+      level TEXT DEFAULT 'error', stack TEXT, page TEXT, ua TEXT, user_id TEXT, nickname TEXT, count INTEGER DEFAULT 1,
       created_at TEXT
     )`
   ).run().catch(() => {});
+  await env.DB.prepare("ALTER TABLE error_log ADD COLUMN level TEXT DEFAULT 'error'").run().catch(() => {});
 }
 
 export async function onRequestPost(context) {
@@ -24,6 +25,7 @@ export async function onRequestPost(context) {
     await ensure(env);
     const b = await request.json().catch(() => ({}));
     const message = String(b.message || '').slice(0, 1000);
+    const level = String(b.level || 'error').slice(0, 20);
     if (!message) return json({ ok: true });
     // Ignore noise from browser extensions / cross-origin scripts.
     if (/^Script error\.?$/i.test(message)) return json({ ok: true });
@@ -44,8 +46,8 @@ export async function onRequestPost(context) {
         .bind(new Date().toISOString(), existing.id).run().catch(() => {});
     } else {
       await env.DB.prepare(
-        'INSERT INTO error_log (id, message, source, line, col, stack, page, ua, user_id, nickname, count, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,1,?)'
-      ).bind(crypto.randomUUID(), message, source, line, parseInt(b.col, 10) || 0, stack, page,
+        'INSERT INTO error_log (id, level, message, source, line, col, stack, page, ua, user_id, nickname, count, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,?)'
+      ).bind(crypto.randomUUID(), level, message, source, line, parseInt(b.col, 10) || 0, stack, page,
         String(request.headers.get('User-Agent') || '').slice(0, 200),
         user ? user.id : null, user ? user.nickname : null, new Date().toISOString()).run().catch(() => {});
     }
@@ -62,7 +64,7 @@ export async function onRequestGet(context) {
     if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Owner only' }, 403);
     await ensure(env);
     const { results } = await env.DB.prepare(
-      'SELECT id, message, source, line, col, stack, page, nickname, count, created_at FROM error_log ORDER BY created_at DESC LIMIT 100'
+      'SELECT id, level, message, source, line, col, stack, page, nickname, count, created_at FROM error_log ORDER BY created_at DESC LIMIT 100'
     ).all().catch(() => ({ results: [] }));
     return json({ ok: true, errors: results || [] });
   } catch (err) { return json({ ok: false, error: err.message }, 500); }

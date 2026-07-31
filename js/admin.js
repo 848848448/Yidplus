@@ -5397,15 +5397,30 @@ function buildCodeErrorsPanel(content) {
     var cards = errs.map(function (e) {
       var loc = (e.source ? e.source.replace(/^.*\//, '') : '') + (e.line ? ':' + e.line : '');
       var when = e.created_at ? timeAgo(e.created_at) : '';
-      var copyText = 'Fix this error on YID PLUS:\n\n' +
+      var lvl = e.level || 'error';
+      var lvlMap = {
+        error:    { c: '#DC2626', bg: 'rgba(220,38,38,.12)',  t: 'ERROR' },
+        warning:  { c: '#B45309', bg: 'rgba(180,83,9,.12)',   t: 'WARNING' },
+        console:  { c: '#DC2626', bg: 'rgba(220,38,38,.10)',  t: 'CONSOLE' },
+        network:  { c: '#7C3AED', bg: 'rgba(124,58,237,.12)', t: 'NETWORK' },
+        resource: { c: '#0369A1', bg: 'rgba(3,105,161,.12)',  t: 'RESOURCE' }
+      };
+      var L = lvlMap[lvl] || lvlMap.error;
+      var copyText = 'Fix this ' + L.t.toLowerCase() + ' on YID PLUS:\n\n' +
+        'Type: ' + L.t + '\n' +
         'Error: ' + (e.message || '') + '\n' +
         'File: ' + (e.source || '(unknown)') + (e.line ? ' line ' + e.line : '') + (e.col ? ' col ' + e.col : '') + '\n' +
         'Page: ' + (e.page || '') + '\n' +
         (e.stack ? 'Stack:\n' + e.stack + '\n' : '');
       var enc = encodeURIComponent(copyText);
-      return '<div class="admin-card" style="display:flex;flex-direction:column;gap:.4rem">' +
-          '<div style="font-weight:700;font-size:.85rem;color:#DC2626;word-break:break-word">' + escHtmlA(e.message || '') + '</div>' +
-          '<div style="font-size:.75rem;color:var(--muted)">📄 ' + escHtmlA(loc || '(unknown location)') + (e.count > 1 ? ' · ×' + e.count : '') + (when ? ' · ' + when : '') + (e.nickname ? ' · ' + escHtmlA(e.nickname) : '') + '</div>' +
+      return '<div class="admin-card" style="display:flex;flex-direction:column;gap:.4rem;border-left:3px solid ' + L.c + '">' +
+          '<div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">' +
+            '<span style="font-size:.62rem;font-weight:800;letter-spacing:.03em;color:' + L.c + ';background:' + L.bg + ';padding:.15rem .4rem;border-radius:5px">' + L.t + '</span>' +
+            (e.count > 1 ? '<span style="font-size:.68rem;color:var(--muted)">×' + e.count + '</span>' : '') +
+            (when ? '<span style="font-size:.68rem;color:var(--muted)">' + when + '</span>' : '') +
+          '</div>' +
+          '<div style="font-weight:600;font-size:.84rem;color:var(--text);word-break:break-word">' + escHtmlA(e.message || '') + '</div>' +
+          (loc ? '<div style="font-size:.74rem;color:var(--muted)">📄 ' + escHtmlA(loc) + (e.nickname ? ' · ' + escHtmlA(e.nickname) : '') + '</div>' : '') +
           (e.stack ? '<pre style="font-size:.68rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem;overflow-x:auto;white-space:pre-wrap;word-break:break-word;max-height:120px;margin:0">' + escHtmlA(e.stack.slice(0, 500)) + '</pre>' : '') +
           '<button class="save-pill" style="width:100%" onclick="codeErrCopy(decodeURIComponent(\'' + enc + '\'), this)">📋 Copy for Claude</button>' +
         '</div>';

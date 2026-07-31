@@ -2354,36 +2354,82 @@ window._confirmWithPassword = function (opts) {
   }).catch(function () {});
 };
 
-/* Capture front-end errors so the owner can review them in Admin → Diagnostics.
-   Best-effort and throttled; never interferes with the app. */
+/* Capture front-end problems so the owner can review them in Admin → Code
+   Errors — like the browser's F12 console: uncaught errors, unhandled promise
+   rejections, console.error/console.warn, failed resource loads, and failed
+   network/API calls. Best-effort, throttled, never interferes with the app. */
 (function () {
   if (window._errLogBound) return;
   window._errLogBound = true;
-  var sent = {}, MAX = 25, count = 0;
+  var sent = {}, MAX = 40, count = 0, busy = false;
   function report(o) {
     try {
-      var key = (o.message || '') + '|' + (o.source || '') + '|' + (o.line || '');
+      var key = (o.level || '') + '|' + (o.message || '') + '|' + (o.source || '') + '|' + (o.line || '');
       if (sent[key] || count > MAX) return;
       sent[key] = 1; count++;
+      busy = true; // don't let our own fetch re-trigger the fetch hook
       fetch('/api/error-log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
+          level: o.level || 'error',
           message: String(o.message || '').slice(0, 1000),
           source: String(o.source || '').slice(0, 300),
           line: o.line || 0, col: o.col || 0,
           stack: String(o.stack || '').slice(0, 2000),
           url: location.pathname + location.hash,
         }),
-      }).catch(function () {});
-    } catch (e) {}
+      }).catch(function () {}).then(function () { busy = false; }, function () { busy = false; });
+    } catch (e) { busy = false; }
   }
+
+  // 1) Uncaught JS errors — and failed <img>/<script>/<link> loads (capture phase).
   window.addEventListener('error', function (e) {
-    if (e && e.message) report({ message: e.message, source: e.filename, line: e.lineno, col: e.colno, stack: e.error && e.error.stack });
-  });
+    if (e && e.target && e.target !== window && (e.target.src || e.target.href)) {
+      report({ level: 'resource', message: 'Failed to load ' + (e.target.tagName || '').toLowerCase() + ': ' + (e.target.src || e.target.href), source: (e.target.src || e.target.href) });
+      return;
+    }
+    if (e && e.message) report({ level: 'error', message: e.message, source: e.filename, line: e.lineno, col: e.colno, stack: e.error && e.error.stack });
+  }, true);
+
+  // 2) Unhandled promise rejections.
   window.addEventListener('unhandledrejection', function (e) {
     var r = e && e.reason;
-    report({ message: 'Unhandled promise: ' + (r && r.message ? r.message : String(r)), stack: r && r.stack });
+    report({ level: 'error', message: 'Unhandled promise: ' + (r && r.message ? r.message : String(r)), stack: r && r.stack });
   });
+
+  // 3) console.error and console.warn — mirror them like F12 does.
+  ['error', 'warn'].forEach(function (lvl) {
+    var orig = console[lvl];
+    console[lvl] = function () {
+      try {
+        var parts = [].slice.call(arguments).map(function (a) {
+          if (a instanceof Error) return a.message + (a.stack ? '\n' + a.stack : '');
+          if (typeof a === 'object') { try { return JSON.stringify(a); } catch (e) { return String(a); } }
+          return String(a);
+        });
+        report({ level: lvl === 'warn' ? 'warning' : 'console', message: parts.join(' ') });
+      } catch (e) {}
+      return orig.apply(console, arguments);
+    };
+  });
+
+  // 4) Failed network / API calls (fetch that errors or returns 4xx/5xx).
+  if (window.fetch) {
+    var origFetch = window.fetch;
+    window.fetch = function (input, init) {
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      var p = origFetch.apply(this, arguments);
+      // Don't watch our own error-log calls.
+      if (!busy && url.indexOf('/api/error-log') === -1) {
+        p.then(function (res) {
+          try { if (res && !res.ok && res.status >= 400) report({ level: 'network', message: 'HTTP ' + res.status + ' — ' + url, source: url }); } catch (e) {}
+        }, function (err) {
+          try { report({ level: 'network', message: 'Network failed — ' + url + (err && err.message ? ' (' + err.message + ')' : ''), source: url }); } catch (e) {}
+        });
+      }
+      return p;
+    };
+  }
 })();
