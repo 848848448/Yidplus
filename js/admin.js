@@ -4377,13 +4377,13 @@ function buildTelegramPanel(content) {
         '<div class="admin-card-title">📧 Private bot → email</div>' +
         '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">A separate, private Telegram bot (nothing to do with YID PLUS). Anything you post to it — video, photo, file or text — is emailed to the people you list below.</div>' +
         '<div style="background:var(--bg3);border-radius:10px;padding:.7rem;margin-bottom:.7rem;font-size:.72rem;color:var(--muted);line-height:1.5">' +
-          '<strong style="color:var(--text)">One-time setup:</strong><br>' +
-          '1. In Telegram, message <strong>@BotFather</strong> → <em>/newbot</em> → follow the steps → it gives you a <strong>token</strong>.<br>' +
-          '2. In Cloudflare → your project → Settings → Variables, add:<br>' +
-          '&nbsp;&nbsp;• <code>PRIVATE_BOT_TOKEN</code> = that token<br>' +
-          '&nbsp;&nbsp;• <code>PRIVATE_BOT_WEBHOOK_SECRET</code> = any secret you choose<br>' +
-          '3. Come back here and press <strong>Connect bot</strong>.' +
+          '<strong style="color:var(--text)">Setup (right here — no Cloudflare needed):</strong><br>' +
+          '1. In Telegram, message <strong>@BotFather</strong> → <em>/newbot</em> (or <em>/token</em> for an existing bot) → it gives you a <strong>token</strong>.<br>' +
+          '2. Paste the token below and press <strong>Save token</strong>.<br>' +
+          '3. Press <strong>Connect bot</strong>.' +
         '</div>' +
+        '<input id="pbot-token" type="text" placeholder="Paste bot token (12345:AA...)" style="width:100%;box-sizing:border-box;padding:.7rem .9rem;margin-bottom:.5rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:inherit;font-size:.85rem">' +
+        '<button class="save-pill" style="width:100%;margin-bottom:.6rem" onclick="pbotSaveToken(this)">💾 Save token</button>' +
         '<div id="pbot-status" style="font-size:.75rem;background:var(--bg3);border-radius:8px;padding:.6rem;margin-bottom:.6rem">Checking…</div>' +
         '<button class="save-pill" style="width:100%;margin-bottom:.8rem" onclick="pbotConnect(this)">🔌 Connect bot</button>' +
 
@@ -5232,11 +5232,28 @@ window.pbotLoad = function () {
   api.get('/admin/private-bot-setup').then(function (res) {
     if (!st) return;
     if (!res || !res.ok) { st.style.color = '#DC2626'; st.textContent = (res && res.error) || 'Could not check.'; return; }
-    if (!res.has_token) { st.style.color = 'var(--muted)'; st.innerHTML = '⚠️ No <code>PRIVATE_BOT_TOKEN</code> set in Cloudflare yet — do the setup steps above.'; return; }
-    if (!res.has_secret) { st.style.color = 'var(--muted)'; st.innerHTML = '⚠️ No <code>PRIVATE_BOT_WEBHOOK_SECRET</code> set in Cloudflare yet.'; return; }
+    if (!res.has_token) { st.style.color = 'var(--muted)'; st.innerHTML = '⚠️ No bot token yet — paste it above and press <strong>Save token</strong>.'; return; }
+    if (!res.token_valid) { st.style.color = '#DC2626'; st.innerHTML = '⚠️ The saved token is invalid — paste a fresh one from BotFather (<em>/token</em>) and Save.'; return; }
     if (res.connected) { st.style.color = '#16A34A'; st.innerHTML = '✅ Connected' + (res.bot ? ' — ' + res.bot : '') + '. Post to your bot and it emails the recipients below.'; }
-    else { st.style.color = 'var(--muted)'; st.innerHTML = 'Bot ' + (res.bot || '') + ' found, but not connected yet — press Connect bot.'; }
+    else { st.style.color = 'var(--muted)'; st.innerHTML = '✅ Token saved' + (res.bot ? ' (' + res.bot + ')' : '') + ' — now press <strong>Connect bot</strong>.'; }
   }).catch(function () { if (st) { st.style.color = '#DC2626'; st.textContent = 'Could not check.'; } });
+};
+window.pbotSaveToken = function (btn) {
+  var st = document.getElementById('pbot-status');
+  var inp = document.getElementById('pbot-token');
+  var token = inp ? inp.value.trim() : '';
+  if (!token) { if (st) { st.style.color = '#DC2626'; st.textContent = 'Paste the bot token first.'; } return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  api.post('/admin/private-bot-setup', { action: 'save', token: token }).then(function (res) {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Save token'; }
+    if (res && res.ok) {
+      if (inp) inp.value = '';
+      if (st) { st.style.color = '#16A34A'; st.innerHTML = '✅ Token saved' + (res.bot ? ' — ' + res.bot : '') + '. Now press <strong>Connect bot</strong>.'; }
+    } else if (st) { st.style.color = '#DC2626'; st.textContent = (res && res.error) || 'Failed to save.'; }
+  }).catch(function (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Save token'; }
+    if (st) { st.style.color = '#DC2626'; st.textContent = (e && e.message) || 'Failed.'; }
+  });
 };
 window.pbotConnect = function (btn) {
   var st = document.getElementById('pbot-status');

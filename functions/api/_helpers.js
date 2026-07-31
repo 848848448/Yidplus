@@ -563,3 +563,23 @@ function _ccToFlag(cc) {
   return String.fromCodePoint(A + cc.toUpperCase().charCodeAt(0) - 65) +
          String.fromCodePoint(A + cc.toUpperCase().charCodeAt(1) - 65);
 }
+
+// Private bot credentials: prefer Cloudflare env vars, fall back to values
+// saved in app_settings (so they can be set from the admin panel without
+// touching Cloudflare).
+export async function getPrivateBotCreds(env) {
+  let token = (env.PRIVATE_BOT_TOKEN || '').trim();
+  let secret = (env.PRIVATE_BOT_WEBHOOK_SECRET || '').trim();
+  if (!token || !secret) {
+    try {
+      const rows = await env.DB.prepare(
+        "SELECT key, value FROM app_settings WHERE key IN ('private_bot_token','private_bot_webhook_secret')"
+      ).all();
+      for (const r of (rows.results || [])) {
+        if (r.key === 'private_bot_token' && !token) token = (r.value || '').trim();
+        if (r.key === 'private_bot_webhook_secret' && !secret) secret = (r.value || '').trim();
+      }
+    } catch (e) { /* table may not exist yet */ }
+  }
+  return { token, secret };
+}
