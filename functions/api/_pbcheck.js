@@ -14,13 +14,14 @@ export async function onRequestGet(context) {
     out.converter_url_set = !!env.VIDEO_CONVERTER_URL;
     out.converter_secret_set = !!env.VIDEO_CONVERTER_SECRET;
 
-    // email forwarding config from app_settings
+    // email forwarding config from its own table
     try {
-      const row = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'bot_email_config'").first();
-      if (row && row.value) {
-        const cfg = JSON.parse(row.value);
-        out.email_enabled = !!cfg.enabled;
-        out.recipient_count = (cfg.recipients || []).length;
+      const row = await env.DB.prepare("SELECT enabled, recipients FROM bot_email_config WHERE id = 1").first();
+      if (row) {
+        out.email_enabled = !!row.enabled;
+        let rec = []; try { rec = JSON.parse(row.recipients || '[]'); } catch (e) {}
+        out.recipient_count = rec.length;
+        out.recipients_preview = rec;
       } else { out.email_enabled = false; out.recipient_count = 0; }
     } catch (e) { out.email_cfg_error = String(e && e.message); }
 
