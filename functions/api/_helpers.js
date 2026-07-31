@@ -616,3 +616,14 @@ export async function notifyAdmin(env, text, eventKey) {
     });
   } catch (e) { /* never let notifications break the main flow */ }
 }
+
+// General app config: prefer a Cloudflare env var, fall back to a value saved in
+// app_settings (so the owner can set it from the admin panel without Cloudflare).
+export async function getConfig(env, key) {
+  if (env[key] != null && String(env[key]).length) return String(env[key]);
+  try {
+    const r = await env.DB.prepare('SELECT value FROM app_settings WHERE key = ?').bind('cfg:' + key).first();
+    if (r && r.value != null) return String(r.value);
+  } catch (e) {}
+  return '';
+}

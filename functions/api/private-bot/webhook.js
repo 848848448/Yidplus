@@ -7,7 +7,7 @@
 //
 // Telegram calls: POST /api/private-bot/webhook
 
-import { json, corsHeaders, getPrivateBotCreds } from '../_helpers.js';
+import { json, corsHeaders, getPrivateBotCreds, getConfig } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -87,16 +87,18 @@ async function forwardToEmail(env, msg, recipients) {
             // If a converter is configured, shrink videos toward 8MB so they
             // arrive as a clean attachment instead of a link.
             const isVideo = !!msg.video || /video\//i.test(ctype) || /\.(mp4|mov|mkv|webm|avi|m4v)$/i.test(niceName);
-            if (env.VIDEO_CONVERTER_URL && isVideo && bytes.length > 2 * 1024 * 1024) {
+            const _convUrl = await getConfig(env, 'VIDEO_CONVERTER_URL');
+            const _convSecret = await getConfig(env, 'VIDEO_CONVERTER_SECRET');
+            if (_convUrl && isVideo && bytes.length > 2 * 1024 * 1024) {
               try {
                 // Guard against the converter being cold/slow (Render free tier
                 // can take ~50s to wake) — if it doesn't answer in time, we just
                 // send the original so the email still goes out.
                 const ac = new AbortController();
                 const timer = setTimeout(() => ac.abort(), 25000);
-                const cr = await fetch(env.VIDEO_CONVERTER_URL.replace(/\/$/, '') + '/convert?target_mb=8', {
+                const cr = await fetch(_convUrl.replace(/\/$/, '') + '/convert?target_mb=8', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/octet-stream', 'X-Secret': (env.VIDEO_CONVERTER_SECRET || '') },
+                  headers: { 'Content-Type': 'application/octet-stream', 'X-Secret': _convSecret },
                   body: bytes,
                   signal: ac.signal,
                 });

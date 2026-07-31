@@ -209,6 +209,7 @@ var ADMIN_PANELS = [
   { id:'shorts-mod',     label:'Shorts',          roles:['admin_limited','admin_super','owner'] },
   { id:'statuses-mod',   label:'Statuses',        roles:['admin_super','owner'] },
   { id:'code-errors',    label:'Code Errors',     roles:['admin_super','owner'] },
+  { id:'app-config',     label:'Config & Keys',   roles:['owner'] },
   { id:'music-mod',      label:'Music',           roles:['admin_limited','admin_super','owner'] },
   { id:'feedback',       label:'Feedback',        roles:['admin_limited','admin_super','owner'] },
   { id:'support-chats',  label:'Support',         roles:['admin_limited','admin_super','owner'] },
@@ -252,7 +253,7 @@ var ADMIN_CATEGORIES = [
   { id:'content',    label:'Content',    desc:'Announce, broadcast, channels, more',  color:'#534AB7', bg:'#EEEDFE', bgd:'#3C3489',
     panels:['announcements','broadcast','channels-mgr','ai','telegram','email-templates','featured'] },
   { id:'system',     label:'System',     desc:'Features, app, ads, logs, export',     color:'#5F5E5A', bg:'#F1EFE8', bgd:'#2C2C2A',
-    panels:['features','app-settings','ads','maintenance','antispam','health','security','diagnostics','code-errors','ip-logs','audit-logs','export','nuclear','admin-settings'] },
+    panels:['features','app-settings','ads','maintenance','antispam','health','security','diagnostics','code-errors','app-config','ip-logs','audit-logs','export','nuclear','admin-settings'] },
 ];
 
 var ADMIN_CAT_ICONS = {
@@ -517,6 +518,8 @@ function buildAdminPanel(id) {
     buildStatusesModPanel(content);
   } else if (id === 'code-errors') {
     buildCodeErrorsPanel(content);
+  } else if (id === 'app-config') {
+    buildAppConfigPanel(content);
 
   } else if (id === 'chat-watch') {
     buildChatWatchPanel(content);
@@ -5453,4 +5456,55 @@ window.codeErrTest = function (btn) {
   }).then(function () {
     setTimeout(function () { buildCodeErrorsPanel(document.getElementById('admin-content')); }, 400);
   }).catch(function () { if (btn) { btn.disabled = false; btn.textContent = '🧪 Test'; } });
+};
+
+// ── App Config / Keys panel (set app config without touching Cloudflare) ──
+function buildAppConfigPanel(content) {
+  content.innerHTML = '<div class="admin-panel"><div style="text-align:center;color:var(--muted);padding:2rem;font-size:.85rem">Loading…</div></div>';
+  api.get('/admin/app-config').then(function (res) {
+    var items = (res && res.items) || [];
+    var rows = items.map(function (it) {
+      var status = it.set_env
+        ? '<span style="color:#16A34A;font-size:.72rem">✓ set in Cloudflare</span>'
+        : (it.set_app ? '<span style="color:#16A34A;font-size:.72rem">✓ set here</span>' : '<span style="color:#B45309;font-size:.72rem">not set</span>');
+      var note = it.set_env ? '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Set in Cloudflare — that takes priority. Clear it there to use a value set here.</div>' : '';
+      return '<div class="admin-card" style="display:flex;flex-direction:column;gap:.4rem">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">' +
+            '<div style="font-weight:700;font-size:.85rem">' + escHtmlA(it.label) + '</div>' + status +
+          '</div>' +
+          '<div style="font-size:.68rem;color:var(--muted);font-family:monospace">' + escHtmlA(it.key) + (it.hint ? ' · ' + escHtmlA(it.hint) : '') + '</div>' +
+          '<div style="display:flex;gap:.4rem">' +
+            '<input id="cfg-' + it.key + '" type="' + (it.secret ? 'password' : 'text') + '" placeholder="' + (it.set_app ? '•••••• (saved) — type to change' : 'enter value') + '" style="flex:1;min-width:0;padding:.55rem .7rem;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);font-family:inherit;font-size:.82rem">' +
+            '<button class="save-pill" style="width:auto;padding:.55rem .9rem" onclick="appCfgSave(\'' + it.key + '\',this)">Save</button>' +
+            (it.set_app ? '<button class="save-pill" style="width:auto;padding:.55rem .7rem;background:var(--bg3);color:var(--text);border:1px solid var(--border)" onclick="appCfgClear(\'' + it.key + '\')">✕</button>' : '') +
+          '</div>' + note +
+        '</div>';
+    }).join('');
+    content.innerHTML = '<div class="admin-panel">' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🔑 Config &amp; Keys</div>' +
+        '<div style="font-size:.75rem;color:var(--muted)">Set the tokens, keys and URLs the app uses — right here, no Cloudflare needed. A value set in Cloudflare always wins; anything not set there can be set here.</div>' +
+      '</div>' + rows +
+      '<div class="admin-card" style="font-size:.72rem;color:var(--muted)">🔒 These are stored in your database and only visible to the owner. For the strongest security, secrets in Cloudflare are still best — this is here for convenience.</div>' +
+    '</div>';
+  }).catch(function (e) {
+    content.innerHTML = '<div class="admin-panel"><div class="admin-card" style="color:#DC2626">Failed to load: ' + escHtmlA((e && e.message) || 'error') + '</div></div>';
+  });
+}
+window.appCfgSave = function (key, btn) {
+  var inp = document.getElementById('cfg-' + key);
+  var val = inp ? inp.value.trim() : '';
+  if (!val) { toast('Enter a value first'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  api.post('/admin/app-config', { key: key, value: val }).then(function (res) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+    if (res && res.ok) { toast('✅ Saved'); buildAppConfigPanel(document.getElementById('admin-content')); }
+    else toast((res && res.error) || 'Failed');
+  }).catch(function (e) { if (btn) { btn.disabled = false; btn.textContent = 'Save'; } toast((e && e.message) || 'Failed'); });
+};
+window.appCfgClear = function (key) {
+  if (!confirm('Clear this value?')) return;
+  api.del('/admin/app-config?key=' + encodeURIComponent(key)).then(function () {
+    toast('Cleared'); buildAppConfigPanel(document.getElementById('admin-content'));
+  }).catch(function () {});
 };
