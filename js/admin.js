@@ -4372,6 +4372,26 @@ function buildTelegramPanel(content) {
   content.innerHTML =
     '<div class="admin-panel">' +
 
+      // ── Activity bot (DMs the owner all site activity) ──
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🔔 Activity Bot (get all site activity)</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">A private bot that messages YOU whenever something happens: new sign-ups (name + email), new posts, reports, and more.</div>' +
+        '<div style="background:var(--bg3);border-radius:10px;padding:.7rem;margin-bottom:.7rem;font-size:.72rem;color:var(--muted);line-height:1.5">' +
+          '1. In Telegram, message <strong>@BotFather</strong> → <em>/newbot</em> → get a <strong>token</strong>.<br>' +
+          '2. Paste it below → <strong>Save token</strong>.<br>' +
+          '3. Press <strong>Open bot</strong> and send it <strong>/start</strong> so it knows where to message you.<br>' +
+          '4. Press <strong>Send test</strong>.' +
+        '</div>' +
+        '<input id="abot-token" type="text" placeholder="Paste bot token (12345:AA...)" style="width:100%;box-sizing:border-box;padding:.7rem .9rem;margin-bottom:.5rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:inherit;font-size:.85rem">' +
+        '<button class="save-pill" style="width:100%;margin-bottom:.5rem" onclick="abotSave(this)">💾 Save token</button>' +
+        '<div id="abot-status" style="font-size:.78rem;background:var(--bg3);border-radius:8px;padding:.6rem;margin-bottom:.5rem">Checking…</div>' +
+        '<div style="display:flex;gap:.5rem;margin-bottom:.3rem">' +
+          '<a id="abot-open" href="#" target="_blank" class="save-pill" style="flex:1;text-align:center;text-decoration:none;background:var(--bg3);color:var(--text);border:1px solid var(--border);display:none">Open bot ↗</a>' +
+          '<button class="save-pill" style="flex:1" onclick="abotTest(this)">Send test</button>' +
+        '</div>' +
+      '</div>' +
+
+
       // ── Private bot → email (standalone, not YID PLUS) ──
       '<div class="admin-card">' +
         '<div class="admin-card-title">📧 Private bot → email</div>' +
@@ -4479,6 +4499,7 @@ function buildTelegramPanel(content) {
   tgPostStatus();
   bmailLoad();
   pbotLoad();
+  abotLoad();
 }
 
 window.tgPostStatus = function () {
@@ -5306,4 +5327,44 @@ window.pbotConnect = function (btn) {
     if (btn) { btn.disabled = false; btn.textContent = '🔌 Connect bot'; }
     if (st) { st.style.color = '#DC2626'; st.textContent = (e && e.message) || 'Failed'; }
   });
+};
+
+// ── Activity bot handlers ──
+window.abotLoad = function () {
+  var st = document.getElementById('abot-status');
+  api.get('/admin/admin-bot-setup').then(function (res) {
+    if (!st) return;
+    if (!res || !res.ok) { st.textContent = 'Could not check.'; return; }
+    var open = document.getElementById('abot-open');
+    if (res.bot && open) { open.style.display = 'block'; open.href = 'https://t.me/' + res.bot.replace(/^@/, ''); }
+    if (!res.has_token) { st.style.color = 'var(--muted)'; st.innerHTML = '⚠️ No token yet — paste one above and Save.'; return; }
+    if (!res.token_valid) { st.style.color = '#DC2626'; st.innerHTML = '⚠️ Token invalid — paste a fresh one from BotFather.'; return; }
+    if (!res.chat_linked) { st.style.color = '#B45309'; st.innerHTML = '⚠️ Token saved (' + (res.bot || '') + '), but not linked yet. Press <strong>Open bot</strong> and send it <strong>/start</strong>.'; return; }
+    st.style.color = '#16A34A'; st.innerHTML = '✅ Connected — ' + (res.bot || '') + '. You will get activity here.';
+  }).catch(function () { if (st) st.textContent = 'Could not check.'; });
+};
+window.abotSave = function (btn) {
+  var inp = document.getElementById('abot-token');
+  var st = document.getElementById('abot-status');
+  var token = inp ? inp.value.trim() : '';
+  if (!token) { if (st) { st.style.color = '#DC2626'; st.textContent = 'Paste the token first.'; } return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  api.post('/admin/admin-bot-setup', { action: 'save', token: token }).then(function (res) {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Save token'; }
+    if (res && res.ok) {
+      if (inp) inp.value = '';
+      var open = document.getElementById('abot-open');
+      if (res.open_url && open) { open.style.display = 'block'; open.href = res.open_url; }
+      if (st) { st.style.color = '#16A34A'; st.innerHTML = '✅ Saved — ' + (res.bot || '') + '. Now press <strong>Open bot</strong> and send it <strong>/start</strong>.'; }
+    } else if (st) { st.style.color = '#DC2626'; st.textContent = (res && res.error) || 'Failed'; }
+  }).catch(function (e) { if (btn) { btn.disabled = false; btn.textContent = '💾 Save token'; } if (st) { st.style.color = '#DC2626'; st.textContent = (e && e.message) || 'Failed'; } });
+};
+window.abotTest = function (btn) {
+  var st = document.getElementById('abot-status');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  api.post('/admin/admin-bot-setup', { action: 'test' }).then(function (res) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Send test'; }
+    if (res && res.ok && res.sent) { if (st) { st.style.color = '#16A34A'; st.innerHTML = '✅ Test sent — check Telegram!'; } }
+    else if (st) { st.style.color = '#DC2626'; st.textContent = (res && res.error) || 'Failed'; }
+  }).catch(function (e) { if (btn) { btn.disabled = false; btn.textContent = 'Send test'; } if (st) { st.style.color = '#DC2626'; st.textContent = (e && e.message) || 'Failed'; } });
 };
