@@ -5387,6 +5387,7 @@ function buildCodeErrorsPanel(content) {
         '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">Real errors captured from people using the site. Tap <strong>Copy for Claude</strong> on any error and paste it to Claude — it includes the exact file and line so it can be fixed.</div>' +
         '<div style="display:flex;gap:.5rem">' +
           '<button class="save-pill" style="flex:1;background:var(--bg3);color:var(--text);border:1px solid var(--border)" onclick="buildCodeErrorsPanel(document.getElementById(\'admin-content\'))">🔄 Refresh</button>' +
+          '<button class="save-pill" style="flex:1;background:var(--bg3);color:var(--text);border:1px solid var(--border)" onclick="codeErrTest(this)">🧪 Test</button>' +
           (errs.length ? '<button class="save-pill" style="flex:1;background:#DC2626" onclick="codeErrClear()">Clear all</button>' : '') +
         '</div>' +
       '</div>';
@@ -5443,4 +5444,13 @@ function _codeErrFallback(text) {
 window.codeErrClear = function () {
   if (!confirm('Clear all logged errors?')) return;
   api.del('/error-log').then(function () { buildCodeErrorsPanel(document.getElementById('admin-content')); }).catch(function () {});
+};
+window.codeErrTest = function (btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  fetch('/api/error-log', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+    body: JSON.stringify({ level: 'error', message: 'TEST error — the Code Errors panel is working. You can clear this.', source: 'admin-test', line: 1, url: '/yidplus-admin', stack: 'This is a sample error created by the Test button.' }),
+  }).then(function () {
+    setTimeout(function () { buildCodeErrorsPanel(document.getElementById('admin-content')); }, 400);
+  }).catch(function () { if (btn) { btn.disabled = false; btn.textContent = '🧪 Test'; } });
 };
