@@ -3658,12 +3658,29 @@ window._sendMultiMedia = function () {
   if (bar) bar.remove();
   var files = MULTI_MEDIA_FILES;
   MULTI_MEDIA_FILES = [];
-  files.forEach(function (f, i) {
-    setTimeout(function () { _uploadOneFile(f, i === 0 ? caption : ''); }, i * 300);
-  });
+  if (!files.length) return;
+  // Upload ONE FILE AT A TIME. Firing all of them at once (the old behavior)
+  // overwhelmed the browser's connection pool and the server, so when someone
+  // sent ~10 files several would silently fail and leave blank bubbles. Chain
+  // them so each waits for the previous to finish, then refresh once at the end.
+  var i = 0;
+  function next() {
+    if (i >= files.length) {
+      // Single refresh after the whole batch, not once per file.
+      loadMessages(true); loadChatRooms();
+      return;
+    }
+    var f = files[i];
+    var cap = i === 0 ? caption : '';
+    i++;
+    _uploadOneFile(f, cap, next); // next() runs when this one settles
+  }
+  next();
 };
 
-function _uploadOneFile(file, caption) {
+function _uploadOneFile(file, caption, done) {
+  // done() is an optional callback fired (on success OR failure) once this
+  // file has settled — used to chain a multi-file batch sequentially.
   var isVideo = file.type.startsWith('video/');
   var isImage = file.type.startsWith('image/');
   var type = (isVideo || isImage) ? 'media' : 'file';
@@ -3688,7 +3705,7 @@ function _uploadOneFile(file, caption) {
 
   // The request is capped at 105MB before it ever reaches the handler, so a
   // bigger file is a long upload that can only end in a rejection.
-  if (!checkFileSize(file, 100, 'File')) return;
+  if (!checkFileSize(file, 100, 'File')) { if (done) done(); return; }
 
   watermarkFile(file).then(function (watermarked) {
     var form = new FormData();
@@ -3702,12 +3719,15 @@ function _uploadOneFile(file, caption) {
     .then(function () {
       CHAT_messages = CHAT_messages.filter(function (m) { return m.id !== tempId; });
       try { URL.revokeObjectURL(localUrl); } catch (e) {}
-      loadMessages(true); loadChatRooms();
+      // In a batch, the caller refreshes once at the very end; only refresh
+      // here when this is a standalone single send.
+      if (done) { done(); } else { loadMessages(true); loadChatRooms(); }
     })
     .catch(function (err) {
       toast('❌ ' + err.message);
       CHAT_messages = CHAT_messages.filter(function (m) { return m.id !== tempId; });
       renderMessages(false);
+      if (done) done();
     });
 }
 
