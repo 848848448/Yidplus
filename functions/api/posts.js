@@ -4,7 +4,7 @@
 // PUT    /api/posts            -> { id, like: true|false } toggle like
 // DELETE /api/posts?id=xxx     -> delete own post, or any post if Moderator/Admin (cascades likes+comments)
 
-import { json, corsHeaders, requireUser, canDeleteContent, isAdminRole, logAudit, notifyAdmin, notifyUser } from './_helpers.js';
+import { json, corsHeaders, requireUser, canDeleteContent, isAdminRole, logAudit, notifyAdmin, notifyUser, notifyChannelFollowers } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -127,6 +127,8 @@ export async function onRequestPost(context) {
     context.waitUntil(notifyAdmin(env,
       '📝 <b>New post</b>\n👤 ' + _esc(user.nickname || 'Anonymous') + '\n' + (_esc((caption || content || '').slice(0, 300)) || '(no text)'),
       'post'));
+    // Notify all followers of this channel about the new post
+    notifyChannelFollowers(env, context, user.id, user.nickname || 'Channel', finalId);
     return json({ ok: true, post: { id: finalId, username: user.nickname, user_id: user.id, caption, content: content, likes: 0, comments: 0, created_at: now, liked: false } }, 201);
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);

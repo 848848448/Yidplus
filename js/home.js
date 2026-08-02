@@ -2584,7 +2584,7 @@ window.openNotifPanel = function () {
       el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:.85rem">No new notifications 🎉</div>';
     } else {
       var iconFor = function (t) {
-        return t === 'like' ? '❤️' : t === 'follow' ? '👤' : t === 'comment' ? '💬' : t === 'mention' ? '@' : '🔔';
+        return t === 'like' ? '❤️' : t === 'follow' ? '👤' : t === 'comment' ? '💬' : t === 'mention' ? '@' : t === 'channel_post' ? '📢' : '🔔';
       };
       el.innerHTML = list.map(function (n) {
         var unreadDot = n.read ? '' : '<div style="width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0"></div>';

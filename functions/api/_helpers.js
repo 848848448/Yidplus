@@ -660,3 +660,38 @@ export async function notifyUser(env, ctx, userId, notif) {
     if (ctx && ctx.waitUntil) ctx.waitUntil(push()); else await push();
   } catch (e) { /* notifications must never break the main action */ }
 }
+
+// Notify all followers of a channel about a new post.
+// Runs in background via ctx.waitUntil so it never delays the response.
+export async function notifyChannelFollowers(env, ctx, channelOwnerId, ownerNick, postId) {
+  const run = async () => {
+    try {
+      const rows = await env.DB.prepare(
+        `SELECT follower_id FROM channel_followers WHERE channel_owner_id = ?`
+      ).bind(channelOwnerId).all().catch(() => ({ results: [] }));
+      const followerIds = (rows.results || []).map(r => r.follower_id).filter(id => String(id) !== String(channelOwnerId));
+      if (!followerIds.length) return;
+      const { sendWebPush } = await import('./_webpush.js');
+      const now = new Date().toISOString();
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT, type TEXT, actor_id TEXT, actor_nick TEXT, text TEXT, link TEXT, read INTEGER DEFAULT 0, created_at TEXT)`).run().catch(() => {});
+      for (const uid of followerIds) {
+        // In-app notification row
+        await env.DB.prepare(
+          `INSERT INTO notifications (id, user_id, type, actor_id, actor_nick, text, link, read, created_at) VALUES (?,?,?,?,?,?,?,0,?)`
+        ).bind(crypto.randomUUID(), uid, 'channel_post', channelOwnerId, ownerNick,
+          (ownerNick || 'Channel') + ' posted something new', '/?channel=' + channelOwnerId, now
+        ).run().catch(() => {});
+        // Web Push
+        const subs = await env.DB.prepare(`SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?`).bind(uid).all().catch(() => ({ results: [] }));
+        for (const s of (subs.results || [])) {
+          await sendWebPush(
+            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+            { title: ownerNick || 'YID PLUS', body: 'New post in channel', url: '/?channel=' + channelOwnerId, tag: 'yp-ch-' + channelOwnerId },
+            env
+          ).catch(() => {});
+        }
+      }
+    } catch (e) {}
+  };
+  if (ctx && ctx.waitUntil) ctx.waitUntil(run()); else run();
+}
