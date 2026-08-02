@@ -732,8 +732,8 @@ function _svShowSlide() {
   el.innerHTML = '';
   el.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden';
 
-  if (slide.type === 'media' && slide.media_url) {
-    var isVideo = slide.is_video || (slide.media_key && /\.(mp4|webm|mov|avi)$/i.test(slide.media_key)) || /\.(mp4|webm|mov|avi)$/i.test(slide.media_url);
+  if ((slide.type === 'media' || slide.type === 'image' || slide.type === 'video') && slide.media_url) {
+    var isVideo = slide.type === 'video' || slide.is_video || (slide.media_key && /\.(mp4|webm|mov|avi)$/i.test(slide.media_key)) || /\.(mp4|webm|mov|avi)$/i.test(slide.media_url);
     if (isVideo) {
       var vid = document.createElement('video');
       vid.src = slide.media_url;

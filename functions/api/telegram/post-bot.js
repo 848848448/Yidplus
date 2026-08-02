@@ -148,7 +148,7 @@ export async function onRequestPost(context) {
       } else if (data === 'dest:status') {
         await env.DB.prepare(
           'INSERT INTO statuses (id, user_id, type, text, media_key, bg, color, privacy, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        ).bind(crypto.randomUUID(), user.id, p.mediaKey ? 'image' : 'text', p.text || '', p.mediaKey || null, '#1F6F5C', '#ffffff', 'public', now).run().catch(() => {});
+        ).bind(crypto.randomUUID(), user.id, p.mediaKey ? 'media' : 'text', p.text || '', p.mediaKey || null, '#1F6F5C', '#ffffff', 'public', now).run().catch(() => {});
         done = '📿 Posted to your Status!';
       }
 

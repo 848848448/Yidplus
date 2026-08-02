@@ -67,7 +67,9 @@ export async function onRequestPost(context) {
               httpMetadata: { contentType: fileResp.headers.get('content-type') || 'application/octet-stream' },
             });
             mediaKey = key;
-            msgType  = msg.voice ? 'voice' : 'media';
+            if (msg.voice) msgType = 'voice';
+            else if (msg.audio) msgType = 'file';
+            else msgType = 'media';
           }
         }
       } catch (e) {
