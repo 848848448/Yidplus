@@ -65,6 +65,11 @@ export async function onRequestGet(context) {
     if (!renderable || ct === 'image/svg+xml') {
       headers.set('Content-Type', 'application/octet-stream');
       headers.set('Content-Disposition', 'attachment');
+    } else if (ct.startsWith('audio/') || ct.startsWith('video/')) {
+      // Serve a clean base type — a "audio/webm;codecs=opus" Content-Type makes
+      // some browsers reject the source ("no supported source found"). The
+      // codecs hint belongs on <source type>, not the HTTP header.
+      headers.set('Content-Type', ct.split(';')[0].trim());
     }
 
     return new Response(obj.body, { status, headers });
