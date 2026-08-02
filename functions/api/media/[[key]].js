@@ -44,9 +44,23 @@ export async function onRequestGet(context) {
     headers.set('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
     headers.set('X-Content-Type-Options', 'nosniff');
 
+    // If R2 didn't store a usable content-type (older uploads often saved voice
+    // notes as octet-stream), infer a safe one from the extension so legitimate
+    // audio/video/images still PLAY instead of being forced to download.
+    let ct = (headers.get('Content-Type') || '').toLowerCase();
+    if (!ct || ct === 'application/octet-stream' || ct === 'binary/octet-stream') {
+      const ext = (key.split('.').pop() || '').toLowerCase();
+      const MIME = {
+        webm: 'audio/webm', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg',
+        mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', weba: 'audio/webm',
+        mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime',
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
+      };
+      if (MIME[ext]) { headers.set('Content-Type', MIME[ext]); ct = MIME[ext]; }
+    }
+
     // Defense in depth: force anything script-capable to download, never render
     // as a page on this origin.
-    const ct = (headers.get('Content-Type') || '').toLowerCase();
     const renderable = ct.startsWith('image/') || ct.startsWith('video/') || ct.startsWith('audio/');
     if (!renderable || ct === 'image/svg+xml') {
       headers.set('Content-Type', 'application/octet-stream');
