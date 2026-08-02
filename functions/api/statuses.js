@@ -101,7 +101,7 @@ export async function onRequestPost(context) {
       const file = form.get('media');
       if (file && file.arrayBuffer) {
         const ext = (file.name || '').split('.').pop() || 'bin';
-        mediaKey = `statuses/${user.id}/${Date.now()}.${ext}`;
+        mediaKey = `statuses/${user.id}/${Date.now()}_${crypto.randomUUID()}.${ext}`;
         await env.MY_BUCKET.put(mediaKey, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
         type = 'media';
       }

@@ -60,7 +60,7 @@ export async function onRequestPost(context) {
         if (fileRes.ok) {
           const fileUrl = `https://api.telegram.org/file/bot${(env.TG_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)}/${fileRes.result.file_path}`;
           const ext     = fileRes.result.file_path.split('.').pop() || 'bin';
-          const key     = `chat/${bridge.room_id}/${Date.now()}_tg.${ext}`;
+          const key     = `chat/${bridge.room_id}/${Date.now()}_${crypto.randomUUID()}_tg.${ext}`;
           const fileResp = await fetch(fileUrl);
           if (fileResp.ok && env.MY_BUCKET) {
             await env.MY_BUCKET.put(key, fileResp.body, {
