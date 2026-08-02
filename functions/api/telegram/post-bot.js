@@ -54,7 +54,9 @@ async function sendCodeEmail(env, email, code, nick) {
 async function storeMedia(env, fileId, prefix, userId, ext) {
   try {
     const info = await fetch(`${API(env)}/getFile?file_id=${fileId}`).then(r => r.json());
-    if (!info.ok) return null;
+    if (!info.ok || !info.result || !info.result.file_path) return null;
+    // Telegram's getFile only works up to 20MB via the Bot API. Larger files
+    // return no file_path, so we bail cleanly rather than storing an empty key.
     const url = `https://api.telegram.org/file/bot${env.TELEGRAM_POST_BOT_TOKEN}/${info.result.file_path}`;
     const realExt = (info.result.file_path.split('.').pop() || ext || 'bin');
     const key = `${prefix}/${userId}/${Date.now()}.${realExt}`;
@@ -128,15 +130,18 @@ export async function onRequestPost(context) {
         ).bind(crypto.randomUUID(), roomId, user.id, user.nickname || '', p.mediaKey ? 'media' : 'text', p.text || null, p.mediaKey || null, now).run().catch(() => {});
         done = '💬 Posted to your group!';
       } else if (data === 'dest:channel') {
-        const mediaUrl = p.mediaKey ? '/api/media/' + p.mediaKey : '';
+        // Store the raw R2 key in content — buildPostCard builds /api/media/{key}
+        // itself, so storing a full URL here produced a doubled path and a
+        // broken image.
+        const mediaContent = p.mediaKey || '';
         try {
           await env.DB.prepare(
             `INSERT INTO posts (id, username, user_id, caption, content, likes, comments, created_at) VALUES (?, ?, ?, ?, ?, 0, 0, ?)`
-          ).bind(crypto.randomUUID(), user.nickname || 'Anonymous', user.id, p.text || '', mediaUrl, now).run();
+          ).bind(crypto.randomUUID(), user.nickname || 'Anonymous', user.id, p.text || '', mediaContent, now).run();
         } catch (e) {
           await env.DB.prepare(
             `INSERT INTO posts (username, user_id, caption, content, likes, comments, created_at) VALUES (?, ?, ?, ?, 0, 0, ?)`
-          ).bind(user.nickname || 'Anonymous', user.id, p.text || '', mediaUrl, now).run().catch(() => {});
+          ).bind(user.nickname || 'Anonymous', user.id, p.text || '', mediaContent, now).run().catch(() => {});
         }
         done = '📡 Posted to your channel!';
       } else if (data === 'dest:short') {
@@ -218,13 +223,35 @@ export async function onRequestPost(context) {
     if (!user) { await say(env, chatId, 'Account not found. Contact support.'); return json({ ok: true }); }
 
     const caption = (msg.caption || msg.text || '').trim();
-    let mediaKey = null, isVideo = false;
+    let mediaKey = null, isVideo = false, mediaFailed = false;
     if (msg.photo) {
       mediaKey = await storeMedia(env, msg.photo[msg.photo.length - 1].file_id, 'posts', user.id, 'jpg');
+      if (!mediaKey) mediaFailed = true;
     } else if (msg.video) {
-      isVideo = true; mediaKey = await storeMedia(env, msg.video.file_id, 'shorts', user.id, 'mp4');
+      isVideo = true;
+      mediaKey = await storeMedia(env, msg.video.file_id, 'shorts', user.id, 'mp4');
+      if (!mediaKey) mediaFailed = true;
+    } else if (msg.animation) {
+      // GIFs arrive as animation (mp4 without sound) — treat as a short-style video.
+      isVideo = true;
+      mediaKey = await storeMedia(env, msg.animation.file_id, 'shorts', user.id, 'mp4');
+      if (!mediaKey) mediaFailed = true;
+    } else if (msg.voice) {
+      mediaKey = await storeMedia(env, msg.voice.file_id, 'posts', user.id, 'ogg');
+      if (!mediaKey) mediaFailed = true;
+    } else if (msg.audio) {
+      mediaKey = await storeMedia(env, msg.audio.file_id, 'posts', user.id, 'mp3');
+      if (!mediaKey) mediaFailed = true;
     } else if (msg.document) {
       mediaKey = await storeMedia(env, msg.document.file_id, 'posts', user.id, 'bin');
+      if (!mediaKey) mediaFailed = true;
+    }
+
+    // The upload was attempted but failed — tell the user instead of silently
+    // asking where to post nothing.
+    if (mediaFailed && !mediaKey) {
+      await say(env, chatId, '⚠ I couldn\'t download that file from Telegram (it may be too large). Try a smaller file, or send text.');
+      return json({ ok: true });
     }
 
     if (!caption && !mediaKey) { await say(env, chatId, 'Send me some text, a photo, or a video to post.'); return json({ ok: true }); }
