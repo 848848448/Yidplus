@@ -53,6 +53,39 @@ export async function onRequestGet(context) {
       likedIds = new Set(likedRows.map(r => r.post_id));
     }
 
+    // Privacy filter: a post from a channel marked followers_only must NOT
+    // appear in the public feed unless the viewer is the owner, an approved
+    // follower, or an admin. When a specific user_id is requested (viewing one
+    // channel), channels.js already gates that page, so we only filter the
+    // mixed public feed here.
+    if (!filterUserId && results.length) {
+      const isAdmin = user && (user.role === 'admin_super' || user.role === 'admin_limited');
+      if (!isAdmin) {
+        // Which of the post authors run a private channel?
+        const authorIds = [...new Set(results.map(p => p.user_id).filter(Boolean))];
+        if (authorIds.length) {
+          const ph = authorIds.map(() => '?').join(',');
+          const privRows = await env.DB.prepare(
+            `SELECT owner_id FROM channels WHERE privacy = 'followers_only' AND owner_id IN (${ph})`
+          ).bind(...authorIds).all().catch(() => ({ results: [] }));
+          const privateOwners = new Set((privRows.results || []).map(r => r.owner_id));
+
+          if (privateOwners.size) {
+            // Of those private owners, which does the viewer follow (or own)?
+            let allowed = new Set();
+            if (user) {
+              allowed.add(user.id); // your own private posts still show to you
+              const followRows = await env.DB.prepare(
+                `SELECT channel_owner_id FROM channel_followers WHERE follower_id = ? AND channel_owner_id IN (${ph})`
+              ).bind(user.id, ...authorIds).all().catch(() => ({ results: [] }));
+              (followRows.results || []).forEach(r => allowed.add(r.channel_owner_id));
+            }
+            results = results.filter(p => !privateOwners.has(p.user_id) || allowed.has(p.user_id));
+          }
+        }
+      }
+    }
+
     const out = results.map(p => ({ ...p, liked: likedIds.has(p.id) }));
     return json({ ok: true, posts: out });
   } catch (err) {

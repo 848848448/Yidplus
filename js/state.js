@@ -1420,6 +1420,16 @@ window.openChannel = function (ownerId) {
   navTo('channel');
 };
 
+// Open the signed-in user's OWN channel, landing straight on the Posts tab so
+// they can publish immediately — no searching for their own channel first.
+window.openMyChannel = function () {
+  if (!STATE.user || !STATE.user.id) { toast('⚠ Please sign in first.'); return; }
+  try { localStorage.setItem('yp_ch_tab', 'posts'); } catch (e) {}
+  STATE.prevScreen = STATE.screen;
+  CHANNEL_pendingOwnerId = STATE.user.id;
+  navTo('channel');
+};
+
 document.addEventListener('click', function (e) {
   var ctx = document.getElementById('ctx-menu');
   var chMenu = document.getElementById('ch-options-menu');
