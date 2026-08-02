@@ -2425,23 +2425,8 @@ window._confirmWithPassword = function (opts) {
     };
   });
 
-  // 4) Failed network / API calls (fetch that errors or returns 4xx/5xx).
-  if (window.fetch) {
-    var origFetch = window.fetch;
-    window.fetch = function (input, init) {
-      var url = (typeof input === 'string') ? input : (input && input.url) || '';
-      var p = origFetch.apply(this, arguments);
-      // Don't watch our own error-log calls.
-      if (!busy && url.indexOf('/api/error-log') === -1) {
-        p.then(function (res) {
-          try { if (res && !res.ok && res.status >= 400) report({ level: 'network', message: 'HTTP ' + res.status + ' — ' + url, source: url }); } catch (e) {}
-        }, function (err) {
-          try { report({ level: 'network', message: 'Network failed — ' + url + (err && err.message ? ' (' + err.message + ')' : ''), source: url }); } catch (e) {}
-        });
-      }
-      return p;
-    };
-  }
+  // (We intentionally do NOT wrap window.fetch — network failures still surface
+  // via console/errors, and wrapping every request app-wide is too invasive.)
 })();
 
 /* Shrink + compress an image before upload (for avatars and any non-watermarked
