@@ -2347,6 +2347,16 @@ function renderMessages(scrollDown) {
       return dateSep + '<div class="sys-msg"><span>' + escHtml(m.text || '') + '</span></div>';
     }
 
+    // Skip empty/contentless bubbles: a media/file/voice message whose file
+    // never arrived and that carries no real text is just a stray icon +
+    // timestamp. These are the blank download bubbles that tagged along when
+    // several files were sent — hide them entirely.
+    var _mTxt = (m.text || '').trim();
+    var _mHasText = _mTxt && _mTxt !== '__once__';
+    if ((m.type === 'media' || m.type === 'file' || m.type === 'voice') && !m.media_url && !_mHasText) {
+      return '';
+    }
+
     var isMediaMsg = (m.type === 'media' && m.media_url);
     var isEmojiOnlyMsg = ((m.type === 'text' || !m.type) && _isEmojiOnlyText(m.text));
     var bubbleClass = 'bubble ' + (isMe ? 'me' : 'them') + (isMediaMsg ? ' bubble-media' : '') + (isEmojiOnlyMsg ? ' bubble-emoji' : '');
@@ -2642,7 +2652,7 @@ function renderMessages(scrollDown) {
   // no flicker, no scroll jump (the WhatsApp/Telegram feel).
   var units = CHAT_messages.map(function (m, i) {
     return { id: String(m.id), sig: _msgSig(m), html: _htmlArr[i] };
-  });
+  }).filter(function (u) { return u.html && u.html.trim(); });
   _reconcileMessages(cont, units, scrollDown);
 }
 
