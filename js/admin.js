@@ -3234,11 +3234,11 @@ function buildAIPanel(content) {
         // Instructions
         '<label style="font-size:.75rem;color:var(--muted);display:block;margin-top:.8rem">How the AI should behave (your instructions)</label>' +
         '<div style="font-size:.64rem;color:var(--muted);margin:.15rem 0 .3rem;line-height:1.4">Write, in your own words, how the AI should act — its personality, tone, what it should focus on, what to avoid. This applies to everyone. (Basic safety rules always stay on.)</div>' +
-        '<textarea id="ai-instructions" rows="7" placeholder="למשל: ביסט א פֿריינדליכער אידישער אסיסטענט פֿאר אונזער קהילה. ענטפער קורץ און קלאר. זיי תמיד בכבודיק…" style="width:100%;box-sizing:border-box;padding:.6rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem;line-height:1.5" dir="auto">' + escHtml(s.instructions || '') + '</textarea>' +
+        '<textarea id="ai-instructions" rows="7" placeholder="e.g. You are a friendly Yiddish assistantיסטענט פֿאר אונזער קהילה. ענטפער קורץ און קלאר. זיי תמיד בכבודיק…" style="width:100%;box-sizing:border-box;padding:.6rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem;line-height:1.5" dir="auto">' + escHtml(s.instructions || '') + '</textarea>' +
 
         // Welcome
         '<label style="font-size:.75rem;color:var(--muted);display:block;margin-top:.8rem">Welcome message (shown before the first message)</label>' +
-        '<textarea id="ai-welcome" rows="2" placeholder="ווילקומען! פרעג מיר וואס דו ווילסט…" style="width:100%;box-sizing:border-box;padding:.55rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem" dir="auto">' + escHtml(s.welcome || '') + '</textarea>' +
+        '<textarea id="ai-welcome" rows="2" placeholder="Welcome! Ask me anything…" style="width:100%;box-sizing:border-box;padding:.55rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem" dir="auto">' + escHtml(s.welcome || '') + '</textarea>' +
 
         // Hourly limit
         '<label style="font-size:.75rem;color:var(--muted);display:block;margin-top:.8rem">Messages per user per hour</label>' +
@@ -3469,12 +3469,12 @@ window.adminRevokeAdFree = function (id) {
    NUCLEAR PANEL ☢️
 ══════════════════════════════════ */
 var NUCLEAR_CATS = [
-  { id:'shorts',   label:'📹 Videos (Shorts)',       desc:'אלע ווידעא אפלאודס' },
-  { id:'music',    label:'🎵 Music',                 desc:'אלע מוזיק טרעקס' },
-  { id:'channels', label:'📡 Channel Posts',         desc:'אלע קאנאל פּאסטן' },
-  { id:'statuses', label:'🌀 Statuses / Stories',    desc:'אלע סטאטוסן' },
-  { id:'messages', label:'💬 Chat Messages',         desc:'אלע גרופּע מעסידזשעס' },
-  { id:'posts',    label:'📝 Posts',                 desc:'אלע פּאסטן' },
+  { id:'shorts',   label:'📹 Videos (Shorts)',       desc:'All video uploads' },
+  { id:'music',    label:'🎵 Music',                 desc:'All music tracks' },
+  { id:'channels', label:'📡 Channel Posts',         desc:'All channel posts' },
+  { id:'statuses', label:'🌀 Statuses / Stories',    desc:'All statuses' },
+  { id:'messages', label:'💬 Chat Messages',         desc:'All group messages' },
+  { id:'posts',    label:'📝 Posts',                 desc:'All posts' },
 ];
 
 function buildNuclearPanel(content) {
@@ -3498,12 +3498,12 @@ function buildNuclearPanel(content) {
       '</div>' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">👥 Nuclear Permissions</div>' +
-        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">מאך אז א ספּעציפישן אדמין זאל אויך קענען נוצן Nuclear.</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Make a specific אדמין זאל אויך קענען נוצן Nuclear.</div>' +
         '<div style="display:flex;gap:.5rem;margin-bottom:.75rem">' +
-          '<input id="nuclear-perm-search" class="admin-search" placeholder="זוך יוזער..." oninput="nuclearPermSearch()" style="margin-bottom:0">' +
+          '<input id="nuclear-perm-search" class="admin-search" placeholder="Search user..." oninput="nuclearPermSearch()" style="margin-bottom:0">' +
         '</div>' +
         '<div id="nuclear-perm-results" style="margin-bottom:.75rem"></div>' +
-        '<div style="font-size:.78rem;font-weight:700;margin-bottom:.4rem">מיט Nuclear רעכטן:</div>' +
+        '<div style="font-size:.78rem;font-weight:700;margin-bottom:.4rem">With Nuclear rights:</div>' +
         '<div id="nuclear-perm-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
       '</div>' +
     '</div>';
@@ -3635,7 +3635,7 @@ function buildExportPanel(content) {
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">' + (ADMIN_ICONS.export||'') + ' Export Data</div>' +
-        '<div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">אראפלאדן אלע יוזערס אלס CSV פייל — נאמען, עמעיל, טעלעפאן, ראלע.</div>' +
+        '<div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">Download all users aלס CSV פייל — נאמען, עמעיל, טעלעפאן, ראלע.</div>' +
         '<button class="bc-send-btn" onclick="adminDownloadCSV()">Download Users CSV</button>' +
       '</div>' +
     '</div>';
@@ -3779,7 +3779,7 @@ function buildAntispamPanel(content) {
         '<input type="checkbox" id="as-wel-on" ' + (welEnabled ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer">' +
         '<span style="font-size:.85rem;font-weight:700">Send a welcome DM to new members</span>' +
       '</label>' +
-      '<textarea id="as-wel-msg" dir="auto" rows="4" placeholder="ברוך הבא {name}! מיר פרייען זיך דיך צו האבן דא..." style="width:100%;box-sizing:border-box;padding:.7rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;resize:vertical">' + escHtml(welMsg) + '</textarea>' +
+      '<textarea id="as-wel-msg" dir="auto" rows="4" placeholder="Welcome {name}! Glad to have you here..." style="width:100%;box-sizing:border-box;padding:.7rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;resize:vertical">' + escHtml(welMsg) + '</textarea>' +
       '<button class="bc-send-btn" style="margin-top:.7rem" onclick="asSaveWelcome()">Save welcome message</button>' +
     '</div>' +
   '</div>';
@@ -3924,7 +3924,7 @@ function buildAnnouncementsPanel(content) {
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">' + (ADMIN_ICONS.announcements||'') + ' Pinned Announcements</div>' +
-        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">ארויסגעשטעלטע נאכריכטן וואס אלע יוזערס זעען אויפן הויפטשירם.</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Featured notifכטן וואס אלע יוזערס זעען אויפן הויפטשירם.</div>' +
         '<textarea id="ann-text" rows="3" placeholder="Type announcement..." style="width:100%;box-sizing:border-box;padding:.6rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none;resize:none;margin-bottom:.6rem"></textarea>' +
         '<button class="bc-send-btn" onclick="adminPostAnnouncement()" style="margin-bottom:1rem">Post Announcement</button>' +
         '<div style="font-size:.72rem;font-weight:800;color:#1F6F5C;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">Active:</div>' +
@@ -3968,7 +3968,7 @@ function buildBadgesPanel(content) {
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">' + (ADMIN_ICONS.badges||'') + ' Custom Badges</div>' +
-        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">צולייגן א ספּעציאל באדזש צו א יוזער (z.b. ⭐ VIP, 🎵 Artist).</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Add a special באדזש צו א יוזער (z.b. ⭐ VIP, 🎵 Artist).</div>' +
         '<input id="badge-user-search" class="admin-search" placeholder="Search user..." oninput="badgeUserSearch()">' +
         '<div id="badge-user-results" style="margin-bottom:.75rem"></div>' +
         '<div style="font-size:.72rem;font-weight:800;color:#1F6F5C;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">All Badges:</div>' +
@@ -4033,7 +4033,7 @@ function buildWarningsPanel(content) {
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">' + (ADMIN_ICONS.warnings||'') + ' Send Warning to User</div>' +
-        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">שיק א וואָרענונג צו א יוזער — ער קריגט עס ווי א נאכריכט. קיין בלאק, נאר א וואָרענונג.</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Send a warning to א יוזער — ער קריגט עס ווי א נאכריכט. קיין בלאק, נאר א וואָרענונג.</div>' +
         '<input id="warn-user-search" class="admin-search" placeholder="Search user to warn..." oninput="warnUserSearch()">' +
         '<div id="warn-user-results"></div>' +
       '</div>' +

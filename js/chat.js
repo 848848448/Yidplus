@@ -5709,7 +5709,7 @@ window._viewMyOwnStatus = function () {
         HOME_svStatuses = [data];
         openSV(0);
       } else {
-        toast('דו האסט נאך נישט קיין סטאטוס');
+        toast('You don\'t have a status yet');
       }
     })
     .catch(function () { toast('⚠ Could not load your status.'); });
@@ -5724,7 +5724,7 @@ window._viewChatListAvatarStatus = function (userId) {
     .then(function (res) {
       var data = (res.statuses || [])[0];
       if (!data || !data.slides || !data.slides.length) {
-        toast('הסטאטוס איז שוין נישט אקטיוו');
+        toast('This status is no longer active');
         loadChatRooms(); // refresh so the stale ring disappears
         return;
       }
@@ -5733,7 +5733,7 @@ window._viewChatListAvatarStatus = function (userId) {
     })
     .catch(function (err) {
       console.error('status open failed:', err);
-      toast('קען נישט לאדן: ' + (err && err.message ? err.message : 'unknown error'));
+      toast('Could not load: ' + (err && err.message ? err.message : 'unknown error'));
     });
 };
 
@@ -6622,7 +6622,7 @@ function _aiChatRow() {
         '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
           '<div style="font-size:.94rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">YID PLUS AI <span style="font-size:.6rem;font-weight:700;color:#fff;background:#1F6F5C;padding:.05rem .3rem;border-radius:4px;vertical-align:middle">AI</span></div>' +
         '</div>' +
-        '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">פרעג מיר וואס דו ווילסט · Ask me anything</div>' +
+        '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ask me anything · Ask me anything</div>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -6655,7 +6655,7 @@ window.openAIChat = function () {
       '<div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🤖</div>' +
       '<div style="flex:1;min-width:0">' +
         '<div style="font-weight:800;font-size:1rem" id="ai-title">YID PLUS AI</div>' +
-        '<div style="font-size:.68rem;opacity:.85" id="ai-subtitle">גרייט צו העלפן</div>' +
+        '<div style="font-size:.68rem;opacity:.85" id="ai-subtitle">Ready to help</div>' +
       '</div>' +
       '<button onclick="clearAIChat()" title="Clear" style="background:none;border:none;color:#fff;cursor:pointer;padding:.3rem;opacity:.9"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>' +
     '</div>' +
@@ -6663,7 +6663,7 @@ window.openAIChat = function () {
     '<div id="ai-messages" style="flex:1;overflow-y:auto;padding:.9rem;display:flex;flex-direction:column;gap:.6rem"></div>' +
     // Input bar
     '<div style="flex-shrink:0;display:flex;gap:.5rem;align-items:flex-end;padding:.6rem .7rem calc(.6rem + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);background:var(--surface)">' +
-      '<textarea id="ai-input" rows="1" placeholder="שרייב א נאכריכט…" oninput="_aiAutogrow(this)" onkeydown="_aiInputKey(event)" style="flex:1;resize:none;max-height:120px;padding:.6rem .7rem;border:1px solid var(--border);border-radius:20px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.9rem;unicode-bidi:plaintext" dir="auto"></textarea>' +
+      '<textarea id="ai-input" rows="1" placeholder="Type a message…" oninput="_aiAutogrow(this)" onkeydown="_aiInputKey(event)" style="flex:1;resize:none;max-height:120px;padding:.6rem .7rem;border:1px solid var(--border);border-radius:20px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.9rem;unicode-bidi:plaintext" dir="auto"></textarea>' +
       '<button id="ai-send" onclick="_aiSend()" style="flex-shrink:0;width:42px;height:42px;border-radius:50%;border:none;background:#1F6F5C;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>' +
     '</div>';
   document.body.appendChild(ov);
@@ -6746,7 +6746,7 @@ function _aiRenderMessages() {
   // Welcome / intro when empty.
   if (!AI_state.messages.length) {
     var wname = AI_state.name || 'YID PLUS AI';
-    var wtext = AI_state.welcome || 'פרעג מיר וואס דו ווילסט — פֿראגעס, שרייבן, איבערזעצן, אידעען, ערקלערונגען, און אפֿילו מאכן בילדער 🎨. איך רעד אידיש.';
+    var wtext = AI_state.welcome || 'Ask me anything — questions, writing, translation, ideas, explanations, and even making images 🎨.';
     html +=
       '<div style="text-align:center;color:var(--muted);padding:1.75rem .5rem .5rem">' +
         '<div style="width:64px;height:64px;margin:0 auto .6rem;border-radius:20px;background:linear-gradient(135deg,#2B8A73,#1F6F5C);display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 8px 24px rgba(31,111,92,.32)">🤖</div>' +
@@ -6754,7 +6754,7 @@ function _aiRenderMessages() {
         '<div style="font-size:.84rem;line-height:1.5;max-width:300px;margin:0 auto" dir="auto">' + escHtml(wtext) + '</div>' +
       '</div>';
     if (!AI_state.disabled && !AI_state.notConfigured) {
-      var chips = ['מאך מיר א בילד 🎨', 'שרייב מיר א מעסעדזש', 'טייטש איבער אויף ענגליש', 'גיב מיר אן אידעע'];
+      var chips = ['Make me an image 🎨', 'Write me a message', 'Translate to English', 'Give me an idea'];
       html += '<div style="display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;padding:.5rem 1rem 1rem;max-width:420px;margin:0 auto">' +
         chips.map(function (c) {
           return '<button onclick="_aiQuick(this)" data-q="' + escHtml(c) + '" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:.5rem .8rem;border-radius:14px;font-size:.8rem;cursor:pointer;font-family:inherit">' + escHtml(c) + '</button>';
@@ -6762,9 +6762,9 @@ function _aiRenderMessages() {
       '</div>';
     }
     if (AI_state.disabled) {
-      html += '<div style="align-self:center;background:rgba(128,128,128,.15);border:1px solid var(--border);color:var(--text);padding:.6rem .8rem;border-radius:12px;font-size:.78rem;max-width:90%;text-align:center">⏸️ YID PLUS AI איז יעצט אויסגעשאלטן.</div>';
+      html += '<div style="align-self:center;background:rgba(128,128,128,.15);border:1px solid var(--border);color:var(--text);padding:.6rem .8rem;border-radius:12px;font-size:.78rem;max-width:90%;text-align:center">⏸️ YID PLUS AI is currently turned off.</div>';
     } else if (AI_state.notConfigured) {
-      html += '<div style="align-self:center;background:rgba(183,121,31,.15);border:1px solid rgba(183,121,31,.4);color:var(--text);padding:.6rem .8rem;border-radius:12px;font-size:.78rem;max-width:90%;text-align:center">⚠️ YID PLUS AI איז נאך נישט אויפגעשטעלט. דער אייגנטומער דארף אדער אנצינדן די פֿרייע Cloudflare Workers AI, אדער צולייגן אן ANTHROPIC_API_KEY.</div>';
+      html += '<div style="align-self:center;background:rgba(183,121,31,.15);border:1px solid rgba(183,121,31,.4);color:var(--text);padding:.6rem .8rem;border-radius:12px;font-size:.78rem;max-width:90%;text-align:center">⚠️ YID PLUS AI is not set up yet. The owner needs to either enable the free Cloudflare Workers AI, or add an ANTHROPIC_API_KEY.</div>';
     }
   }
 
@@ -6791,7 +6791,7 @@ function _aiSend() {
   AI_state.sending = true;
   _aiRenderMessages();
   var _looksImg = /\b(draw|picture|image|photo|sketch|paint)\b/i.test(text) || /בילד|צייכן|געמעל|מאל\s+מיר/.test(text);
-  _aiSetSubtitle(_looksImg ? 'מאכט א בילד… (א רגע)' : 'טיפט…');
+  _aiSetSubtitle(_looksImg ? 'Creating an image… (one moment)' : 'Typing…');
 
   api.post('/ai/chat', { message: text })
     .then(function (res) {
@@ -6803,18 +6803,18 @@ function _aiSend() {
         if (res.image) content = (res.reply || '') + '\n[img:' + res.image + ']';
         AI_state.messages.push({ role: 'assistant', content: content });
       } else {
-        var msg = (res && res.message) || 'עפעס איז שיף געגאנגען. פרוביר נאכאמאל.';
+        var msg = (res && res.message) || 'Something went wrong. Please try again.';
         AI_state.messages.push({ role: 'assistant', content: '⚠️ ' + msg });
       }
       _aiRenderMessages();
-      _aiSetSubtitle('גרייט צו העלפן');
+      _aiSetSubtitle('Ready to help');
     })
     .catch(function (err) {
       AI_state.sending = false;
       var msg = (err && err.data && err.data.message) || (err && err.message) || 'Connection error';
       AI_state.messages.push({ role: 'assistant', content: '⚠️ ' + msg });
       _aiRenderMessages();
-      _aiSetSubtitle('גרייט צו העלפן');
+      _aiSetSubtitle('Ready to help');
     });
 }
 window._aiSend = _aiSend;
@@ -6834,12 +6834,12 @@ function _aiSetSubtitle(t) {
 }
 
 window.clearAIChat = function () {
-  ypConfirm('אויסמעקן די גאנצע שמועס מיט YID PLUS AI?', { danger: true }).then(function (ok) {
+  ypConfirm('Clear the entire chat with YID PLUS AI?', { danger: true }).then(function (ok) {
     if (!ok) return;
     api.del('/ai/chat').then(function () {
       AI_state.messages = [];
       _aiRenderMessages();
-      toast('אויסגעמעקט');
+      toast('Cleared');
     }).catch(function (e) { toast('❌ ' + e.message); });
   });
 };

@@ -124,17 +124,17 @@ function _renderHomeHero() {
   var day  = now.getDay(); // 0=Sun .. 5=Fri, 6=Sat
 
   var greet;
-  if (h >= 5 && h < 12)       greet = 'גוט מאָרגן';
-  else if (h >= 12 && h < 17) greet = 'גוטן טאָג';
-  else if (h >= 17 && h < 22) greet = 'גוטן אָוונט';
-  else                        greet = 'אַ גוטע נאַכט';
+  if (h >= 5 && h < 12)       greet = 'Good morning';
+  else if (h >= 12 && h < 17) greet = 'Good afternoon';
+  else if (h >= 17 && h < 22) greet = 'Good evening';
+  else                        greet = 'Good night';
 
   var nick = (window.STATE && STATE.user && STATE.user.nickname) ? STATE.user.nickname : '';
   greetEl.textContent = nick ? (greet + ', ' + nick + '!') : (greet + '!');
 
   // Hebrew calendar date via built-in Intl (no library needed)
   if (dateEl) {
-    var weekdays = ['זונטיק','מאָנטיק','דינסטיק','מיטוואָך','דאָנערשטיק','פֿרײַטיק','שבת קודש'];
+    var weekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     var hebDate = '';
     try {
       hebDate = new Intl.DateTimeFormat('he-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' }).format(now);
@@ -145,9 +145,9 @@ function _renderHomeHero() {
   // Shabbos badge: Friday all day, Shabbos day, Motzei Shabbos in the evening
   if (badgeEl) {
     var badge = '';
-    if (day === 5)                badge = '🕯️ אַ גוטן שבת!';
-    else if (day === 6 && h < 19) badge = '🕯️ גוט שבת!';
-    else if (day === 6)           badge = '✨ אַ גוטע וואָך!';
+    if (day === 5)                badge = '🕯️ Good Shabbos!';
+    else if (day === 6 && h < 19) badge = '🕯️ Good Shabbos!';
+    else if (day === 6)           badge = '✨ Good week!';
     badgeEl.textContent = badge;
     badgeEl.style.display = badge ? 'block' : 'none';
   }
@@ -335,7 +335,7 @@ window.publishPost = function () {
   var content = (ta.value || '').trim();
 
   if (!content) {
-    toast('⚠ ביטע שרייב עפעס!');
+    toast('⚠ Please write something!');
     return;
   }
   if (!STATE.user) {
@@ -348,7 +348,7 @@ window.publishPost = function () {
     caption:  content,
     content:  '',
   }).then(function () {
-    toast('✅ פאוסט ארויף!');
+    toast('✅ Posted!');
     ta.value = '';
     loadDynamicFeed(); // refresh feed so the new post shows up
   }).catch(function (err) {
@@ -435,7 +435,7 @@ function fetchLatestBroadcast() {
         wb.innerHTML =
           '<div style="font-size:1.5rem;flex-shrink:0">✡️</div>' +
           '<div style="flex:1">' +
-            '<div style="font-size:.85rem;font-weight:700;color:var(--blue)">ברוכים הבאים ל-YID PLUS!</div>' +
+            '<div style="font-size:.85rem;font-weight:700;color:var(--blue)">Welcome to YID PLUS!</div>' +
             '<div style="font-size:.72rem;color:var(--muted);margin-top:.15rem">A Yiddish social platform for the Jewish community 🎉</div>' +
           '</div>' +
           '<button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:.25rem;flex-shrink:0">' +
@@ -585,7 +585,7 @@ function buildStatusRow() {
   var row = document.getElementById('status-row');
   if (!row) return;
 
-  var meNick = (STATE.user && STATE.user.nickname) ? STATE.user.nickname : 'מײַן סטאַטוס';
+  var meNick = (STATE.user && STATE.user.nickname) ? STATE.user.nickname : 'My Status';
   var meInitial = meNick.slice(0,1).toUpperCase();
 
   // "מײַן סטאַטוס" — always first, shows highlights indicator if archived
@@ -599,7 +599,7 @@ function buildStatusRow() {
           '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
         '</div>' +
       '</div>' +
-      '<div class="status-name">מײַן סטאַטוס</div>' +
+      '<div class="status-name">My Status</div>' +
     '</div>';
     (HOME_HIGHLIGHTS.length
       ? '<div class="status-item" onclick="openHighlightsModal()">' +
@@ -657,7 +657,7 @@ function buildStatusRow() {
               avatarContent +
             '</div>' +
           '</div>' +
-          '<div class="status-name">' + escHtml(isMine ? 'מײַן סטאַטוס' : (s.nickname || 'User')) + '</div>';
+          '<div class="status-name">' + escHtml(isMine ? 'My Status' : (s.nickname || 'User')) + '</div>';
         row.appendChild(el);
       });
     })
@@ -2928,7 +2928,7 @@ function _renderStatusRow(statuses) {
       '</div>' +
       '<div style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:var(--blue);border:2px solid var(--surface);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.85rem;font-weight:700">+</div>' +
     '</div>' +
-    '<div style="font-size:.65rem;color:var(--muted);text-align:center">מײַן סטאַטוס</div>' +
+    '<div style="font-size:.65rem;color:var(--muted);text-align:center">My Status</div>' +
   '</div>';
 
   // Other statuses — use index so openSV(idx) works correctly
@@ -2985,7 +2985,7 @@ function _renderChannelsPrev(channels) {
         (c.verified ? '<div style="position:absolute;top:-5px;right:-4px;font-size:.8rem">👑</div>' : '') +
       '</div>' +
       '<div style="font-size:.8rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext">@' + escHtml(c.nickname||'') + '</div>' +
-      '<div style="font-size:.66rem;color:var(--muted);margin-top:.15rem" dir="rtl">' + fmtN(c.followers||0) + ' נאָכפֿאָלגער</div>' +
+      '<div style="font-size:.66rem;color:var(--muted);margin-top:.15rem">' + fmtN(c.followers||0) + ' followers</div>' +
     '</div>';
   }).join('');
 }
@@ -2997,9 +2997,9 @@ function _renderFeed(posts) {
     feed.innerHTML =
       '<div class="feed-state" dir="rtl">' +
         '<div style="font-size:2.8rem">🕎</div>' +
-        '<div class="feed-state-text" style="font-weight:700">נאָך קיין פּאָסטן דאָ</div>' +
-        '<div class="feed-state-sub">זײַ דער ערשטער וואָס טיילט עפּעס מיט דער קהילה!</div>' +
-        '<button class="feed-empty-cta" onclick="var t=document.getElementById(\'new-post-content\');if(t){t.focus();t.scrollIntoView({behavior:\'smooth\',block:\'center\'})}">✍️ שרײַב דעם ערשטן פּאָסט</button>' +
+        '<div class="feed-state-text" style="font-weight:700">No posts yet</div>' +
+        '<div class="feed-state-sub">Be the first to share something with the community!</div>' +
+        '<button class="feed-empty-cta" onclick="var t=document.getElementById(\'new-post-content\');if(t){t.focus();t.scrollIntoView({behavior:\'smooth\',block:\'center\'})}">✍️ Write the first post</button>' +
       '</div>';
     return;
   }
@@ -3036,7 +3036,7 @@ function _showWelcomeBannerIfFirst() {
     wb.style.cssText = 'margin:.5rem .75rem;background:linear-gradient(135deg,rgba(31,111,92,.08),rgba(31,111,92,.04));border:1px solid rgba(31,111,92,.2);border-radius:14px;padding:.75rem 1rem;display:flex;align-items:center;gap:.65rem';
     wb.innerHTML =
       '<div style="font-size:1.5rem;flex-shrink:0">✡️</div>' +
-      '<div style="flex:1"><div style="font-size:.85rem;font-weight:700;color:var(--blue)">ברוכים הבאים ל-YID PLUS!</div><div style="font-size:.72rem;color:var(--muted);margin-top:.15rem">A Yiddish social platform 🎉</div></div>' +
+      '<div style="flex:1"><div style="font-size:.85rem;font-weight:700;color:var(--blue)">Welcome to YID PLUS!</div><div style="font-size:.72rem;color:var(--muted);margin-top:.15rem">A Yiddish social platform 🎉</div></div>' +
       '<button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:.25rem;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
     bar.insertBefore(wb, bar.firstChild);
     setTimeout(function(){ if(wb.parentElement) wb.remove(); }, 8000);
