@@ -1589,7 +1589,7 @@ window.PWA = {
 })();
 
 /* ══════════════════════════════════
-   AUTO DARK MODE — לויט סיסטעם
+   AUTO DARK MODE — follow system
 ══════════════════════════════════ */
 (function () {
   // Only auto-apply if user hasn't manually set it

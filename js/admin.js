@@ -3234,7 +3234,7 @@ function buildAIPanel(content) {
         // Instructions
         '<label style="font-size:.75rem;color:var(--muted);display:block;margin-top:.8rem">How the AI should behave (your instructions)</label>' +
         '<div style="font-size:.64rem;color:var(--muted);margin:.15rem 0 .3rem;line-height:1.4">Write, in your own words, how the AI should act — its personality, tone, what it should focus on, what to avoid. This applies to everyone. (Basic safety rules always stay on.)</div>' +
-        '<textarea id="ai-instructions" rows="7" placeholder="e.g. You are a friendly Yiddish assistantיסטענט פֿאר אונזער קהילה. ענטפער קורץ און קלאר. זיי תמיד בכבודיק…" style="width:100%;box-sizing:border-box;padding:.6rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem;line-height:1.5" dir="auto">' + escHtml(s.instructions || '') + '</textarea>' +
+        '<textarea id="ai-instructions" rows="7" placeholder="e.g. You are a friendly assistant for our community. Answer briefly and clearly. Always be respectful…" style="width:100%;box-sizing:border-box;padding:.6rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem;line-height:1.5" dir="auto">' + escHtml(s.instructions || '') + '</textarea>' +
 
         // Welcome
         '<label style="font-size:.75rem;color:var(--muted);display:block;margin-top:.8rem">Welcome message (shown before the first message)</label>' +
@@ -3482,7 +3482,7 @@ function buildNuclearPanel(content) {
     '<div class="admin-panel">' +
       '<div class="admin-card" style="border-color:rgba(226,75,74,.4)">' +
         '<div class="admin-card-title" style="color:var(--red)">☢️ Nuclear — Hide / Restore Content</div>' +
-        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:1rem;padding:.6rem;background:rgba(226,75,74,.06);border:1px solid rgba(226,75,74,.2);border-radius:8px">⚠️ Hide מאכט אז קיינער קען עס נישט זעהן. Restore ברענגט עס צוריק. קיינע דאטן ווערן אויסגעמעקט.</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:1rem;padding:.6rem;background:rgba(226,75,74,.06);border:1px solid rgba(226,75,74,.2);border-radius:8px">⚠️ Hide makes it so nobody can see it. Restore brings it back. No data is deleted.</div>' +
         NUCLEAR_CATS.map(function (c) {
           return '<div style="display:flex;justify-content:space-between;align-items:center;padding:.65rem 0;border-bottom:.5px solid var(--border)">' +
             '<div>' +
@@ -3498,7 +3498,7 @@ function buildNuclearPanel(content) {
       '</div>' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">👥 Nuclear Permissions</div>' +
-        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Make a specific אדמין זאל אויך קענען נוצן Nuclear.</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Make a specific admin able to use Nuclear too.</div>' +
         '<div style="display:flex;gap:.5rem;margin-bottom:.75rem">' +
           '<input id="nuclear-perm-search" class="admin-search" placeholder="Search user..." oninput="nuclearPermSearch()" style="margin-bottom:0">' +
         '</div>' +
@@ -3635,7 +3635,7 @@ function buildExportPanel(content) {
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">' + (ADMIN_ICONS.export||'') + ' Export Data</div>' +
-        '<div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">Download all users aלס CSV פייל — נאמען, עמעיל, טעלעפאן, ראלע.</div>' +
+        '<div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">Download all users as a CSV file — name, email, phone, role.</div>' +
         '<button class="bc-send-btn" onclick="adminDownloadCSV()">Download Users CSV</button>' +
       '</div>' +
     '</div>';
@@ -3924,7 +3924,7 @@ function buildAnnouncementsPanel(content) {
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">' + (ADMIN_ICONS.announcements||'') + ' Pinned Announcements</div>' +
-        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Featured notifכטן וואס אלע יוזערס זעען אויפן הויפטשירם.</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Featured notifications that all users see on the main screen.</div>' +
         '<textarea id="ann-text" rows="3" placeholder="Type announcement..." style="width:100%;box-sizing:border-box;padding:.6rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none;resize:none;margin-bottom:.6rem"></textarea>' +
         '<button class="bc-send-btn" onclick="adminPostAnnouncement()" style="margin-bottom:1rem">Post Announcement</button>' +
         '<div style="font-size:.72rem;font-weight:800;color:#1F6F5C;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">Active:</div>' +
@@ -3968,7 +3968,7 @@ function buildBadgesPanel(content) {
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">' + (ADMIN_ICONS.badges||'') + ' Custom Badges</div>' +
-        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Add a special באדזש צו א יוזער (z.b. ⭐ VIP, 🎵 Artist).</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Add a special badge to a user (e.g. ⭐ VIP, 🎵 Artist).</div>' +
         '<input id="badge-user-search" class="admin-search" placeholder="Search user..." oninput="badgeUserSearch()">' +
         '<div id="badge-user-results" style="margin-bottom:.75rem"></div>' +
         '<div style="font-size:.72rem;font-weight:800;color:#1F6F5C;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">All Badges:</div>' +
@@ -4033,7 +4033,7 @@ function buildWarningsPanel(content) {
     '<div class="admin-panel">' +
       '<div class="admin-card">' +
         '<div class="admin-card-title">' + (ADMIN_ICONS.warnings||'') + ' Send Warning to User</div>' +
-        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Send a warning to א יוזער — ער קריגט עס ווי א נאכריכט. קיין בלאק, נאר א וואָרענונג.</div>' +
+        '<div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">Send a warning to a user — they get it as a message. No block, just a warning.</div>' +
         '<input id="warn-user-search" class="admin-search" placeholder="Search user to warn..." oninput="warnUserSearch()">' +
         '<div id="warn-user-results"></div>' +
       '</div>' +
