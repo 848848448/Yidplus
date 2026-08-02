@@ -668,7 +668,7 @@
 <script defer src="js/state.js?v=202608021912"></script>
 <script defer src="js/theme.js?v=202607291705"></script>
 <script defer src="js/app.js?v=202607291705"></script>
-<script defer src="js/chat.js?v=202608022348"></script>
+<script defer src="js/chat.js?v=202608022355"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
@@ -1117,6 +1117,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     loadChatRooms();
     initAds('chat');
+    // If the phone shared something INTO the app, open the "Share to…" picker.
+    if (typeof _initShareInbox === 'function') setTimeout(_initShareInbox, 300);
   });
 });
 </script>

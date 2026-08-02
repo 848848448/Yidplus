@@ -20,5 +20,18 @@
     { "name": "Chats", "url": "/chat" },
     { "name": "Channels", "url": "/?goto=explore" },
     { "name": "Shorts", "url": "/shorts" }
-  ]
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        { "name": "media", "accept": ["image/*", "video/*", "audio/*", ".pdf"] }
+      ]
+    }
+  }
 }

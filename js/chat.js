@@ -7144,3 +7144,93 @@ if (!window._statusBadgeTimer) {
   }, 45000);
   setTimeout(function () { if (window._updateStatusBadge) window._updateStatusBadge(); }, 1500);
 }
+
+// ── Web Share Target: something was shared INTO the app → pick where to send ──
+window._initShareInbox = function () {
+  try {
+    var sp = new URLSearchParams(location.search);
+    var text = sp.get('share_text') || '';
+    var mediaKey = sp.get('share_media') || '';
+    if (!text && !mediaKey) return;
+    // Clean the URL so a refresh doesn't re-open the picker.
+    try { history.replaceState({}, '', '/chat'); } catch (e) {}
+    _showSharePicker(text, mediaKey);
+  } catch (e) {}
+};
+
+function _showSharePicker(text, mediaKey) {
+  var ov = document.createElement('div');
+  ov.id = 'share-picker-modal';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100060;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+  ov.innerHTML =
+    '<div style="background:var(--surface,#fff);color:var(--text,#111);width:100%;max-width:520px;border-radius:18px 18px 0 0;max-height:80vh;display:flex;flex-direction:column">' +
+      '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);font-weight:800">Share to…</div>' +
+      (text ? '<div style="padding:.6rem 1.25rem;font-size:.8rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(text) + '</div>' : '') +
+      (mediaKey ? '<div style="padding:.2rem 1.25rem .6rem;font-size:.8rem;color:var(--muted)">📎 A file will be sent</div>' : '') +
+      '<div id="share-picker-list" style="flex:1;overflow-y:auto;padding:.25rem 0"><div style="padding:1.5rem;text-align:center;color:var(--muted)">Loading chats…</div></div>' +
+      '<button onclick="document.getElementById(\'share-picker-modal\').remove()" style="margin:.6rem 1.25rem 1rem;padding:.8rem;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:700;font-family:inherit">Cancel</button>' +
+    '</div>';
+  document.body.appendChild(ov);
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+
+  api.get('/chat/rooms').then(function (res) {
+    var rooms = (res && res.rooms) || [];
+    var el = document.getElementById('share-picker-list');
+    if (!el) return;
+    if (!rooms.length) { el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--muted)">No chats yet.</div>'; return; }
+    el.innerHTML = rooms.map(function (r) {
+      var nick = escHtml(r.nick || 'Chat');
+      var av = r.photo_url
+        ? '<div style="width:42px;height:42px;border-radius:50%;background:#ccc center/cover url(\'' + r.photo_url + '\');flex-shrink:0"></div>'
+        : '<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--accent,#1F6F5C),#2B8A73);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0">' + (r.nick || '?').slice(0, 1).toUpperCase() + '</div>';
+      return '<div onclick="_sendShared(\'' + r.id + '\')" style="display:flex;align-items:center;gap:.7rem;padding:.65rem 1.25rem;cursor:pointer">' + av +
+        '<div style="font-weight:600">' + nick + '</div></div>';
+    }).join('');
+  }).catch(function () {});
+
+  // Stash for the send handler.
+  window._sharePending = { text: text, mediaKey: mediaKey };
+}
+
+window._sendShared = function (roomId) {
+  var p = window._sharePending || {};
+  var modal = document.getElementById('share-picker-modal');
+  if (modal) modal.innerHTML = '<div style="margin:auto;color:#fff">Sending…</div>';
+  var finish = function () { if (modal) modal.remove(); toast('✅ Shared'); if (typeof openChatRoom === 'function') openChatRoom(roomId); };
+  var fail = function (m) { if (modal) modal.remove(); toast('❌ ' + (m || 'Failed to share')); };
+
+  if (p.mediaKey) {
+    var url = '/api/media/' + p.mediaKey.split('/').map(encodeURIComponent).join('/');
+    fetch(url).then(function (r) { return r.blob(); }).then(function (blob) {
+      var ext = (p.mediaKey.split('.').pop() || 'bin').toLowerCase();
+      var t = blob.type || '';
+      var type = t.startsWith('image/') || t.startsWith('video/') ? 'media' : 'file';
+      var form = new FormData();
+      form.append('room_id', roomId);
+      form.append('type', type);
+      form.append('text', p.text || '');
+      form.append('file', new File([blob], 'shared.' + ext, { type: t || 'application/octet-stream' }));
+      return api.post('/chat', form, true);
+    }).then(finish).catch(function (e) { fail(e && e.message); });
+  } else {
+    var form2 = new FormData();
+    form2.append('room_id', roomId);
+    form2.append('type', 'text');
+    form2.append('text', p.text || '');
+    api.post('/chat', form2, true).then(finish).catch(function (e) { fail(e && e.message); });
+  }
+};
+
+// ── Share OUT: use the phone's native share sheet (falls back to copy) ──
+window.ypShare = function (data) {
+  try {
+    if (navigator.share) {
+      navigator.share(data).catch(function () {});
+      return;
+    }
+  } catch (e) {}
+  // Fallback: copy the link/text.
+  var s = data.url || data.text || '';
+  if (navigator.clipboard && s) { navigator.clipboard.writeText(s).then(function () { toast('📋 Copied'); }).catch(function () {}); }
+  else { toast('Sharing not supported on this device'); }
+};
