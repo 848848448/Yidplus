@@ -1766,6 +1766,8 @@ window.openChatRoom = function (roomId, topicId, topicName) {
 window.openChatInfo = function () {
   if (!CHAT_curRoom) return;
   var isGroup = CHAT_curRoom.type === 'group';
+  // Channels get the same owner/admin controls as groups (photo, settings).
+  var isGroupOrChannel = isGroup || CHAT_curRoom.type === 'channel';
 
   var avBig = document.getElementById('info-avatar-big');
   if (CHAT_curRoom.photo_url) {
@@ -1775,7 +1777,7 @@ window.openChatInfo = function () {
     avBig.style.backgroundImage = '';
     avBig.textContent = isGroup ? '👥' : (CHAT_curRoom.nick || '?').slice(0, 1).toUpperCase();
   }
-  avBig.onclick = isGroup ? function () { document.getElementById('group-photo-input').click(); } : function () { _viewChatPartnerStatus(); };
+  avBig.onclick = isGroupOrChannel ? function () { document.getElementById('group-photo-input').click(); } : function () { _viewChatPartnerStatus(); };
   avBig.style.cursor = 'pointer';
 
   // For 1-on-1 chats, check if the other person has an active status and add a ring
@@ -1803,8 +1805,23 @@ window.openChatInfo = function () {
   // Group admin settings panel — visible to this group's sub-admins and Super Admins.
   var meId = STATE.user && STATE.user.id;
   var isSuperAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
-  var canManageGroup = isGroup && (CHAT_curRoom.is_group_admin || isSuperAdmin);
+  var canManageGroup = isGroupOrChannel && (CHAT_curRoom.is_group_admin || isSuperAdmin);
   document.getElementById('info-admin-settings').style.display = canManageGroup ? 'block' : 'none';
+
+  // Make the "change photo" affordance obvious for admins.
+  if (avBig) {
+    var oldCam = avBig.querySelector('.av-cam-badge');
+    if (oldCam) oldCam.remove();
+    if (canManageGroup) {
+      avBig.style.position = 'relative';
+      avBig.title = 'Tap to change photo';
+      var cam = document.createElement('div');
+      cam.className = 'av-cam-badge';
+      cam.style.cssText = 'position:absolute;right:0;bottom:0;width:30px;height:30px;border-radius:50%;background:var(--accent,#1F6F5C);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;border:2px solid var(--surface,#fff);box-shadow:0 1px 4px rgba(0,0,0,.25)';
+      cam.textContent = '📷';
+      avBig.appendChild(cam);
+    }
+  }
 
   if (canManageGroup) _loadJoinRequests(CHAT_curRoom.id);
 
