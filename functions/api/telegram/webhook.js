@@ -49,7 +49,7 @@ export async function onRequestPost(context) {
       // Check file size before downloading
       const fileSize = fileTarget.file_size || 0;
       if (fileSize > MAX_FILE_BYTES) {
-        msgText = msgText || '[File too large to mirror — max 250MB]';
+        msgText = msgText || '📎 [File too large to mirror — max 250MB]';
         msgType = 'text';
       } else
       try {
@@ -57,7 +57,7 @@ export async function onRequestPost(context) {
           `https://api.telegram.org/bot${(env.TG_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)}/getFile?file_id=${fileTarget.file_id}`
         ).then(r => r.json());
 
-        if (fileRes.ok) {
+        if (fileRes.ok && fileRes.result && fileRes.result.file_path) {
           const fileUrl = `https://api.telegram.org/file/bot${(env.TG_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)}/${fileRes.result.file_path}`;
           const ext     = fileRes.result.file_path.split('.').pop() || 'bin';
           const key     = `chat/${bridge.room_id}/${Date.now()}_${crypto.randomUUID()}_tg.${ext}`;
@@ -70,10 +70,20 @@ export async function onRequestPost(context) {
             if (msg.voice) msgType = 'voice';
             else if (msg.audio) msgType = 'file';
             else msgType = 'media';
+          } else {
+            // Download failed — don't post a blank bubble.
+            msgText = msgText || '📎 [Could not load media from Telegram]';
+            msgType = 'text';
           }
+        } else {
+          // getFile failed — almost always the Bot API's 20MB download limit.
+          // Post a clear note instead of an empty message.
+          msgText = msgText || '🎬 [Video/file too large for the bridge (over 20MB)]';
+          msgType = 'text';
         }
       } catch (e) {
-        msgText = msgText || '[Media from Telegram]';
+        msgText = msgText || '📎 [Media from Telegram]';
+        msgType = 'text';
       }
     }
 

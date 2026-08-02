@@ -2496,6 +2496,15 @@ function renderMessages(scrollDown) {
         inner += '<div style="margin-top:.35rem;font-size:.88rem;unicode-bidi:plaintext;' + (capRTL ? 'direction:rtl;text-align:right' : '') + '">' + _linkify(escHtml(m.text), isMe) + '</div>';
       }
 
+    } else if ((m.type === 'media' || m.type === 'file' || m.type === 'voice') && !m.media_url) {
+      // A media message whose file never arrived (e.g. a Telegram video over
+      // the Bot API's 20MB limit, or a failed upload). Show a clear note
+      // instead of an empty bubble with a stray download icon.
+      inner += '<div style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;opacity:.7;min-width:150px">' +
+        '<span style="font-size:1.3rem">📎</span>' +
+        '<span dir="auto">' + escHtml(m.text && m.text !== '__once__' ? m.text : 'Media unavailable') + '</span>' +
+      '</div>';
+
     } else if (m.type === 'file' && m.media_url) {
       var fk = (m.media_key || m.media_url || '').toLowerCase();
       var fname = escHtml(m.text || 'File');

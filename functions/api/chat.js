@@ -388,6 +388,18 @@ export async function onRequestPost(context) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    // A media/file/voice message with no stored file is the source of the
+    // empty "download icon" bubbles. If the type expects a file but none was
+    // stored, refuse rather than writing a blank message row.
+    if ((type === 'media' || type === 'file' || type === 'voice') && !mediaKey) {
+      if (text && text.trim()) {
+        // There's real text — downgrade to a normal text message instead.
+        type = 'text';
+      } else {
+        return json({ ok: false, error: 'Media failed to upload — nothing was sent.' }, 400);
+      }
+    }
+
     // For a disappearing message, compute when it expires (from now, or from
     // its scheduled release time if it's also scheduled).
     let expiresAt = null;
