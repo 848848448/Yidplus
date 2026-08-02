@@ -19,7 +19,7 @@
 <meta name="twitter:description" content="A Yiddish social platform for the Jewish community">
 <meta name="twitter:image" content="https://yidplus.pages.dev/images/logo.png">
 <title>YID PLUS</title>
-<link rel="stylesheet" href="css/style.css?v=202608020230">
+<link rel="stylesheet" href="css/style.css?v=202608020305">
 <script>
 // Apply saved user theme ASAP (before paint) to avoid flash-of-default-colors
 (function () {
@@ -219,6 +219,10 @@
 <div class="screen" id="screen-explore">
   <div class="topbar">
     <div class="topbar-logo">Channels</div>
+    <button onclick="openMyChannel()" style="margin-inline-start:auto;display:flex;align-items:center;gap:.35rem;background:linear-gradient(135deg,#D4AF37,#E8C860);color:#fff;border:none;border-radius:20px;padding:.4rem .9rem;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 2px 6px rgba(212,175,55,.35)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.5"/></svg>
+      מײַן קאַנאַל
+    </button>
   </div>
   <!-- Search bar -->
   <div style="padding:.6rem .75rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
@@ -233,6 +237,10 @@
   <div class="scroll-area" style="padding-bottom:80px" id="explore-content">
     <div id="explore-body" style="padding:.5rem 0"></div>
   </div>
+  <!-- Floating: publish a post to your own channel -->
+  <button onclick="openMyChannel()" title="לייג א פּאָסט" style="position:absolute;bottom:94px;inset-inline-end:18px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#D4AF37,#E8C860);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 14px rgba(212,175,55,.5);display:flex;align-items:center;justify-content:center;z-index:50">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
   <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span class="nav-label">Shorts</span></button><button class="nav-item active" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.5"/></svg></span><span class="nav-label">Channels</span></button><button class="nav-item" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="nav-label">Settings</span></button></nav>
 </div>
 
