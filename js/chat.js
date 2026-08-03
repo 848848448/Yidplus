@@ -1817,7 +1817,7 @@ window.openChatInfo = function () {
       avBig.title = 'Tap to change photo';
       var cam = document.createElement('div');
       cam.className = 'av-cam-badge';
-      cam.style.cssText = 'position:absolute;right:0;bottom:0;width:30px;height:30px;border-radius:50%;background:var(--accent,#1F6F5C);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;border:2px solid var(--surface,#fff);box-shadow:0 1px 4px rgba(0,0,0,.25)';
+      cam.style.cssText = 'position:absolute;right:0;bottom:0;width:30px;height:30px;border-radius:50%;background:var(--accent,#1F6F5C);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;border:2px solid var(--surface,#fff);box-shadow:0 1px 4px rgba(0,0,0,.25);pointer-events:none';
       cam.textContent = '📷';
       avBig.appendChild(cam);
     }
@@ -7233,4 +7233,25 @@ window.ypShare = function (data) {
   var s = data.url || data.text || '';
   if (navigator.clipboard && s) { navigator.clipboard.writeText(s).then(function () { toast('📋 Copied'); }).catch(function () {}); }
   else { toast('Sharing not supported on this device'); }
+};
+
+// Share the current group/channel via the native share sheet (invite link).
+window.shareCurrentChat = function () {
+  if (!CHAT_curRoom) return;
+  var name = CHAT_curRoom.nick || 'YID PLUS';
+  var origin = window.location.origin;
+  function doShare(code) {
+    var url = code ? (origin + '/chat?join=' + code) : origin;
+    ypShare({ title: name, text: 'Join "' + name + '" on YID PLUS', url: url });
+  }
+  var code = CHAT_curRoom.invite_code;
+  if (code) { doShare(code); return; }
+  // No code yet — try to fetch or generate one, then share.
+  api.get('/chat/rooms').then(function (res) {
+    var room = (res.rooms || []).find(function (r) { return r.id === CHAT_curRoom.id; });
+    if (room && room.invite_code) { CHAT_curRoom.invite_code = room.invite_code; doShare(room.invite_code); return; }
+    return api.put('/chat/rooms', { room_id: CHAT_curRoom.id, generate_invite: true })
+      .then(function (r2) { CHAT_curRoom.invite_code = r2.invite_code; doShare(r2.invite_code); })
+      .catch(function () { doShare(null); });
+  }).catch(function () { doShare(null); });
 };
