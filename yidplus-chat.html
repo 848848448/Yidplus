@@ -672,7 +672,7 @@
 <script defer src="js/state.js?v=202608021912"></script>
 <script defer src="js/theme.js?v=202607291705"></script>
 <script defer src="js/app.js?v=202607291705"></script>
-<script defer src="js/chat.js?v=202608030445"></script>
+<script defer src="js/chat.js?v=202608030451"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
@@ -1010,7 +1010,10 @@ window.handleGroupPhoto = function (e) {
 // ── CHAT INFO (override openChatInfo to use our nav) ──
 var _origOpenChatInfo = window.openChatInfo;
 window.openChatInfo = function () {
-  if (typeof _origOpenChatInfo === 'function') _origOpenChatInfo();
+  // Populate first — but never let a populate error stop the screen from
+  // opening, or tapping the group title would appear to do nothing.
+  try { if (typeof _origOpenChatInfo === 'function') _origOpenChatInfo(); }
+  catch (e) { try { console.error('openChatInfo populate failed', e); } catch (_) {} }
   showChatInfo();
 };
 
