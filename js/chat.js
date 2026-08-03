@@ -1808,7 +1808,10 @@ window.openChatInfo = function () {
   var meId = STATE.user && STATE.user.id;
   var isSuperAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
   var canManageGroup = isGroupOrChannel && (CHAT_curRoom.is_group_admin || isSuperAdmin);
-  document.getElementById('info-admin-settings').style.display = canManageGroup ? 'block' : 'none';
+  // The old inline "GROUP SETTINGS" toggles are replaced by the clean Edit
+  // screen (pencil button). Keep the info screen tidy — never show them here.
+  var _adminBox = document.getElementById('info-admin-settings');
+  if (_adminBox) _adminBox.style.display = 'none';
   var _editBtn = document.getElementById('info-edit-btn');
   if (_editBtn) _editBtn.style.display = canManageGroup ? 'flex' : 'none';
 
@@ -2060,7 +2063,7 @@ function _renderMembersList() {
   var list = document.getElementById('members-list');
   if (!list) return;
   if (!CHAT_members.length) {
-    list.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">Loading members...</div>';
+    list.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">Loading members…</div>';
     return;
   }
   var meId = STATE.user && STATE.user.id;
@@ -2069,30 +2072,49 @@ function _renderMembersList() {
 
   list.innerHTML = CHAT_members.map(function (m) {
     var photoStyle = m.photo_url ? "background-image:url('" + m.photo_url + "');background-size:cover;background-position:center;" : '';
+    var nick = escHtml(m.nickname || 'User');
     var isSelf = m.id === meId;
-    var controls = '';
-    if (canManageGroup && !isSelf) {
-      controls = '<div style="display:flex;gap:.3rem;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">' +
-        '<button onclick="event.stopPropagation();promptSetMemberTitle(\'' + m.id + '\',\'' + escHtml(m.title || '').replace(/'/g, "\\'") + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .4rem;font-size:.65rem;cursor:pointer;color:var(--text)">🏷 Title</button>' +
-        '<button onclick="event.stopPropagation();toggleMemberGroupAdmin(\'' + m.id + '\',' + !m.is_group_admin + ')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .4rem;font-size:.65rem;cursor:pointer;color:var(--blue)">' + (m.is_group_admin ? 'Demote' : 'Make Admin') + '</button>' +
-        '<button onclick="event.stopPropagation();removeMemberFromGroup(\'' + m.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .4rem;font-size:.65rem;cursor:pointer;color:var(--red)">Remove</button>' +
+    var badge = '';
+    if (m.role === 'admin_super' || m.role === 'admin_limited') badge = '<span style="font-size:.68rem;color:var(--accent,#1F6F5C);font-weight:700">owner</span>';
+    else if (m.is_group_admin) badge = '<span style="font-size:.68rem;color:var(--accent,#1F6F5C);font-weight:700">admin</span>';
+    // Tapping: admins get the action sheet, everyone else opens the member.
+    var tap = (canManageGroup && !isSelf)
+      ? "_openMemberActions('" + m.id + "','" + nick.replace(/'/g, "\\'") + "'," + (m.is_group_admin ? 'true' : 'false') + ",'" + escHtml(m.title || '').replace(/'/g, "\\'") + "')"
+      : "_openMemberDM('" + m.id + "','" + nick.replace(/'/g, "\\'") + "')";
+    var sub = m.title
+      ? '<div style="font-size:.74rem;color:var(--accent,#1F6F5C);font-weight:600">' + escHtml(m.title) + '</div>'
+      : (m.online && isAnyAdmin() ? '<div style="font-size:.74rem;color:#16A34A">online</div>' : '');
+    return '<div onclick="' + tap + '" style="display:flex;align-items:center;gap:.75rem;padding:.7rem 1.1rem;cursor:pointer">' +
+        '<div style="width:44px;height:44px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:linear-gradient(135deg,var(--accent,#1F6F5C),#2B8A73);' + photoStyle + '">' +
+          (m.photo_url ? '' : (m.nickname || '?').slice(0, 1).toUpperCase()) + '</div>' +
+        '<div style="flex:1;min-width:0;unicode-bidi:plaintext;text-align:start">' +
+          '<div style="font-size:.9rem;font-weight:600">' + nick + '</div>' + sub +
+        '</div>' + badge +
+        (canManageGroup && !isSelf ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:.4rem;flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>' : '') +
       '</div>';
-    }
-    var isMemberAdmin = m.is_group_admin || m.role === 'admin_super' || m.role === 'admin_limited';
-    return '<div class="member-row-admin">' +
-      '<div class="member-photo" style="' + photoStyle + '">' +
-        (m.photo_url ? '' : (m.nickname || '?').slice(0, 1).toUpperCase()) +
-      '</div>' +
-      '<div style="flex:1;unicode-bidi:plaintext;text-align:start;' + (isMemberAdmin ? 'cursor:pointer' : '') + '" onclick="_openMemberDM(\'' + m.id + '\',\'' + escHtml(m.nickname || 'User').replace(/'/g, "\\'") + '\')"><div style="font-size:.85rem;font-weight:700">@' + escHtml(m.nickname || 'User') + '</div>' +
-      (m.title ? '<div style="font-size:.68rem;color:var(--blue);font-weight:600">' + escHtml(m.title) + '</div>' : '') +
-      (m.online && isAnyAdmin() ? '<div style="font-size:.68rem;color:var(--green)">● online</div>' : '') +
-      '</div>' +
-      (m.role === 'admin_super' || m.role === 'admin_limited' ? '<span style="font-size:.65rem;background:#EAF4FF;color:var(--blue);border:1px solid #BBDEFB;border-radius:6px;padding:.1rem .4rem">Admin</span>' : '') +
-      (m.is_group_admin ? '<span style="font-size:.65rem;background:#FFF3E0;color:#E65100;border:1px solid #FFE0B2;border-radius:6px;padding:.1rem .4rem;margin-left:.3rem">Group Admin</span>' : '') +
-      controls +
-    '</div>';
   }).join('');
 }
+
+// Clean bottom-sheet of actions for a member (admins only).
+window._openMemberActions = function (memberId, nickname, isGroupAdmin, title) {
+  var old = document.getElementById('member-actions-sheet'); if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'member-actions-sheet';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100070;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  function item(label, color, onclick) {
+    return '<div onclick="' + onclick + '" style="padding:1rem 1.25rem;font-size:.95rem;font-weight:600;color:' + (color || 'var(--text)') + ';cursor:pointer;border-top:1px solid var(--border)">' + label + '</div>';
+  }
+  ov.innerHTML = '<div style="background:var(--surface);width:100%;max-width:500px;border-radius:18px 18px 0 0;overflow:hidden;padding-bottom:env(safe-area-inset-bottom)">' +
+      '<div style="padding:1rem 1.25rem;font-weight:800;font-size:1rem">@' + nickname + '</div>' +
+      item('💬 Message', '', "document.getElementById('member-actions-sheet').remove();_openMemberDM('" + memberId + "','" + nickname.replace(/'/g, "\\'") + "')") +
+      item('🏷 Set title', '', "document.getElementById('member-actions-sheet').remove();promptSetMemberTitle('" + memberId + "','" + (title || '').replace(/'/g, "\\'") + "')") +
+      item(isGroupAdmin ? '⬇ Dismiss as admin' : '⭐ Make admin', 'var(--accent,#1F6F5C)', "document.getElementById('member-actions-sheet').remove();toggleMemberGroupAdmin('" + memberId + "'," + (!isGroupAdmin) + ")") +
+      item('🚫 Remove from group', '#DC2626', "document.getElementById('member-actions-sheet').remove();removeMemberFromGroup('" + memberId + "')") +
+      '<div onclick="document.getElementById(\'member-actions-sheet\').remove()" style="padding:1rem 1.25rem;text-align:center;font-weight:700;color:var(--muted);border-top:8px solid var(--bg);cursor:pointer">Cancel</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+};
 
 window.promptSetMemberTitle = function (memberId, currentTitle) {
   if (!CHAT_curRoom) return;
