@@ -3879,6 +3879,7 @@ function _buildCtxMenu(msg) {
   var SVG_BOOKMARK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>';
   var SVG_TRANSLATE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
   var SVG_SELECT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
+  var SVG_SHARE_APPS = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
 
   items += item(SVG.reply,    'Reply',        'ctxReply()');
   if (msg.type === 'text' || msg.type === 'media') items += item(SVG.copy, 'Copy', 'ctxCopy()');
@@ -3886,7 +3887,7 @@ function _buildCtxMenu(msg) {
   items +=        item(SVG.forward,  'Forward',      'ctxForward()');
   if (canPin)    items += item(SVG.pin,       'Pin',          'ctxPin()');
   items +=        item(SVG_BOOKMARK, 'Save Message', 'bookmarkMessage(CHAT_ctxMsg.id)');
-  items +=        item(SVG_TRANSLATE,'Translate',    'translateMessage(CHAT_ctxMsg.id)');
+  items +=        item(SVG_SHARE_APPS, 'Share to apps', 'ctxShare()');
   items +=        item(SVG_SELECT,   'Select',       '_enterSelectMode(CHAT_ctxMsg.id); renderMessages(false);');
   if (!isMe)     items += item(SVG.report,    'Report',       'ctxReport()');
   if (canDelete) items += item(SVG.trash,     'Delete',       'ctxDelete()', true);
@@ -3901,7 +3902,7 @@ function _buildCtxMenu(msg) {
   var CTX_ACTIONS = {
     'ctxReply()': ctxReply, 'ctxCopy()': ctxCopy, 'ctxForward()': ctxForward,
     'ctxPin()': ctxPin, 'ctxEdit()': ctxEdit, 'ctxReport()': ctxReport,
-    'ctxDelete()': ctxDelete,
+    'ctxDelete()': ctxDelete, 'ctxShare()': ctxShare,
   };
   el.querySelectorAll('.ctx-item').forEach(function (div) {
     div.addEventListener('click', function () {
@@ -7548,4 +7549,26 @@ window._geMediaToggle = function (key) {
   if (!_geData.permissions) _geData.permissions = {};
   _geData.permissions[key] = on;
   api.put('/chat/rooms', { room_id: _geRoomId, permissions: _geData.permissions }).catch(function (e) { toast('❌ ' + (e && e.message)); _geFlip('gem-' + key, !on); });
+};
+
+// Share the selected message's content to other apps via the native share sheet.
+window.ctxShare = function () {
+  var m = CHAT_ctxMsg;
+  closeCtxMenu();
+  if (!m) return;
+  var text = (m.text || '').trim();
+  var data = {};
+  // If it's media with a URL, share the link; otherwise share the text.
+  if (m.media_url) {
+    var url = m.media_url.indexOf('http') === 0 ? m.media_url : (window.location.origin + m.media_url);
+    data.url = url;
+    if (text) data.text = text;
+  } else if (text) {
+    data.text = text;
+  } else {
+    toast('Nothing to share'); return;
+  }
+  if (typeof ypShare === 'function') ypShare(data);
+  else if (navigator.share) navigator.share(data).catch(function () {});
+  else if (navigator.clipboard) navigator.clipboard.writeText(data.url || data.text || '').then(function () { toast('📋 Copied'); });
 };
