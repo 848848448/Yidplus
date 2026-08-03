@@ -727,12 +727,10 @@ var TG_curChannel = null;
 // Tapping the title opens info — a Telegram channel has its own panel, anything
 // else falls through to the normal room info the chats already use.
 window.crTitleTap = function () {
-  try { console.error('[trace] crTitleTap type=' + (CHAT_curRoom && CHAT_curRoom.type) + ' tg=' + (typeof TG_curChannel !== 'undefined' && !!TG_curChannel)); } catch (e) {}
   try {
     if (typeof TG_curChannel !== 'undefined' && TG_curChannel) { tgOpenInfo(); return; }
-    if (typeof openChatInfo === 'function') { openChatInfo(); }
-    else { console.error('[trace] openChatInfo is not a function'); }
-  } catch (e) { try { console.error('[trace] crTitleTap threw: ' + (e && e.message)); } catch (_) {} }
+    if (typeof openChatInfo === 'function') openChatInfo();
+  } catch (e) { try { console.error('crTitleTap failed: ' + (e && e.message)); } catch (_) {} }
 };
 
 window.tgOpenInfo = function () {
