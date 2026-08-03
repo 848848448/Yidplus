@@ -2085,9 +2085,13 @@ function _renderMembersList() {
     var sub = m.title
       ? '<div style="font-size:.74rem;color:var(--accent,#1F6F5C);font-weight:600">' + escHtml(m.title) + '</div>'
       : (m.online && isAnyAdmin() ? '<div style="font-size:.74rem;color:#16A34A">online</div>' : '');
+    var initial = (m.nickname || '?').slice(0, 1).toUpperCase();
+    var avatar = '<div style="width:46px;height:46px;border-radius:50%;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.05rem;background:linear-gradient(135deg,var(--accent,#1F6F5C),#2B8A73);overflow:hidden">' +
+      initial +
+      (m.photo_url ? '<img src="' + escHtml(m.photo_url) + '" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%">' : '') +
+    '</div>';
     return '<div onclick="' + tap + '" style="display:flex;align-items:center;gap:.8rem;padding:.7rem 1.1rem;cursor:pointer;border-bottom:1px solid var(--border)">' +
-        '<div style="width:46px;height:46px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.05rem;background:linear-gradient(135deg,var(--accent,#1F6F5C),#2B8A73);' + photoStyle + '">' +
-          (m.photo_url ? '' : (m.nickname || '?').slice(0, 1).toUpperCase()) + '</div>' +
+        avatar +
         '<div style="flex:1;min-width:0;unicode-bidi:plaintext;text-align:start">' +
           '<div style="font-size:.95rem;font-weight:600">' + nick + '</div>' + sub +
         '</div>' + badge +
