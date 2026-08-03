@@ -46,10 +46,10 @@ export async function onRequestPost(context) {
         .bind(new Date().toISOString(), existing.id).run().catch(() => {});
     } else {
       await env.DB.prepare(
-        'INSERT INTO error_log (id, level, message, source, line, col, stack, page, ua, user_id, nickname, count, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,?)'
+        'INSERT INTO error_log (id, level, message, source, line, col, stack, page, ua, user_id, nickname, count, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,1,?)'
       ).bind(crypto.randomUUID(), level, message, source, line, parseInt(b.col, 10) || 0, stack, page,
         String(request.headers.get('User-Agent') || '').slice(0, 200),
-        user ? user.id : null, user ? user.nickname : null, new Date().toISOString()).run().catch(() => {});
+        user ? user.id : null, user ? user.nickname : null, new Date().toISOString()).run();
     }
     // Keep the table from growing forever.
     await env.DB.prepare('DELETE FROM error_log WHERE id NOT IN (SELECT id FROM error_log ORDER BY created_at DESC LIMIT 200)').run().catch(() => {});
