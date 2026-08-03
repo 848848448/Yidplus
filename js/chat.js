@@ -1809,6 +1809,8 @@ window.openChatInfo = function () {
   var isSuperAdmin = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
   var canManageGroup = isGroupOrChannel && (CHAT_curRoom.is_group_admin || isSuperAdmin);
   document.getElementById('info-admin-settings').style.display = canManageGroup ? 'block' : 'none';
+  var _editBtn = document.getElementById('info-edit-btn');
+  if (_editBtn) _editBtn.style.display = canManageGroup ? 'flex' : 'none';
 
   // Make the "change photo" affordance obvious for admins.
   if (avBig) {
@@ -7256,4 +7258,267 @@ window.shareCurrentChat = function () {
       .then(function (r2) { CHAT_curRoom.invite_code = r2.invite_code; doShare(r2.invite_code); })
       .catch(function () { doShare(null); });
   }).catch(function () { doShare(null); });
+};
+
+// ============================================================
+// GROUP / CHANNEL EDIT — full admin settings (Telegram-style)
+// ============================================================
+var _geRoomId = null, _geData = null;
+
+window.openGroupEdit = function () {
+  if (!CHAT_curRoom) return;
+  _geRoomId = CHAT_curRoom.id;
+  var ov = document.getElementById('group-edit-screen');
+  if (ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'group-edit-screen';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100050;background:var(--bg);display:flex;flex-direction:column';
+  ov.innerHTML =
+    '<div style="display:flex;align-items:center;gap:.5rem;padding:.7rem .8rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">' +
+      '<div onclick="closeGroupEdit()" style="cursor:pointer;padding:.2rem .4rem;display:flex"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>' +
+      '<div style="font-weight:800;font-size:1.05rem">Edit</div>' +
+    '</div>' +
+    '<div id="ge-body" class="scroll-area" style="flex:1;overflow-y:auto;background:var(--bg);padding-bottom:40px">' +
+      '<div style="padding:2.5rem 1rem;text-align:center;color:var(--muted)">Loading…</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+
+  api.get('/chat/rooms?group_settings=' + encodeURIComponent(_geRoomId)).then(function (res) {
+    if (!res || !res.ok) { toast((res && res.error) || 'Could not load settings'); closeGroupEdit(); return; }
+    _geData = res.settings;
+    _geRender();
+  }).catch(function (e) { toast('❌ ' + (e && e.message)); closeGroupEdit(); });
+};
+window.closeGroupEdit = function () { var o = document.getElementById('group-edit-screen'); if (o) o.remove(); };
+
+function _geRow(icon, label, sub, right, onclick) {
+  return '<div class="ge-row"' + (onclick ? ' onclick="' + onclick + '"' : '') + ' style="display:flex;align-items:center;gap:.85rem;padding:.9rem 1.1rem;cursor:' + (onclick ? 'pointer' : 'default') + '">' +
+    (icon ? '<div style="width:24px;flex-shrink:0;color:var(--muted);display:flex;justify-content:center">' + icon + '</div>' : '') +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:.92rem;font-weight:600">' + label + '</div>' +
+      (sub ? '<div style="font-size:.78rem;color:var(--muted);margin-top:.1rem">' + sub + '</div>' : '') +
+    '</div>' +
+    (right || '') +
+  '</div>';
+}
+function _geToggleHtml(on, id) {
+  return '<div id="' + id + '" class="ge-toggle" data-on="' + (on ? '1' : '0') + '" style="width:44px;height:26px;border-radius:13px;flex-shrink:0;position:relative;transition:background .2s;background:' + (on ? 'var(--accent,#1F6F5C)' : 'var(--border,#ccc)') + '">' +
+    '<div style="position:absolute;top:3px;left:' + (on ? '21px' : '3px') + ';width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>' +
+  '</div>';
+}
+function _geCard(inner) { return '<div style="background:var(--surface);border-radius:14px;margin:.6rem .8rem;overflow:hidden;border:1px solid var(--border)">' + inner + '</div>'; }
+function _geHdr(t) { return '<div style="font-size:.75rem;color:var(--muted);font-weight:700;padding:1rem 1.4rem .35rem;text-transform:uppercase;letter-spacing:.03em">' + t + '</div>'; }
+function _geSep() { return '<div style="height:1px;background:var(--border);margin-left:3.4rem"></div>'; }
+
+function _geRender() {
+  var d = _geData;
+  var isChannel = d.type === 'channel';
+  var p = d.permissions || {};
+  function pget(k, def) { return (p[k] === undefined ? def : p[k]); }
+
+  var mediaCount = ['photos','videos','stickers','music','files','voice','video_msg','links','polls','reactions']
+    .filter(function (k) { return pget(k, true); }).length;
+
+  var html = '';
+
+  // Name + description
+  html += _geCard(
+    '<div style="padding:1rem 1.1rem">' +
+      '<input id="ge-name" value="' + escHtml(d.name || '').replace(/"/g, '&quot;') + '" placeholder="' + (isChannel ? 'Channel' : 'Group') + ' name" style="width:100%;box-sizing:border-box;border:none;background:none;outline:none;font-size:1.05rem;font-weight:700;color:var(--text);font-family:inherit;padding:.2rem 0">' +
+      '<div style="height:1px;background:var(--border);margin:.5rem 0"></div>' +
+      '<textarea id="ge-desc" rows="2" maxlength="255" placeholder="Description (optional)" oninput="_geDescCount()" style="width:100%;box-sizing:border-box;border:none;background:none;outline:none;font-size:.9rem;color:var(--text);font-family:inherit;resize:none;padding:.2rem 0">' + escHtml(d.description || '') + '</textarea>' +
+      '<div style="text-align:right;font-size:.7rem;color:var(--muted)"><span id="ge-desc-count">' + (255 - (d.description || '').length) + '</span></div>' +
+      '<button onclick="_geSaveText()" class="ge-save-btn" style="width:100%;margin-top:.4rem;padding:.6rem;border-radius:10px;border:none;background:var(--accent,#1F6F5C);color:#fff;font-weight:700;font-family:inherit;font-size:.88rem;cursor:pointer">Save name & description</button>' +
+    '</div>'
+  );
+
+  // Group type + invite + join requests
+  var typeCard = _geRow(
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    (isChannel ? 'Channel' : 'Group') + ' Type', d.visibility === 'public' ? 'Public' : 'Private',
+    _geToggleHtml(d.visibility === 'public', 'ge-tg-public'), '_geTogglePublic()'
+  );
+  typeCard += _geSep();
+  typeCard += _geRow(
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+    'Invite Link', escHtml((d.invite_code ? (location.origin + '/chat?join=' + d.invite_code) : 'Tap to create')),
+    '<span onclick="event.stopPropagation();_geCopyInvite()" style="color:var(--accent,#1F6F5C);font-size:.8rem;font-weight:700;cursor:pointer">Copy</span>', '_geCopyInvite()'
+  );
+  typeCard += _geSep();
+  typeCard += _geRow('', 'Revoke &amp; new link', 'Old link stops working', '<span style="color:#DC2626;font-size:.8rem;font-weight:700">Revoke</span>', '_geRevokeInvite()');
+  typeCard += _geSep();
+  typeCard += _geRow(
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+    'Approve new members', 'An admin must approve joins',
+    _geToggleHtml(d.approve_members, 'ge-tg-approve'), '_geToggle(\'approve_members\',\'ge-tg-approve\')'
+  );
+  html += _geHdr((isChannel ? 'Channel' : 'Group') + ' Type') + _geCard(typeCard);
+
+  // Permissions (groups only — channels: only admins post anyway)
+  if (!isChannel) {
+    var permCard = _geRow(
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+      'Send Messages', 'Members can write', _geToggleHtml(!d.read_only, 'ge-tg-send'), '_geToggleSend()'
+    );
+    permCard += _geSep();
+    permCard += _geRow('', 'Send Media', mediaCount + '/10 allowed', '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>', '_geOpenMedia()');
+    permCard += _geSep();
+    permCard += _geRow('', 'Add Users', 'Members can add others', _geToggleHtml(pget('add_users', false), 'ge-tg-addusers'), '_gePermToggle(\'add_users\',\'ge-tg-addusers\')');
+    permCard += _geSep();
+    permCard += _geRow('', 'Pin Messages', '', _geToggleHtml(pget('pin_messages', false), 'ge-tg-pin'), '_gePermToggle(\'pin_messages\',\'ge-tg-pin\')');
+    permCard += _geSep();
+    permCard += _geRow('', 'Change ' + (isChannel ? 'Channel' : 'Group') + ' Info', 'Name, photo, description', _geToggleHtml(pget('change_info', false), 'ge-tg-info'), '_gePermToggle(\'change_info\',\'ge-tg-info\')');
+    html += _geHdr('What members can do') + _geCard(permCard);
+  }
+
+  // Reactions + content saving + history
+  var extra = _geRow(
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+    'Reactions', 'Members can react', _geToggleHtml(d.reactions_enabled, 'ge-tg-react'), '_geToggle(\'reactions_enabled\',\'ge-tg-react\')'
+  );
+  extra += _geSep();
+  extra += _geRow(
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>',
+    'Allow saving content', 'Copy, save &amp; forward', _geToggleHtml(d.allow_saving, 'ge-tg-save'), '_geToggle(\'allow_saving\',\'ge-tg-save\')'
+  );
+  if (!isChannel) {
+    extra += _geSep();
+    extra += _geRow(
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      'Chat history for new members', 'See older messages', _geToggleHtml(d.history_visible, 'ge-tg-hist'), '_geToggle(\'history_visible\',\'ge-tg-hist\')'
+    );
+  }
+  html += _geHdr('Content') + _geCard(extra);
+
+  // Admins + members (reuse existing member management)
+  var mgmt = _geRow(
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+    'Administrators', 'Manage who can help run this', '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>', 'closeGroupEdit();openChatInfo()'
+  );
+  mgmt += _geSep();
+  mgmt += _geRow(
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    'Members', d.members + ' member' + (d.members === 1 ? '' : 's'), '<span onclick="event.stopPropagation();closeGroupEdit();openAddMemberModal()" style="color:var(--accent,#1F6F5C);font-size:.8rem;font-weight:700;cursor:pointer">+ Add</span>', 'closeGroupEdit();openChatInfo()'
+  );
+  html += _geHdr('People') + _geCard(mgmt);
+
+  // Delete
+  html += _geCard(_geRow(
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>',
+    '<span style="color:#DC2626">Delete ' + (isChannel ? 'Channel' : 'Group') + '</span>', '', '', '_geDelete()'
+  ));
+
+  html += '<div style="height:30px"></div>';
+  document.getElementById('ge-body').innerHTML = html;
+}
+
+window._geDescCount = function () {
+  var t = document.getElementById('ge-desc');
+  var c = document.getElementById('ge-desc-count');
+  if (t && c) c.textContent = (255 - t.value.length);
+};
+window._geSaveText = function () {
+  var name = (document.getElementById('ge-name') || {}).value || '';
+  var desc = (document.getElementById('ge-desc') || {}).value || '';
+  var btn = document.querySelector('.ge-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  api.put('/chat/rooms', { room_id: _geRoomId, name: name.trim(), description: desc }).then(function () {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save name & description'; }
+    if (CHAT_curRoom) { CHAT_curRoom.nick = name.trim(); }
+    _geData.name = name.trim(); _geData.description = desc;
+    toast('✅ Saved'); loadChatRooms();
+    var crn = document.getElementById('cr-name'); if (crn) crn.textContent = name.trim();
+  }).catch(function (e) { if (btn) { btn.disabled = false; btn.textContent = 'Save name & description'; } toast('❌ ' + (e && e.message)); });
+};
+function _geFlip(id, on) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.setAttribute('data-on', on ? '1' : '0');
+  el.style.background = on ? 'var(--accent,#1F6F5C)' : 'var(--border,#ccc)';
+  var knob = el.firstChild; if (knob) knob.style.left = on ? '21px' : '3px';
+}
+window._geToggle = function (key, id) {
+  var el = document.getElementById(id);
+  var on = el.getAttribute('data-on') !== '1';
+  _geFlip(id, on);
+  _geData[key] = on;
+  var body = { room_id: _geRoomId }; body[key] = on;
+  api.put('/chat/rooms', body).catch(function (e) { toast('❌ ' + (e && e.message)); _geFlip(id, !on); });
+};
+window._geToggleSend = function () {
+  var el = document.getElementById('ge-tg-send');
+  var on = el.getAttribute('data-on') !== '1'; // "on" = members CAN send = read_only false
+  _geFlip('ge-tg-send', on);
+  _geData.read_only = !on;
+  api.put('/chat/rooms', { room_id: _geRoomId, read_only: !on }).catch(function (e) { toast('❌ ' + (e && e.message)); _geFlip('ge-tg-send', !on); });
+};
+window._geTogglePublic = function () {
+  var el = document.getElementById('ge-tg-public');
+  var on = el.getAttribute('data-on') !== '1';
+  _geFlip('ge-tg-public', on);
+  _geData.visibility = on ? 'public' : 'private';
+  api.put('/chat/rooms', { room_id: _geRoomId, visibility: on ? 'public' : 'private' }).catch(function (e) { toast('❌ ' + (e && e.message)); _geFlip('ge-tg-public', !on); });
+};
+window._gePermToggle = function (key, id) {
+  var el = document.getElementById(id);
+  var on = el.getAttribute('data-on') !== '1';
+  _geFlip(id, on);
+  if (!_geData.permissions) _geData.permissions = {};
+  _geData.permissions[key] = on;
+  api.put('/chat/rooms', { room_id: _geRoomId, permissions: _geData.permissions }).catch(function (e) { toast('❌ ' + (e && e.message)); _geFlip(id, !on); });
+};
+window._geCopyInvite = function () {
+  if (!_geData.invite_code) {
+    api.put('/chat/rooms', { room_id: _geRoomId, generate_invite: true }).then(function (r) {
+      _geData.invite_code = r.invite_code; _geCopyInvite();
+    }).catch(function () {});
+    return;
+  }
+  var url = location.origin + '/chat?join=' + _geData.invite_code;
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(function () { toast('✅ Invite link copied'); });
+  else toast(url);
+};
+window._geRevokeInvite = function () {
+  if (!confirm('Revoke the current invite link and create a new one? The old link will stop working.')) return;
+  api.put('/chat/rooms', { room_id: _geRoomId, revoke_invite: true }).then(function (r) {
+    _geData.invite_code = r.invite_code; toast('✅ New link created'); _geRender();
+  }).catch(function (e) { toast('❌ ' + (e && e.message)); });
+};
+window._geDelete = function () {
+  if (!confirm('Delete this ' + (_geData.type === 'channel' ? 'channel' : 'group') + ' for everyone? This cannot be undone.')) return;
+  api.del('/chat/rooms?room_id=' + encodeURIComponent(_geRoomId) + '&delete_all=1').then(function () {
+    toast('Deleted'); closeGroupEdit(); showChatList(); loadChatRooms();
+  }).catch(function (e) { toast('❌ ' + (e && e.message)); });
+};
+
+// Send-media sub-screen (the 10 media types)
+window._geOpenMedia = function () {
+  var p = _geData.permissions || {};
+  function pget(k) { return p[k] === undefined ? true : p[k]; }
+  var types = [
+    ['photos','Photos'],['videos','Videos'],['stickers','Stickers & GIFs'],['music','Music'],
+    ['files','Files'],['voice','Voice Messages'],['video_msg','Video Messages'],['links','Embed Links'],
+    ['polls','Polls'],['reactions','Send Reactions']
+  ];
+  var ov = document.createElement('div');
+  ov.id = 'ge-media-screen';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100055;background:var(--bg);display:flex;flex-direction:column';
+  var rows = types.map(function (t) {
+    return _geRow('', t[1], '', _geToggleHtml(pget(t[0]), 'gem-' + t[0]), '_geMediaToggle(\'' + t[0] + '\')');
+  }).join(_geSep());
+  ov.innerHTML =
+    '<div style="display:flex;align-items:center;gap:.5rem;padding:.7rem .8rem;background:var(--surface);border-bottom:1px solid var(--border)">' +
+      '<div onclick="document.getElementById(\'ge-media-screen\').remove()" style="cursor:pointer;padding:.2rem .4rem;display:flex"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>' +
+      '<div style="font-weight:800;font-size:1.05rem">Send Media</div>' +
+    '</div>' +
+    '<div class="scroll-area" style="flex:1;overflow-y:auto;padding:.6rem 0">' + _geCard(rows) + '</div>';
+  document.body.appendChild(ov);
+};
+window._geMediaToggle = function (key) {
+  var el = document.getElementById('gem-' + key);
+  var on = el.getAttribute('data-on') !== '1';
+  _geFlip('gem-' + key, on);
+  if (!_geData.permissions) _geData.permissions = {};
+  _geData.permissions[key] = on;
+  api.put('/chat/rooms', { room_id: _geRoomId, permissions: _geData.permissions }).catch(function (e) { toast('❌ ' + (e && e.message)); _geFlip('gem-' + key, !on); });
 };

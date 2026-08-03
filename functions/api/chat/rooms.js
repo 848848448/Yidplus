@@ -19,6 +19,35 @@ export async function onRequestGet(context) {
     const user = await requireUser(request, env);
     const url = new URL(request.url);
 
+    // ── Full settings for the group Edit screen (admin-only) ──
+    const gsId = url.searchParams.get('group_settings');
+    if (gsId) {
+      if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
+      if (!(await _isGroupAdminOrSuper(env, user, gsId))) return json({ ok: false, error: 'Only group admins' }, 403);
+      const r = await env.DB.prepare(`SELECT * FROM rooms WHERE id = ?`).bind(gsId).first().catch(() => null);
+      if (!r) return json({ ok: false, error: 'Not found' }, 404);
+      let perms = null;
+      try { perms = r.permissions ? JSON.parse(r.permissions) : null; } catch (e) {}
+      const memRow = await env.DB.prepare(`SELECT COUNT(*) AS c FROM room_members WHERE room_id = ?`).bind(gsId).first().catch(() => ({ c: 0 }));
+      return json({
+        ok: true,
+        settings: {
+          id: r.id, name: r.name || '', description: r.description || '',
+          type: r.type, visibility: r.visibility || 'private',
+          read_only: !!r.read_only, invite_code: r.invite_code || '',
+          auto_delete_minutes: r.auto_delete_minutes || null,
+          permissions: perms,
+          allow_saving: r.allow_saving == null ? true : !!r.allow_saving,
+          history_visible: r.history_visible == null ? true : !!r.history_visible,
+          approve_members: !!r.approve_members,
+          reactions_enabled: r.reactions_enabled == null ? true : !!r.reactions_enabled,
+          featured: !!r.featured, has_topics: !!r.has_topics,
+          members: (memRow && memRow.c) || 0,
+          created_by: r.created_by,
+        },
+      });
+    }
+
     if (!user) {
       // Guest browsing (view-only): if Guest Mode is on, hand back the featured
       // groups so a guest can look around the chat like a signed-in user
@@ -588,6 +617,50 @@ export async function onRequestPut(context) {
       await env.DB.prepare(`UPDATE rooms SET auto_delete_minutes = ? WHERE id = ?`).bind(minutes, roomId).run();
     }
 
+    // ── Group edit: name, description, permissions & toggles ──
+    // Best-effort column migrations (no-op if they already exist).
+    async function ensureCol(sql) { await env.DB.prepare(sql).run().catch(() => {}); }
+
+    if (typeof body.name === 'string' && body.name.trim()) {
+      await env.DB.prepare(`UPDATE rooms SET name = ? WHERE id = ?`).bind(body.name.trim().slice(0, 60), roomId).run();
+    }
+
+    if (typeof body.description === 'string') {
+      await ensureCol(`ALTER TABLE rooms ADD COLUMN description TEXT`);
+      await env.DB.prepare(`UPDATE rooms SET description = ? WHERE id = ?`).bind(body.description.slice(0, 255), roomId).run();
+    }
+
+    if (typeof body.permissions === 'object' && body.permissions !== null) {
+      await ensureCol(`ALTER TABLE rooms ADD COLUMN permissions TEXT`);
+      await env.DB.prepare(`UPDATE rooms SET permissions = ? WHERE id = ?`).bind(JSON.stringify(body.permissions), roomId).run();
+    }
+
+    if (typeof body.allow_saving === 'boolean') {
+      await ensureCol(`ALTER TABLE rooms ADD COLUMN allow_saving INTEGER DEFAULT 1`);
+      await env.DB.prepare(`UPDATE rooms SET allow_saving = ? WHERE id = ?`).bind(body.allow_saving ? 1 : 0, roomId).run();
+    }
+
+    if (typeof body.history_visible === 'boolean') {
+      await ensureCol(`ALTER TABLE rooms ADD COLUMN history_visible INTEGER DEFAULT 1`);
+      await env.DB.prepare(`UPDATE rooms SET history_visible = ? WHERE id = ?`).bind(body.history_visible ? 1 : 0, roomId).run();
+    }
+
+    if (typeof body.approve_members === 'boolean') {
+      await ensureCol(`ALTER TABLE rooms ADD COLUMN approve_members INTEGER DEFAULT 0`);
+      await env.DB.prepare(`UPDATE rooms SET approve_members = ? WHERE id = ?`).bind(body.approve_members ? 1 : 0, roomId).run();
+    }
+
+    if (typeof body.reactions_enabled === 'boolean') {
+      await ensureCol(`ALTER TABLE rooms ADD COLUMN reactions_enabled INTEGER DEFAULT 1`);
+      await env.DB.prepare(`UPDATE rooms SET reactions_enabled = ? WHERE id = ?`).bind(body.reactions_enabled ? 1 : 0, roomId).run();
+    }
+
+    if (body.revoke_invite === true) {
+      const inviteCode = crypto.randomUUID().replace(/-/g, '').slice(0, 10);
+      await env.DB.prepare(`UPDATE rooms SET invite_code = ? WHERE id = ?`).bind(inviteCode, roomId).run();
+      return json({ ok: true, invite_code: inviteCode });
+    }
+
     if (typeof body.member_title !== 'undefined' && body.member_id) {
       try {
         await env.DB.prepare(
@@ -685,6 +758,17 @@ export async function onRequestDelete(context) {
 
     const room = await env.DB.prepare(`SELECT type, created_by FROM rooms WHERE id = ?`).bind(roomId).first();
     if (!room) return json({ ok: false, error: 'Room not found' }, 404);
+
+    // Full delete (for everyone) — only the creator or a super admin.
+    const wantsDeleteAll = url.searchParams.get('delete_all') === '1' || url.searchParams.get('delete_all') === 'true';
+    const isCreator = room.created_by === user.id;
+    const isSuper = isOwnerOrCoOwner(user, env.OWNER_EMAIL) || user.role === 'admin_super';
+    if (wantsDeleteAll && (isCreator || isSuper)) {
+      await env.DB.prepare(`DELETE FROM messages WHERE room_id = ?`).bind(roomId).run().catch(() => {});
+      await env.DB.prepare(`DELETE FROM room_members WHERE room_id = ?`).bind(roomId).run().catch(() => {});
+      await env.DB.prepare(`DELETE FROM rooms WHERE id = ?`).bind(roomId).run().catch(() => {});
+      return json({ ok: true, deleted: true });
+    }
 
     await env.DB.prepare(`DELETE FROM room_members WHERE room_id = ? AND user_id = ?`).bind(roomId, user.id).run();
 
