@@ -705,7 +705,7 @@ document.addEventListener('DOMContentLoaded', function () {
             loadAppSettings();
             var gGoto = new URLSearchParams(window.location.search).get('goto');
             var gProfile = new URLSearchParams(window.location.search).get('profile');
-            var GUEST_SCREENS = ['explore', 'settings', 'profile', 'channel'];
+            var GUEST_SCREENS = ['home', 'explore', 'settings', 'profile', 'channel'];
             var gp = localStorage.getItem('yp_page');
             if (gProfile && typeof openUserProfile === 'function') {
               openUserProfile(gProfile);
@@ -766,7 +766,7 @@ function _continueBootAfterAuth(user) {
   var channelOwnerId = urlParams.get('channel');
   var gotoScreen = urlParams.get('goto');
   var profileUserId = urlParams.get('profile');
-  var INDEX_SCREENS = ['explore', 'settings', 'profile', 'channel'];
+  var INDEX_SCREENS = ['home', 'explore', 'settings', 'profile', 'channel'];
   if (profileUserId && typeof openUserProfile === 'function') {
     openUserProfile(profileUserId);
     window.history.replaceState({}, '', window.location.pathname);
