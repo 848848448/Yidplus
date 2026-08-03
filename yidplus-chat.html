@@ -854,6 +854,11 @@ window.showChatList = function () {
   CHAT_curRoom = null;
   CHAT_curTopicId = null;
   CHAT_curTopicName = null;
+  // Drop the #room= hash so a refresh keeps you on the list, not back inside
+  // the room you just left.
+  try {
+    if (/[#&]room=/.test(location.hash || '')) history.replaceState({}, '', location.pathname + location.search);
+  } catch (e) {}
   if (typeof closeInChatSearch === 'function') closeInChatSearch();
   document.getElementById('screen-chatroom').classList.add('hidden');
   document.getElementById('screen-chatinfo').classList.add('hidden');
