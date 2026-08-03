@@ -2009,18 +2009,13 @@ window._openMemberDM = function (memberId, nickname) {
   if (memberId === meId) return; // can't DM yourself
 
   var member = (CHAT_members || []).find(function (m) { return m.id === memberId; });
-  var isAdminMember = member && (
-    member.is_group_admin ||
-    member.role === 'admin_super' ||
-    member.role === 'admin_limited'
-  );
-  if (!isAdminMember) return; // regular members: name tap does nothing
 
   toast('💬 Opening private chat with @' + nickname + '...');
   api.post('/chat/rooms', { type: 'private', other_user_id: memberId })
     .then(function (res) {
+      var rid = res && (res.room_id || (res.room && res.room.id));
       loadChatRooms();
-      setTimeout(function () { openChatRoomById(res.room_id); }, 300);
+      setTimeout(function () { if (rid) openChatRoom(rid); }, 350);
     })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
@@ -2084,13 +2079,13 @@ function _renderMembersList() {
     var sub = m.title
       ? '<div style="font-size:.74rem;color:var(--accent,#1F6F5C);font-weight:600">' + escHtml(m.title) + '</div>'
       : (m.online && isAnyAdmin() ? '<div style="font-size:.74rem;color:#16A34A">online</div>' : '');
-    return '<div onclick="' + tap + '" style="display:flex;align-items:center;gap:.75rem;padding:.7rem 1.1rem;cursor:pointer">' +
-        '<div style="width:44px;height:44px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:linear-gradient(135deg,var(--accent,#1F6F5C),#2B8A73);' + photoStyle + '">' +
+    return '<div onclick="' + tap + '" style="display:flex;align-items:center;gap:.8rem;padding:.7rem 1.1rem;cursor:pointer;border-bottom:1px solid var(--border)">' +
+        '<div style="width:46px;height:46px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.05rem;background:linear-gradient(135deg,var(--accent,#1F6F5C),#2B8A73);' + photoStyle + '">' +
           (m.photo_url ? '' : (m.nickname || '?').slice(0, 1).toUpperCase()) + '</div>' +
         '<div style="flex:1;min-width:0;unicode-bidi:plaintext;text-align:start">' +
-          '<div style="font-size:.9rem;font-weight:600">' + nick + '</div>' + sub +
+          '<div style="font-size:.95rem;font-weight:600">' + nick + '</div>' + sub +
         '</div>' + badge +
-        (canManageGroup && !isSelf ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:.4rem;flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>' : '') +
+        (canManageGroup && !isSelf ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:.5rem;flex-shrink:0;opacity:.6"><polyline points="9 18 15 12 9 6"/></svg>' : '') +
       '</div>';
   }).join('');
 }
