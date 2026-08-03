@@ -1838,3 +1838,70 @@ img { opacity: 1; }
     scroll-behavior: auto !important;
   }
 }
+
+/* ============================================================
+   Telegram-style grouped Group/Channel info screen
+   ============================================================ */
+#screen-chatinfo { background: #EBEDF0; }
+html.dark-mode #screen-chatinfo { background: #0E0E10; }
+#screen-chatinfo .scroll-area { padding-bottom: 90px !important; }
+
+/* Hero: big gradient avatar on the gray background, centered */
+#screen-chatinfo .userinfo-hero {
+  background: transparent; border-bottom: none; padding: 1.75rem 1.5rem 1.25rem;
+}
+#screen-chatinfo .userinfo-avatar-big {
+  width: 112px; height: 112px; font-size: 2.9rem; margin: 0 auto 1rem;
+  background: linear-gradient(135deg, #2E9E82, #1F6F5C);
+  box-shadow: 0 6px 20px rgba(31,111,92,.28); color: #fff;
+}
+#screen-chatinfo .userinfo-name { font-size: 1.42rem; font-weight: 800; }
+#screen-chatinfo .userinfo-sub { color: #8A8F98; font-size: .9rem; margin-top: .15rem; }
+
+/* Everything below becomes white rounded cards floating on gray */
+#screen-chatinfo .userinfo-action-row {
+  background: var(--surface); border: none; border-radius: 16px;
+  margin: .5rem .85rem; padding: .7rem .3rem; box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+#screen-chatinfo .uinfo-action-icon { background: #EAF3F0; }
+html.dark-mode #screen-chatinfo .uinfo-action-icon { background: #1C2A26; }
+
+/* Tabs: a white card with a rounded active "pill" */
+#screen-chatinfo .userinfo-media-tabs {
+  background: var(--surface); border: none; border-radius: 16px;
+  margin: .5rem .85rem; padding: .35rem; gap: .2rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+#screen-chatinfo .userinfo-mtab {
+  border: none; border-radius: 11px; padding: .55rem .95rem;
+  font-weight: 600; color: #8A8F98; white-space: nowrap; background: transparent;
+}
+#screen-chatinfo .userinfo-mtab.active {
+  background: #E4F1EC; color: #1F6F5C;
+}
+html.dark-mode #screen-chatinfo .userinfo-mtab.active { background: #1C2A26; color: #4FD1AC; }
+
+/* Members section as a white card */
+#screen-chatinfo #info-members-section {
+  background: var(--surface); border-radius: 16px; margin: .5rem .85rem;
+  overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+#screen-chatinfo #info-members-section > div:first-child {
+  padding: .9rem 1.1rem .5rem !important; font-weight: 700;
+}
+#screen-chatinfo #members-list > div:last-child { border-bottom: none !important; }
+
+/* The media/files/etc. content area also becomes a card */
+#screen-chatinfo #info-media-content,
+#screen-chatinfo .userinfo-media-content {
+  background: var(--surface); border-radius: 16px; margin: .5rem .85rem;
+  overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); min-height: 60px;
+}
+
+/* Floating add-member button (Telegram-style) */
+#info-fab-add {
+  position: absolute; right: 18px; bottom: 24px; width: 56px; height: 56px;
+  border-radius: 50%; background: linear-gradient(135deg,#2E9E82,#1F6F5C);
+  box-shadow: 0 6px 18px rgba(31,111,92,.4); display: none;
+  align-items: center; justify-content: center; cursor: pointer; z-index: 20;
+}

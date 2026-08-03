@@ -1814,6 +1814,8 @@ window.openChatInfo = function () {
   if (_adminBox) _adminBox.style.display = 'none';
   var _editBtn = document.getElementById('info-edit-btn');
   if (_editBtn) _editBtn.style.display = canManageGroup ? 'flex' : 'none';
+  var _fab = document.getElementById('info-fab-add');
+  if (_fab) _fab.style.display = canManageGroup ? 'flex' : 'none';
 
   // Make the "change photo" affordance obvious for admins.
   if (avBig) {
