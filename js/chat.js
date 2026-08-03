@@ -2072,7 +2072,11 @@ function _renderMembersList() {
     var nick = escHtml(m.nickname || 'User');
     var isSelf = m.id === meId;
     var badge = '';
-    if (m.role === 'admin_super' || m.role === 'admin_limited') badge = '<span style="font-size:.68rem;color:var(--accent,#1F6F5C);font-weight:700">owner</span>';
+    // Only show group-specific roles. A platform owner/super-admin stays
+    // discreet — they appear as a normal member unless they actually created
+    // this group or were made a group admin here.
+    var isRealOwner = CHAT_curRoom && CHAT_curRoom.created_by && m.id === CHAT_curRoom.created_by;
+    if (isRealOwner) badge = '<span style="font-size:.68rem;color:var(--accent,#1F6F5C);font-weight:700">owner</span>';
     else if (m.is_group_admin) badge = '<span style="font-size:.68rem;color:var(--accent,#1F6F5C);font-weight:700">admin</span>';
     // Tapping: admins get the action sheet, everyone else opens the member.
     var tap = (canManageGroup && !isSelf)

@@ -402,6 +402,7 @@ export async function onRequestGet(context) {
         joined,
         admin_spectating: isAdminSpectating,
         is_group_admin: isGroupAdmin,
+        created_by: r.created_by || null,
         has_topics: !!r.has_topics,
         online,
         members,
