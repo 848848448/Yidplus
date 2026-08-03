@@ -672,7 +672,7 @@
 <script defer src="js/state.js?v=202608021912"></script>
 <script defer src="js/theme.js?v=202607291705"></script>
 <script defer src="js/app.js?v=202607291705"></script>
-<script defer src="js/chat.js?v=202608030451"></script>
+<script defer src="js/chat.js?v=202608030516"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──
@@ -877,9 +877,15 @@ window.showChatRoom = function () {
 };
 
 window.showChatInfo = function () {
-  document.getElementById('screen-chats').classList.add('hidden');
-  document.getElementById('screen-chatroom').classList.add('hidden');
-  document.getElementById('screen-chatinfo').classList.remove('hidden');
+  try {
+    var sc = document.getElementById('screen-chats');
+    var sr = document.getElementById('screen-chatroom');
+    var si = document.getElementById('screen-chatinfo');
+    console.error('[trace] showChatInfo chats=' + !!sc + ' room=' + !!sr + ' info=' + !!si);
+    if (sc) sc.classList.add('hidden');
+    if (sr) sr.classList.add('hidden');
+    if (si) si.classList.remove('hidden');
+  } catch (e) { try { console.error('[trace] showChatInfo threw: ' + (e && e.message)); } catch (_) {} }
 };
 
 // Override navTo for chat page internal navigation
