@@ -5513,6 +5513,12 @@ function buildAppConfigPanel(content) {
         '<div style="font-size:.75rem;color:var(--muted)">Set the tokens, keys and URLs the app uses — right here, no Cloudflare needed. A value set in Cloudflare always wins; anything not set there can be set here.</div>' +
       '</div>' + rows +
       '<div class="admin-card" style="font-size:.72rem;color:var(--muted)">🔒 These are stored in your database and only visible to the owner. For the strongest security, secrets in Cloudflare are still best — this is here for convenience.</div>' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">🖼️ Cache external avatars</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">Imported members can have avatars hosted on WhatsApp/Telegram that expire and go blank. This downloads them into your own storage so they stay forever. Safe to run anytime.</div>' +
+        '<button class="save-pill" style="width:100%" onclick="cacheAvatarsRun(this)">Download &amp; cache avatars</button>' +
+        '<div id="cache-avatars-status" style="font-size:.78rem;color:var(--muted);margin-top:.5rem"></div>' +
+      '</div>' +
     '</div>';
   }).catch(function (e) {
     content.innerHTML = '<div class="admin-panel"><div class="admin-card" style="color:#DC2626">Failed to load: ' + escHtmlA((e && e.message) || 'error') + '</div></div>';
@@ -5534,4 +5540,28 @@ window.appCfgClear = function (key) {
   api.del('/admin/app-config?key=' + encodeURIComponent(key)).then(function () {
     toast('Cleared'); buildAppConfigPanel(document.getElementById('admin-content'));
   }).catch(function () {});
+};
+
+// Download external (WhatsApp/Telegram) avatars into R2, batch by batch.
+window.cacheAvatarsRun = function (btn) {
+  var st = document.getElementById('cache-avatars-status');
+  if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
+  var totalCached = 0, totalFailed = 0;
+  function batch() {
+    api.post('/admin/cache-avatars', {}).then(function (res) {
+      if (!res || !res.ok) { if (st) st.textContent = (res && res.error) || 'Failed'; if (btn) { btn.disabled = false; btn.textContent = 'Download & cache avatars'; } return; }
+      totalCached += (res.cached || 0); totalFailed += (res.failed || 0);
+      if (st) st.innerHTML = '✅ Cached ' + totalCached + ' · cleared ' + totalFailed + ' dead links · ' + (res.remaining || 0) + ' left…';
+      if (res.remaining > 0 && (res.cached > 0 || res.failed > 0)) {
+        setTimeout(batch, 400); // keep going until done
+      } else {
+        if (st) st.innerHTML = '🎉 Done! Cached ' + totalCached + ' avatars, cleared ' + totalFailed + ' dead links.';
+        if (btn) { btn.disabled = false; btn.textContent = 'Download & cache avatars'; }
+      }
+    }).catch(function (e) {
+      if (st) st.textContent = '❌ ' + ((e && e.message) || 'error');
+      if (btn) { btn.disabled = false; btn.textContent = 'Download & cache avatars'; }
+    });
+  }
+  batch();
 };
