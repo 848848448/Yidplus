@@ -260,7 +260,12 @@ function renderChatList() {
       (CHAT_tab === 'channels' && c.type === 'channel');
     var srchOk = !CHAT_search ||
       (c.nick || '').toLowerCase().indexOf(CHAT_search.toLowerCase()) !== -1;
-    return tabOk && srchOk;
+    // Hide a private chat that has no messages yet — e.g. you tapped "Message"
+    // on someone but never wrote anything. It reappears the moment a message
+    // exists. The currently open room is always kept.
+    var emptyDM = c.type === 'private' && c.has_messages === false &&
+      !(CHAT_curRoom && CHAT_curRoom.id === c.id);
+    return tabOk && srchOk && !emptyDM;
   });
 
   // Apply folder filter if active
@@ -4346,6 +4351,11 @@ function _linkify(text, isMe) {
   // Then bare domains like "Yidplus.com" or "www.site.org/x" (not already linked).
   out = out.replace(/(^|[\s(>])((?:www\.)?[a-z0-9-]+\.(?:com|org|net|co|io|me|il|info|gov|edu|app|shop|news|xyz|online)(?:\/[^\s<]*)?)/gi,
     function (m, pre, dom) { return pre + mkA('https://' + dom, dom); });
+  // @username mentions → tappable, open a private chat with that person
+  // (like Telegram). Must be preceded by start/space so emails don't match.
+  out = out.replace(/(^|[\s(>])@([a-zA-Z0-9_]{2,32})\b/g, function (m, pre, uname) {
+    return pre + '<span onclick="openMention(\'' + uname.replace(/'/g, "\\'") + '\')" style="color:' + c + ';cursor:pointer;font-weight:600">@' + uname + '</span>';
+  });
   // Lightweight WhatsApp/Telegram-style inline formatting. Order matters:
   // code first (so *, _, ~ inside a code span are left alone), then bold,
   // then italic, then strikethrough. Each requires non-space content
@@ -7574,4 +7584,19 @@ window.ctxShare = function () {
   if (typeof ypShare === 'function') ypShare(data);
   else if (navigator.share) navigator.share(data).catch(function () {});
   else if (navigator.clipboard) navigator.clipboard.writeText(data.url || data.text || '').then(function () { toast('📋 Copied'); });
+};
+
+// Tapping an @username opens (or creates) a private chat with that person.
+window.openMention = function (username) {
+  if (!username) return;
+  username = String(username).replace(/^@/, '');
+  var me = STATE.user && STATE.user.nickname;
+  if (me && me.toLowerCase() === username.toLowerCase()) { toast("That's you 🙂"); return; }
+  toast('Opening @' + username + '…');
+  api.post('/chat/rooms', { type: 'private', other_username: username }).then(function (res) {
+    if (!res || !res.ok) { toast((res && res.error) || 'User not found'); return; }
+    var rid = res.room_id || (res.room && res.room.id);
+    loadChatRooms();
+    setTimeout(function () { if (rid) openChatRoom(rid); }, 350);
+  }).catch(function (e) { toast('❌ ' + ((e && e.message) || 'Could not open chat')); });
 };

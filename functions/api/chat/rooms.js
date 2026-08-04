@@ -424,6 +424,7 @@ export async function onRequestGet(context) {
         channel_admins: r.channel_admins || '[]',
         description: r.description || null,
         preview: lastMsg ? (lastMsg.type === 'text' ? lastMsg.text : '[' + lastMsg.type + ']') : '',
+        has_messages: !!lastMsg,
         unread: unreadCount,
         muted: !!r.muted,
         last_time: lastMsg ? lastMsg.created_at : r.created_at,
@@ -449,8 +450,18 @@ export async function onRequestPost(context) {
     const now = new Date().toISOString();
 
     if (body.type === 'private') {
-      const otherId = body.other_user_id;
+      let otherId = body.other_user_id;
+      // Allow opening a DM by @username (mentions). Resolve nickname → id.
+      if (!otherId && body.other_username) {
+        const uname = String(body.other_username).replace(/^@/, '').trim();
+        const found = await env.DB.prepare(
+          `SELECT id FROM users WHERE lower(nickname) = lower(?) LIMIT 1`
+        ).bind(uname).first().catch(() => null);
+        if (!found) return json({ ok: false, error: 'No user @' + uname }, 404);
+        otherId = found.id;
+      }
       if (!otherId) return json({ ok: false, error: 'other_user_id is required' }, 400);
+      if (otherId === user.id) return json({ ok: false, error: "That's you" }, 400);
 
       // Find existing DM room between these two users
       const existing = await env.DB.prepare(
