@@ -6,11 +6,10 @@
 
 import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
 
-const EXTERNAL = "(photo_url LIKE 'http%') AND (" +
-  "photo_url LIKE '%whatsapp.net%' OR photo_url LIKE '%fbcdn.net%' OR " +
-  "photo_url LIKE '%cdninstagram.com%' OR photo_url LIKE '%fbsbx.com%' OR " +
-  "photo_url LIKE '%telesco.pe%' OR photo_url LIKE '%t.me/%' OR " +
-  "photo_url LIKE '%cdn-telegram%' OR photo_url LIKE '%telegram.org%')";
+// Any avatar hosted off-site (Google/Gmail, WhatsApp, Telegram, Facebook, or
+// any other company) — i.e. a full http(s) URL that isn't already one of our
+// own /api/media/ links. These are what we pull into R2 so they never expire.
+const EXTERNAL = "photo_url LIKE 'http%' AND photo_url NOT LIKE '%/api/media/%'";
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
