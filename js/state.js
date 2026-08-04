@@ -2411,6 +2411,10 @@ window._confirmWithPassword = function (opts) {
       // we don't control; the onerror fallback already shows an initial, so
       // don't log these as fixable errors.
       if (/whatsapp\.net|fbcdn\.net|cdninstagram\.com|\.fbsbx\.com|t\.me\/i\/|telesco\.pe/i.test(_rsrc)) return;
+      // Telegram channel thumbnails come from the external MTProto worker; some
+      // messages simply have no thumb and others fail transiently. The <img>
+      // onerror already hides them, so don't log these.
+      if (/telegram-worker[^/]*\.workers\.dev/i.test(_rsrc)) return;
       // Short-feed <video> elements often fire a load error when the user
       // scrolls past before buffering finishes; the player retries on its own,
       // and the files are served fine, so these transient errors aren't logged.
