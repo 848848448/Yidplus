@@ -1457,7 +1457,12 @@ window.PWA = {
           }
         });
       })
-      .catch(function (err) { console.warn('[PWA] SW registration failed:', err); });
+      .catch(function (err) {
+        // SW registration is often blocked in private/incognito windows or by
+        // browser settings. The app works fine without it, so don't surface
+        // this as a warning (console.info isn't captured by the error logger).
+        try { console.info('[PWA] service worker not registered (ok in private mode)'); } catch (e) {}
+      });
   },
 
   // Ask user for push permission + subscribe
