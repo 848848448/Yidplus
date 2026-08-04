@@ -3776,7 +3776,10 @@ function _uploadOneFile(file, caption, done) {
   })
     .then(function () {
       CHAT_messages = CHAT_messages.filter(function (m) { return m.id !== tempId; });
-      try { URL.revokeObjectURL(localUrl); } catch (e) {}
+      // Revoke the local preview only AFTER the re-render has swapped in the
+      // server copy — revoking immediately can break the still-showing <img>
+      // (a "failed to load blob:" error) during the transition.
+      setTimeout(function () { try { URL.revokeObjectURL(localUrl); } catch (e) {} }, 6000);
       // In a batch, the caller refreshes once at the very end; only refresh
       // here when this is a standalone single send.
       if (done) { done(); } else { loadMessages(true); loadChatRooms(); }
