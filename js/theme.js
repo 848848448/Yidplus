@@ -304,7 +304,7 @@ window.openChangePassword = function () {
 
 window.triggerAvatarUpload = function () {
   var inp = document.createElement('input');
-  inp.type = 'file'; inp.accept = 'image/*';
+  inp.type = 'file'; inp.accept = 'image/*,.heic,.heif,.tiff,.bmp,.avif';
   inp.onchange = function (e) {
     var file = e.target.files[0]; if (!file) return;
     var form = new FormData();

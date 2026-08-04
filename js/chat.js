@@ -2350,7 +2350,7 @@ function loadMessages(scrollToBottom) {
     .catch(function () {});
 }
 
-function _isVid(key) { return /\.(mp4|webm|mov|mkv|avi|m4v|3gp|ogv|qt|mpeg|mpg)$/i.test(key || ''); }
+function _isVid(key) { return /\.(mp4|webm|mov|mkv|avi|m4v|3gp|3g2|ogv|qt|mpeg|mpg|wmv|flv|ts|mts|m2ts|divx)$/i.test(key || ''); }
 
 function renderMessages(scrollDown) {
   var cont = document.getElementById('chat-msgs');

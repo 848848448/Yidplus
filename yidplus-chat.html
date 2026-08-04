@@ -218,7 +218,7 @@
       <button class="emoji-cat-btn" data-cat="jewish" onclick="_emojiCat(this,'jewish')">✡️</button>
     </div>
     <div id="emoji-grid" style="display:flex;flex-wrap:wrap;padding:.4rem .3rem;max-height:160px;overflow-y:auto;scrollbar-width:none"></div>
-    <input type="file" id="custom-sticker-file-inp" accept="image/*" style="display:none" onchange="uploadCustomSticker(this.files[0])">
+    <input type="file" id="custom-sticker-file-inp" accept="image/*,.heic,.heif,.tiff,.bmp,.avif,.jfif" style="display:none" onchange="uploadCustomSticker(this.files[0])">
   </div>
 
   <!-- Voice recording -->
@@ -288,7 +288,7 @@
       <div class="userinfo-avatar-big" id="info-avatar-big" onclick="_viewChatPartnerStatus()">👤</div>
       <div class="userinfo-name" id="info-name">Name</div>
       <div class="userinfo-sub" id="info-sub">last seen recently</div>
-      <input type="file" id="group-photo-input" accept="image/*" style="display:none" onchange="handleGroupPhoto(event)">
+      <input type="file" id="group-photo-input" accept="image/*,.heic,.heif,.tiff,.bmp,.avif,.jfif" style="display:none" onchange="handleGroupPhoto(event)">
     </div>
     <div class="userinfo-action-row">
       <div class="uinfo-action-btn" onclick="shareCurrentChat()">
@@ -404,7 +404,7 @@
     <div style="padding:0 1.1rem 1.1rem">
       <button onclick="submitStatus()" style="width:100%;padding:.8rem;border-radius:14px;background:var(--blue);border:none;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer">Post Status</button>
     </div>
-    <input type="file" id="status-file-input" accept="image/*,video/*" style="display:none" onchange="onStatusFileSelected(event)">
+    <input type="file" id="status-file-input" accept="image/*,video/*,.mkv,.avi,.wmv,.flv,.3gp,.m4v,.heic,.heif,.tiff,.mov,.webm" style="display:none" onchange="onStatusFileSelected(event)">
   </div>
 </div>
 
@@ -498,7 +498,7 @@
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F6F5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         <div style="font-size:.55rem;color:#1F6F5C;margin-top:.2rem">Add Photo</div>
       </div>
-      <input type="file" id="new-group-photo-inp" accept="image/*" style="display:none" onchange="previewNewGroupPhoto(event)">
+      <input type="file" id="new-group-photo-inp" accept="image/*,.heic,.heif,.tiff,.bmp,.avif,.jfif" style="display:none" onchange="previewNewGroupPhoto(event)">
     </div>
     <input class="field" id="new-group-name" placeholder="Group name" maxlength="50" style="margin-bottom:.75rem">
     <div class="poll-setting-row"><div><div class="poll-setting-label">Public Group</div><div class="poll-setting-sub">Anyone can discover and join</div></div><div class="toggle-sw" id="new-group-public-toggle" onclick="this.classList.toggle('on')"></div></div>
@@ -516,7 +516,7 @@
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F6F5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         <div style="font-size:.55rem;color:#1F6F5C;margin-top:.2rem">Add Photo</div>
       </div>
-      <input type="file" id="new-channel-photo-inp" accept="image/*" style="display:none" onchange="previewNewChannelPhoto(event)">
+      <input type="file" id="new-channel-photo-inp" accept="image/*,.heic,.heif,.tiff,.bmp,.avif,.jfif" style="display:none" onchange="previewNewChannelPhoto(event)">
     </div>
     <input class="field" id="new-channel-name" placeholder="Channel name" maxlength="50" style="margin-bottom:.5rem">
     <textarea class="field" id="new-channel-desc" placeholder="Description (optional)" rows="2" style="resize:none;height:auto;margin-bottom:.75rem"></textarea>
@@ -674,9 +674,9 @@
 </style>
 
 <script src="js/state.js?v=202608042133"></script>
-<script src="js/theme.js?v=202607291705"></script>
+<script src="js/theme.js?v=202608042233"></script>
 <script src="js/app.js?v=202607291705"></script>
-<script src="js/chat.js?v=202608042217"></script>
+<script src="js/chat.js?v=202608042233"></script>
 
 <script>
 // ── SIMPLE SCREEN SWITCHER (no CSS conflicts, just display:flex/none) ──

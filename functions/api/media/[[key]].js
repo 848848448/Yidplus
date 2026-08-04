@@ -70,10 +70,27 @@ export async function onRequestGet(context) {
     if (!ct || ct === 'application/octet-stream' || ct === 'binary/octet-stream') {
       const ext = (key.split('.').pop() || '').toLowerCase();
       const MIME = {
-        webm: 'audio/webm', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg',
-        mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', weba: 'audio/webm',
-        mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime',
-        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
+        // audio
+        webm: 'audio/webm', weba: 'audio/webm', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg',
+        mp3: 'audio/mpeg', m4a: 'audio/mp4', m4b: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav',
+        flac: 'audio/flac', wma: 'audio/x-ms-wma', amr: 'audio/amr', aiff: 'audio/aiff', aif: 'audio/aiff',
+        mid: 'audio/midi', midi: 'audio/midi', caf: 'audio/x-caf', ac3: 'audio/ac3', ape: 'audio/x-ape',
+        // video
+        mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', qt: 'video/quicktime',
+        mkv: 'video/x-matroska', avi: 'video/x-msvideo', wmv: 'video/x-ms-wmv', flv: 'video/x-flv',
+        '3gp': 'video/3gpp', '3g2': 'video/3gpp2', ogv: 'video/ogg', mpeg: 'video/mpeg', mpg: 'video/mpeg',
+        ts: 'video/mp2t', mts: 'video/mp2t', m2ts: 'video/mp2t', webmv: 'video/webm', divx: 'video/x-msvideo',
+        // image
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', jpe: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+        webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml', heic: 'image/heic', heif: 'image/heif',
+        avif: 'image/avif', tiff: 'image/tiff', tif: 'image/tiff', ico: 'image/x-icon', jfif: 'image/jpeg',
+        // documents / other
+        pdf: 'application/pdf', txt: 'text/plain', csv: 'text/csv', json: 'application/json',
+        doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        zip: 'application/zip', rar: 'application/vnd.rar', '7z': 'application/x-7z-compressed',
+        apk: 'application/vnd.android.package-archive', epub: 'application/epub+zip', rtf: 'application/rtf',
       };
       if (MIME[ext]) { headers.set('Content-Type', MIME[ext]); ct = MIME[ext]; }
     }

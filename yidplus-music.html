@@ -439,11 +439,11 @@
     <input class="field" id="mu-artist" placeholder="Artist name">
     <input class="field" id="mu-album" placeholder="Album (optional)">
     <div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem">Audio file *</div>
-    <input type="file" id="mu-audio" accept="audio/*" style="margin-bottom:.85rem">
+    <input type="file" id="mu-audio" accept="audio/*,.flac,.wma,.opus,.amr,.aiff,.ape,.ac3,.m4a,.aac,.mid" style="margin-bottom:.85rem">
     <div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem">Music video (optional)</div>
-    <input type="file" id="mu-video" accept="video/*" style="margin-bottom:.85rem">
+    <input type="file" id="mu-video" accept="video/*,.mkv,.avi,.wmv,.flv,.3gp,.3g2,.m4v,.ts,.mts,.m2ts,.divx,.mpeg,.mpg,.ogv" style="margin-bottom:.85rem">
     <div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem">Cover art (optional)</div>
-    <input type="file" id="mu-cover" accept="image/*" style="margin-bottom:.85rem">
+    <input type="file" id="mu-cover" accept="image/*,.heic,.heif,.tiff,.bmp,.avif,.jfif" style="margin-bottom:.85rem">
     <button class="btn-primary" onclick="submitMusicUpload()" style="margin-bottom:.5rem">Upload</button>
     <button class="modal-cancel" onclick="closeMusicUpload()">Cancel</button>
   </div>
@@ -452,7 +452,7 @@
 <div id="app-toast"></div>
 
 <script src="js/state.js?v=202608042133"></script>
-<script src="js/theme.js?v=202607291705"></script>
+<script src="js/theme.js?v=202608042233"></script>
 <script src="js/app.js?v=202607291705"></script>
 <script src="js/music.js?v=202608030523"></script>
 
