@@ -2402,6 +2402,10 @@ window._confirmWithPassword = function (opts) {
       // can't fix (Cloudflare Insights beacon, ad/analytics scripts, browser
       // extensions). Logging them just clutters the panel.
       if (/cloudflareinsights\.com|google-analytics\.com|googletagmanager\.com|doubleclick\.net|facebook\.net|hotjar|sentry|chrome-extension:|moz-extension:|safari-extension:/i.test(_rsrc)) return;
+      // External CDN avatars (WhatsApp/Facebook/Instagram) carry expiring URLs
+      // we don't control; the onerror fallback already shows an initial, so
+      // don't log these as fixable errors.
+      if (/whatsapp\.net|fbcdn\.net|cdninstagram\.com|\.fbsbx\.com|t\.me\/i\/|telesco\.pe/i.test(_rsrc)) return;
       report({ level: 'resource', message: 'Failed to load ' + (e.target.tagName || '').toLowerCase() + ': ' + _rsrc, source: _rsrc });
       return;
     }
