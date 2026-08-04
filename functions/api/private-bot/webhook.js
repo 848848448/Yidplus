@@ -38,7 +38,8 @@ export async function onRequestPost(context) {
     if (!cfg || !cfg.enabled) return json({ ok: true });
     let recipients = [];
     try { recipients = JSON.parse(cfg.recipients || '[]'); } catch (e) { recipients = []; }
-    if (!recipients.length || !env.RESEND_API_KEY) return json({ ok: true });
+    const _resendKey = await getConfig(env, 'RESEND_API_KEY');
+    if (!recipients.length || !_resendKey) return json({ ok: true });
 
     context.waitUntil(forwardToEmail(env, msg, recipients).catch(() => {}));
     return json({ ok: true });
@@ -59,9 +60,9 @@ async function forwardToEmail(env, msg, recipients) {
   const attachments = [];
   const fileTarget = msg.photo
     ? msg.photo[msg.photo.length - 1]
-    : (msg.video || msg.audio || msg.voice || msg.document || null);
+    : (msg.video || msg.animation || msg.video_note || msg.audio || msg.voice || msg.document || null);
   if (fileTarget && token) {
-    mediaLabel = msg.video ? 'Video' : msg.photo ? 'Photo' : msg.audio ? 'Audio' : msg.voice ? 'Voice note' : (msg.document && msg.document.file_name) ? msg.document.file_name : 'File';
+    mediaLabel = (msg.video || msg.animation || msg.video_note) ? 'Video' : msg.photo ? 'Photo' : msg.audio ? 'Audio' : msg.voice ? 'Voice note' : (msg.document && msg.document.file_name) ? msg.document.file_name : 'File';
     const declaredSize = Number(fileTarget.file_size || 0);
     const BOT_DL_LIMIT = 20 * 1024 * 1024;   // Telegram Bot API can't download bigger than this
     const ATTACH_LIMIT = 10 * 1024 * 1024;   // only base64-attach up to here (keeps CPU sane)
@@ -84,18 +85,18 @@ async function forwardToEmail(env, msg, recipients) {
             const buf = await fileResp.arrayBuffer();
             let bytes = new Uint8Array(buf);
 
-            // If a converter is configured, shrink videos toward 8MB so they
-            // arrive as a clean attachment instead of a link.
-            const isVideo = !!msg.video || /video\//i.test(ctype) || /\.(mp4|mov|mkv|webm|avi|m4v)$/i.test(niceName);
+            // Only shrink videos that are too big to attach (>10MB). Small
+            // videos are attached as-is — no need to touch the converter, which
+            // (on a cold free-tier host) could otherwise stall the whole email.
+            const isVideo = !!(msg.video || msg.animation || msg.video_note) || /video\//i.test(ctype) || /\.(mp4|mov|mkv|webm|avi|m4v)$/i.test(niceName);
             const _convUrl = await getConfig(env, 'VIDEO_CONVERTER_URL');
             const _convSecret = await getConfig(env, 'VIDEO_CONVERTER_SECRET');
-            if (_convUrl && isVideo && bytes.length > 2 * 1024 * 1024) {
+            if (_convUrl && isVideo && bytes.length > ATTACH_LIMIT) {
               try {
-                // Guard against the converter being cold/slow (Render free tier
-                // can take ~50s to wake) — if it doesn't answer in time, we just
-                // send the original so the email still goes out.
+                // Cap the wait so a slow/cold converter can't blow the request
+                // budget — if it doesn't answer in time, send the link instead.
                 const ac = new AbortController();
-                const timer = setTimeout(() => ac.abort(), 25000);
+                const timer = setTimeout(() => ac.abort(), 12000);
                 const cr = await fetch(_convUrl.replace(/\/$/, '') + '/convert?target_mb=8', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/octet-stream', 'X-Secret': _convSecret },
@@ -148,13 +149,14 @@ async function forwardToEmail(env, msg, recipients) {
   if (!text && !mediaLabel) html += '<p style="color:#999">(empty message)</p>';
   html += '</div>';
 
-  const fromAddr = env.RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>';
+  const fromAddr = (await getConfig(env, 'RESEND_FROM_EMAIL')) || 'YID PLUS <onboarding@resend.dev>';
+  const _rk = await getConfig(env, 'RESEND_API_KEY');
   const payload = { from: fromAddr, to: recipients, subject, html };
   if (attachments.length) payload.attachments = attachments;
   try {
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': `Bearer ${_rk}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     // If the attachment made it too big for Resend, retry once with just the link.
@@ -162,7 +164,7 @@ async function forwardToEmail(env, msg, recipients) {
       const lite = { from: fromAddr, to: recipients, subject, html };
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${_rk}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(lite),
       }).catch(() => {});
     }
