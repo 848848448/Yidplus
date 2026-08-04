@@ -2411,6 +2411,10 @@ window._confirmWithPassword = function (opts) {
       // we don't control; the onerror fallback already shows an initial, so
       // don't log these as fixable errors.
       if (/whatsapp\.net|fbcdn\.net|cdninstagram\.com|\.fbsbx\.com|t\.me\/i\/|telesco\.pe/i.test(_rsrc)) return;
+      // Short-feed <video> elements often fire a load error when the user
+      // scrolls past before buffering finishes; the player retries on its own,
+      // and the files are served fine, so these transient errors aren't logged.
+      if ((e.target.tagName || '').toLowerCase() === 'video' && /\/api\/media\//.test(_rsrc)) return;
       report({ level: 'resource', message: 'Failed to load ' + (e.target.tagName || '').toLowerCase() + ': ' + _rsrc, source: _rsrc });
       return;
     }

@@ -103,7 +103,7 @@ function renderShorts() {
     var likedClass = s.liked ? ' liked' : '';
 
     slide.innerHTML =
-      '<video class="slide-video" src="' + s.media_url + '" playsinline preload="none" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000"></video>' +
+      '<video class="slide-video" src="' + s.media_url + '" playsinline preload="none" onerror="_shortVidRetry(this)" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000"></video>' +
       '<div class="slide-grad"></div>' +
       '<div class="center-flash" id="flash-' + i + '"></div>' +
       '<div class="scrub-wrap" id="scrub-' + i + '">' +
@@ -543,3 +543,17 @@ window.confirmShortUpload = function () {
 };
 
 console.log('[YID PLUS] shorts.js loaded ✓');
+
+// Reload a short's video once if it hits a transient load error (common when
+// scrolling fast in the feed before it finishes buffering).
+window._shortVidRetry = function (v) {
+  try {
+    if (!v || v.getAttribute('data-retried')) return;
+    v.setAttribute('data-retried', '1');
+    var src = v.getAttribute('src');
+    if (!src) return;
+    setTimeout(function () {
+      try { v.src = ''; v.setAttribute('src', src); if (v.load) v.load(); } catch (e) {}
+    }, 700);
+  } catch (e) {}
+};
