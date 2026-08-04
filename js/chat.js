@@ -2514,40 +2514,38 @@ function renderMessages(scrollDown) {
       '</div>';
 
     } else if (m.type === 'media' && m.media_url) {
-      var isVideo = _isVid(m.media_key);
       var isOnce  = m.text === '__once__';
+      var albumInfo = albumGroups[m.id];
       if (isOnce) {
         inner += '<div style="background:rgba(0,0,0,.08);border-radius:10px;padding:.75rem;text-align:center;cursor:pointer" onclick="_openOnce(\'' + m.id + '\',this)">' +
           '<div style="font-size:1.5rem">👁</div>' +
           '<div style="font-size:.78rem;margin-top:.25rem">View once · tap to open</div>' +
         '</div>';
-      } else if (isVideo) {
-        // Check if part of album
-        var albumInfo = albumGroups[m.id];
-        if (albumInfo && albumInfo.index > 0) {
-          inner = ''; // will be rendered as part of album by first item
-        } else if (albumInfo && albumInfo.total > 1) {
-          // Render full album grid
-          var cols = albumInfo.total === 2 ? 2 : 3;
-          inner += '<div class="media-album cols-' + cols + '">';
-          albumInfo.ids.forEach(function (aid) {
-            var am = CHAT_messages.find(function (x) { return x.id === aid; });
-            if (!am || !am.media_url) return;
-            var aIsVid = _isVid(am.media_key);
-            inner += '<div class="media-album-item" onclick="_openMediaViewer(\'' + aid + '\')">' +
-              (aIsVid
-                ? '<video src="' + am.media_url + '" preload="metadata" playsinline></video>' +
-                  '<div class="media-album-play"><div style="width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>'
-                : '<img src="' + am.media_url + '" loading="lazy">') +
-            '</div>';
-          });
-          inner += '</div>';
-        } else {
-          inner += '<div class="video-bubble-wrap" onclick="_openMediaViewer(\'' + m.id + '\')">' +
-            '<video src="' + m.media_url + '" preload="metadata" playsinline></video>' +
-            '<div class="video-bubble-play"><div class="video-bubble-play-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>' +
+      } else if (albumInfo && albumInfo.index > 0) {
+        inner = ''; // rendered as part of the album by the first item
+      } else if (albumInfo && albumInfo.total > 1) {
+        // Album grid — handles a mix of photos AND videos, whatever the first
+        // item is (previously the grid only rendered when the first item was a
+        // video, so image-first albums left the videos as empty bubbles).
+        var cols = albumInfo.total === 2 ? 2 : 3;
+        inner += '<div class="media-album cols-' + cols + '">';
+        albumInfo.ids.forEach(function (aid) {
+          var am = CHAT_messages.find(function (x) { return x.id === aid; });
+          if (!am || !am.media_url) return;
+          var aIsVid = _isVid(am.media_key);
+          inner += '<div class="media-album-item" onclick="_openMediaViewer(\'' + aid + '\')">' +
+            (aIsVid
+              ? '<video src="' + am.media_url + '" preload="metadata" playsinline></video>' +
+                '<div class="media-album-play"><div style="width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>'
+              : '<img src="' + am.media_url + '" loading="lazy">') +
           '</div>';
-        }
+        });
+        inner += '</div>';
+      } else if (_isVid(m.media_key)) {
+        inner += '<div class="video-bubble-wrap" onclick="_openMediaViewer(\'' + m.id + '\')">' +
+          '<video src="' + m.media_url + '" preload="metadata" playsinline></video>' +
+          '<div class="video-bubble-play"><div class="video-bubble-play-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>' +
+        '</div>';
       } else {
         inner += '<img src="' + m.media_url + '" onerror="this.style.display=&#39;none&#39;" style="max-width:260px;border-radius:10px;display:block;cursor:pointer;width:100%;aspect-ratio:4/5;object-fit:cover;background:#000" loading="lazy" onclick="_openMediaViewer(\'' + m.id + '\')">';
       }
