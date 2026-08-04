@@ -1469,11 +1469,11 @@ window.PWA = {
   requestPush: function () {
     if (!('Notification' in window)) {
       toast('Your browser does not support notifications');
-      return Promise.reject('no support');
+      return Promise.resolve();
     }
     if (Notification.permission === 'denied') {
       toast('Notifications are blocked. Enable them in browser settings.');
-      return Promise.reject('denied');
+      return Promise.resolve();
     }
     return Notification.requestPermission().then(function (perm) {
       if (perm !== 'granted') {
@@ -1481,12 +1481,12 @@ window.PWA = {
         return;
       }
       return PWA._subscribePush();
-    });
+    }).catch(function () { /* user dismissed / blocked — already toasted */ });
   },
 
   _subscribePush: function () {
     var reg = window.PWA._swReg;
-    if (!reg) return Promise.reject('No SW registration');
+    if (!reg) { toast('Notifications need the app to be open normally'); return Promise.resolve(); }
 
     // Real VAPID public key (matches VAPID_PRIVATE_KEY Cloudflare secret)
     var VAPID_PUBLIC = 'BAGqD6PA_r2NR8OxUZzUhavbPTSsWsc7Xp1DTnsanX6lPGL7vemGj-O6GbqVjLynoCMJTkuc1W7d5x8ZZ0IFytQ';
