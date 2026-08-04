@@ -8,6 +8,17 @@
 
 import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner } from '../_helpers.js';
 
+// Build a media URL from a stored photo_key WITHOUT double-wrapping. Older rows
+// mistakenly stored a full "/api/media/…" URL in photo_key; newer rows store the
+// raw R2 key. This handles both so a photo is never encoded twice.
+function _photoUrl(pk) {
+  if (!pk) return null;
+  const s = String(pk);
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.indexOf('/api/media/') === 0) return s;      // already a full media path
+  return '/api/media/' + encodeURIComponent(s.replace(/^\/+/, ''));
+}
+
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
@@ -66,7 +77,7 @@ export async function onRequestGet(context) {
         return {
           id: r.id, type: 'group', name: r.name, nick: r.name, emoji: r.emoji,
           visibility: r.visibility, read_only: !!r.read_only, featured: true,
-          photo_url: r.photo_key || null, members: r.members || 0,
+          photo_url: _photoUrl(r.photo_key), members: r.members || 0,
           preview: '', unread: 0, guest_view: true, last_time: null,
         };
       });
@@ -110,7 +121,7 @@ export async function onRequestGet(context) {
       ).bind('%' + searchQ.trim() + '%').all();
       return json({ ok: true, rooms: results.map(r => ({
         id: r.id, type: r.type, nick: r.name, emoji: r.emoji || '👥',
-        photo_url: r.photo_key || null, visibility: r.visibility, members: r.members,
+        photo_url: _photoUrl(r.photo_key), visibility: r.visibility, members: r.members,
       })) });
     }
 
@@ -132,7 +143,7 @@ export async function onRequestGet(context) {
         name: room.name,
         emoji: room.emoji,
         members: room.members || 0,
-        photo_url: room.photo_key ? `/api/media/${encodeURIComponent(room.photo_key)}` : null,
+        photo_url: _photoUrl(room.photo_key),
       }});
     }
 
@@ -395,7 +406,7 @@ export async function onRequestGet(context) {
         nick,
         other_user_id: otherUserId,
         emoji: r.emoji || (r.type === 'group' ? '👥' : r.type === 'channel' ? '📡' : '👤'),
-        photo_url: photoUrl || r.photo_key || null,
+        photo_url: photoUrl || _photoUrl(r.photo_key),
         visibility: r.visibility || 'private',
         read_only: !!r.read_only,
         featured: !!r.featured,
@@ -565,7 +576,7 @@ export async function onRequestPut(context) {
       });
 
       const url = `/api/media/${encodeURIComponent(key)}`;
-      await env.DB.prepare(`UPDATE rooms SET photo_key = ? WHERE id = ?`).bind(url, roomId).run();
+      await env.DB.prepare(`UPDATE rooms SET photo_key = ? WHERE id = ?`).bind(key, roomId).run();
 
       return json({ ok: true, photo_url: url });
     }
