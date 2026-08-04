@@ -8,6 +8,25 @@ export async function onRequestGet(context) {
     const key = decodeURIComponent((params.key || []).join('/'));
     if (!key) return new Response('Not found', { status: 404 });
 
+    // A thumbnail was requested (?thumb=1) for a video. We don't generate video
+    // posters server-side, and serving the full video into an <img> just fails
+    // (and wastes bandwidth). Return a 1x1 transparent PNG so the <img> loads
+    // cleanly — the play button overlay shows over the black poster.
+    const _wantThumb = new URL(request.url).searchParams.get('thumb');
+    if (_wantThumb && /\.(mp4|mov|webm|mkv|m4v|avi|3gp)$/i.test(key)) {
+      const px = Uint8Array.from(
+        atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='),
+        (c) => c.charCodeAt(0)
+      );
+      return new Response(px, {
+        headers: {
+          'Content-Type': 'image/png',
+          'Cache-Control': 'public, max-age=86400',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+
     const headers = new Headers();
     let obj = null;
     let status = 200;
