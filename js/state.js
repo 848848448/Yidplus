@@ -2397,7 +2397,12 @@ window._confirmWithPassword = function (opts) {
   // 1) Uncaught JS errors — and failed <img>/<script>/<link> loads (capture phase).
   window.addEventListener('error', function (e) {
     if (e && e.target && e.target !== window && (e.target.src || e.target.href)) {
-      report({ level: 'resource', message: 'Failed to load ' + (e.target.tagName || '').toLowerCase() + ': ' + (e.target.src || e.target.href), source: (e.target.src || e.target.href) });
+      var _rsrc = String(e.target.src || e.target.href || '');
+      // Skip third-party/analytics/extension resources we don't control and
+      // can't fix (Cloudflare Insights beacon, ad/analytics scripts, browser
+      // extensions). Logging them just clutters the panel.
+      if (/cloudflareinsights\.com|google-analytics\.com|googletagmanager\.com|doubleclick\.net|facebook\.net|hotjar|sentry|chrome-extension:|moz-extension:|safari-extension:/i.test(_rsrc)) return;
+      report({ level: 'resource', message: 'Failed to load ' + (e.target.tagName || '').toLowerCase() + ': ' + _rsrc, source: _rsrc });
       return;
     }
     if (e && e.message) report({ level: 'error', message: e.message, source: e.filename, line: e.lineno, col: e.colno, stack: e.error && e.error.stack });

@@ -86,7 +86,7 @@ html, body { background: #000 !important; }
 
 <div id="app-toast"></div>
 
-<script defer src="js/state.js?v=202608021912"></script>
+<script defer src="js/state.js?v=202608041601"></script>
 <script defer src="js/theme.js?v=202607291705"></script>
 <script defer src="js/app.js?v=202607291705"></script>
 <script defer src="js/shorts.js?v=202607291705"></script>
@@ -118,5 +118,5 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <script defer src="js/ads.js?v=202607291705"></script>
-<script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
+<script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(function(){})</script></body>
   </html>

@@ -555,7 +555,7 @@
 <!-- ════════════════════════════════
      SCRIPTS — ORDER MATTERS!
 ════════════════════════════════ -->
-<script defer src="js/state.js?v=202608021912"></script>
+<script defer src="js/state.js?v=202608041601"></script>
 <script defer src="js/theme.js?v=202607291705"></script>
 <script defer src="js/app.js?v=202607291705"></script>
 <script defer src="js/auth.js?v=202607291705"></script>
@@ -834,5 +834,5 @@ window._resendVerifyEmail = function (btn) {
 </script>
 
 <script defer src="js/ads.js?v=202607291705"></script>
-<script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js")</script></body>
+<script>if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(function(){})</script></body>
       </html>

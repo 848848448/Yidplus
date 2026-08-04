@@ -673,7 +673,7 @@
 #chat-options-menu { position: fixed; }
 </style>
 
-<script src="js/state.js?v=202608021912"></script>
+<script src="js/state.js?v=202608041601"></script>
 <script src="js/theme.js?v=202607291705"></script>
 <script src="js/app.js?v=202607291705"></script>
 <script src="js/chat.js?v=202608031449"></script>
@@ -1143,6 +1143,6 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <script defer src="js/ads.js?v=202607291705"></script>
-<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");</script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(function(){});</script>
 </body>
 </html>
