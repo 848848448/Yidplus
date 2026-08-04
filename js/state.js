@@ -2410,7 +2410,7 @@ window._confirmWithPassword = function (opts) {
       // External CDN avatars (WhatsApp/Facebook/Instagram) carry expiring URLs
       // we don't control; the onerror fallback already shows an initial, so
       // don't log these as fixable errors.
-      if (/whatsapp\.net|fbcdn\.net|cdninstagram\.com|\.fbsbx\.com|t\.me\/i\/|telesco\.pe/i.test(_rsrc)) return;
+      if (/whatsapp\.net|fbcdn\.net|cdninstagram\.com|\.fbsbx\.com|t\.me\/i\/|telesco\.pe|googleusercontent\.com|googleapis\.com|gravatar\.com/i.test(_rsrc)) return;
       // Telegram channel thumbnails come from the external MTProto worker; some
       // messages simply have no thumb and others fail transiently. The <img>
       // onerror already hides them, so don't log these.
