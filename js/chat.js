@@ -2154,7 +2154,7 @@ function _renderInfoTab(tab) {
         if (!filtered.length) { el.innerHTML = _emptyTabMsg('🖼️', 'No media yet'); return; }
         el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">' +
           filtered.map(function (m) {
-            var isVideo = /\.(mp4|webm|mov)$/i.test(m.media_key || '');
+            var isVideo = _isVid(m.media_key);
             return '<div style="aspect-ratio:1;background:#000;border-radius:4px;overflow:hidden;position:relative">' +
               (isVideo
                 ? '<video src="' + m.media_url + '" style="width:100%;height:100%;object-fit:cover"></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>'
@@ -2345,6 +2345,8 @@ function loadMessages(scrollToBottom) {
     .catch(function () {});
 }
 
+function _isVid(key) { return /\.(mp4|webm|mov|mkv|avi|m4v|3gp|ogv|qt|mpeg|mpg)$/i.test(key || ''); }
+
 function renderMessages(scrollDown) {
   var cont = document.getElementById('chat-msgs');
   if (!cont || !CHAT_curRoom) return;
@@ -2512,7 +2514,7 @@ function renderMessages(scrollDown) {
       '</div>';
 
     } else if (m.type === 'media' && m.media_url) {
-      var isVideo = /\.(mp4|webm|mov)$/i.test(m.media_key || '');
+      var isVideo = _isVid(m.media_key);
       var isOnce  = m.text === '__once__';
       if (isOnce) {
         inner += '<div style="background:rgba(0,0,0,.08);border-radius:10px;padding:.75rem;text-align:center;cursor:pointer" onclick="_openOnce(\'' + m.id + '\',this)">' +
@@ -2531,7 +2533,7 @@ function renderMessages(scrollDown) {
           albumInfo.ids.forEach(function (aid) {
             var am = CHAT_messages.find(function (x) { return x.id === aid; });
             if (!am || !am.media_url) return;
-            var aIsVid = /\.(mp4|webm|mov)$/i.test(am.media_key || '');
+            var aIsVid = _isVid(am.media_key);
             inner += '<div class="media-album-item" onclick="_openMediaViewer(\'' + aid + '\')">' +
               (aIsVid
                 ? '<video src="' + am.media_url + '" preload="metadata" playsinline></video>' +

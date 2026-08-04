@@ -374,7 +374,18 @@ export async function onRequestPost(context) {
 
     let mediaKey = null;
     if (file && typeof file === 'object' && file.arrayBuffer) {
-      const ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop() : 'bin';
+      let ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop().toLowerCase() : '';
+      // Camera captures / blobs often arrive without a usable extension, which
+      // left videos stored as ".bin" and mis-rendered as broken images. Derive
+      // the extension from the content-type instead.
+      if (!ext || ext.length > 5 || /[^a-z0-9]/.test(ext)) {
+        const ct = (file.type || '').toLowerCase();
+        if (ct === 'video/quicktime') ext = 'mov';
+        else if (ct.startsWith('video/')) ext = ct.split('/')[1] || 'mp4';
+        else if (ct.startsWith('image/')) ext = (ct.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+        else if (ct.startsWith('audio/')) ext = ct.split('/')[1] || 'm4a';
+        else ext = 'bin';
+      }
       mediaKey = `chat/${roomId}/${Date.now()}_${crypto.randomUUID()}.${ext}`;
       try {
         await env.MY_BUCKET.put(mediaKey, await file.arrayBuffer(), {
