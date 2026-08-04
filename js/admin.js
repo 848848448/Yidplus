@@ -5417,23 +5417,50 @@ function buildCodeErrorsPanel(content) {
         'Page: ' + (e.page || '') + '\n' +
         (e.stack ? 'Stack:\n' + e.stack + '\n' : '');
       var enc = encodeURIComponent(copyText);
-      return '<div class="admin-card" style="display:flex;flex-direction:column;gap:.4rem;border-left:3px solid ' + L.c + '">' +
+      var _sent = _codeErrSent().indexOf(e.id) !== -1;
+      return '<div class="admin-card" data-errid="' + escHtmlA(e.id) + '" style="display:flex;flex-direction:column;gap:.4rem;border-left:3px solid ' + (_sent ? '#16A34A' : L.c) + (_sent ? ';opacity:.7' : '') + '">' +
           '<div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">' +
             '<span style="font-size:.62rem;font-weight:800;letter-spacing:.03em;color:' + L.c + ';background:' + L.bg + ';padding:.15rem .4rem;border-radius:5px">' + L.t + '</span>' +
+            (_sent ? '<span class="err-sent-badge" style="font-size:.62rem;font-weight:800;color:#16A34A;background:rgba(22,163,74,.12);padding:.15rem .45rem;border-radius:5px">✓ SENT TO CLAUDE</span>' : '') +
             (e.count > 1 ? '<span style="font-size:.68rem;color:var(--muted)">×' + e.count + '</span>' : '') +
             (when ? '<span style="font-size:.68rem;color:var(--muted)">' + when + '</span>' : '') +
           '</div>' +
           '<div style="font-weight:600;font-size:.84rem;color:var(--text);word-break:break-word">' + escHtmlA(e.message || '') + '</div>' +
           (loc ? '<div style="font-size:.74rem;color:var(--muted)">📄 ' + escHtmlA(loc) + (e.nickname ? ' · ' + escHtmlA(e.nickname) : '') + '</div>' : '') +
           (e.stack ? '<pre style="font-size:.68rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem;overflow-x:auto;white-space:pre-wrap;word-break:break-word;max-height:120px;margin:0">' + escHtmlA(e.stack.slice(0, 500)) + '</pre>' : '') +
-          '<button class="save-pill" style="width:100%" onclick="codeErrCopy(decodeURIComponent(\'' + enc + '\'), this)">📋 Copy for Claude</button>' +
+          '<button class="save-pill err-copy-btn" style="width:100%' + (_sent ? ';background:var(--bg3);color:var(--muted);border:1px solid var(--border)' : '') + '" onclick="codeErrCopy(decodeURIComponent(\'' + enc + '\'), this, \'' + escHtmlA(e.id) + '\')">' + (_sent ? '✓ Already sent — copy again' : '📋 Copy for Claude') + '</button>' +
         '</div>';
     }).join('');
     content.innerHTML = head + cards + '</div>';
   }
 }
-window.codeErrCopy = function (text, btn) {
-  var done = function () { if (btn) { var o = btn.textContent; btn.textContent = '✅ Copied — paste to Claude'; setTimeout(function () { btn.textContent = o; }, 2000); } };
+function _codeErrSent() { try { return JSON.parse(localStorage.getItem('yp_err_sent') || '[]'); } catch (e) { return []; } }
+function _codeErrMarkSent(id) {
+  try { var a = _codeErrSent(); if (id && a.indexOf(id) === -1) { a.push(id); localStorage.setItem('yp_err_sent', JSON.stringify(a.slice(-800))); } } catch (e) {}
+}
+window.codeErrCopy = function (text, btn, id) {
+  var done = function () {
+    // Remember that this error was sent, so it's clearly marked next time.
+    _codeErrMarkSent(id);
+    var card = btn && btn.closest ? btn.closest('.admin-card') : null;
+    if (card) {
+      card.style.borderLeftColor = '#16A34A';
+      card.style.opacity = '.7';
+      if (!card.querySelector('.err-sent-badge')) {
+        var badge = document.createElement('span');
+        badge.className = 'err-sent-badge';
+        badge.style.cssText = 'font-size:.62rem;font-weight:800;color:#16A34A;background:rgba(22,163,74,.12);padding:.15rem .45rem;border-radius:5px';
+        badge.textContent = '✓ SENT TO CLAUDE';
+        var hdr = card.querySelector('div');
+        if (hdr) hdr.appendChild(badge);
+      }
+    }
+    if (btn) {
+      btn.textContent = '✅ Copied — paste to Claude';
+      btn.style.background = 'var(--bg3)'; btn.style.color = 'var(--muted)'; btn.style.border = '1px solid var(--border)';
+      setTimeout(function () { btn.textContent = '✓ Already sent — copy again'; }, 2000);
+    }
+  };
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(done).catch(function () { _codeErrFallback(text); done(); });
   } else { _codeErrFallback(text); done(); }
