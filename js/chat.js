@@ -622,7 +622,7 @@ function _xPostCard(p, username, chTitle) {
       // Telegram-style: a poster with a big play button. Tapping opens the
       // fullscreen player (same swipeable viewer as the photos), which actually
       // plays the video — no dead inline player, no link-out.
-      var vthumb = src + (src.indexOf('?') > -1 ? '&' : '?') + 'thumb=1';
+      var vthumb = src + (src.indexOf('?') > -1 ? '&' : '?') + 'thumb=1&tv=2';
       var vdur = p.media_duration ? '<div style="position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.6);color:#fff;font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:6px;pointer-events:none">' + _tgDur(p.media_duration) + '</div>' : '';
       media = '<div onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="position:relative;margin:0;overflow:hidden;background:#0b0b0b;cursor:pointer;min-height:170px">' +
           '<img src="' + vthumb + '" onerror="this.style.display=&#39;none&#39;" style="width:100%;display:block;max-height:70vh;object-fit:cover">' +
@@ -644,7 +644,7 @@ function _xPostCard(p, username, chTitle) {
       // Cover art when the track carries any, otherwise the note icon. Fetched
       // from the same stream endpoint at ?thumb=1 — a few KB, never stored.
       var art = p.media_thumb
-        ? '<div style="width:44px;height:44px;border-radius:6px;background-image:url(' + src + '&thumb=1);background-size:cover;background-position:center;flex-shrink:0;background-color:#e6ebee"></div>'
+        ? '<div style="width:44px;height:44px;border-radius:6px;background-image:url(' + src + '&thumb=1&tv=2);background-size:cover;background-position:center;flex-shrink:0;background-color:#e6ebee"></div>'
         : '<div style="width:44px;height:44px;border-radius:6px;background:#168acd;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">' +
             '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>' +
           '</div>';
@@ -1097,7 +1097,7 @@ function _tgAlbumCard(group, username, chTitle) {
       // Poster + play; tap opens the fullscreen viewer, which plays via the
       // R2-caching proxy so any size works.
       inner = '<div onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;height:100%;position:relative;background:#000;cursor:pointer">' +
-          '<img src="' + src + '&thumb=1" onerror="this.style.display=&#39;none&#39;" style="width:100%;height:100%;object-fit:cover;display:block">' +
+          '<img src="' + src + '&thumb=1&tv=2" onerror="this.style.display=&#39;none&#39;" style="width:100%;height:100%;object-fit:cover;display:block">' +
           '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" style="margin-left:2px"><polygon points="6 4 20 12 6 20 6 4"/></svg></div></div>' +
         '</div>';
     } else {
