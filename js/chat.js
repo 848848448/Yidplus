@@ -253,6 +253,16 @@ function renderChatList() {
   var el = document.getElementById('chat-list-area');
   if (!el) return;
 
+  // Keep the Chats nav badge in sync with total unread (skip muted chats).
+  try {
+    var _tot = (CHAT_rooms || []).reduce(function (s, r) { return s + (r.muted ? 0 : (r.unread || 0)); }, 0);
+    var _cb = document.getElementById('cnav-badge-chats');
+    if (_cb) {
+      if (_tot > 0) { _cb.textContent = _tot > 99 ? '99+' : _tot; _cb.style.display = 'flex'; }
+      else _cb.style.display = 'none';
+    }
+  } catch (e) {}
+
   var filtered = CHAT_rooms.filter(function (c) {
     var tabOk = CHAT_tab === 'all' ||
       (CHAT_tab === 'private'  && c.type === 'private') ||
@@ -7680,3 +7690,35 @@ window._geOpenMembers = function (adminsOnly) {
     var el = document.getElementById('ge-mem-list'); if (el) el.innerHTML = '<div style="padding:2rem;text-align:center;color:#DC2626">' + ((e && e.message) || 'Failed to load') + '</div>';
   });
 };
+
+// Poll the chat list so unread badges + previews update on their own when new
+// messages arrive — without this you only saw new messages after a manual
+// refresh. Runs only while the list is visible (a room's own 3s poll covers the
+// open-room case) and pauses in the background.
+var _chatListPollTimer = null;
+function _startChatListPoll() {
+  if (_chatListPollTimer) return;
+  _chatListPollTimer = setInterval(function () {
+    try {
+      if (document.hidden) return;
+      var roomScreen = document.getElementById('screen-chatroom');
+      var roomOpen = roomScreen && !roomScreen.classList.contains('hidden');
+      var infoScreen = document.getElementById('screen-chatinfo');
+      var infoOpen = infoScreen && !infoScreen.classList.contains('hidden');
+      // Only refresh the list when we're actually looking at it.
+      if (!roomOpen && !infoOpen && typeof loadChatRooms === 'function') loadChatRooms();
+    } catch (e) {}
+  }, 6000);
+}
+if (typeof window !== 'undefined') {
+  if (document.readyState !== 'loading') _startChatListPoll();
+  else document.addEventListener('DOMContentLoaded', _startChatListPoll);
+  // Refresh immediately when returning to the tab.
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) {
+      var rs = document.getElementById('screen-chatroom');
+      var open = rs && !rs.classList.contains('hidden');
+      if (!open && typeof loadChatRooms === 'function') loadChatRooms();
+    }
+  });
+}
