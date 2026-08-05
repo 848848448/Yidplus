@@ -60,6 +60,11 @@ export async function onRequestGet(context) {
     headers.set('Accept-Ranges', 'bytes');
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
     headers.set('Access-Control-Allow-Origin', '*');
+    // ?dl=1 forces a download (used by the email bot's Download button).
+    if (new URL(request.url).searchParams.get('dl')) {
+      const fname = (key.split('/').pop() || 'file');
+      headers.set('Content-Disposition', 'attachment; filename="' + fname.replace(/"/g, '') + '"');
+    }
     headers.set('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
     headers.set('X-Content-Type-Options', 'nosniff');
 

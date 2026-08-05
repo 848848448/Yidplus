@@ -137,13 +137,9 @@ async function forwardToEmail(env, msg, recipients) {
                 mediaLink = origin.replace(/\/$/, '') + '/api/media/' + key;
               } catch (e) { /* link optional */ }
             }
-            // Attach smaller NON-video media so it lands in the inbox for
-            // offline use. Videos are watchable inline / via the link, so we
-            // don't attach them — that keeps the email light and means you never
-            // have to download to watch.
-            if (isVideo) {
-              // nothing to attach — the inline player + link handle it
-            } else if (bytes.length <= ATTACH_LIMIT) {
+            // Attach smaller media (incl. video) so it lands in the inbox and
+            // can be opened/downloaded straight from the email.
+            if (bytes.length <= ATTACH_LIMIT) {
               attachments.push({ filename: niceName, content: _b64(bytes), content_type: ctype });
             } else {
               mediaNote = mediaLabel + ' (' + (bytes.length / 1048576).toFixed(1) + ' MB) is linked below rather than attached — it is too large to attach.';
@@ -178,21 +174,22 @@ async function forwardToEmail(env, msg, recipients) {
     if (mediaLabel === 'Photo' && mediaLink) {
       html += '<a href="' + mediaLink + '" target="_blank"><img src="' + mediaLink + '" style="max-width:100%;border-radius:12px;display:block"></a>';
     } else if (isVideoLabel && mediaLink) {
-      // Inline HTML5 player — plays right inside the email on clients that
-      // support it (Apple Mail / iPhone Mail), showing the real frame as poster.
-      html += '<video src="' + mediaLink + '"' + (posterLink ? ' poster="' + posterLink + '"' : '') + ' controls playsinline preload="metadata" style="max-width:100%;width:100%;border-radius:12px;display:block;background:#000"></video>';
-      // Poster image with a play badge — visible in EVERY mail app (Gmail too),
-      // so you see the actual video frame with no link and no download; one tap
-      // plays it.
+      // Gmail strips <video> (it renders as a broken grey box), so instead show
+      // the video's real frame as a plain image — visible with no click and no
+      // download — then offer both Watch (streams in browser) and Download.
       if (posterLink) {
-        html += '<a href="' + mediaLink + '" target="_blank" style="text-decoration:none;display:block;position:relative;margin-top:8px">' +
-          '<img src="' + posterLink + '" style="max-width:100%;width:100%;border-radius:12px;display:block">' +
-          '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:66px;height:66px;border-radius:50%;background:rgba(0,0,0,.55);display:block"></span>' +
-          '<span style="position:absolute;top:50%;left:50%;transform:translate(-40%,-50%);width:0;height:0;border-left:24px solid #fff;border-top:14px solid transparent;border-bottom:14px solid transparent;display:block"></span>' +
+        html += '<a href="' + mediaLink + '" target="_blank" style="text-decoration:none;display:block;position:relative">' +
+          '<img src="' + posterLink + '" width="100%" style="max-width:100%;width:100%;border-radius:12px;display:block;background:#000">' +
+          '<span style="position:absolute;top:50%;left:50%;margin:-33px 0 0 -33px;width:66px;height:66px;border-radius:50%;background:rgba(0,0,0,.55);display:block"></span>' +
+          '<span style="position:absolute;top:50%;left:50%;margin:-14px 0 0 -8px;width:0;height:0;border-left:24px solid #fff;border-top:14px solid transparent;border-bottom:14px solid transparent;display:block"></span>' +
         '</a>';
       } else {
-        html += '<a href="' + mediaLink + '" target="_blank" style="display:inline-block;margin-top:8px;background:#1F6F5C;color:#fff;padding:13px 22px;border-radius:11px;text-decoration:none;font-weight:700;font-size:15px">▶ Watch video</a>';
+        html += '<div style="background:#111;border-radius:12px;height:150px;text-align:center;color:#fff;line-height:150px;font-size:15px;font-weight:700">🎬 Video</div>';
       }
+      html += '<div style="margin-top:12px">' +
+        '<a href="' + mediaLink + '" target="_blank" style="display:inline-block;background:#1F6F5C;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;margin-right:8px">▶ Watch video</a>' +
+        '<a href="' + mediaLink + '?dl=1" target="_blank" style="display:inline-block;background:#eef1f3;color:#1F6F5C;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px">⬇ Download</a>' +
+      '</div>';
     } else if (isAudioLabel && mediaLink) {
       html += '<a href="' + mediaLink + '" target="_blank" style="display:inline-block;background:#1F6F5C;color:#fff;padding:13px 22px;border-radius:11px;text-decoration:none;font-weight:700;font-size:15px">🎵 Play ' + esc(mediaLabel.toLowerCase()) + '</a>';
     } else if (mediaLink) {
