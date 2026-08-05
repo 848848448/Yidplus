@@ -391,6 +391,15 @@ window.escHtml = function (s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 };
 
+window.escJs = function (s) {
+  return String(s == null ? '' : s)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/[\r\n]+/g, ' ');
+};
+
 // Telegram-style: every user gets a consistent color derived from their id/name,
 // instead of every avatar being flat gray or identical blue.
 var _AV_PALETTE = [

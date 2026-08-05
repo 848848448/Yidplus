@@ -339,7 +339,7 @@ function renderChatList() {
 
     var avatarClickAttr = hasStatus ? ' onclick="event.stopPropagation();_viewChatListAvatarStatus(\'' + (c.other_user_id || c.id) + '\')"' : '';
     return '<div class="chat-item-wrap" data-room-id="' + c.id + '">' +
-      '<div class="chat-item-delete" onclick="event.stopPropagation();deleteChatRoom(\'' + c.id + '\',\'' + escHtml((c.nick || 'Chat')).replace(/'/g, "\\'") + '\')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></div>' +
+      '<div class="chat-item-delete" onclick="event.stopPropagation();deleteChatRoom(\'' + c.id + '\',\'' + escJs((c.nick || 'Chat')) + '\')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></div>' +
       '<div class="chat-item' + (c.unread ? ' unread' : '') + '" onclick="_chatItemClick(this,\'' + c.id + '\')">' +
         '<div class="' + avClass + '" style="' + avStyle + '"' + avatarClickAttr + '>' + avatarContent + onlineDot + '</div>' +
         '<div style="flex:1;min-width:0">' +
@@ -404,7 +404,7 @@ function _tgChannelRow(t) {
     : (!t.joined ? '<button onclick="event.stopPropagation();tgQuickJoin(\'' + uname + '\',this)" style="background:#229ED9;color:#fff;border:none;border-radius:14px;padding:.2rem .7rem;font-size:.68rem;font-weight:700;cursor:pointer;flex-shrink:0">Join</button>' : '');
 
   return '<div class="chat-item-wrap" data-tg="' + uname + '">' +
-    '<div class="chat-item' + (t.unread ? ' unread' : '') + '" onclick="openTelegramChannel(\'' + uname + '\',\'' + title.replace(/'/g, "\\'") + '\')">' +
+    '<div class="chat-item' + (t.unread ? ' unread' : '') + '" onclick="openTelegramChannel(\'' + uname + '\',\'' + escJs(title) + '\')">' +
       av +
       '<div style="flex:1;min-width:0">' +
         '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
@@ -2085,8 +2085,8 @@ function _renderMembersList() {
     else if (m.is_group_admin) badge = '<span style="font-size:.68rem;color:var(--accent,#1F6F5C);font-weight:700">admin</span>';
     // Tapping: admins get the action sheet, everyone else opens the member.
     var tap = (canManageGroup && !isSelf)
-      ? "_openMemberActions('" + m.id + "','" + nick.replace(/'/g, "\\'") + "'," + (m.is_group_admin ? 'true' : 'false') + ",'" + escHtml(m.title || '').replace(/'/g, "\\'") + "')"
-      : "_openMemberDM('" + m.id + "','" + nick.replace(/'/g, "\\'") + "')";
+      ? "_openMemberActions('" + m.id + "','" + escJs(nick) + "'," + (m.is_group_admin ? 'true' : 'false') + ",'" + escJs(m.title || '') + "')"
+      : "_openMemberDM('" + m.id + "','" + escJs(nick) + "')";
     var sub = m.title
       ? '<div style="font-size:.74rem;color:var(--accent,#1F6F5C);font-weight:600">' + escHtml(m.title) + '</div>'
       : (m.online && isAnyAdmin() ? '<div style="font-size:.74rem;color:#16A34A">online</div>' : '');
@@ -2117,8 +2117,8 @@ window._openMemberActions = function (memberId, nickname, isGroupAdmin, title) {
   }
   ov.innerHTML = '<div style="background:var(--surface);width:100%;max-width:500px;border-radius:18px 18px 0 0;overflow:hidden;padding-bottom:env(safe-area-inset-bottom)">' +
       '<div style="padding:1rem 1.25rem;font-weight:800;font-size:1rem">@' + nickname + '</div>' +
-      item('💬 Message', '', "document.getElementById('member-actions-sheet').remove();_openMemberDM('" + memberId + "','" + nickname.replace(/'/g, "\\'") + "')") +
-      item('🏷 Set title', '', "document.getElementById('member-actions-sheet').remove();promptSetMemberTitle('" + memberId + "','" + (title || '').replace(/'/g, "\\'") + "')") +
+      item('💬 Message', '', "document.getElementById('member-actions-sheet').remove();_openMemberDM('" + memberId + "','" + escJs(nickname) + "')") +
+      item('🏷 Set title', '', "document.getElementById('member-actions-sheet').remove();promptSetMemberTitle('" + memberId + "','" + escJs(title || '') + "')") +
       item(isGroupAdmin ? '⬇ Dismiss as admin' : '⭐ Make admin', 'var(--accent,#1F6F5C)', "document.getElementById('member-actions-sheet').remove();toggleMemberGroupAdmin('" + memberId + "'," + (!isGroupAdmin) + ")") +
       item('🚫 Remove from group', '#DC2626', "document.getElementById('member-actions-sheet').remove();removeMemberFromGroup('" + memberId + "')") +
       '<div onclick="document.getElementById(\'member-actions-sheet\').remove()" style="padding:1rem 1.25rem;text-align:center;font-weight:700;color:var(--muted);border-top:8px solid var(--bg);cursor:pointer">Cancel</div>' +
@@ -4359,7 +4359,7 @@ function _linkify(text, isMe) {
   // @username mentions → tappable, open a private chat with that person
   // (like Telegram). Must be preceded by start/space so emails don't match.
   out = out.replace(/(^|[\s(>])@([a-zA-Z0-9_]{2,32})\b/g, function (m, pre, uname) {
-    return pre + '<span onclick="openMention(\'' + uname.replace(/'/g, "\\'") + '\')" style="color:' + c + ';cursor:pointer;font-weight:600">@' + uname + '</span>';
+    return pre + '<span onclick="openMention(\'' + escJs(uname) + '\')" style="color:' + c + ';cursor:pointer;font-weight:600">@' + uname + '</span>';
   });
   // Lightweight WhatsApp/Telegram-style inline formatting. Order matters:
   // code first (so *, _, ~ inside a code span are left alone), then bold,
@@ -5314,7 +5314,7 @@ function _runGSearch(q) {
           var join = t.joined
             ? '<span style="font-size:.68rem;color:var(--muted);margin-left:auto">Joined</span>'
             : '<button onclick="event.stopPropagation();tgQuickJoin(\'' + escHtml(t.username) + '\',this)" style="margin-left:auto;background:#229ED9;color:#fff;border:none;border-radius:14px;padding:.2rem .8rem;font-size:.7rem;font-weight:700;cursor:pointer">Join</button>';
-          return '<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();openTelegramChannel(\'' + escHtml(t.username) + '\',\'' + escHtml(t.title || t.username).replace(/'/g, "\\'") + '\')">' +
+          return '<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();openTelegramChannel(\'' + escHtml(t.username) + '\',\'' + escJs(t.title || t.username) + '\')">' +
             av +
             '<div style="min-width:0"><div style="font-size:.86rem;font-weight:600;unicode-bidi:plaintext;text-align:left;direction:ltr">' + escHtml(t.title || t.username) + '</div>' +
             '<div style="font-size:.68rem;color:var(--muted)">' + _tgMembersLabel(t.members) + '</div></div>' +
@@ -7670,7 +7670,7 @@ window._geOpenMembers = function (adminsOnly) {
                 : m.is_group_admin ? '<span style="font-size:.7rem;color:var(--accent,#1F6F5C);font-weight:700">admin</span>' : '';
       var av = '<div style="width:44px;height:44px;border-radius:50%;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:linear-gradient(135deg,var(--accent,#1F6F5C),#2B8A73);overflow:hidden">' + initial +
         (m.photo_url ? '<img src="' + escHtml(m.photo_url) + '" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">' : '') + '</div>';
-      return '<div onclick="_openMemberActions(\'' + m.id + '\',\'' + escHtml(m.nickname || 'User').replace(/'/g, "\\'") + '\',' + (m.is_group_admin ? 'true' : 'false') + ',\'' + escHtml(m.title || '').replace(/'/g, "\\'") + '\')" style="display:flex;align-items:center;gap:.8rem;padding:.7rem 1.1rem;cursor:pointer;border-bottom:1px solid var(--border)">' +
+      return '<div onclick="_openMemberActions(\'' + m.id + '\',\'' + escJs(m.nickname || 'User') + '\',' + (m.is_group_admin ? 'true' : 'false') + ',\'' + escJs(m.title || '') + '\')" style="display:flex;align-items:center;gap:.8rem;padding:.7rem 1.1rem;cursor:pointer;border-bottom:1px solid var(--border)">' +
         av + '<div style="flex:1;min-width:0;unicode-bidi:plaintext;text-align:start"><div style="font-size:.95rem;font-weight:600">' + escHtml(m.nickname || 'User') + '</div>' +
         (m.title ? '<div style="font-size:.75rem;color:var(--accent,#1F6F5C)">' + escHtml(m.title) + '</div>' : '') + '</div>' + badge +
         '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:.5rem;opacity:.6"><polyline points="9 18 15 12 9 6"/></svg>' +

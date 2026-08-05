@@ -2160,7 +2160,7 @@ function _buildProfileScreen(userId) {
       : '';
 
     var moreBtn = !isMe
-      ? '<button onclick="openProfileMoreMenu(\'' + userId + '\',\'' + escHtml(p.nickname || 'user').replace(/'/g, "\\'") + '\',' + (p.i_blocked ? 'true' : 'false') + ')" style="padding:.45rem .8rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.9rem;cursor:pointer;font-family:inherit;font-weight:700;color:var(--text)">⋯</button>'
+      ? '<button onclick="openProfileMoreMenu(\'' + userId + '\',\'' + escJs(p.nickname || 'user') + '\',' + (p.i_blocked ? 'true' : 'false') + ')" style="padding:.45rem .8rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.9rem;cursor:pointer;font-family:inherit;font-weight:700;color:var(--text)">⋯</button>'
       : '';
 
     var bioHtml = p.bio ? '<div style="font-size:.85rem;color:var(--text);text-align:center;padding:0 1.25rem;margin-bottom:.75rem;line-height:1.5">' + escHtml(p.bio) + '</div>' : '';
@@ -2322,10 +2322,10 @@ window.openProfileMoreMenu = function (userId, nick, iBlocked) {
   overlay.innerHTML =
     '<div class="modal-sheet">' +
       '<div class="modal-title">@' + escHtml(nick) + '</div>' +
-      '<div class="ctx-item" style="border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem;color:' + (iBlocked ? 'var(--text)' : '#D32F2F') + '" onclick="' + (iBlocked ? 'unblockUserAction' : 'blockUserAction') + '(\'' + userId + '\',\'' + nick.replace(/'/g, "\\'") + '\')">' +
+      '<div class="ctx-item" style="border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem;color:' + (iBlocked ? 'var(--text)' : '#D32F2F') + '" onclick="' + (iBlocked ? 'unblockUserAction' : 'blockUserAction') + '(\'' + userId + '\',\'' + escJs(nick) + '\')">' +
         (iBlocked ? '🔓 Unblock this user' : '🚫 Block this user') +
       '</div>' +
-      '<div class="ctx-item" style="border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem;color:#D32F2F" onclick="reportUserAction(\'' + userId + '\',\'' + nick.replace(/'/g, "\\'") + '\')">🚩 Report this user</div>' +
+      '<div class="ctx-item" style="border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem;color:#D32F2F" onclick="reportUserAction(\'' + userId + '\',\'' + escJs(nick) + '\')">🚩 Report this user</div>' +
       '<button class="modal-cancel" onclick="document.getElementById(\'profile-more-overlay\').remove()">Cancel</button>' +
     '</div>';
   document.body.appendChild(overlay);
@@ -2494,7 +2494,7 @@ function _openFollowModal(title, path, allowManage) {
     var users = res.users || [];
     if (!users.length) { el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.85rem">Nobody here yet</div>'; return; }
     el.innerHTML = users.map(function (u) {
-      var safeNick = String(u.nickname || 'User').replace(/'/g, "\\'");
+      var safeNick = escJs(u.nickname || 'User');
       var manageBtns = allowManage
         ? '<div style="display:flex;gap:.4rem;flex-shrink:0" onclick="event.stopPropagation()">' +
             '<button onclick="removeFollowerAction(\'' + u.id + '\',\'' + safeNick + '\',this)" style="padding:.35rem .7rem;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:.72rem;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit">Remove</button>' +
