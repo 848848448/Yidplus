@@ -1,5 +1,5 @@
-// YID PLUS Service Worker v7
-const CACHE_NAME = 'yidplus-v10';
+// YID PLUS Service Worker v8
+const CACHE_NAME = 'yidplus-v11';
 const CACHE_CSS  = 'yidplus-css-v8';
 const CACHE_JS   = 'yidplus-js-v1';
 

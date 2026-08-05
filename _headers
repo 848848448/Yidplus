@@ -46,3 +46,8 @@
   Cache-Control: no-cache, no-store, must-revalidate
 /shorts
   Cache-Control: no-cache, no-store, must-revalidate
+
+# The service worker must never be stale — the browser should re-check it on
+# every load so a new build's SW (and its cache purge) reaches everyone fast.
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
