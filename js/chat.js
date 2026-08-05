@@ -7731,3 +7731,34 @@ if (typeof window !== 'undefined') {
     }
   });
 }
+
+// New-content dots on the Shorts / Channels nav (like the Chats unread badge):
+// show a dot when there's a newer short or post than the user last saw.
+function _setNavDot(id, show) {
+  var el = document.getElementById(id);
+  if (el) el.style.display = show ? 'block' : 'none';
+}
+function _updateContentBadges() {
+  try {
+    if (document.hidden) return;
+    var lastS = localStorage.getItem('yp_last_shorts_visit') || '1970-01-01';
+    api.get('/shorts?limit=1').then(function (res) {
+      var latest = res && res.shorts && res.shorts[0] && res.shorts[0].created_at;
+      _setNavDot('cnav-badge-shorts', !!(latest && latest > lastS));
+    }).catch(function () {});
+    var lastF = localStorage.getItem('yp_last_feed_visit') || '1970-01-01';
+    api.get('/posts?limit=1').then(function (res) {
+      var latest = res && res.posts && res.posts[0] && res.posts[0].created_at;
+      _setNavDot('cnav-badge-channels', !!(latest && latest > lastF));
+    }).catch(function () {});
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') {
+  var _startContentBadges = function () {
+    _updateContentBadges();
+    setInterval(_updateContentBadges, 60000);
+  };
+  if (document.readyState !== 'loading') _startContentBadges();
+  else document.addEventListener('DOMContentLoaded', _startContentBadges);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) _updateContentBadges(); });
+}
