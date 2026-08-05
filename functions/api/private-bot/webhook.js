@@ -136,18 +136,44 @@ async function forwardToEmail(env, msg, recipients) {
   const esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const subject = (mediaLabel || 'Message') + ' from ' + from + (text ? ' — ' + text.slice(0, 60) : '');
 
-  let html = '<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5">';
-  html += '<p style="color:#666;margin:0 0 12px">New from your bot — <strong>' + esc(from) + '</strong></p>';
-  if (text) html += '<p style="white-space:pre-wrap;font-size:16px">' + esc(text) + '</p>';
+  const isVideoLabel = mediaLabel === 'Video';
+  const isAudioLabel = mediaLabel === 'Audio' || mediaLabel === 'Voice note';
+  const attached = attachments.length > 0;
+
+  let html = '<div style="background:#eceef1;padding:18px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif">';
+  html += '<div style="max-width:540px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.08)">';
+  // Header
+  html += '<div style="background:linear-gradient(135deg,#2E9E82,#1F6F5C);color:#fff;padding:16px 20px">' +
+            '<div style="font-weight:800;font-size:16px">📩 New message</div>' +
+            '<div style="opacity:.92;font-size:13px;margin-top:3px">from <strong>' + esc(from) + '</strong></div>' +
+          '</div>';
+  html += '<div style="padding:18px 20px">';
+  // Text / caption
+  if (text) html += '<div style="white-space:pre-wrap;font-size:16px;line-height:1.55;color:#111;margin:0 0 14px">' + esc(text) + '</div>';
+  // Media
   if (mediaLabel) {
-    const attached = attachments.length > 0;
-    if (mediaLabel === 'Photo' && mediaLink) html += '<p><img src="' + mediaLink + '" style="max-width:100%;border-radius:8px"></p>';
-    if (attached) html += '<p style="color:#666;font-size:13px">📎 ' + esc(mediaLabel) + ' attached to this email.</p>';
-    if (mediaNote) html += '<p style="color:#B45309;font-size:13px">⚠️ ' + esc(mediaNote) + '</p>';
-    if (mediaLink) html += '<p><a href="' + mediaLink + '" style="display:inline-block;background:#1F6F5C;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Open / download</a></p>';
+    if (mediaLabel === 'Photo' && mediaLink) {
+      html += '<a href="' + mediaLink + '" target="_blank"><img src="' + mediaLink + '" style="max-width:100%;border-radius:12px;display:block"></a>';
+    } else if (isVideoLabel && mediaLink) {
+      // Email can't play video inline, so a tappable poster that opens the
+      // video in the browser (it streams from our media route).
+      html += '<a href="' + mediaLink + '" target="_blank" style="text-decoration:none;display:block">' +
+        '<div style="position:relative;background:#000;border-radius:12px;height:190px;display:flex;align-items:center;justify-content:center">' +
+          '<div style="width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center"><div style="width:0;height:0;border-left:20px solid #1F6F5C;border-top:12px solid transparent;border-bottom:12px solid transparent;margin-left:5px"></div></div>' +
+          '<div style="position:absolute;left:12px;bottom:10px;color:#fff;font-size:14px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.6)">▶ Watch video</div>' +
+        '</div></a>';
+    } else if (isAudioLabel && mediaLink) {
+      html += '<a href="' + mediaLink + '" target="_blank" style="display:inline-block;background:#1F6F5C;color:#fff;padding:13px 22px;border-radius:11px;text-decoration:none;font-weight:700;font-size:15px">🎵 Play ' + esc(mediaLabel.toLowerCase()) + '</a>';
+    } else if (mediaLink) {
+      html += '<a href="' + mediaLink + '" target="_blank" style="display:inline-block;background:#1F6F5C;color:#fff;padding:13px 22px;border-radius:11px;text-decoration:none;font-weight:700;font-size:15px">📄 Open ' + esc(mediaLabel) + '</a>';
+    }
+    if (attached) html += '<div style="color:#8a8f98;font-size:12px;margin-top:12px">📎 Also attached to this email — open it right from your inbox.</div>';
+    if (mediaNote) html += '<div style="color:#B45309;font-size:12.5px;margin-top:10px;background:#FEF3E2;padding:8px 12px;border-radius:8px">⚠️ ' + esc(mediaNote) + '</div>';
   }
-  if (!text && !mediaLabel) html += '<p style="color:#999">(empty message)</p>';
-  html += '</div>';
+  if (!text && !mediaLabel) html += '<div style="color:#999">(empty message)</div>';
+  html += '</div>'; // padding
+  html += '<div style="padding:12px 20px;border-top:1px solid #eef0f2;color:#9aa0a8;font-size:11px">Forwarded to you by YID PLUS</div>';
+  html += '</div></div>';
 
   const fromAddr = (await getConfig(env, 'RESEND_FROM_EMAIL')) || 'YID PLUS <onboarding@resend.dev>';
   const _rk = await getConfig(env, 'RESEND_API_KEY');
