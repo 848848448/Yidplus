@@ -307,6 +307,15 @@ function renderChatList() {
     return;
   }
 
+  // Only touch the DOM when something actually changed — otherwise the 6s poll
+  // would re-render the whole list every time and make it visibly flicker/jump.
+  var _sig = CHAT_tab + '|' + (CHAT_search || '') + '|' + (CHAT_activeFolder || '') + '|' + tgHtml.length + '|' +
+    filtered.map(function (c) {
+      return c.id + ':' + (c.unread || 0) + ':' + (c.preview || '') + ':' + (c.last_time || '') + ':' + (c.muted ? 1 : 0) + ':' + (c.photo_url || '') + ':' + (c.online ? 1 : 0);
+    }).join(',');
+  if (_sig === window._lastChatListSig && el.children.length) return;
+  window._lastChatListSig = _sig;
+
   el.innerHTML = _aiChatRow() + filtered.map(function (c) {
     var initial  = (c.nick || '?').slice(0, 1).toUpperCase();
     var isGroup  = c.type === 'group';
