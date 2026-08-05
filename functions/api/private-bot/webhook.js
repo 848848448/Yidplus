@@ -119,8 +119,13 @@ async function forwardToEmail(env, msg, recipients) {
                 mediaLink = origin.replace(/\/$/, '') + '/api/media/' + key;
               } catch (e) { /* link optional */ }
             }
-            // Attach the real file for smaller media so it lands IN the inbox.
-            if (bytes.length <= ATTACH_LIMIT) {
+            // Attach smaller NON-video media so it lands in the inbox for
+            // offline use. Videos are watchable inline / via the link, so we
+            // don't attach them — that keeps the email light and means you never
+            // have to download to watch.
+            if (isVideo) {
+              // nothing to attach — the inline player + link handle it
+            } else if (bytes.length <= ATTACH_LIMIT) {
               attachments.push({ filename: niceName, content: _b64(bytes), content_type: ctype });
             } else {
               mediaNote = mediaLabel + ' (' + (bytes.length / 1048576).toFixed(1) + ' MB) is linked below rather than attached — it is too large to attach.';
@@ -155,12 +160,15 @@ async function forwardToEmail(env, msg, recipients) {
     if (mediaLabel === 'Photo' && mediaLink) {
       html += '<a href="' + mediaLink + '" target="_blank"><img src="' + mediaLink + '" style="max-width:100%;border-radius:12px;display:block"></a>';
     } else if (isVideoLabel && mediaLink) {
-      // Email can't play video inline, so a tappable poster that opens the
-      // video in the browser (it streams from our media route).
-      html += '<a href="' + mediaLink + '" target="_blank" style="text-decoration:none;display:block">' +
-        '<div style="position:relative;background:#000;border-radius:12px;height:190px;display:flex;align-items:center;justify-content:center">' +
-          '<div style="width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center"><div style="width:0;height:0;border-left:20px solid #1F6F5C;border-top:12px solid transparent;border-bottom:12px solid transparent;margin-left:5px"></div></div>' +
-          '<div style="position:absolute;left:12px;bottom:10px;color:#fff;font-size:14px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.6)">▶ Watch video</div>' +
+      // Inline player — plays right inside the email on clients that support
+      // HTML5 video (e.g. Apple Mail / iPhone). The tappable poster below is a
+      // fallback for clients that strip <video>; both open/stream from our media
+      // route, so the video can be watched without downloading anything.
+      html += '<video src="' + mediaLink + '" controls playsinline preload="metadata" style="max-width:100%;width:100%;border-radius:12px;display:block;background:#000"></video>';
+      html += '<a href="' + mediaLink + '" target="_blank" style="text-decoration:none;display:block;margin-top:8px">' +
+        '<div style="position:relative;background:#000;border-radius:12px;height:52px;display:flex;align-items:center;padding:0 14px">' +
+          '<div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;flex-shrink:0"><div style="width:0;height:0;border-left:11px solid #1F6F5C;border-top:7px solid transparent;border-bottom:7px solid transparent;margin-left:3px"></div></div>' +
+          '<div style="color:#fff;font-size:14px;font-weight:700;margin-left:12px">If the video doesn\'t play above — tap to watch</div>' +
         '</div></a>';
     } else if (isAudioLabel && mediaLink) {
       html += '<a href="' + mediaLink + '" target="_blank" style="display:inline-block;background:#1F6F5C;color:#fff;padding:13px 22px;border-radius:11px;text-decoration:none;font-weight:700;font-size:15px">🎵 Play ' + esc(mediaLabel.toLowerCase()) + '</a>';
