@@ -2416,6 +2416,10 @@ window._confirmWithPassword = function (opts) {
       // can't fix (Cloudflare Insights beacon, ad/analytics scripts, browser
       // extensions). Logging them just clutters the panel.
       if (/cloudflareinsights\.com|google-analytics\.com|googletagmanager\.com|doubleclick\.net|facebook\.net|hotjar|sentry|chrome-extension:|moz-extension:|safari-extension:/i.test(_rsrc)) return;
+      // Browser-injected files (e.g. Via browser's inject blocker, other in-app
+      // browser features) load from our domain but don't exist — not ours, not
+      // fixable.
+      if (/via_inject_blocker|_inject_|injectedScript|browser-polyfill|\/adblock/i.test(_rsrc)) return;
       // External CDN avatars (WhatsApp/Facebook/Instagram) carry expiring URLs
       // we don't control; the onerror fallback already shows an initial, so
       // don't log these as fixable errors.
