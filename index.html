@@ -130,7 +130,7 @@
 <div class="screen" id="screen-home">
   <div class="topbar">
     <div class="topbar-logo" id="topbar-logo-wrap">
-      <img id="topbar-logo-img" src="images/logo.png?v=202607241647" alt="YID PLUS" style="height:34px;width:auto;object-fit:contain;border-radius:8px" loading="lazy">
+      <img id="topbar-logo-img" src="images/logo.png?v=202607241647" alt="YID PLUS" style="height:34px;width:auto;object-fit:contain;border-radius:8px" onerror="if(!this.dataset.retried){this.dataset.retried='1';var s=this.src;this.src='';this.src=s;}else{this.style.display='none';}" loading="lazy">
       <span id="topbar-logo-fallback" style="display:none;font-weight:800;font-size:1.1rem">YID<span style="color:var(--blue)">+</span></span>
       <span class="app-title-display" id="home-app-title" style="display:none">YID PLUS</span>
     </div>
