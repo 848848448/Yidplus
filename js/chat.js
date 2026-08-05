@@ -7366,6 +7366,7 @@ function _geRender() {
     .filter(function (k) { return pget(k, true); }).length;
 
   var html = '';
+  html += '<div id="ge-join-requests"></div>';
 
   // Name + description
   html += _geCard(
@@ -7456,7 +7457,40 @@ function _geRender() {
 
   html += '<div style="height:30px"></div>';
   document.getElementById('ge-body').innerHTML = html;
+  _geLoadJoinRequests();
 }
+
+// Show pending join requests inside the Edit screen with Approve / Decline.
+window._geLoadJoinRequests = function () {
+  var box = document.getElementById('ge-join-requests');
+  if (!box || !_geRoomId) return;
+  api.get('/chat/join-requests?room_id=' + encodeURIComponent(_geRoomId)).then(function (res) {
+    if (!res || !res.ok || !res.requests || !res.requests.length) { box.innerHTML = ''; return; }
+    var rows = res.requests.map(function (r) {
+      var initial = escHtml((r.nickname || '?').charAt(0).toUpperCase());
+      var av = '<div style="width:42px;height:42px;border-radius:50%;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:linear-gradient(135deg,var(--accent,#1F6F5C),#2B8A73);overflow:hidden">' + initial +
+        (r.photo_url ? '<img src="' + escHtml(r.photo_url) + '" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">' : '') + '</div>';
+      return '<div style="display:flex;align-items:center;gap:.7rem;padding:.7rem 1.1rem;border-bottom:1px solid var(--border)">' + av +
+        '<div style="flex:1;min-width:0;unicode-bidi:plaintext;text-align:start"><div style="font-weight:600;font-size:.92rem">' + escHtml(r.nickname || 'Someone') + '</div><div style="font-size:.74rem;color:var(--muted)">wants to join</div></div>' +
+        '<button onclick="_geAnswerJoin(\'' + r.id + '\',\'approve\',this)" style="background:var(--accent,#1F6F5C);color:#fff;border:none;border-radius:9px;padding:.5rem .9rem;font-weight:700;font-size:.82rem;cursor:pointer;font-family:inherit">Approve</button>' +
+        '<button onclick="_geAnswerJoin(\'' + r.id + '\',\'reject\',this)" style="background:none;color:#DC2626;border:none;border-radius:9px;padding:.5rem .6rem;font-size:.82rem;cursor:pointer;font-family:inherit">Decline</button>' +
+      '</div>';
+    }).join('');
+    box.innerHTML = _geHdr('📩 Join requests (' + res.requests.length + ')') +
+      '<div style="background:var(--surface);border-radius:14px;margin:.6rem .8rem;overflow:hidden;border:1px solid var(--border)">' + rows + '</div>';
+  }).catch(function () { box.innerHTML = ''; });
+};
+window._geAnswerJoin = function (reqId, action, btn) {
+  var row = btn && btn.parentElement;
+  if (row) row.style.opacity = '.4';
+  api.post('/chat/join-requests', { request_id: reqId, action: action }).then(function (res) {
+    if (!res || !res.ok) { toast('❌ ' + ((res && res.error) || 'Failed')); if (row) row.style.opacity = '1'; return; }
+    toast(action === 'approve' ? '✅ Added to group' : 'Request declined');
+    _geLoadJoinRequests();
+    if (_geData) _geData.members = (_geData.members || 0) + (action === 'approve' ? 1 : 0);
+    loadChatRooms();
+  }).catch(function (e) { toast('❌ ' + ((e && e.message) || 'error')); if (row) row.style.opacity = '1'; });
+};
 
 window._geDescCount = function () {
   var t = document.getElementById('ge-desc');

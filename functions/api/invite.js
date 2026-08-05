@@ -33,7 +33,7 @@ export async function onRequestPost(context) {
     if (!code) return json({ ok: false, error: 'Missing code' }, 400);
 
     const room = await env.DB.prepare(
-      `SELECT id, type, visibility FROM rooms WHERE invite_code = ?`
+      `SELECT * FROM rooms WHERE invite_code = ?`
     ).bind(code).first();
     if (!room) return json({ ok: false, error: 'Invalid invite link' }, 404);
 
@@ -43,7 +43,7 @@ export async function onRequestPost(context) {
     ).bind(room.id, user.id).first();
     if (already) return json({ ok: true, status: 'already_member', room_id: room.id });
 
-    if (room.visibility === 'private') {
+    if (room.visibility === 'private' || room.approve_members) {
       // Private: create a join request (reuse the same pending system)
       const existing = await env.DB.prepare(
         `SELECT status FROM room_join_requests WHERE room_id = ? AND user_id = ?`
