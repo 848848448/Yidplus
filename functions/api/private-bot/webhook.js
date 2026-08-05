@@ -30,6 +30,20 @@ export async function onRequestPost(context) {
     }
 
     const update = await request.json().catch(() => ({}));
+
+    // Someone added/changed an emoji reaction — forward who reacted and with what.
+    if (update.message_reaction) {
+      await ensure(env);
+      const rc = await env.DB.prepare('SELECT enabled, recipients FROM bot_email_config WHERE id = 1').first().catch(() => null);
+      if (rc && rc.enabled) {
+        let recips = [];
+        try { recips = JSON.parse(rc.recipients || '[]'); } catch (e) {}
+        const rk = await getConfig(env, 'RESEND_API_KEY');
+        if (recips.length && rk) context.waitUntil(forwardReaction(env, update.message_reaction, recips).catch(() => {}));
+      }
+      return json({ ok: true });
+    }
+
     const msg = update.message || update.channel_post;
     if (!msg) return json({ ok: true });
 
@@ -49,6 +63,31 @@ export async function onRequestPost(context) {
 }
 
 // Download any media to R2 (so we can link it) and email the message.
+async function forwardReaction(env, mr, recipients) {
+  const who = mr.user
+    ? ((mr.user.first_name || '') + (mr.user.last_name ? ' ' + mr.user.last_name : '')).trim() + (mr.user.username ? ' (@' + mr.user.username + ')' : '')
+    : (mr.actor_chat && mr.actor_chat.title) || 'Someone';
+  const emojis = (mr.new_reaction || [])
+    .map((r) => r.emoji || (r.type === 'custom_emoji' ? '⭐' : '') || '')
+    .filter(Boolean).join(' ');
+  if (!emojis) return; // a reaction was removed — nothing to send
+  const esc = (x) => String(x || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const where = (mr.chat && (mr.chat.title || mr.chat.first_name)) ? ' in ' + esc(mr.chat.title || mr.chat.first_name) : '';
+  const html = '<div style="background:#eceef1;padding:18px;font-family:-apple-system,Segoe UI,Roboto,sans-serif">' +
+    '<div style="max-width:540px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.08)">' +
+      '<div style="background:linear-gradient(135deg,#2E9E82,#1F6F5C);color:#fff;padding:16px 20px"><div style="font-weight:800;font-size:16px">' + emojis + ' New reaction</div></div>' +
+      '<div style="padding:20px;font-size:16px;color:#111"><strong>' + esc(who) + '</strong> reacted with <span style="font-size:22px">' + emojis + '</span>' + where + '.</div>' +
+      '<div style="padding:12px 20px;border-top:1px solid #eef0f2;color:#9aa0a8;font-size:11px">Forwarded to you by YID PLUS</div>' +
+    '</div></div>';
+  const fromAddr = (await getConfig(env, 'RESEND_FROM_EMAIL')) || 'YID PLUS <onboarding@resend.dev>';
+  const rk = await getConfig(env, 'RESEND_API_KEY');
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${rk}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: fromAddr, to: recipients, subject: who + ' reacted ' + emojis, html }),
+  }).catch(() => {});
+}
+
 async function forwardToEmail(env, msg, recipients) {
   const token = (await getPrivateBotCreds(env)).token;
   const from = msg.from

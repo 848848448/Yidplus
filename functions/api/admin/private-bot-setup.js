@@ -77,7 +77,7 @@ export async function onRequestPost(context) {
     const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: hookUrl, secret_token: secret, allowed_updates: ['message', 'channel_post'] }),
+      body: JSON.stringify({ url: hookUrl, secret_token: secret, allowed_updates: ['message', 'channel_post', 'message_reaction', 'edited_message'] }),
     }).then((r) => r.json()).catch((e) => ({ ok: false, description: String(e && e.message) }));
 
     if (res && res.ok) return json({ ok: true, connected: true, webhook_url: hookUrl });
