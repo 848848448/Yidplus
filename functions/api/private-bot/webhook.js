@@ -56,13 +56,31 @@ async function forwardToEmail(env, msg, recipients) {
     : (msg.chat.title || 'Telegram');
   const text = msg.text || msg.caption || '';
 
-  let mediaLink = '', mediaLabel = '', mediaNote = '';
+  let mediaLink = '', mediaLabel = '', mediaNote = '', posterLink = '';
   const attachments = [];
   const fileTarget = msg.photo
     ? msg.photo[msg.photo.length - 1]
     : (msg.video || msg.animation || msg.video_note || msg.audio || msg.voice || msg.document || null);
   if (fileTarget && token) {
     mediaLabel = (msg.video || msg.animation || msg.video_note) ? 'Video' : msg.photo ? 'Photo' : msg.audio ? 'Audio' : msg.voice ? 'Voice note' : (msg.document && msg.document.file_name) ? msg.document.file_name : 'File';
+    // Pull the video's thumbnail (Telegram ships one with every video) and store
+    // it, so the email can show the actual video frame as an image — visible in
+    // every mail app (even Gmail) with no link or download needed to SEE it.
+    const _thumbId = ((fileTarget.thumbnail || fileTarget.thumb || {}) || {}).file_id;
+    if (_thumbId && env.MY_BUCKET) {
+      try {
+        const tf = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${_thumbId}`).then((r) => r.json());
+        if (tf.ok) {
+          const tr = await fetch(`https://api.telegram.org/file/bot${token}/${tf.result.file_path}`);
+          if (tr.ok) {
+            const tb = new Uint8Array(await tr.arrayBuffer());
+            const tkey = `botmail/poster_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+            await env.MY_BUCKET.put(tkey, tb, { httpMetadata: { contentType: 'image/jpeg' } });
+            posterLink = (env.SITE_URL || 'https://yidplus.com').replace(/\/$/, '') + '/api/media/' + tkey;
+          }
+        }
+      } catch (e) { /* poster is optional */ }
+    }
     const declaredSize = Number(fileTarget.file_size || 0);
     const BOT_DL_LIMIT = 20 * 1024 * 1024;   // Telegram Bot API can't download bigger than this
     const ATTACH_LIMIT = 10 * 1024 * 1024;   // only base64-attach up to here (keeps CPU sane)
@@ -160,16 +178,21 @@ async function forwardToEmail(env, msg, recipients) {
     if (mediaLabel === 'Photo' && mediaLink) {
       html += '<a href="' + mediaLink + '" target="_blank"><img src="' + mediaLink + '" style="max-width:100%;border-radius:12px;display:block"></a>';
     } else if (isVideoLabel && mediaLink) {
-      // Inline player — plays right inside the email on clients that support
-      // HTML5 video (e.g. Apple Mail / iPhone). The tappable poster below is a
-      // fallback for clients that strip <video>; both open/stream from our media
-      // route, so the video can be watched without downloading anything.
-      html += '<video src="' + mediaLink + '" controls playsinline preload="metadata" style="max-width:100%;width:100%;border-radius:12px;display:block;background:#000"></video>';
-      html += '<a href="' + mediaLink + '" target="_blank" style="text-decoration:none;display:block;margin-top:8px">' +
-        '<div style="position:relative;background:#000;border-radius:12px;height:52px;display:flex;align-items:center;padding:0 14px">' +
-          '<div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;flex-shrink:0"><div style="width:0;height:0;border-left:11px solid #1F6F5C;border-top:7px solid transparent;border-bottom:7px solid transparent;margin-left:3px"></div></div>' +
-          '<div style="color:#fff;font-size:14px;font-weight:700;margin-left:12px">If the video doesn\'t play above — tap to watch</div>' +
-        '</div></a>';
+      // Inline HTML5 player — plays right inside the email on clients that
+      // support it (Apple Mail / iPhone Mail), showing the real frame as poster.
+      html += '<video src="' + mediaLink + '"' + (posterLink ? ' poster="' + posterLink + '"' : '') + ' controls playsinline preload="metadata" style="max-width:100%;width:100%;border-radius:12px;display:block;background:#000"></video>';
+      // Poster image with a play badge — visible in EVERY mail app (Gmail too),
+      // so you see the actual video frame with no link and no download; one tap
+      // plays it.
+      if (posterLink) {
+        html += '<a href="' + mediaLink + '" target="_blank" style="text-decoration:none;display:block;position:relative;margin-top:8px">' +
+          '<img src="' + posterLink + '" style="max-width:100%;width:100%;border-radius:12px;display:block">' +
+          '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:66px;height:66px;border-radius:50%;background:rgba(0,0,0,.55);display:block"></span>' +
+          '<span style="position:absolute;top:50%;left:50%;transform:translate(-40%,-50%);width:0;height:0;border-left:24px solid #fff;border-top:14px solid transparent;border-bottom:14px solid transparent;display:block"></span>' +
+        '</a>';
+      } else {
+        html += '<a href="' + mediaLink + '" target="_blank" style="display:inline-block;margin-top:8px;background:#1F6F5C;color:#fff;padding:13px 22px;border-radius:11px;text-decoration:none;font-weight:700;font-size:15px">▶ Watch video</a>';
+      }
     } else if (isAudioLabel && mediaLink) {
       html += '<a href="' + mediaLink + '" target="_blank" style="display:inline-block;background:#1F6F5C;color:#fff;padding:13px 22px;border-radius:11px;text-decoration:none;font-weight:700;font-size:15px">🎵 Play ' + esc(mediaLabel.toLowerCase()) + '</a>';
     } else if (mediaLink) {
