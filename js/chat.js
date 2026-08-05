@@ -3890,12 +3890,17 @@ function _buildCtxMenu(msg) {
   var SVG_SHARE_APPS = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
 
   items += item(SVG.reply,    'Reply',        'ctxReply()');
-  if (msg.type === 'text' || msg.type === 'media') items += item(SVG.copy, 'Copy', 'ctxCopy()');
+  // If the group admin turned off "Allow saving content", regular members can't
+  // copy / forward / save / share messages out of the room.
+  var _isSuperA = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
+  var _canSave = !CHAT_curRoom || CHAT_curRoom.allow_saving !== false ||
+    (CHAT_curRoom.is_group_admin || _isSuperA);
+  if (_canSave && (msg.type === 'text' || msg.type === 'media')) items += item(SVG.copy, 'Copy', 'ctxCopy()');
   if (canEdit)   items += item(SVG.edit,      'Edit',         'ctxEdit()');
-  items +=        item(SVG.forward,  'Forward',      'ctxForward()');
+  if (_canSave)  items +=        item(SVG.forward,  'Forward',      'ctxForward()');
   if (canPin)    items += item(SVG.pin,       'Pin',          'ctxPin()');
-  items +=        item(SVG_BOOKMARK, 'Save Message', 'bookmarkMessage(CHAT_ctxMsg.id)');
-  items +=        item(SVG_SHARE_APPS, 'Share to apps', 'ctxShare()');
+  if (_canSave)  items +=        item(SVG_BOOKMARK, 'Save Message', 'bookmarkMessage(CHAT_ctxMsg.id)');
+  if (_canSave)  items +=        item(SVG_SHARE_APPS, 'Share to apps', 'ctxShare()');
   items +=        item(SVG_SELECT,   'Select',       '_enterSelectMode(CHAT_ctxMsg.id); renderMessages(false);');
   if (!isMe)     items += item(SVG.report,    'Report',       'ctxReport()');
   if (canDelete) items += item(SVG.trash,     'Delete',       'ctxDelete()', true);
@@ -7434,12 +7439,12 @@ function _geRender() {
   // Admins + members (reuse existing member management)
   var mgmt = _geRow(
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
-    'Administrators', 'Manage who can help run this', '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>', 'closeGroupEdit();openChatInfo()'
+    'Administrators', 'Manage who can help run this', '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>', '_geOpenMembers(true)'
   );
   mgmt += _geSep();
   mgmt += _geRow(
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
-    'Members', d.members + ' member' + (d.members === 1 ? '' : 's'), '<span onclick="event.stopPropagation();closeGroupEdit();openAddMemberModal()" style="color:var(--accent,#1F6F5C);font-size:.8rem;font-weight:700;cursor:pointer">+ Add</span>', 'closeGroupEdit();openChatInfo()'
+    'Members', d.members + ' member' + (d.members === 1 ? '' : 's'), '<span onclick="event.stopPropagation();closeGroupEdit();openAddMemberModal()" style="color:var(--accent,#1F6F5C);font-size:.8rem;font-weight:700;cursor:pointer">+ Add</span>', '_geOpenMembers(false)'
   );
   html += _geHdr('People') + _geCard(mgmt);
 
@@ -7599,4 +7604,45 @@ window.openMention = function (username) {
     loadChatRooms();
     setTimeout(function () { if (rid) openChatRoom(rid); }, 350);
   }).catch(function (e) { toast('❌ ' + ((e && e.message) || 'Could not open chat')); });
+};
+
+// Members / Administrators management sub-screen inside the group Edit flow.
+window._geOpenMembers = function (adminsOnly) {
+  var old = document.getElementById('ge-members-screen'); if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'ge-members-screen';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100056;background:var(--bg);display:flex;flex-direction:column';
+  ov.innerHTML =
+    '<div style="display:flex;align-items:center;gap:.5rem;padding:.7rem .8rem;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">' +
+      '<div onclick="document.getElementById(\'ge-members-screen\').remove()" style="cursor:pointer;padding:.2rem .4rem;display:flex"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>' +
+      '<div style="font-weight:800;font-size:1.05rem;flex:1">' + (adminsOnly ? 'Administrators' : 'Members') + '</div>' +
+      '<div onclick="closeGroupEdit();document.getElementById(\'ge-members-screen\').remove();openAddMemberModal()" style="color:var(--accent,#1F6F5C);font-weight:700;font-size:.85rem;cursor:pointer;padding:.3rem .5rem">+ Add</div>' +
+    '</div>' +
+    '<div id="ge-mem-list" class="scroll-area" style="flex:1;overflow-y:auto;padding:.4rem 0"><div style="padding:2rem;text-align:center;color:var(--muted)">Loading…</div></div>';
+  document.body.appendChild(ov);
+
+  api.get('/chat/rooms').then(function (res) {
+    var room = (res.rooms || []).find(function (r) { return r.id === _geRoomId; });
+    var members = (room && room.member_list) || [];
+    var createdBy = room && room.created_by;
+    if (adminsOnly) members = members.filter(function (m) { return m.is_group_admin || m.id === createdBy || m.role === 'admin_super' || m.role === 'admin_limited'; });
+    var el = document.getElementById('ge-mem-list');
+    if (!el) return;
+    if (!members.length) { el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted)">' + (adminsOnly ? 'No admins yet — tap a member and choose "Make admin".' : 'No members yet.') + '</div>'; return; }
+    el.innerHTML = members.map(function (m) {
+      var initial = (m.nickname || '?').slice(0, 1).toUpperCase();
+      var isOwner = createdBy && m.id === createdBy;
+      var badge = isOwner ? '<span style="font-size:.7rem;color:var(--accent,#1F6F5C);font-weight:700">owner</span>'
+                : m.is_group_admin ? '<span style="font-size:.7rem;color:var(--accent,#1F6F5C);font-weight:700">admin</span>' : '';
+      var av = '<div style="width:44px;height:44px;border-radius:50%;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:linear-gradient(135deg,var(--accent,#1F6F5C),#2B8A73);overflow:hidden">' + initial +
+        (m.photo_url ? '<img src="' + escHtml(m.photo_url) + '" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">' : '') + '</div>';
+      return '<div onclick="_openMemberActions(\'' + m.id + '\',\'' + escHtml(m.nickname || 'User').replace(/'/g, "\\'") + '\',' + (m.is_group_admin ? 'true' : 'false') + ',\'' + escHtml(m.title || '').replace(/'/g, "\\'") + '\')" style="display:flex;align-items:center;gap:.8rem;padding:.7rem 1.1rem;cursor:pointer;border-bottom:1px solid var(--border)">' +
+        av + '<div style="flex:1;min-width:0;unicode-bidi:plaintext;text-align:start"><div style="font-size:.95rem;font-weight:600">' + escHtml(m.nickname || 'User') + '</div>' +
+        (m.title ? '<div style="font-size:.75rem;color:var(--accent,#1F6F5C)">' + escHtml(m.title) + '</div>' : '') + '</div>' + badge +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:.5rem;opacity:.6"><polyline points="9 18 15 12 9 6"/></svg>' +
+      '</div>';
+    }).join('');
+  }).catch(function (e) {
+    var el = document.getElementById('ge-mem-list'); if (el) el.innerHTML = '<div style="padding:2rem;text-align:center;color:#DC2626">' + ((e && e.message) || 'Failed to load') + '</div>';
+  });
 };

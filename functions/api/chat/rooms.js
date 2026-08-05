@@ -425,6 +425,7 @@ export async function onRequestGet(context) {
         description: r.description || null,
         preview: lastMsg ? (lastMsg.type === 'text' ? lastMsg.text : '[' + lastMsg.type + ']') : '',
         has_messages: !!lastMsg,
+        allow_saving: r.allow_saving == null ? true : !!r.allow_saving,
         unread: unreadCount,
         muted: !!r.muted,
         last_time: lastMsg ? lastMsg.created_at : r.created_at,

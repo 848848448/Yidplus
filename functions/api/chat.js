@@ -335,7 +335,7 @@ export async function onRequestPost(context) {
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
 
     // For private DMs: if either side has blocked the other, sending is disallowed.
-    const room = await env.DB.prepare(`SELECT type, read_only, visibility FROM rooms WHERE id = ?`).bind(roomId).first();
+    const room = await env.DB.prepare(`SELECT type, read_only, visibility, permissions FROM rooms WHERE id = ?`).bind(roomId).first();
     if (room && room.type === 'private') {
       const { results: members } = await env.DB.prepare(
         `SELECT user_id FROM room_members WHERE room_id = ? AND user_id != ?`
@@ -374,6 +374,28 @@ export async function onRequestPost(context) {
 
     let mediaKey = null;
     if (file && typeof file === 'object' && file.arrayBuffer) {
+      // Enforce "what members can send" permissions for non-admins.
+      if (room && room.type === 'group' && room.permissions && !isAdminRole(user, env.OWNER_EMAIL)) {
+        let perms = null;
+        try { perms = JSON.parse(room.permissions); } catch (e) {}
+        if (perms) {
+          const mem = await env.DB.prepare(
+            `SELECT is_group_admin FROM room_members WHERE room_id = ? AND user_id = ?`
+          ).bind(roomId, user.id).first();
+          if (!mem || !mem.is_group_admin) {
+            const ft = (file.type || '').toLowerCase();
+            const nm = (file.name || '').toLowerCase();
+            let permKey = 'files';
+            if (ft.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|svg)$/i.test(nm)) permKey = 'photos';
+            else if (ft.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi|m4v|3gp)$/i.test(nm)) permKey = 'videos';
+            else if (ft.startsWith('audio/') || /\.(mp3|m4a|aac|wav|flac|ogg|opus|wma)$/i.test(nm)) permKey = (type === 'voice' ? 'voice' : 'music');
+            const labels = { photos: 'photos', videos: 'videos', music: 'music', voice: 'voice messages', files: 'files' };
+            if (perms[permKey] === false) {
+              return json({ ok: false, error: 'The group admin has turned off sending ' + (labels[permKey] || permKey) + ' here.' }, 403);
+            }
+          }
+        }
+      }
       let ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop().toLowerCase() : '';
       // Camera captures / blobs often arrive without a usable extension, which
       // left videos stored as ".bin" and mis-rendered as broken images. Derive
