@@ -217,7 +217,11 @@ var CHAT_activeStatusUserIds = new Set();
 
 function loadChatRooms(callback) {
   var el = document.getElementById('chat-list-area');
-  if (el) el.innerHTML = '<div class="feed-state"><div class="spinner"></div><div>Loading chats...</div></div>';
+  // Only show the spinner on the very FIRST load. On background refreshes the
+  // list already has data, so replacing it with a spinner every few seconds is
+  // what made the whole list visibly "spin"/reload. Keep the current list on
+  // screen and let renderChatList patch it only when something changed.
+  if (el && !CHAT_rooms.length) el.innerHTML = '<div class="feed-state"><div class="spinner"></div><div>Loading chats...</div></div>';
 
   Promise.all([
     api.get('/chat/rooms'),
@@ -309,12 +313,15 @@ function renderChatList() {
 
   // Only touch the DOM when something actually changed — otherwise the 6s poll
   // would re-render the whole list every time and make it visibly flicker/jump.
+  // (online/presence is deliberately excluded so people going on/offline doesn't
+  // trigger a re-render.)
   var _sig = CHAT_tab + '|' + (CHAT_search || '') + '|' + (CHAT_activeFolder || '') + '|' + tgHtml.length + '|' +
     filtered.map(function (c) {
-      return c.id + ':' + (c.unread || 0) + ':' + (c.preview || '') + ':' + (c.last_time || '') + ':' + (c.muted ? 1 : 0) + ':' + (c.photo_url || '') + ':' + (c.online ? 1 : 0);
+      return c.id + ':' + (c.unread || 0) + ':' + (c.preview || '') + ':' + (c.last_time || '') + ':' + (c.muted ? 1 : 0) + ':' + (c.photo_url || '');
     }).join(',');
   if (_sig === window._lastChatListSig && el.children.length) return;
   window._lastChatListSig = _sig;
+  var _savedScroll = el.scrollTop;
 
   el.innerHTML = _aiChatRow() + filtered.map(function (c) {
     var initial  = (c.nick || '?').slice(0, 1).toUpperCase();
@@ -374,6 +381,10 @@ function renderChatList() {
       '</div>' +
     '</div>';
   }).join('') + tgHtml;
+
+  // Keep the user where they were — replacing innerHTML resets scrollTop to 0,
+  // which would jump the list to the top whenever a new message arrived.
+  if (_savedScroll) el.scrollTop = _savedScroll;
 
   _attachChatSwipeGestures();
 }
