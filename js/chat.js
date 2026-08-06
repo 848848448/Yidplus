@@ -231,6 +231,7 @@ function loadChatRooms(callback) {
       var res = resArr[0];
       var statusRes = resArr[1];
       CHAT_rooms = res.rooms || [];
+      if (typeof _applyLocalSeen === 'function') _applyLocalSeen();
       CHAT_activeStatusUserIds = new Set((statusRes.statuses || []).map(function (s) { return s.user_id; }));
       // Ensure content filter is loaded before rendering (blurs bad words in preview)
       if (typeof loadContentFilter === 'function' && !FILTER_loaded) {
@@ -258,14 +259,7 @@ function renderChatList() {
   if (!el) return;
 
   // Keep the Chats nav badge in sync with total unread (skip muted chats).
-  try {
-    var _tot = (CHAT_rooms || []).reduce(function (s, r) { return s + (r.muted ? 0 : (r.unread || 0)); }, 0);
-    var _cb = document.getElementById('cnav-badge-chats');
-    if (_cb) {
-      if (_tot > 0) { _cb.textContent = _tot > 99 ? '99+' : _tot; _cb.style.display = 'flex'; }
-      else _cb.style.display = 'none';
-    }
-  } catch (e) {}
+  _refreshChatNavBadge();
 
   var filtered = CHAT_rooms.filter(function (c) {
     var tabOk = CHAT_tab === 'all' ||
@@ -2360,13 +2354,19 @@ function loadMessages(scrollToBottom) {
         });
       }, 600);
 
-      // Mark as read
+      // Clear the local unread badge whenever you OPEN a room — including one
+      // you're only spectating — so the badge goes down the moment you view it.
+      var _cachedRoom = CHAT_rooms.find(function (r) { return r.id === CHAT_curRoom.id; });
+      if (_cachedRoom) _cachedRoom.unread = 0;
+      // Remember locally that we've seen this room up to now, so the badge stays
+      // down on later server polls (for spectated chats the server never marks
+      // them read, so without this the count would keep coming back).
+      _markRoomSeenLocally(CHAT_curRoom.id);
+      if (typeof _refreshChatNavBadge === 'function') _refreshChatNavBadge();
+      // Only tell the SERVER for rooms you're actually a member of — spectating
+      // must stay invisible and leave no read trace.
       if (CHAT_curRoom.joined !== false) {
         api.post('/chat/read', { room_id: CHAT_curRoom.id }).catch(function () {});
-        // Clear the list badge immediately so it doesn't flash back when you
-        // return to the chat list before the next server refresh.
-        var _cachedRoom = CHAT_rooms.find(function (r) { return r.id === CHAT_curRoom.id; });
-        if (_cachedRoom) _cachedRoom.unread = 0;
       }
 
       // Load reaction summary for this room and re-render once available.
@@ -7772,4 +7772,38 @@ if (typeof window !== 'undefined') {
   if (document.readyState !== 'loading') _startContentBadges();
   else document.addEventListener('DOMContentLoaded', _startContentBadges);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) _updateContentBadges(); });
+}
+
+// Update the Chats nav badge from total unread (excludes muted). Extracted so it
+// can be called immediately when you open a room, not only on a full list render.
+function _refreshChatNavBadge() {
+  try {
+    var tot = (CHAT_rooms || []).reduce(function (s, r) { return s + (r.muted ? 0 : (r.unread || 0)); }, 0);
+    var cb = document.getElementById('cnav-badge-chats');
+    if (cb) {
+      if (tot > 0) { cb.textContent = tot > 99 ? '99+' : tot; cb.style.display = 'flex'; }
+      else cb.style.display = 'none';
+    }
+  } catch (e) {}
+}
+
+// Locally-remembered "I've seen this room up to time T". Used to keep the unread
+// badge cleared across server polls for chats the server won't mark read for us
+// (e.g. admin-spectated private chats), while still showing a badge again if a
+// genuinely NEWER message arrives after we looked.
+var _locallySeen = {};
+try { _locallySeen = JSON.parse(localStorage.getItem('yp_seen_rooms') || '{}') || {}; } catch (e) { _locallySeen = {}; }
+function _markRoomSeenLocally(roomId) {
+  if (!roomId) return;
+  _locallySeen[roomId] = new Date().toISOString();
+  try { localStorage.setItem('yp_seen_rooms', JSON.stringify(_locallySeen)); } catch (e) {}
+}
+function _applyLocalSeen() {
+  try {
+    (CHAT_rooms || []).forEach(function (r) {
+      var seen = _locallySeen[r.id];
+      // If we've seen this room at or after its latest message, it's read for us.
+      if (seen && r.last_time && seen >= r.last_time) r.unread = 0;
+    });
+  } catch (e) {}
 }
