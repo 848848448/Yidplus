@@ -596,7 +596,7 @@ body.night {
 .msg-wrap.me { flex-direction: row-reverse; }
 .msg-mini-av { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .74rem; font-weight: 700; color: #fff; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,.18); background-size: cover; background-position: center; }
 
-.bubble      { max-width: 82%; min-width: 60px; padding: .65rem 1.05rem; border-radius: 20px; font-size: 1.02rem; line-height: 1.58; word-break: normal; overflow-wrap: break-word; white-space: pre-wrap; word-spacing: normal; position: relative; touch-action: pan-y; transition: transform .08s; }
+.bubble      { width: fit-content; max-width: 80%; min-width: 0; padding: .5rem .8rem; border-radius: 18px; font-size: 1rem; line-height: 1.4; word-break: keep-all; overflow-wrap: break-word; white-space: pre-wrap; word-spacing: normal; position: relative; touch-action: pan-y; transition: transform .08s; }
 .swipe-reply-icon { position: absolute; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border-radius: 50%; background: var(--blue); color: #fff; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .12s; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
 .swipe-reply-icon.sri-me   { right: -40px; }
 .swipe-reply-icon.sri-them { right: -40px; }
@@ -648,7 +648,7 @@ html.dark-mode .chat-input-pill { background: #232427; border-color: #2C2D31; }
 .chat-input-pill:focus-within { border-color: rgba(31,111,92,.3); box-shadow: 0 0 0 3px rgba(31,111,92,.08); }
 .chat-send-btn { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #1F6F5C, #2B8A73); border: none; color: #fff; font-size: 1.05rem; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: transform .15s; box-shadow: 0 2px 10px rgba(31,111,92,.35); }
 .chat-send-btn:active { transform: scale(.88); }
-.chat-input-pill .chat-input { flex: 1; min-width: 0; width: 100%; background: transparent; border: none; padding: .5rem .2rem; margin: 0; outline: none; box-shadow: none; -webkit-appearance: none; appearance: none; color: var(--text); font-size: 1rem; font-family: inherit; resize: none; max-height: 130px; line-height: 1.5; word-break: normal; overflow-wrap: break-word; white-space: pre-wrap; unicode-bidi: plaintext; }
+.chat-input-pill .chat-input { flex: 1; min-width: 0; width: 100%; background: transparent; border: none; padding: .5rem .2rem; margin: 0; outline: none; box-shadow: none; -webkit-appearance: none; appearance: none; color: var(--text); font-size: 1rem; font-family: inherit; resize: none; max-height: 160px; line-height: 1.5; word-break: normal; overflow-wrap: break-word; white-space: pre-wrap; unicode-bidi: plaintext; }
 .chat-input-pill .chat-input:focus { border: none; outline: none; box-shadow: none; }
 .chat-input-pill .chat-input::placeholder { color: var(--muted); font-size: .95rem; }
 .chat-attach-circle { width: 36px; height: 36px; border-radius: 50%; background: transparent; border: none; color: #637087; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: color .15s; }

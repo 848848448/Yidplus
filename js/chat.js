@@ -2649,7 +2649,7 @@ function renderMessages(scrollDown) {
     } else if (m.type === 'text' || !m.type) {
       // Text — detect links, auto-detect RTL for Hebrew/Yiddish
       var isRTL = /[\u0590-\u05FF\uFB1D-\uFB4F]/.test(m.text || '');
-      var txtStyle = 'unicode-bidi:plaintext;display:block;overflow-wrap:break-word;word-break:normal;' + (isRTL ? 'direction:rtl;text-align:right' : '');
+      var txtStyle = 'unicode-bidi:plaintext;display:block;overflow-wrap:break-word;word-break:keep-all;' + (isRTL ? 'direction:rtl;text-align:right' : '');
       var filteredTxt = (typeof filterContent === 'function') ? filterContent(_linkify(escHtml(m.text || ''), isMe)) : _linkify(escHtml(m.text || ''), isMe);
       if (isChannel) {
         inner += '<div class="ch-text" style="' + txtStyle + '">' + filteredTxt + '</div>';
@@ -3004,7 +3004,7 @@ window.inChatSearchNav = function (dir) {
 window.onChatType = function () {
   var inp = document.getElementById('chat-input');
   inp.style.height = 'auto';
-  inp.style.height = Math.min(inp.scrollHeight, 120) + 'px';
+  inp.style.height = Math.min(inp.scrollHeight, 150) + 'px';
   var val = inp.value || '';
   var has = val.trim().length > 0;
   document.getElementById('chat-send-btn').style.display  = has ? 'flex' : 'none';
