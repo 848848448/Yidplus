@@ -620,11 +620,11 @@ html.dark-mode .bubble.me   { background: linear-gradient(135deg, #2B8A73 0%, #1
 .read-ticks  { font-size: .68rem; opacity: .9; }
 
 .voice-msg   { display: flex; align-items: center; gap: .7rem; min-width: 240px; max-width: 300px; padding: .25rem .1rem; }
-.play-voice  { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.28); border: none; cursor: pointer; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s; }
-.bubble.them .play-voice { background: var(--gold); color: #fff; }
+.play-voice  { width: 42px; height: 42px; border-radius: 50%; background: rgba(255,255,255,.95); border: none; cursor: pointer; color: #14503F; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.bubble.them .play-voice { background: #1F6F5C; color: #fff; }
 .play-voice:active { transform: scale(.9); }
 .voice-body  { display: flex; flex-direction: column; flex: 1; gap: .2rem; min-width: 0; }
-.voice-bars  { display: flex; align-items: center; gap: 2.5px; height: 34px; cursor: pointer; }
+.voice-bars  { display: flex; align-items: center; gap: 2px; height: 30px; cursor: pointer; }
 .voice-meta  { display: flex; align-items: center; justify-content: space-between; }
 .voice-dur   { font-size: .7rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .bubble.me   .voice-dur { color: rgba(255,255,255,.85); }
@@ -685,7 +685,7 @@ html.dark-mode .chat-input-pill { background: #232427; border-color: #2C2D31; }
 .bubble.them .vn-play-btn { background: rgba(31,111,92,.12); color: #1F6F5C; }
 .vn-play-btn:active { transform: scale(.9); }
 .vn-waveform { flex: 1; display: flex; align-items: center; gap: 2px; height: 30px; cursor: pointer; }
-.vbar { width: 3.5px; border-radius: 3px; background: rgba(255,255,255,.45); min-height: 4px; transition: background .12s, transform .12s; flex-shrink: 0; }
+.vbar { width: 3px; border-radius: 2px; background: rgba(255,255,255,.5); min-height: 3px; transition: background .12s; flex-shrink: 0; }
 .vbar.played { background: #fff; }
 .bubble.them .vbar { background: rgba(31,111,92,.25); }
 .bubble.them .vbar.played { background: #1F6F5C; }

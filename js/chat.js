@@ -2509,7 +2509,7 @@ function renderMessages(scrollDown) {
     } else if (m.type === 'voice') {
       if (m.media_url) {
         var voiceData = _parseVoicePacked(m.text);
-        var bars = voiceData.peaks.length ? _renderWaveBars(voiceData.peaks) : _fakeBars(20);
+        var bars = voiceData.peaks.length ? _renderWaveBars(voiceData.peaks) : _fakeBars(34);
         var isViewOnceVoice = m.view_once && !isMe;
         if (isViewOnceVoice && m.opened) {
           inner += '<div class="voice-msg" style="opacity:.5"><div style="font-size:.8rem;color:var(--muted)">🎤 Voice message opened</div></div>';
@@ -2544,7 +2544,7 @@ function renderMessages(scrollDown) {
       // Voice note without actual audio (fallback)
       inner += '<div class="voice-msg">' +
         '<button class="play-voice" onclick="toast(\'Audio not available\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>' +
-        '<div class="voice-bars">' + _fakeBars(20) + '</div>' +
+        '<div class="voice-bars">' + _fakeBars(34) + '</div>' +
         '<div class="voice-dur">' + (m.text || '0:00') + '</div>' +
       '</div>';
 
@@ -4366,11 +4366,12 @@ function _dateLabel(iso) {
 }
 
 function _fakeBars(n) {
-  // Deterministic pseudo-waveform (was Math.random(), which made the bars
-  // flicker on every re-render). A fixed pattern keeps them stable.
+  // Natural-looking pseudo-waveform (deterministic so it doesn't flicker on
+  // re-render). Clear height variation so it reads as a waveform, not dots.
   var bars = '';
   for (var i = 0; i < n; i++) {
-    var h = 6 + Math.round(Math.abs(Math.sin(i * 1.7) * 0.6 + Math.sin(i * 0.7) * 0.4) * 20);
+    var v = Math.abs(Math.sin(i * 1.3) * 0.5 + Math.sin(i * 0.6 + 1) * 0.3 + Math.sin(i * 2.7) * 0.2);
+    var h = 3 + Math.round(v * 21); // 3..24px
     bars += '<div class="vbar" style="height:' + h + 'px"></div>';
   }
   return bars;
@@ -4414,8 +4415,16 @@ function _isEmojiOnlyText(text) {
 }
 
 function _renderWaveBars(peaks) {
-  return peaks.map(function (p) {
-    var h = Math.max(4, Math.round(p * 30));
+  // Normalise to the actual min/max so even a fairly flat recording shows a
+  // real waveform instead of a row of same-height dots.
+  var max = 0, min = Infinity;
+  peaks.forEach(function (p) { if (p > max) max = p; if (p < min) min = p; });
+  var range = (max - min) || 1;
+  return peaks.map(function (p, i) {
+    var norm = (p - min) / range;                 // 0..1
+    // A touch of shape so silence still looks alive, like WhatsApp.
+    norm = norm * 0.85 + Math.abs(Math.sin(i * 0.9)) * 0.15;
+    var h = Math.max(3, Math.round(3 + norm * 21)); // 3..24px
     return '<div class="vbar" style="height:' + h + 'px"></div>';
   }).join('');
 }
