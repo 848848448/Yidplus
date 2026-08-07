@@ -1929,3 +1929,8 @@ html.dark-mode .bubble.me .vbar.played { background: #fff; }
 html.dark-mode .bubble.me .play-voice { background: rgba(255,255,255,.95); color: #14503F; }
 html.dark-mode .bubble.me .voice-speed-btn { background: rgba(255,255,255,.22); color: #fff; }
 html.dark-mode .bubble.me .voice-dur { color: rgba(255,255,255,.85); }
+
+/* Telegram-style message grouping: spacer keeps bubbles aligned when a grouped
+   message has no avatar, and grouped (non-last) messages sit tighter together. */
+.msg-mini-av-spacer { width: 28px; flex-shrink: 0; }
+.msg-wrap.grp-tight { margin-bottom: 2px; }

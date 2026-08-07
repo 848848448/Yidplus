@@ -2404,6 +2404,22 @@ function renderMessages(scrollDown) {
 
   var _htmlArr = CHAT_messages.map(function (m, idx) {
     var isMe = m.sender_id === meId;
+    // Telegram-style grouping: consecutive messages from the same sender within
+    // a few minutes are one visual group — name on the first, avatar on the
+    // last, tighter spacing between.
+    var _prevM = CHAT_messages[idx - 1];
+    var _nextM = CHAT_messages[idx + 1];
+    var _grpGap = 5 * 60 * 1000;
+    var _sameGrp = function (a, b) {
+      if (!a || !b) return false;
+      if (a.sender_id !== b.sender_id) return false;
+      if (a.type === 'system' || b.type === 'system') return false;
+      if ((a.created_at || '').slice(0, 10) !== (b.created_at || '').slice(0, 10)) return false;
+      var ta = new Date(a.created_at).getTime(), tb = new Date(b.created_at).getTime();
+      return Math.abs(tb - ta) < _grpGap;
+    };
+    var firstInGroup = !_sameGrp(_prevM, m);
+    var lastInGroup  = !_sameGrp(m, _nextM);
     var msgDate = m.created_at ? m.created_at.slice(0, 10) : '';
     var dateSep = '';
     if (msgDate && msgDate !== lastDate) {
@@ -2448,7 +2464,7 @@ function renderMessages(scrollDown) {
     var inner = '';
 
     // Group sender nick
-    if (!isMe && isGroup) {
+    if (!isMe && isGroup && firstInGroup) {
       var titleBadge = m.sender_title
         ? '<span style="margin-right:.35rem;padding:.05rem .4rem;border-radius:8px;background:rgba(31,111,92,.12);color:var(--blue);font-size:.62rem;font-weight:700;vertical-align:middle">' + escHtml(m.sender_title) + '</span>'
         : '';
@@ -2710,13 +2726,15 @@ function renderMessages(scrollDown) {
 
     // ── NORMAL (group/DM) style ──
     var miniAv = (!isMe && isGroup)
-      ? '<div class="msg-mini-av" style="background:' + avatarColor(m.sender_id || m.sender_nick) + (m.sender_photo ? ';background-image:url(' + m.sender_photo + ');background-size:cover;background-position:center' : '') + '">' + escHtml((m.sender_nick || '?').slice(0, 1).toUpperCase()) + '</div>'
+      ? (lastInGroup
+          ? '<div class="msg-mini-av" style="background:' + avatarColor(m.sender_id || m.sender_nick) + (m.sender_photo ? ';background-image:url(' + m.sender_photo + ');background-size:cover;background-position:center' : '') + '">' + escHtml((m.sender_nick || '?').slice(0, 1).toUpperCase()) + '</div>'
+          : '<div class="msg-mini-av-spacer"></div>')
       : '';
 
     var selectClass2 = CHAT_selected[m.id] ? ' msg-selected' : '';
 
     return dateSep +
-      '<div class="msg-wrap' + (isMe ? ' me' : '') + selectClass2 + '" id="msg-' + m.id + '" data-id="' + m.id + '"' +
+      '<div class="msg-wrap' + (isMe ? ' me' : '') + selectClass2 + (!lastInGroup ? ' grp-tight' : '') + '" id="msg-' + m.id + '" data-id="' + m.id + '"' +
         ' onclick="_toggleSelect(\'' + m.id + '\')"' +
         ' oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')">' +
         miniAv +
