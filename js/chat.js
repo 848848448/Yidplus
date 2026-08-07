@@ -3861,7 +3861,7 @@ window._openOnce = function (msgId, el) {
     var vid = document.createElement('video');
     vid.src = msg.media_url; vid.controls = true;
     vid.style.cssText = 'max-width:220px;border-radius:10px;display:block';
-    vid.onended = function () { vid.src = ''; prev.innerHTML = '<div style="font-size:.78rem;opacity:.5">Opened</div>'; };
+    vid.onended = function () { vid.removeAttribute('src'); vid.load(); prev.innerHTML = '<div style="font-size:.78rem;opacity:.5">Opened</div>'; };
     prev.replaceWith(vid);
   } else {
     var img = document.createElement('img');
@@ -6409,7 +6409,7 @@ window.closeSV = function () {
   cancelAnimationFrame(HOME_svBarRaf);
   HOME_svPaused = false;
   var vid = document.querySelector('#sv-slide video');
-  if (vid) { vid.pause(); vid.src = ''; }
+  if (vid) { vid.pause(); vid.removeAttribute('src'); vid.load(); }
   var ov = document.getElementById('sv-overlay');
   if (ov) { ov.style.transition = ''; ov.style.transform = ''; ov.style.opacity = ''; ov.classList.remove('open'); }
 };
@@ -7844,6 +7844,6 @@ window._imgRetry = function (el) {
     if (el.getAttribute('data-retried')) { el.style.display = 'none'; return; }
     el.setAttribute('data-retried', '1');
     var s = el.getAttribute('src');
-    setTimeout(function () { try { el.src = ''; el.src = s; } catch (e) {} }, 800);
+    setTimeout(function () { try { el.removeAttribute('src'); el.src = s; } catch (e) {} }, 800);
   } catch (e) {}
 };

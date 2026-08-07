@@ -553,7 +553,7 @@ window._shortVidRetry = function (v) {
     var src = v.getAttribute('src');
     if (!src) return;
     setTimeout(function () {
-      try { v.src = ''; v.setAttribute('src', src); if (v.load) v.load(); } catch (e) {}
+      try { v.removeAttribute('src'); v.setAttribute('src', src); if (v.load) v.load(); } catch (e) {}
     }, 700);
   } catch (e) {}
 };
