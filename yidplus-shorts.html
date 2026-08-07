@@ -118,5 +118,5 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <script defer src="js/ads.js?v=202607291705"></script>
-<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").then(function(r){try{if(r.update)r.update()}catch(e){}}).catch(function(){});if(navigator.serviceWorker.controller){var _swReloaded=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(_swReloaded)return;_swReloaded=true;location.reload()});}}</script></body>
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").then(function(r){try{if(r.update)r.update().catch(function(){})}catch(e){}}).catch(function(){});if(navigator.serviceWorker.controller){var _swReloaded=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(_swReloaded)return;_swReloaded=true;location.reload()});}}</script></body>
   </html>
