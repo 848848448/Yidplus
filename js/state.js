@@ -421,6 +421,15 @@ window.avatarColor = function (seed) {
   return 'linear-gradient(135deg,' + pair[0] + ',' + pair[1] + ')';
 };
 
+// Telegram-style: a solid, consistent color per user for their sender name in
+// group bubbles (the darker tone of their avatar palette entry).
+window.nameColor = function (seed) {
+  var s = String(seed || '?');
+  var h = 0;
+  for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return _AV_PALETTE[h % _AV_PALETTE.length][1];
+};
+
 window.fmtN = function (n) {
   n = Number(n) || 0;
   if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';

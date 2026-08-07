@@ -609,7 +609,7 @@ body.night {
 html.dark-mode .bubble.them { background: var(--bg3); color: var(--text); }
 html.dark-mode .bubble.me   { background: linear-gradient(135deg, #2B8A73 0%, #1F6F5C 100%); color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
 
-.bubble-nick { font-size: .68rem; background: var(--blue); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: .25rem; font-weight: 700; }
+.bubble-nick { font-size: .78rem; margin-bottom: .12rem; font-weight: 700; line-height: 1.2; }
 .reply-quote { background: rgba(255,255,255,.16); border-left: 3px solid currentColor; border-radius: 6px; padding: .3rem .55rem; margin-bottom: .4rem; font-size: .74rem; opacity: .9; cursor: pointer; }
 .bubble.them .reply-quote { background: rgba(31,111,92,.07); border-left-color: var(--blue); color: var(--muted); }
 .reply-quote strong { display: block; font-size: .7rem; }

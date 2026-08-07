@@ -2452,7 +2452,7 @@ function renderMessages(scrollDown) {
       var titleBadge = m.sender_title
         ? '<span style="margin-right:.35rem;padding:.05rem .4rem;border-radius:8px;background:rgba(31,111,92,.12);color:var(--blue);font-size:.62rem;font-weight:700;vertical-align:middle">' + escHtml(m.sender_title) + '</span>'
         : '';
-      inner += '<div class="bubble-nick" style="cursor:pointer"><span onclick="openUserProfile(\'' + m.sender_id + '\')">@' + escHtml(m.sender_nick || '') + '</span>' + titleBadge + '</div>';
+      inner += '<div class="bubble-nick" style="cursor:pointer;color:' + nameColor(m.sender_id || m.sender_nick) + '"><span onclick="openUserProfile(\'' + m.sender_id + '\')">' + escHtml(m.sender_nick || '') + '</span>' + titleBadge + '</div>';
     }
 
     // Reply quote
@@ -2471,7 +2471,7 @@ function renderMessages(scrollDown) {
                          quoted.type === 'voice'  ? '🎤 Voice message' :
                          quoted.type === 'sticker' ? quoted.text :
                          escHtml((quoted.text || '[media]').slice(0, 60));
-        var quotedNameColor = avatarColor(quoted.sender_id || quoted.sender_nick).match(/#[0-9A-Fa-f]{6}/)[0];
+        var quotedNameColor = nameColor(quoted.sender_id || quoted.sender_nick);
         inner += '<div class="reply-quote" onclick="scrollToMsg(\'' + quoted.id + '\')" style="display:flex;align-items:center;gap:.5rem;border-left-color:' + quotedNameColor + '">' +
           quotedThumb +
           '<div style="min-width:0;flex:1"><strong style="display:block;font-size:.72rem;color:' + quotedNameColor + '">' + quotedName + '</strong>' +
