@@ -742,7 +742,7 @@ window._cwRender = function () {
     rooms.map(function (r) {
       var off = !!_cwDisabled[r.id];
       var rn = r.nick || r.name || (r.type === 'private' ? 'Private chat' : 'Chat');
-      var nm = escHtml(rn).replace(/'/g, "\\'");
+      var nm = escAttrA(rn);
       var typeIcon = r.type === 'private' ? '🔒' : r.type === 'channel' ? '📡' : '👥';
       var count = r.type === 'private' ? '' : ' <span style="font-size:.63rem;color:var(--muted)">(' + (r.members || 0) + ')</span>';
       return '<div class="chat-room-row" style="flex-wrap:wrap;opacity:' + (off ? '.6' : '1') + '">' +
@@ -1063,9 +1063,9 @@ function renderUsersList(users) {
       actions += '<button class="act-btn act-promote" onclick="adminPromote(\'' + u.id + '\',\'' + (u.role || 'member') + '\')">' + (u.role === 'admin_super' ? SVG_DEMOTE + ' Demote' : SVG_PROMO + ' Promote') + '</button>';
       actions += '<button class="act-btn act-block" onclick="adminBlock(\'' + u.id + '\',\'' + !!u.blocked + '\')">' + SVG_BAN + ' ' + (u.blocked ? 'Unblock' : 'Block') + '</button>';
       actions += '<button class="act-btn" style="background:' + (u.no_ads ? '#16A34A' : '#637087') + ';color:#fff;border-color:transparent" onclick="adminToggleNoAds(\'' + u.id + '\',' + !!u.no_ads + ')" title="Ad-free toggle">' + SVG_ADS + ' ' + (u.no_ads ? 'Ad-Free ON' : 'Ads ON') + '</button>';
-      actions += '<button class="act-btn" style="background:#B45309;color:#fff;border-color:#B45309" onclick="acForceLogout(\'' + u.id + '\',\'' + escHtml(u.nickname||'') + '\')" title="Force sign-out">👢 Kick out</button>';
+      actions += '<button class="act-btn" style="background:#B45309;color:#fff;border-color:#B45309" onclick="acForceLogout(\'' + u.id + '\',\'' + escAttrA(u.nickname||'') + '\')" title="Force sign-out">👢 Kick out</button>';
       actions += '<button class="act-btn" style="background:' + (isMuted ? '#E11D48' : '#637087') + ';color:#fff;border-color:transparent" onclick="adminMuteUser(\'' + u.id + '\',' + isMuted + ')">' + (isMuted ? '🔇 Unmute' : '🔇 Mute') + '</button>';
-      actions += '<button class="act-btn" style="background:#E11D48;color:#fff;border-color:#E11D48" onclick="adminDeleteUser(\'' + u.id + '\',\'' + escHtml(u.nickname||'') + '\')">' + SVG_DEL + ' Delete</button>';
+      actions += '<button class="act-btn" style="background:#E11D48;color:#fff;border-color:#E11D48" onclick="adminDeleteUser(\'' + u.id + '\',\'' + escAttrA(u.nickname||'') + '\')">' + SVG_DEL + ' Delete</button>';
     } else {
       if (canManage) {
         actions += '<button class="act-btn act-verify" onclick="adminVerify(\'' + u.id + '\',\'' + !!u.verified + '\')">' + SVG_VERIFY + ' ' + (u.verified ? 'Unverify' : 'Verify') + '</button>';
@@ -1236,7 +1236,7 @@ window.openUserDetailModal = function (userId) {
               ? '<button class="act-btn" style="background:#1F6F5C;color:#fff;border-color:transparent" onclick="document.getElementById(\'user-detail-overlay\').remove();startImpersonation(\'' + userId + '\',\'' + escAttrA(p.nickname || '') + '\')">👁 View as user</button>'
               : '') +
             '<button class="act-btn act-block" onclick="adminBlock(\'' + userId + '\',\'' + !!p.blocked + '\');document.getElementById(\'user-detail-overlay\').remove()">' + (p.blocked ? '✅ Unblock' : '🚫 Block account') + '</button>' +
-            '<button class="act-btn" style="background:#B45309;color:#fff;border-color:#B45309" onclick="acForceLogout(\'' + userId + '\',\'' + escHtml(p.nickname||'') + '\')">👢 Kick out</button>' +
+            '<button class="act-btn" style="background:#B45309;color:#fff;border-color:#B45309" onclick="acForceLogout(\'' + userId + '\',\'' + escAttrA(p.nickname||'') + '\')">👢 Kick out</button>' +
           '</div>' +
         '</div>';
 
@@ -2142,7 +2142,7 @@ window.exemptSearch = function (adId) {
       el.innerHTML = users.slice(0, 5).map(function (u) {
         return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border)">' +
           '<span style="font-size:.85rem;font-weight:600">@' + escHtml(u.nickname) + '</span>' +
-          '<button onclick="exemptAdd(\'' + adId + '\',\'' + u.id + '\',\'' + escHtml(u.nickname) + '\')" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:.25rem .7rem;font-size:.75rem;cursor:pointer">+ Exempt</button>' +
+          '<button onclick="exemptAdd(\'' + adId + '\',\'' + u.id + '\',\'' + escAttrA(u.nickname) + '\')" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:.25rem .7rem;font-size:.75rem;cursor:pointer">+ Exempt</button>' +
         '</div>';
       }).join('') || '<div style="font-size:.8rem;color:var(--muted)">No users found</div>';
     })
@@ -2253,7 +2253,7 @@ function buildReportsPanel(content) {
               '<div style="font-size:.78rem;color:var(--text)">' + escHtml(r.reason || '(no reason given)') + '</div>' +
             '</div>' +
             '<div style="display:flex;flex-direction:column;gap:.35rem">' +
-              '<button class="save-pill" style="background:var(--red)" onclick="adminBanFromReport(\'' + r.reported_id + '\',\'' + escHtml(r.reported_nick||'') + '\')">🚫 Ban</button>' +
+              '<button class="save-pill" style="background:var(--red)" onclick="adminBanFromReport(\'' + r.reported_id + '\',\'' + escAttrA(r.reported_nick||'') + '\')">🚫 Ban</button>' +
               '<button class="save-pill" onclick="adminDismissReport(\'' + r.id + '\')">✓ Dismiss</button>' +
             '</div>' +
           '</div>' +
@@ -3161,7 +3161,7 @@ function buildChannelsMgrPanel(content) {
           '</div>' +
           '<div style="display:flex;gap:.35rem">' +
             (!c.verified ? '<button class="save-pill" onclick="adminVerifyChannel(\'' + c.owner_id + '\',true)">✅ Verify</button>' : '<button class="save-pill" style="background:var(--muted)" onclick="adminVerifyChannel(\'' + c.owner_id + '\',false)">Unverify</button>') +
-            '<button class="save-pill" style="background:var(--red)" onclick="adminDeleteChannel(\'' + c.id + '\',\'' + escHtml(c.nickname) + '\')">🗑</button>' +
+            '<button class="save-pill" style="background:var(--red)" onclick="adminDeleteChannel(\'' + c.id + '\',\'' + escAttrA(c.nickname) + '\')">🗑</button>' +
           '</div>' +
         '</div>';
       }).join('');
@@ -5255,7 +5255,7 @@ function _bmailRenderChips(list) {
   box.innerHTML = list.map(function (e) {
     var safe = escHtmlA(e);
     return '<span style="display:inline-flex;align-items:center;gap:.35rem;background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:.3rem .5rem .3rem .7rem;font-size:.8rem">' +
-      safe + '<span onclick="bmailRemove(\'' + safe.replace(/'/g, "\\'") + '\')" style="cursor:pointer;width:18px;height:18px;border-radius:50%;background:var(--border2);color:var(--text);display:inline-flex;align-items:center;justify-content:center;font-size:.7rem" title="Remove">✕</span></span>';
+      safe + '<span onclick="bmailRemove(\'' + escAttrA(safe) + '\')" style="cursor:pointer;width:18px;height:18px;border-radius:50%;background:var(--border2);color:var(--text);display:inline-flex;align-items:center;justify-content:center;font-size:.7rem" title="Remove">✕</span></span>';
   }).join('');
 }
 window.bmailAdd = function () {
