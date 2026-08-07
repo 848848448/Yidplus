@@ -2338,9 +2338,9 @@ function loadMessages(scrollToBottom) {
                   ? '<img src="' + escHtml(res.image) + '" onerror="this.style.display=&#39;none&#39;" style="width:100%;aspect-ratio:1.91/1;max-height:150px;object-fit:cover;display:block;background:var(--bg3)" loading="lazy">'
                   : '') +
                 '<div style="padding:.5rem .65rem">' +
-                  '<div style="font-size:.7rem;color:' + (isMe ? 'rgba(255,255,255,.6)' : 'var(--muted)') + ';margin-bottom:.15rem;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">' + escHtml(new URL(rawUrl).hostname) + '</div>' +
-                  '<div style="font-size:.82rem;font-weight:700;color:' + (isMe ? '#fff' : 'var(--text)') + ';line-height:1.3">' + escHtml(res.title.slice(0, 80)) + '</div>' +
-                  (res.description ? '<div style="font-size:.72rem;color:' + (isMe ? 'rgba(255,255,255,.75)' : 'var(--muted)') + ';margin-top:.2rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + escHtml(res.description.slice(0, 120)) + '</div>' : '') +
+                  '<div style="font-size:.7rem;color:' + (isMe ? '#4c8a63' : 'var(--muted)') + ';margin-bottom:.15rem;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">' + escHtml(new URL(rawUrl).hostname) + '</div>' +
+                  '<div style="font-size:.82rem;font-weight:700;color:' + (isMe ? '#12241d' : 'var(--text)') + ';line-height:1.3">' + escHtml(res.title.slice(0, 80)) + '</div>' +
+                  (res.description ? '<div style="font-size:.72rem;color:' + (isMe ? '#3f7a58' : 'var(--muted)') + ';margin-top:.2rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + escHtml(res.description.slice(0, 120)) + '</div>' : '') +
                 '</div>';
               lpEl.style.display = 'block';
               CHAT_lpCache[m.id] = { html: lpEl.innerHTML, css: 'display:block;margin-top:.4rem;border-radius:12px;overflow:hidden;border:1px solid var(--border);cursor:pointer;background:var(--surface);max-width:100%;opacity:1', url: rawUrl };
@@ -2416,8 +2416,8 @@ function renderMessages(scrollDown) {
     if (m._scheduled_pending) time = '🕓 ' + _fmt12(m.scheduled_for) + ' · ' + time;
     else if (m.expires_at) time = '💨 ' + time;
     var tickSvg = m.read
-      ? '<svg width="16" height="10" viewBox="0 0 16 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-7" stroke="rgba(255,255,255,.7)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5l3 3 5-7" stroke="rgba(255,255,255,.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-      : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-6" stroke="rgba(255,255,255,.6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      ? '<svg width="16" height="10" viewBox="0 0 16 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5l3 3 5-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     var ticks;
     if (isMe && isGroup && typeof m.seen_count === 'number') {
       // Group read receipt: show how many members have seen this message.
@@ -4378,7 +4378,7 @@ function _fakeBars(n) {
 }
 
 function _linkify(text, isMe) {
-  var c = isMe ? 'rgba(255,255,255,.9)' : 'var(--blue)';
+  var c = isMe ? '#0d6b50' : 'var(--blue)';
   var mkA = function (href, label) {
     return '<a href="' + href + '" target="_blank" rel="noopener" style="color:' + c + ';overflow-wrap:break-word;text-decoration:underline">' + label + '</a>';
   };

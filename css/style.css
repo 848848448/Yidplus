@@ -600,26 +600,31 @@ body.night {
 .swipe-reply-icon { position: absolute; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border-radius: 50%; background: var(--blue); color: #fff; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .12s; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
 .swipe-reply-icon.sri-me   { right: -40px; }
 .swipe-reply-icon.sri-them { right: -40px; }
-.bubble.me   { background: #1F6F5C; color: #fff; border-bottom-right-radius: 5px; box-shadow: 0 1px 1.5px rgba(0,0,0,.12); }
+.bubble.me   { background: #E7FBD5; color: #12241d; border-bottom-right-radius: 5px; box-shadow: 0 1px 1.5px rgba(0,0,0,.08); }
 .bubble.them { background: #fff; color: var(--text); border: none; border-bottom-left-radius: 5px; box-shadow: 0 1px 1.5px rgba(0,0,0,.1); }
 .bubble.sticker { background: transparent !important; border: none !important; box-shadow: none !important; font-size: 3.5rem; padding: .25rem !important; }
 .bubble.bubble-emoji { background: transparent !important; box-shadow: none !important; padding: .1rem .2rem !important; font-size: 2.6rem; line-height: 1.15; }
 .bubble.bubble-emoji .bubble-meta { justify-content: flex-end; }
 .bubble.bubble-emoji.them .bubble-time { color: var(--muted); }
 html.dark-mode .bubble.them { background: var(--bg3); color: var(--text); }
-html.dark-mode .bubble.me   { background: linear-gradient(135deg, #2B8A73 0%, #1F6F5C 100%); color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+html.dark-mode .bubble.me   { background: #17694F; color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
 
 .bubble-nick { font-size: .78rem; margin-bottom: .12rem; font-weight: 700; line-height: 1.2; }
 .reply-quote { background: rgba(255,255,255,.16); border-left: 3px solid currentColor; border-radius: 6px; padding: .3rem .55rem; margin-bottom: .4rem; font-size: .74rem; opacity: .9; cursor: pointer; }
 .bubble.them .reply-quote { background: rgba(31,111,92,.07); border-left-color: var(--blue); color: var(--muted); }
+.bubble.me .reply-quote { background: rgba(31,111,92,.10); color: #3f7a58; }
+html.dark-mode .bubble.me .reply-quote { background: rgba(255,255,255,.12); color: rgba(255,255,255,.8); }
 .reply-quote strong { display: block; font-size: .7rem; }
 .bubble-meta { display: flex; align-items: center; justify-content: flex-end; gap: .3rem; margin-top: .25rem; white-space: nowrap; flex-wrap: nowrap; }
 .bubble-time { font-size: .62rem; opacity: .75; white-space: nowrap; }
 .bubble.them .bubble-time { color: var(--muted2); opacity: 1; }
+.bubble.me .bubble-time { color: #4c8a63; opacity: 1; }
+html.dark-mode .bubble.me .bubble-time { color: rgba(255,255,255,.7); }
 .edited-tag { font-size: .6rem; opacity: .7; font-style: italic; margin-right: .25rem; }
 .read-ticks  { font-size: .68rem; opacity: .9; }
 
 .voice-msg   { display: flex; align-items: center; gap: .7rem; min-width: 240px; max-width: 300px; padding: .25rem .1rem; }
+.bubble.me .play-voice { background: #1F6F5C; color: #fff; }
 .play-voice  { width: 42px; height: 42px; border-radius: 50%; background: rgba(255,255,255,.95); border: none; cursor: pointer; color: #14503F; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 .bubble.them .play-voice { background: #1F6F5C; color: #fff; }
 .play-voice:active { transform: scale(.9); }
@@ -627,9 +632,10 @@ html.dark-mode .bubble.me   { background: linear-gradient(135deg, #2B8A73 0%, #1
 .voice-bars  { display: flex; align-items: center; gap: 2px; height: 30px; cursor: pointer; }
 .voice-meta  { display: flex; align-items: center; justify-content: space-between; }
 .voice-dur   { font-size: .7rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-.bubble.me   .voice-dur { color: rgba(255,255,255,.85); }
+.bubble.me   .voice-dur { color: #3f7a58; }
+html.dark-mode .bubble.me .voice-dur { color: rgba(255,255,255,.85); }
 .bubble.them .voice-dur { color: var(--muted); }
-.voice-speed-btn { font-size: .62rem; background: rgba(255,255,255,.22); border: none; border-radius: 8px; padding: .12rem .4rem; cursor: pointer; flex-shrink: 0; font-weight: 800; color: #fff; font-family: inherit; }
+.voice-speed-btn { font-size: .62rem; background: rgba(31,111,92,.14); border: none; border-radius: 8px; padding: .12rem .4rem; cursor: pointer; flex-shrink: 0; font-weight: 800; color: #1F6F5C; font-family: inherit; }
 .bubble.them .voice-speed-btn { color: var(--gold); background: rgba(31,111,92,.1); }
 
 .typing-bar  { display: flex; align-items: center; gap: .4rem; padding: .4rem .75rem; flex-shrink: 0; background: var(--bg2); }
@@ -681,17 +687,18 @@ html.dark-mode .chat-input-pill { background: #232427; border-color: #2C2D31; }
 /* ── Voice Note Bubble (in messages) ── */
 .voice-bubble { display: flex; align-items: center; gap: .65rem; min-width: 200px; max-width: 260px; padding: .1rem 0; }
 .vn-play-btn { width: 38px; height: 38px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: transform .15s; }
-.bubble.me .vn-play-btn { background: rgba(255,255,255,.25); color: #fff; }
+.bubble.me .vn-play-btn { background: #1F6F5C; color: #fff; }
 .bubble.them .vn-play-btn { background: rgba(31,111,92,.12); color: #1F6F5C; }
 .vn-play-btn:active { transform: scale(.9); }
 .vn-waveform { flex: 1; display: flex; align-items: center; gap: 2px; height: 30px; cursor: pointer; }
-.vbar { width: 3px; border-radius: 2px; background: rgba(255,255,255,.5); min-height: 3px; transition: background .12s; flex-shrink: 0; }
-.vbar.played { background: #fff; }
+.vbar { width: 3px; border-radius: 2px; background: rgba(31,111,92,.3); min-height: 3px; transition: background .12s; flex-shrink: 0; }
+.vbar.played { background: #1F6F5C; }
 .bubble.them .vbar { background: rgba(31,111,92,.25); }
 .bubble.them .vbar.played { background: #1F6F5C; }
 .vn-meta { display: flex; flex-direction: column; align-items: flex-end; gap: .1rem; flex-shrink: 0; }
 .vn-dur { font-size: .68rem; font-variant-numeric: tabular-nums; }
-.bubble.me .vn-dur { color: rgba(255,255,255,.75); }
+.bubble.me .vn-dur { color: #3f7a58; }
+html.dark-mode .bubble.me .vn-dur { color: rgba(255,255,255,.75); }
 .bubble.them .vn-dur { color: #637087; }
 .vn-speed-btn { font-size: .6rem; font-weight: 800; border: 1px solid; border-radius: 4px; padding: .05rem .25rem; cursor: pointer; background: transparent; font-family: inherit; }
 
@@ -1718,10 +1725,15 @@ img { opacity: 1; }
 
 /* ── Poll readability on the green "me" bubble (was low-contrast/unreadable) ── */
 .bubble.me .poll-question,
-.bubble.me .poll-description { color: #fff !important; }
+.bubble.me .poll-description { color: #12241d !important; }
+html.dark-mode .bubble.me .poll-question,
+html.dark-mode .bubble.me .poll-description { color: #fff !important; }
 .bubble.me .poll-meta-line,
 .bubble.me .poll-voters-line,
-.bubble.me .poll-footer-row { color: rgba(255,255,255,.82) !important; }
+.bubble.me .poll-footer-row { color: #4c8a63 !important; }
+html.dark-mode .bubble.me .poll-meta-line,
+html.dark-mode .bubble.me .poll-voters-line,
+html.dark-mode .bubble.me .poll-footer-row { color: rgba(255,255,255,.82) !important; }
 .bubble.me .poll-opt {
   background: rgba(255,255,255,.96) !important;
   border-color: rgba(255,255,255,.35) !important;
@@ -1732,8 +1744,10 @@ img { opacity: 1; }
 .bubble.me .poll-opt.voted { border-color: #fff !important; }
 .bubble.me .poll-opt-check { border-color: #9ab8ae !important; }
 .bubble.me .poll-opt.voted .poll-opt-check { background: #1F6F5C !important; border-color: #1F6F5C !important; }
-.bubble.me .poll-close-btn { color: #ffd0d0 !important; }
-.bubble.me .poll-add-suggest-btn { color: #fff !important; border-color: rgba(255,255,255,.4) !important; }
+.bubble.me .poll-close-btn { color: #c0392b !important; }
+html.dark-mode .bubble.me .poll-close-btn { color: #ffd0d0 !important; }
+.bubble.me .poll-add-suggest-btn { color: #1F6F5C !important; border-color: rgba(31,111,92,.4) !important; }
+html.dark-mode .bubble.me .poll-add-suggest-btn { color: #fff !important; border-color: rgba(255,255,255,.4) !important; }
 /* A touch more polish for both sides */
 .poll-opt { transition: border-color .15s, background .15s; }
 
@@ -1905,3 +1919,13 @@ html.dark-mode #screen-chatinfo .userinfo-mtab.active { background: #1C2A26; col
   box-shadow: 0 6px 18px rgba(31,111,92,.4); display: none;
   align-items: center; justify-content: center; cursor: pointer; z-index: 20;
 }
+
+/* Telegram-style light-green "me" bubble — adaptive tick/waveform colors */
+.read-ticks { color: #4c9e70; display: inline-flex; align-items: center; }
+.bubble.me .read-ticks { color: #4c9e70; }
+html.dark-mode .bubble.me .read-ticks { color: rgba(255,255,255,.85); }
+html.dark-mode .bubble.me .vbar { background: rgba(255,255,255,.4); }
+html.dark-mode .bubble.me .vbar.played { background: #fff; }
+html.dark-mode .bubble.me .play-voice { background: rgba(255,255,255,.95); color: #14503F; }
+html.dark-mode .bubble.me .voice-speed-btn { background: rgba(255,255,255,.22); color: #fff; }
+html.dark-mode .bubble.me .voice-dur { color: rgba(255,255,255,.85); }
