@@ -2598,7 +2598,7 @@ function renderMessages(scrollDown) {
           '<div class="video-bubble-play"><div class="video-bubble-play-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>' +
         '</div>';
       } else {
-        inner += '<img src="' + m.media_url + '" onerror="this.style.display=&#39;none&#39;" style="max-width:260px;border-radius:10px;display:block;cursor:pointer;width:100%;aspect-ratio:4/5;object-fit:cover;background:#000" loading="lazy" onclick="_openMediaViewer(\'' + m.id + '\')">';
+        inner += '<img src="' + m.media_url + '" onerror="_imgRetry(this)" style="max-width:260px;border-radius:10px;display:block;cursor:pointer;width:100%;aspect-ratio:4/5;object-fit:cover;background:#000" loading="lazy" onclick="_openMediaViewer(\'' + m.id + '\')">';
       }
       if (m.text && m.text !== '__once__') {
         var capRTL = /[\u0590-\u05FF]/.test(m.text);
@@ -2624,7 +2624,7 @@ function renderMessages(scrollDown) {
       if (isImageFile) {
         // An image that came through as a "file" — show it inline and open it
         // in the full-screen viewer on tap, exactly like a normal photo.
-        inner += '<img src="' + m.media_url + '" onerror="this.style.display=&#39;none&#39;" style="max-width:260px;width:100%;max-height:340px;border-radius:10px;display:block;cursor:pointer;object-fit:contain;background:#000" loading="lazy" onclick="_openMediaViewer(\'' + m.id + '\')">';
+        inner += '<img src="' + m.media_url + '" onerror="_imgRetry(this)" style="max-width:260px;width:100%;max-height:340px;border-radius:10px;display:block;cursor:pointer;object-fit:contain;background:#000" loading="lazy" onclick="_openMediaViewer(\'' + m.id + '\')">';
         if (m.text && !/\.(jpe?g|png|gif|webp|bmp|heic|heif)\s*$/i.test((m.text || '').trim())) {
           var _ic = /[\u0590-\u05FF]/.test(m.text);
           inner += '<div style="margin-top:.3rem;font-size:.85rem;unicode-bidi:plaintext;' + (_ic ? 'direction:rtl;text-align:right' : '') + '">' + _linkify(escHtml(m.text), isMe) + '</div>';
@@ -7834,3 +7834,16 @@ function _applyLocalSeen() {
     });
   } catch (e) {}
 }
+
+// Chat images serve fine but can hit a transient network blip (or the user
+// scrolls past before they finish). Reload once before giving up, instead of
+// blanking the photo on the first hiccup.
+window._imgRetry = function (el) {
+  try {
+    if (!el) return;
+    if (el.getAttribute('data-retried')) { el.style.display = 'none'; return; }
+    el.setAttribute('data-retried', '1');
+    var s = el.getAttribute('src');
+    setTimeout(function () { try { el.src = ''; el.src = s; } catch (e) {} }, 800);
+  } catch (e) {}
+};
