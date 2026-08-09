@@ -3878,8 +3878,18 @@ window._openOnce = function (msgId, el) {
 function _setReply(msg) {
   CHAT_replyTo = msg;
   var meId = STATE.user && STATE.user.id;
-  document.getElementById('reply-nick').textContent = msg.sender_id === meId ? 'You' : (msg.sender_nick || 'User');
-  document.getElementById('reply-snip').textContent = (msg.text || '[media]').slice(0, 60);
+  var rn = document.getElementById('reply-nick');
+  rn.textContent = msg.sender_id === meId ? 'You' : (msg.sender_nick || 'User');
+  var col = (typeof nameColor === 'function') ? nameColor(msg.sender_id || msg.sender_nick) : 'var(--accent,#1F6F5C)';
+  rn.style.color = col;
+  var body = document.querySelector('.reply-bar-body');
+  if (body) body.style.borderInlineStartColor = col;
+  var snip = msg.text || (msg.type === 'voice' ? '🎤 Voice message'
+    : msg.type === 'media' ? '📷 Photo'
+    : msg.type === 'file' ? '📎 File'
+    : msg.type === 'sticker' ? 'Sticker'
+    : '[media]');
+  document.getElementById('reply-snip').textContent = String(snip).slice(0, 80);
   document.getElementById('reply-bar').style.display = 'flex';
   document.getElementById('chat-input').focus();
 }

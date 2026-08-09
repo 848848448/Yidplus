@@ -585,8 +585,12 @@ body.night {
 .join-banner-room { background: #FFFBE6; border-top: 1px solid #FFE082; padding: .75rem 1rem; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
 .join-group-btn   { padding: .4rem 1rem; background: #000; border: none; border-radius: 8px; color: #fff; font-size: .8rem; font-weight: 700; cursor: pointer; font-family: inherit; }
 
-.reply-bar { background: var(--surface); box-shadow: inset 0 1px 0 var(--border); border-left: 3px solid var(--blue); padding: .5rem .8rem; display: flex; align-items: center; justify-content: space-between; font-size: .75rem; color: var(--muted); flex-shrink: 0; cursor: pointer; }
-.reply-bar button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: .2rem; }
+.reply-bar { background: var(--surface); border-top: 1px solid var(--border); padding: .4rem .75rem; display: flex; align-items: center; gap: .55rem; flex-shrink: 0; cursor: pointer; }
+.reply-bar-icon { color: var(--accent, #1F6F5C); flex-shrink: 0; }
+.reply-bar-body { flex: 1; min-width: 0; border-inline-start: 2px solid var(--accent, #1F6F5C); padding-inline-start: .55rem; display: flex; flex-direction: column; overflow: hidden; }
+.reply-bar-body strong { color: var(--accent, #1F6F5C); font-size: .8rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; unicode-bidi: plaintext; }
+.reply-bar-body #reply-snip { font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; unicode-bidi: plaintext; }
+.reply-bar button { background: none; border: none; color: var(--muted); cursor: pointer; padding: .3rem; flex-shrink: 0; display: flex; align-items: center; }
 
 .chat-msgs { flex: 1; overflow-y: auto; overflow-x: hidden; padding: .75rem; background: var(--bg2); scrollbar-width: thin; }
 .chat-msgs::-webkit-scrollbar { width: 4px; }
