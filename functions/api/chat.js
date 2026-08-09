@@ -83,9 +83,9 @@ export async function onRequestGet(context) {
            WHERE m.room_id = ? AND COALESCE(m.hidden,0) = 0
              AND (m.scheduled_for IS NULL OR m.scheduled_for <= ?)
              AND (m.expires_at IS NULL OR m.expires_at > ?)
-           ORDER BY m.created_at ASC LIMIT 200`
+           ORDER BY m.created_at DESC LIMIT 500`
         ).bind(roomId, nowIso, nowIso).all();
-        gMsgs = r1.results || [];
+        gMsgs = (r1.results || []).slice().reverse();
       } catch (e) {
         // Older DB without hidden/scheduled/expires columns.
         const r2 = await env.DB.prepare(
@@ -93,9 +93,9 @@ export async function onRequestGet(context) {
                   m.reply_to_id, m.view_once, m.opened, m.created_at,
                   u.photo_url AS sender_photo
            FROM messages m LEFT JOIN users u ON u.id = m.sender_id
-           WHERE m.room_id = ? ORDER BY m.created_at ASC LIMIT 200`
+           WHERE m.room_id = ? ORDER BY m.created_at DESC LIMIT 500`
         ).bind(roomId).all().catch(() => ({ results: [] }));
-        gMsgs = r2.results || [];
+        gMsgs = (r2.results || []).slice().reverse();
       }
       const guestMsgs = (gMsgs || []).map(function (r) {
         if (r.media_key) r.media_url = '/api/media/' + encodeURIComponent(r.media_key);
@@ -192,10 +192,10 @@ export async function onRequestGet(context) {
          LEFT JOIN users u ON u.id = m.sender_id
          LEFT JOIN room_members rm ON rm.room_id = m.room_id AND rm.user_id = m.sender_id
          WHERE m.room_id = ?${topicFilter}
-         ORDER BY m.created_at ASC
-         LIMIT 200`
+         ORDER BY m.created_at DESC
+         LIMIT 500`
       ).bind(roomId, ...topicParams).all();
-      results = res.results;
+      results = (res.results || []).slice().reverse();
     } catch (colErr) {
       // topic_id column doesn't exist yet (migration not run) — fall back to
       // the pre-topics query so normal chat keeps working regardless.
@@ -206,10 +206,10 @@ export async function onRequestGet(context) {
          FROM messages m
          LEFT JOIN users u ON u.id = m.sender_id
          WHERE m.room_id = ?
-         ORDER BY m.created_at ASC
-         LIMIT 200`
+         ORDER BY m.created_at DESC
+         LIMIT 500`
       ).bind(roomId).all();
-      results = res.results;
+      results = (res.results || []).slice().reverse();
     }
 
     // ── Scheduled + disappearing messages ──
