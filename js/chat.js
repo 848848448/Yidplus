@@ -2525,7 +2525,7 @@ function renderMessages(scrollDown) {
     } else if (m.type === 'voice') {
       if (m.media_url) {
         var voiceData = _parseVoicePacked(m.text);
-        var bars = voiceData.peaks.length ? _renderWaveBars(voiceData.peaks) : _fakeBars(34);
+        var bars = voiceData.peaks.length ? _renderWaveBars(voiceData.peaks) : _fakeBars(28);
         var isViewOnceVoice = m.view_once && !isMe;
         if (isViewOnceVoice && m.opened) {
           inner += '<div class="voice-msg" style="opacity:.5"><div style="font-size:.8rem;color:var(--muted)">🎤 Voice message opened</div></div>';
@@ -2560,7 +2560,7 @@ function renderMessages(scrollDown) {
       // Voice note without actual audio (fallback)
       inner += '<div class="voice-msg">' +
         '<button class="play-voice" onclick="toast(\'Audio not available\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>' +
-        '<div class="voice-bars">' + _fakeBars(34) + '</div>' +
+        '<div class="voice-bars">' + _fakeBars(28) + '</div>' +
         '<div class="voice-dur">' + (m.text || '0:00') + '</div>' +
       '</div>';
 
