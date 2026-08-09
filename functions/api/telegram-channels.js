@@ -84,6 +84,18 @@ async function savePhoto(env, file, username) {
 
 // GET → list all Telegram channels, with how many YID PLUS users joined each
 // and how many posts are unread for the caller.
+// Normalize an allowed-users input (a textarea of "@yanky\n@moshe", a comma
+// list, or a JSON array) into a JSON array of lowercased usernames without '@'.
+// canSeePrivate() reads this as JSON, so storing raw text silently allowed
+// nobody — this keeps the two in sync.
+function _normAllowed(input) {
+  const clean = (x) => String(x || '').replace(/^@/, '').trim().toLowerCase();
+  if (Array.isArray(input)) return JSON.stringify(input.map(clean).filter(Boolean));
+  const text = String(input == null ? '' : input);
+  try { const a = JSON.parse(text); if (Array.isArray(a)) return JSON.stringify(a.map(clean).filter(Boolean)); } catch (e) {}
+  return JSON.stringify(text.split(/[\s,]+/).map(clean).filter(Boolean));
+}
+
 export async function onRequestGet(context) {
   const { request, env } = context;
   try {
@@ -165,16 +177,20 @@ export async function onRequestPost(context) {
     if (!user || !isSuperOrOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Forbidden' }, 403);
     await ensureTable(env);
 
-    let rawUsername = '', title = '', photo = null;
+    let rawUsername = '', title = '', photo = null, isPrivate = 0, allowedUsers = '[]';
     if ((request.headers.get('content-type') || '').includes('multipart/form-data')) {
       const form = await request.formData();
       rawUsername = (form.get('username') || '').toString();
       title = (form.get('title') || '').toString().trim();
       photo = form.get('photo');
+      if (form.has('is_private')) isPrivate = (form.get('is_private') || '') === '1' ? 1 : 0;
+      if (form.has('allowed_users')) allowedUsers = _normAllowed(form.get('allowed_users'));
     } else {
       const body = await request.json();
       rawUsername = body.username || '';
       title = (body.title || '').trim();
+      if (body.is_private !== undefined) isPrivate = body.is_private ? 1 : 0;
+      if (body.allowed_users !== undefined) allowedUsers = _normAllowed(body.allowed_users);
     }
 
     if (isPrivateInvite(rawUsername)) {
@@ -190,10 +206,10 @@ export async function onRequestPost(context) {
     const photoKey = photo ? await savePhoto(env, photo, username) : null;
     const id = crypto.randomUUID();
     await env.DB.prepare(
-      'INSERT INTO telegram_channels (id, username, title, photo_key, added_by, created_at, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).bind(id, username, title, photoKey, user.id, new Date().toISOString(), Date.now()).run();
+      'INSERT INTO telegram_channels (id, username, title, photo_key, added_by, created_at, sort_order, is_private, allowed_users) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(id, username, title, photoKey, user.id, new Date().toISOString(), Date.now(), isPrivate, allowedUsers).run();
 
-    return json({ ok: true, channel: { id, username, title } }, 201);
+    return json({ ok: true, channel: { id, username, title, is_private: isPrivate } }, 201);
   } catch (err) { return json({ ok: false, error: err.message }, 500); }
 }
 
@@ -212,13 +228,13 @@ export async function onRequestPut(context) {
       if (form.has('title')) title = (form.get('title') || '').toString().trim().slice(0, 80);
       photo = form.get('photo');
       if (form.has('is_private')) isPrivate = (form.get('is_private') || '') === '1' ? 1 : 0;
-      if (form.has('allowed_users')) allowedUsers = (form.get('allowed_users') || '').toString();
+      if (form.has('allowed_users')) allowedUsers = _normAllowed(form.get('allowed_users'));
     } else {
       const body = await request.json();
       id = body.id || '';
       if (body.title !== undefined) title = String(body.title).trim().slice(0, 80);
       if (body.is_private !== undefined) isPrivate = body.is_private ? 1 : 0;
-      if (body.allowed_users !== undefined) allowedUsers = body.allowed_users;
+      if (body.allowed_users !== undefined) allowedUsers = _normAllowed(body.allowed_users);
     }
     if (!id) return json({ ok: true, error: 'id required' });
 

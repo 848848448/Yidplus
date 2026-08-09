@@ -3028,13 +3028,18 @@ window.tgcAdd = function () {
   var t = (document.getElementById('tgc-title') || {}).value || '';
   var pEl = document.getElementById('tgc-photo');
   var photo = pEl && pEl.files && pEl.files[0];
+  var isPriv = !!(document.getElementById('tgc-private') || {}).checked;
+  var allowed = (document.getElementById('tgc-allowed') || {}).value || '';
   if (!u.trim()) { toast('Enter a @username'); return; }
 
   var done = function (res) {
     if (!res.ok) { toast('❌ ' + (res.error || 'Failed')); return; }
-    toast('✅ Channel added');
+    toast(isPriv ? '✅ Private channel added' : '✅ Channel added');
     document.getElementById('tgc-user').value = '';
     document.getElementById('tgc-title').value = '';
+    var pv = document.getElementById('tgc-private'); if (pv) pv.checked = false;
+    var aw = document.getElementById('tgc-allowed-wrap'); if (aw) aw.style.display = 'none';
+    var al = document.getElementById('tgc-allowed'); if (al) al.value = '';
     if (pEl) pEl.value = '';
     _tgcLoad();
   };
@@ -3045,9 +3050,11 @@ window.tgcAdd = function () {
     fd.append('username', u);
     fd.append('title', t);
     fd.append('photo', photo);
+    fd.append('is_private', isPriv ? '1' : '0');
+    fd.append('allowed_users', allowed);
     api.post('/telegram-channels', fd, true).then(done).catch(fail);
   } else {
-    api.post('/telegram-channels', { username: u, title: t }).then(done).catch(fail);
+    api.post('/telegram-channels', { username: u, title: t, is_private: isPriv, allowed_users: allowed }).then(done).catch(fail);
   }
 };
 window.tgcEdit = function (id) {
@@ -3133,7 +3140,12 @@ function buildChannelsMgrPanel(content) {
         '</div>' +
         '<input id="tgc-title" placeholder="Display name (optional)" style="width:100%;box-sizing:border-box;padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem;margin-bottom:.4rem">' +
         '<label style="font-size:.72rem;color:var(--muted)">Photo (optional)</label>' +
-        '<input type="file" id="tgc-photo" accept="image/*" style="width:100%;font-size:.75rem;margin:.2rem 0 .7rem">' +
+        '<input type="file" id="tgc-photo" accept="image/*" style="width:100%;font-size:.75rem;margin:.2rem 0 .5rem">' +
+        '<label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;margin:.2rem 0;cursor:pointer"><input type="checkbox" id="tgc-private" onchange="document.getElementById(\'tgc-allowed-wrap\').style.display=this.checked?\'block\':\'none\'"> 🔒 Private — only people I allow can see it</label>' +
+        '<div id="tgc-allowed-wrap" style="display:none;margin-bottom:.6rem">' +
+          '<label style="font-size:.72rem;color:var(--muted)">Allowed people — one @username or email per line</label>' +
+          '<textarea id="tgc-allowed" rows="3" placeholder="@yanky&#10;@moshe" style="width:100%;box-sizing:border-box;padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem;margin-top:.2rem"></textarea>' +
+        '</div>' +
         '<div id="tgc-list"><div class="feed-state"><div class="spinner"></div></div></div>' +
         '</div>' +
       '<div class="admin-card">' +
