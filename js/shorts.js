@@ -398,7 +398,7 @@ window.shareShort = function (i) {
   var s = SHORTS_data[i];
   var url = window.location.origin + '/shorts#' + s.id;
   if (navigator.share) {
-    navigator.share({ title: 'YID PLUS', text: 'Check out this short!', url: url });
+    navigator.share({ title: 'YID PLUS', text: 'Check out this short!', url: url }).catch(function () {});
   } else if (navigator.clipboard) {
     navigator.clipboard.writeText(url).then(function () { toast('🔗 Link copied!'); });
   } else {

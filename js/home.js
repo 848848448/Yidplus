@@ -1607,7 +1607,7 @@ window.shareChannel = function () {
   if (!CHANNEL_current) return;
   var url = window.location.origin + '/?channel=' + encodeURIComponent(CHANNEL_current.owner_id);
   if (navigator.share) {
-    navigator.share({ title: '@' + CHANNEL_current.nickname + ' on YID PLUS', url: url });
+    navigator.share({ title: '@' + CHANNEL_current.nickname + ' on YID PLUS', url: url }).catch(function () {});
   } else if (navigator.clipboard) {
     navigator.clipboard.writeText(url).then(function () { toast('🔗 Link copied!'); });
   } else {
