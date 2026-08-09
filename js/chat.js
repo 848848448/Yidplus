@@ -3122,7 +3122,9 @@ window.sendChatMsg = function () {
   var tempMsg = {
     id: tempId, room_id: CHAT_curRoom ? CHAT_curRoom.id : '',
     sender_id: me.id, sender_nick: me.nickname || '',
+    sender_photo: me.photo_url || null,
     type: 'text', text: msgText, created_at: now, read: 0,
+    reply_to_id: payload.reply_to_id || null,
     _pending: true,
   };
   CHAT_messages.push(tempMsg);
@@ -3130,13 +3132,25 @@ window.sendChatMsg = function () {
   scrollToBottom();
 
   api.post('/chat', payload)
-    .then(function () {
+    .then(function (res) {
       if (wasScheduled) {
         toast('🕓 Message scheduled');
         CHAT_messages = CHAT_messages.filter(function(m){ return m.id !== tempId; });
+        renderMessages(false);
+      } else if (res && res.message) {
+        // Swap the optimistic message for the real one (real id, confirmed) —
+        // no full reload, so it's instant and the reply quote stays put.
+        var real = res.message;
+        if (real.media_key && !real.media_url) real.media_url = '/api/media/' + encodeURIComponent(real.media_key);
+        real.sender_nick = real.sender_nick || tempMsg.sender_nick;
+        real.sender_photo = real.sender_photo || tempMsg.sender_photo;
+        var i = CHAT_messages.findIndex(function (m) { return m.id === tempId; });
+        if (i !== -1) CHAT_messages[i] = real; else CHAT_messages.push(real);
+        renderMessages(false);
+      } else {
+        loadMessages(true);
       }
       _resetMsgOptions();
-      loadMessages(true); // get real message from server
     })
     .catch(function (err) {
       toast('❌ ' + err.message);
