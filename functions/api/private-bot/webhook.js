@@ -81,10 +81,13 @@ async function forwardReaction(env, mr, recipients) {
     '</div></div>';
   const fromAddr = (await getConfig(env, 'RESEND_FROM_EMAIL')) || 'YID PLUS <onboarding@resend.dev>';
   const rk = await getConfig(env, 'RESEND_API_KEY');
+  const replyTo = await getConfig(env, 'RESEND_REPLY_TO');
+  const body = { from: fromAddr, to: recipients, subject: who + ' reacted ' + emojis, html };
+  if (replyTo) body.reply_to = replyTo;
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${rk}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: fromAddr, to: recipients, subject: who + ' reacted ' + emojis, html }),
+    body: JSON.stringify(body),
   }).catch(() => {});
 }
 
@@ -246,6 +249,8 @@ async function forwardToEmail(env, msg, recipients) {
   const _rk = await getConfig(env, 'RESEND_API_KEY');
   const payload = { from: fromAddr, to: recipients, subject, html };
   if (attachments.length) payload.attachments = attachments;
+  const _replyTo = await getConfig(env, 'RESEND_REPLY_TO');
+  if (_replyTo) payload.reply_to = _replyTo;
   try {
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -255,6 +260,7 @@ async function forwardToEmail(env, msg, recipients) {
     // If the attachment made it too big for Resend, retry once with just the link.
     if (!r.ok && attachments.length) {
       const lite = { from: fromAddr, to: recipients, subject, html };
+      if (_replyTo) lite.reply_to = _replyTo;
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${_rk}`, 'Content-Type': 'application/json' },

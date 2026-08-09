@@ -12,6 +12,7 @@ import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js
 const KEYS = [
   { key: 'RESEND_API_KEY',          label: 'Email API key (Resend)',        secret: true },
   { key: 'RESEND_FROM_EMAIL',       label: 'Email "from" address',          secret: false, hint: 'e.g. YID PLUS <noreply@yidplus.com>' },
+  { key: 'RESEND_REPLY_TO',         label: 'Email "reply-to" address',      secret: false, hint: 'Where replies to your emails should go (e.g. your Gmail, or reply@yidplus.com routed to your bot). Leave blank for no-reply.' },
   { key: 'TG_BOT_TOKEN',            label: 'Telegram bot token',            secret: true },
   { key: 'PRIVATE_BOT_TOKEN',       label: 'Private (email) bot token',     secret: true },
   { key: 'PRIVATE_BOT_WEBHOOK_SECRET', label: 'Private bot webhook secret', secret: true },
