@@ -1301,7 +1301,7 @@ window.openSupportChat = function (screen) {
       body.innerHTML =
         '<div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">What do you need help with?</div>' +
         questions.map(function (q) {
-          return '<div class="ctx-item" style="border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem" onclick="_supportQuestionTapped(\'' + screen + '\',\'' + escHtml(q.label).replace(/'/g, "\\'") + '\',\'' + q.action_type + '\')">' + escHtml(q.label) + '</div>';
+          return '<div class="ctx-item" style="border:1px solid var(--border);border-radius:12px;margin-bottom:.5rem" onclick="_supportQuestionTapped(\'' + screen + '\',\'' + escJs(q.label) + '\',\'' + q.action_type + '\')">' + escHtml(q.label) + '</div>';
         }).join('');
     })
     .catch(function () {
