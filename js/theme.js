@@ -567,15 +567,15 @@ window.unmuteRoom = function (roomId, btn) {
 // ══════════ Blocked users ══════════
 window.openBlockedUsers = function () {
   _settingsModal('Blocked users', '<div id="blocked-list" style="color:var(--muted);font-size:.85rem">Loading…</div>');
-  api.get('/blocked-users').then(function (res) {
-    var list = (res && res.users) || [];
+  api.get('/blocks').then(function (res) {
+    var list = (res && res.blocked) || [];
     var el = document.getElementById('blocked-list');
     if (!el) return;
     if (!list.length) { el.innerHTML = "You haven't blocked anyone. You can block someone from their profile."; return; }
     el.innerHTML = list.map(function (u) {
       return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.55rem 0;border-bottom:1px solid var(--border)">' +
         '<span style="font-weight:600;color:var(--text)">' + escHtml(u.nickname || 'User') + '</span>' +
-        '<button class="settings-edit-btn" onclick="unblockUser(\'' + escJs(u.id) + '\',this)">Unblock</button>' +
+        '<button class="settings-edit-btn" onclick="unblockUser(\'' + escJs(u.blocked_id) + '\',this)">Unblock</button>' +
       '</div>';
     }).join('');
   }).catch(function () {
@@ -585,9 +585,9 @@ window.openBlockedUsers = function () {
 };
 window.unblockUser = function (uid, btn) {
   if (btn) { btn.disabled = true; }
-  api.post('/blocked-users', { user_id: uid, action: 'unblock' }).then(function () {
+  api.del('/blocks?id=' + encodeURIComponent(uid)).then(function () {
     if (btn && btn.parentElement) btn.parentElement.style.display = 'none';
-    toast('Unblocked');
+    toast('🔓 Unblocked');
   }).catch(function () { if (btn) btn.disabled = false; });
 };
 
