@@ -114,7 +114,8 @@ export async function onRequestGet(context) {
     try {
       const r = searchQ && searchQ.trim()
         ? await env.DB.prepare(
-            `SELECT c.id, c.owner_id, c.nickname, c.verified, c.bio, u.photo_url, COUNT(cf.follower_id) as followers
+            `SELECT c.id, c.owner_id, c.nickname, c.verified, c.bio, u.photo_url, COUNT(cf.follower_id) as followers,
+                    (SELECT MAX(created_at) FROM posts WHERE user_id = c.owner_id) AS last_post_at
              FROM channels c
              LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
              LEFT JOIN users u ON u.id = c.owner_id
@@ -122,7 +123,8 @@ export async function onRequestGet(context) {
              GROUP BY c.id ORDER BY followers DESC LIMIT ?`
           ).bind('%' + searchQ.trim() + '%', limitParam).all()
         : await env.DB.prepare(
-            `SELECT c.id, c.owner_id, c.nickname, c.verified, c.bio, u.photo_url, COUNT(cf.follower_id) as followers
+            `SELECT c.id, c.owner_id, c.nickname, c.verified, c.bio, u.photo_url, COUNT(cf.follower_id) as followers,
+                    (SELECT MAX(created_at) FROM posts WHERE user_id = c.owner_id) AS last_post_at
              FROM channels c
              LEFT JOIN channel_followers cf ON cf.channel_owner_id = c.owner_id
              LEFT JOIN users u ON u.id = c.owner_id

@@ -2072,19 +2072,27 @@ function _userRow(u) {
 
 function _channelRow(c) {
   var name = escHtml(c.nickname || 'Channel');
+  // New-post indicator: show a dot when the channel's latest post is newer than
+  // the last time this user opened that channel.
+  var seen = '';
+  try { seen = localStorage.getItem('yp_ch_seen_' + c.owner_id) || ''; } catch (e) {}
+  var hasNew = c.last_post_at && (!seen || c.last_post_at > seen);
+  var ring = hasNew ? ';box-shadow:0 0 0 2px var(--surface),0 0 0 4px #1F6F5C' : '';
   var av = c.photo_url
-    ? '<div style="width:54px;height:54px;border-radius:50%;background-image:url(' + c.photo_url + ');background-size:cover;background-position:center;flex-shrink:0;border:1px solid var(--border)"></div>'
-    : '<div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-size:1.25rem;font-weight:800;color:#fff;flex-shrink:0">' + (c.nickname || 'C').slice(0, 1).toUpperCase() + '</div>';
+    ? '<div style="width:54px;height:54px;border-radius:50%;background-image:url(' + c.photo_url + ');background-size:cover;background-position:center;flex-shrink:0;border:1px solid var(--border)' + ring + '"></div>'
+    : '<div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-size:1.25rem;font-weight:800;color:#fff;flex-shrink:0' + ring + '">' + (c.nickname || 'C').slice(0, 1).toUpperCase() + '</div>';
   var verified = c.verified
     ? ' <svg width="14" height="14" viewBox="0 0 24 24" fill="#1d9bf0" style="vertical-align:-2px;flex-shrink:0"><path d="M12 2l2.4 2.4 3.3-.6.6 3.3L21 12l-2.7 2.4.6 3.3-3.3.6L12 22l-2.4-2.7-3.3.6-.6-3.3L3 12l2.7-2.4-.6-3.3 3.3.6z"/><path d="M10.5 14.5l-2-2 1-1 1 1 3-3 1 1z" fill="#fff"/></svg>'
     : '';
   var sub = c.bio
     ? escHtml(c.bio)
     : fmtN(c.followers || 0) + ' followers';
-  return '<div style="display:flex;align-items:center;gap:.8rem;padding:.6rem 1rem;cursor:pointer" onclick="CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
+  var newBadge = hasNew ? '<span style="background:#1F6F5C;color:#fff;font-size:.62rem;font-weight:800;padding:.1rem .4rem;border-radius:8px;flex-shrink:0">NEW</span>' : '';
+  var seenSet = c.last_post_at ? ("try{localStorage.setItem('yp_ch_seen_' + '" + c.owner_id + "', '" + c.last_post_at + "')}catch(e){};") : '';
+  return '<div style="display:flex;align-items:center;gap:.8rem;padding:.6rem 1rem;cursor:pointer" onclick="' + seenSet + 'CHANNEL_pendingOwnerId=\'' + c.owner_id + '\';navTo(\'channel\')">' +
     av +
     '<div style="flex:1;min-width:0">' +
-      '<div style="font-size:.92rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;display:flex;align-items:center;gap:.15rem">' + name + verified + '</div>' +
+      '<div style="font-size:.92rem;font-weight:' + (hasNew ? '800' : '600') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;display:flex;align-items:center;gap:.3rem">' + name + verified + newBadge + '</div>' +
       '<div style="font-size:.8rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.1rem;unicode-bidi:plaintext">' + sub + '</div>' +
     '</div>' +
   '</div>';
