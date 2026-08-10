@@ -238,7 +238,7 @@ window.loadDynamicFeed = function () {
 // ── BUILD ONE POST CARD ───────────────────────────────────
 function buildPostCard(p) {
   var article = document.createElement('article');
-  article.className  = 'feed-post x-post';
+  article.className  = 'ig-post';
   article.dataset.id = p.id;
 
   var handle  = p.username || 'anonymous';
@@ -251,69 +251,67 @@ function buildPostCard(p) {
   var verified = p.verified ? 1 : 0;
   var photo   = p.photo_url || p.avatar || p.user_photo || '';
 
-  // Media detection (unchanged logic).
   var content = (p.content || '').trim();
   var hasMedia = content && (content.indexOf('/') !== -1 || content.indexOf('http') === 0);
   var isEmojiOnly = content && /^[\p{Emoji}\s]+$/u.test(content) && !hasMedia;
 
+  // Full-width media, edge-to-edge like Instagram.
   var mediaHtml = '';
   if (hasMedia) {
     var url = content.indexOf('http') === 0 ? content : ('/api/media/' + encodeURIComponent(content.replace(/^\//, '')));
-    var isVideo = /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
-    if (isVideo) {
-      mediaHtml = '<div style="margin-top:.6rem;border-radius:16px;overflow:hidden;border:1px solid var(--border)"><video src="' + url + '" controls preload="metadata" playsinline style="width:100%;max-height:70vh;display:block;background:#000"></video></div>';
-    } else {
-      mediaHtml = '<div style="margin-top:.6rem;border-radius:16px;overflow:hidden;border:1px solid var(--border)"><img src="' + url + '" style="width:100%;display:block" loading="lazy"></div>';
-    }
+    var isVideo = /\.(mp4|webm|mov|m4v|mkv|3gp)(\?|$)/i.test(url);
+    mediaHtml = isVideo
+      ? '<div class="ig-post-media"><video src="' + url + '" controls preload="metadata" playsinline onerror="_imgRetry&&_imgRetry(this)"></video></div>'
+      : '<div class="ig-post-media"><img src="' + url + '" loading="lazy" onerror="_imgRetry&&_imgRetry(this)"></div>';
   } else if (isEmojiOnly) {
-    mediaHtml = '<div class="post-emoji-big">' + escHtml(content) + '</div>';
-  }
-
-  var captionHtml = '';
-  if (caption) {
-    captionHtml = '<div style="color:var(--text);font-size:.95rem;line-height:1.45;margin-top:.15rem;white-space:pre-wrap;word-break:break-word">' +
-      (typeof filterContent === 'function' ? filterContent(_linkHashtags(escHtml(caption))) : _linkHashtags(escHtml(caption))) +
-    '</div>';
+    mediaHtml = '<div class="ig-post-media ig-post-emoji">' + escHtml(content) + '</div>';
   }
 
   var avatarHtml = photo
-    ? '<div style="width:44px;height:44px;border-radius:50%;background-image:url(' + photo + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
-    : '<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));display:flex;align-items:center;justify-content:center;font-size:1.15rem;font-weight:800;color:#fff;flex-shrink:0">' + escHtml(name.charAt(0).toUpperCase()) + '</div>';
+    ? '<div class="ig-post-av" style="background-image:url(' + photo + ')"></div>'
+    : '<div class="ig-post-av ig-post-av-init">' + escHtml(name.charAt(0).toUpperCase()) + '</div>';
 
   var verifiedSvg = verified
-    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="#1d9bf0" style="flex-shrink:0"><path d="M12 2l2.4 2.4 3.3-.6.6 3.3L21 12l-2.7 2.4.6 3.3-3.3.6L12 22l-2.4-2.7-3.3.6-.6-3.3L3 12l2.7-2.4-.6-3.3 3.3.6z"/><path d="M10.5 14.5l-2-2 1-1 1 1 3-3 1 1z" fill="#fff"/></svg>'
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="#1d9bf0" style="flex-shrink:0"><path d="M12 2l2.4 2.4 3.3-.6.6 3.3L21 12l-2.7 2.4.6 3.3-3.3.6L12 22l-2.4-2.7-3.3.6-.6-3.3L3 12l2.7-2.4-.6-3.3 3.3.6z"/><path d="M10.5 14.5l-2-2 1-1 1 1 3-3 1 1z" fill="#fff"/></svg>'
     : '';
 
-  var replyIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
-  var likeIcon  = p.liked
-    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="#f91880" stroke="#f91880" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>'
-    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>';
-  var viewsIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
-  var shareIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
+  var heart = p.liked
+    ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="#ed4956" stroke="#ed4956" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>'
+    : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+  var comment = '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
+  var share = '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+
+  var captionHtml = caption
+    ? '<div class="ig-post-caption"><b onclick="openChannel(\'' + escJs(p.user_id || '') + '\')">' + escHtml(name) + '</b> ' +
+        (typeof filterContent === 'function' ? filterContent(_linkHashtags(escHtml(caption))) : _linkHashtags(escHtml(caption))) +
+      '</div>'
+    : '';
 
   article.innerHTML =
-    '<div style="display:flex;gap:.65rem;padding:.85rem .9rem">' +
-      '<div onclick="openChannel(\'' + escHtml(p.user_id || '') + '\')" style="cursor:pointer">' + avatarHtml + '</div>' +
-      '<div style="flex:1;min-width:0">' +
-        '<div style="display:flex;align-items:center;gap:.25rem;cursor:pointer" onclick="openChannel(\'' + escHtml(p.user_id || '') + '\')">' +
-          '<span style="font-weight:700;color:var(--text);font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%;unicode-bidi:plaintext">' + escHtml(name) + '</span>' +
-          verifiedSvg +
-          '<span style="color:var(--muted);font-size:.86rem;white-space:nowrap">@' + escHtml(handle) + '</span>' +
-          (timeStr ? '<span style="color:var(--muted);font-size:.86rem">· ' + escHtml(timeStr) + '</span>' : '') +
-          (isAnyAdmin() ? '<button style="margin-left:auto;background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem;padding:0" data-role="admin" onclick="event.stopPropagation();adminDeletePost(\'' + p.id + '\')">🗑</button>' : '') +
-        '</div>' +
-        captionHtml +
-        mediaHtml +
-        '<div style="display:flex;justify-content:space-between;max-width:360px;margin-top:.65rem;color:var(--muted)">' +
-          '<button class="x-act" onclick="openPostComments(\'' + p.id + '\')" style="display:flex;align-items:center;gap:.3rem;background:none;border:none;color:inherit;cursor:pointer;font-size:.8rem;padding:0">' + replyIcon + '<span>' + fmtN(cmts) + '</span></button>' +
-          '<button class="x-act x-like' + (p.liked ? ' liked' : '') + '" id="like-btn-' + p.id + '" onclick="handleLike(this,\'' + p.id + '\')" style="display:flex;align-items:center;gap:.3rem;background:none;border:none;color:' + (p.liked ? '#f91880' : 'inherit') + ';cursor:pointer;font-size:.8rem;padding:0">' + likeIcon + '<span>' + fmtN(likes) + '</span></button>' +
-          '<div style="display:flex;align-items:center;gap:.3rem;font-size:.8rem">' + viewsIcon + '<span>' + fmtN(views) + '</span></div>' +
-          '<button class="x-act" onclick="copyPostLink(\'' + p.id + '\')" style="display:flex;align-items:center;background:none;border:none;color:inherit;cursor:pointer;padding:0">' + shareIcon + '</button>' +
-        '</div>' +
+    '<div class="ig-post-head">' +
+      '<div class="ig-post-user" onclick="openChannel(\'' + escJs(p.user_id || '') + '\')">' +
+        avatarHtml +
+        '<div class="ig-post-names"><span class="ig-post-name">' + escHtml(name) + '</span>' + verifiedSvg + '</div>' +
       '</div>' +
-    '</div>';
+      (isAnyAdmin() ? '<button class="ig-post-menu" data-role="admin" onclick="event.stopPropagation();adminDeletePost(\'' + escJs(p.id) + '\')">🗑</button>' : '') +
+    '</div>' +
+    mediaHtml +
+    '<div class="ig-post-actions">' +
+      '<button class="ig-act ig-like' + (p.liked ? ' liked' : '') + '" id="like-btn-' + p.id + '" onclick="handleLike(this,\'' + escJs(p.id) + '\')">' + heart + '</button>' +
+      '<button class="ig-act" onclick="openPostComments(\'' + escJs(p.id) + '\')">' + comment + '</button>' +
+      '<button class="ig-act" onclick="copyPostLink(\'' + escJs(p.id) + '\')">' + share + '</button>' +
+      (views ? '<span class="ig-views">' + viewsSvgSmall() + fmtN(views) + '</span>' : '') +
+    '</div>' +
+    (likes ? '<div class="ig-post-likes" id="likes-line-' + p.id + '">' + fmtN(likes) + (likes === 1 ? ' like' : ' likes') + '</div>' : '') +
+    captionHtml +
+    (cmts ? '<div class="ig-post-comments" onclick="openPostComments(\'' + escJs(p.id) + '\')">View all ' + fmtN(cmts) + (cmts === 1 ? ' comment' : ' comments') + '</div>' : '') +
+    (timeStr ? '<div class="ig-post-time">' + escHtml(timeStr) + '</div>' : '');
 
   return article;
+}
+
+function viewsSvgSmall() {
+  return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:2px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
 }
 
 // Relative time for home/channel posts (Xs / Xm / Xh / Xd / "Mon D").
@@ -360,29 +358,59 @@ window.handleLike = function (btn, postId) {
   var wasLiked = btn.classList.contains('liked');
   var nowLiked = !wasLiked;
   btn.classList.toggle('liked', nowLiked);
-  var span = btn.querySelector('span');
-  var curText = (span ? span.textContent : '0').replace(/[^\d.KM]/g, '');
-  var curNum = parseFloat(curText) || 0;
-  var mult = /K/.test(curText) ? 1000 : /M/.test(curText) ? 1000000 : 1;
-  var optimisticCount = Math.max(0, Math.round(curNum * mult) + (nowLiked ? 1 : -1));
-  _setLikeBtn(btn, nowLiked, optimisticCount);
+
+  // The like count lives on its own "N likes" line (Instagram style), not in
+  // the button. Find/create it inside the same post card.
+  var card = btn.closest('.ig-post');
+  var likesLine = card ? card.querySelector('.ig-post-likes') : document.getElementById('likes-line-' + postId);
+  var curNum = 0;
+  if (likesLine) {
+    var t = (likesLine.textContent || '').replace(/[^\d.KM]/g, '');
+    var n = parseFloat(t) || 0;
+    curNum = Math.round(n * (/K/.test(t) ? 1000 : /M/.test(t) ? 1000000 : 1));
+  }
+  var optimistic = Math.max(0, curNum + (nowLiked ? 1 : -1));
+  _setLikeUI(btn, card, nowLiked, optimistic);
 
   api.put('/posts', { id: postId, like: nowLiked })
     .then(function (res) {
-      if (res && typeof res.likes === 'number') _setLikeBtn(btn, nowLiked, res.likes);
+      if (res && typeof res.likes === 'number') _setLikeUI(btn, card, nowLiked, res.likes);
     })
     .catch(function (err) {
       btn.classList.toggle('liked', wasLiked);
-      _setLikeBtn(btn, wasLiked, Math.round(curNum * mult));
+      _setLikeUI(btn, card, wasLiked, curNum);
       console.warn('[HOME] Like update error:', err.message);
     });
 };
+function _heartSvg(liked) {
+  return liked
+    ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="#ed4956" stroke="#ed4956" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>'
+    : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+}
+function _setLikeUI(btn, card, liked, count) {
+  btn.classList.toggle('liked', liked);
+  btn.innerHTML = _heartSvg(liked);
+  var likesLine = card ? card.querySelector('.ig-post-likes') : null;
+  var label = fmtN(count) + (count === 1 ? ' like' : ' likes');
+  if (count > 0) {
+    if (likesLine) { likesLine.textContent = label; }
+    else if (card) {
+      // Create the likes line right after the actions row.
+      var actions = card.querySelector('.ig-post-actions');
+      if (actions) {
+        var el = document.createElement('div');
+        el.className = 'ig-post-likes';
+        el.textContent = label;
+        actions.insertAdjacentElement('afterend', el);
+      }
+    }
+  } else if (likesLine) {
+    likesLine.remove();
+  }
+}
 function _setLikeBtn(btn, liked, count) {
-  btn.style.color = liked ? '#f91880' : '';
-  var heart = liked
-    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="#f91880" stroke="#f91880" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>'
-    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>';
-  btn.innerHTML = heart + '<span>' + fmtN(count) + '</span>';
+  // Back-compat shim for any old callers.
+  _setLikeUI(btn, btn.closest ? btn.closest('.ig-post') : null, liked, count);
 }
 
 window.copyPostLink = function (postId) {
