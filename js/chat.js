@@ -548,7 +548,9 @@ window.openTelegramChannel = function (username, title) {
     if (!slot) return;
     var posts = (res && res.posts) || [];
     if (!posts.length) {
-      if (state) state.innerHTML = 'No posts here yet.<br><span style="font-size:.75rem">Posts appear once the Telegram sync has run.</span>' +
+      if (state) state.innerHTML = '⏳ <b>Fetching posts from Telegram…</b>' +
+        '<br><span style="font-size:.78rem">A newly-added channel takes a few minutes to pull its history. This page updates on its own — no need to refresh.</span>' +
+        '<br><span style="font-size:.72rem;color:var(--muted)">Make sure it\'s a public @username (a private t.me/+ link can\'t be synced).</span>' +
         '<br><br><a href="https://t.me/' + encodeURIComponent(username) + '" target="_blank" style="color:#229ED9;font-weight:600">Open @' + username + ' in Telegram →</a>';
       TG_posts = [];
       _tgStartLivePoll(username);   // so the first posts appear live once synced
