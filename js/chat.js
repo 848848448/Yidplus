@@ -2383,6 +2383,7 @@ function loadMessages(scrollToBottom) {
 function _isVid(key) { return /\.(mp4|webm|mov|mkv|avi|m4v|3gp|3g2|ogv|qt|mpeg|mpg|wmv|flv|ts|mts|m2ts|divx)$/i.test(key || ''); }
 
 function renderMessages(scrollDown) {
+  if (typeof applyChatWallpaper === 'function') applyChatWallpaper();
   var cont = document.getElementById('chat-msgs');
   if (!cont || !CHAT_curRoom) return;
 

@@ -62,7 +62,7 @@ export async function onRequestGet(context) {
       `SELECT id, email, nickname, phone, photo_url, banner_url, bio, location, birthday, website,
               instagram, youtube, profile_color, verified, role, created_at, profile_views,
               privacy_profile, privacy_messages, notif_messages, notif_likes, notif_followers, notif_channels,
-              no_ads, muted_until, is_private
+              no_ads, muted_until, is_private, show_online, read_receipts
        FROM users WHERE id = ?`
     ).bind(user.id).first().catch(() => env.DB.prepare(
       `SELECT id, email, nickname, phone, photo_url, banner_url, bio, location, birthday, website,
@@ -107,6 +107,7 @@ export async function onRequestGet(context) {
 }
 
 export async function onRequestPut(context) {
+  try { await context.env.DB.prepare("ALTER TABLE users ADD COLUMN show_online INTEGER DEFAULT 1").run().catch(()=>{}); await context.env.DB.prepare("ALTER TABLE users ADD COLUMN read_receipts INTEGER DEFAULT 1").run().catch(()=>{}); } catch(e){}
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
@@ -139,7 +140,7 @@ export async function onRequestPut(context) {
 
     const ALLOWED = ['bio','location','birthday','website','instagram','youtube','profile_color',
                      'privacy_profile','privacy_messages','notif_messages','notif_likes',
-                     'notif_followers','notif_channels','photo_url','banner_url','is_private'];
+                     'notif_followers','notif_channels','photo_url','banner_url','is_private','show_online','read_receipts'];
 
     const updates = []; const params = [];
 

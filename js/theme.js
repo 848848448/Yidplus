@@ -145,8 +145,15 @@ window.buildSettingsPage = function () {
     _section('Privacy', [
       _row('🔒', 'Private Account', _toggle('is_private', !!p.is_private) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">When ON, people must request to follow you before seeing your posts and statuses.</div>'),
       _row('👥', 'Follow Requests', '<button class="settings-edit-btn" onclick="openFollowRequests()" id="follow-req-btn">View</button>'),
+      _row('🟢', 'Active status', _toggle('show_online', p.show_online !== 0) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Let others see when you\'re online.</div>'),
+      _row('✔️', 'Read receipts', _toggle('read_receipts', p.read_receipts !== 0) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Show others when you\'ve read their message.</div>'),
       _row(_svg_privacy(), 'Who can see my profile', _select('privacy_profile', p.privacy_profile||'public', ['public:Everyone','friends:Friends only','private:Only me'])),
       _row(_svg_msg(), 'Who can message me', _select('privacy_messages', p.privacy_messages||'everyone', ['everyone:Everyone','friends:Friends only','nobody:Nobody'])),
+      _row('🚫', 'Blocked users', '<button class="settings-edit-btn" onclick="openBlockedUsers()">Manage</button>'),
+    ]) +
+    _section('Chat', [
+      _row('🖼️', 'Chat wallpaper', '<button class="settings-edit-btn" onclick="openWallpaperPicker()">Change</button>'),
+      _row('🔕', 'Muted chats', '<button class="settings-edit-btn" onclick="openMutedChats()">View</button>'),
     ]) +
     _section('Notifications', [
       _row(_svg_notif(), 'New Messages', _toggle('notif_messages', p.notif_messages!==0)),
@@ -183,6 +190,7 @@ window.buildSettingsPage = function () {
       _row(_svg_feedback(), 'Send Feedback', '›', 'onclick="openFeedbackModal()"'),
       _row('🧹', 'Clear cache', '<button class="settings-edit-btn" onclick="clearAppCache(this)">Clear</button>'),
       _row('ℹ️', 'About YID PLUS', '<span style="font-size:.72rem;color:var(--muted)">' + (window.YP_VERSION || 'v1.0') + '</span>'),
+      _row('📥', 'Download my data', '<button class="settings-edit-btn" onclick="downloadMyData(this)">Export</button>'),
     ]) +
     _section('More', [
       isAnyAdmin() ? _row(_svg_admin(), 'Admin Panel', '›', 'onclick="goPage(\'/admin\')"') : '',
@@ -496,3 +504,120 @@ window.clearAppCache = function (btn) {
     } else { done(); }
   } catch (e) { done(); }
 };
+
+// ══════════ Chat wallpaper ══════════
+var CHAT_WALLPAPERS = [
+  { id: 'default', name: 'Default', css: '' },
+  { id: 'mint',    name: 'Mint',    css: 'linear-gradient(160deg,#E7F5EE,#D3EBDF)' },
+  { id: 'sky',     name: 'Sky',     css: 'linear-gradient(160deg,#E3F0FB,#CFE3F5)' },
+  { id: 'sand',    name: 'Sand',    css: 'linear-gradient(160deg,#F6EFE2,#EADFC8)' },
+  { id: 'rose',    name: 'Rose',    css: 'linear-gradient(160deg,#FBE9EE,#F3D2DD)' },
+  { id: 'dusk',    name: 'Dusk',    css: 'linear-gradient(160deg,#2A2F45,#1C2033)' },
+  { id: 'charcoal',name: 'Charcoal',css: 'linear-gradient(160deg,#23262B,#15171A)' },
+];
+window.applyChatWallpaper = function () {
+  try {
+    var id = localStorage.getItem('yp_chat_wallpaper') || 'default';
+    var w = CHAT_WALLPAPERS.filter(function (x) { return x.id === id; })[0];
+    var bg = document.querySelector('.tg-chat-bg') || document.getElementById('chat-msgs');
+    if (bg) bg.style.background = (w && w.css) ? w.css : '';
+  } catch (e) {}
+};
+window.openWallpaperPicker = function () {
+  var cur = '';
+  try { cur = localStorage.getItem('yp_chat_wallpaper') || 'default'; } catch (e) {}
+  var sw = CHAT_WALLPAPERS.map(function (w) {
+    var sel = w.id === cur;
+    return '<div onclick="pickWallpaper(\'' + w.id + '\',this)" style="cursor:pointer;text-align:center">' +
+      '<div style="height:76px;border-radius:14px;background:' + (w.css || 'var(--bg2)') + ';border:' + (sel ? '3px solid var(--accent,#1F6F5C)' : '1px solid var(--border)') + '"></div>' +
+      '<div style="font-size:.72rem;margin-top:.25rem;color:var(--muted)">' + w.name + '</div></div>';
+  }).join('');
+  _settingsModal('Chat wallpaper', '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem">' + sw + '</div>');
+};
+window.pickWallpaper = function (id) {
+  try { localStorage.setItem('yp_chat_wallpaper', id); } catch (e) {}
+  toast('✅ Wallpaper set');
+  openWallpaperPicker();
+};
+
+// ══════════ Muted chats ══════════
+window.openMutedChats = function () {
+  _settingsModal('Muted chats', '<div id="muted-chats-list" style="color:var(--muted);font-size:.85rem">Loading…</div>');
+  api.get('/chat/rooms').then(function (res) {
+    var muted = (res.rooms || []).filter(function (r) { return r.muted; });
+    var el = document.getElementById('muted-chats-list');
+    if (!el) return;
+    if (!muted.length) { el.innerHTML = 'No muted chats.'; return; }
+    el.innerHTML = muted.map(function (r) {
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.55rem 0;border-bottom:1px solid var(--border)">' +
+        '<span style="font-weight:600;color:var(--text)">' + escHtml(r.nick || r.name || 'Chat') + '</span>' +
+        '<button class="settings-edit-btn" onclick="unmuteRoom(\'' + escJs(r.id) + '\',this)">Unmute</button>' +
+      '</div>';
+    }).join('');
+  }).catch(function () { var el = document.getElementById('muted-chats-list'); if (el) el.textContent = 'Could not load.'; });
+};
+window.unmuteRoom = function (roomId, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  api.put('/chat/rooms', { room_id: roomId, muted: false }).then(function () {
+    if (btn && btn.parentElement) btn.parentElement.style.display = 'none';
+    toast('🔔 Unmuted');
+  }).catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Unmute'; } });
+};
+
+// ══════════ Blocked users ══════════
+window.openBlockedUsers = function () {
+  _settingsModal('Blocked users', '<div id="blocked-list" style="color:var(--muted);font-size:.85rem">Loading…</div>');
+  api.get('/blocked-users').then(function (res) {
+    var list = (res && res.users) || [];
+    var el = document.getElementById('blocked-list');
+    if (!el) return;
+    if (!list.length) { el.innerHTML = "You haven't blocked anyone. You can block someone from their profile."; return; }
+    el.innerHTML = list.map(function (u) {
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.55rem 0;border-bottom:1px solid var(--border)">' +
+        '<span style="font-weight:600;color:var(--text)">' + escHtml(u.nickname || 'User') + '</span>' +
+        '<button class="settings-edit-btn" onclick="unblockUser(\'' + escJs(u.id) + '\',this)">Unblock</button>' +
+      '</div>';
+    }).join('');
+  }).catch(function () {
+    var el = document.getElementById('blocked-list');
+    if (el) el.innerHTML = "You haven't blocked anyone. You can block someone from their profile.";
+  });
+};
+window.unblockUser = function (uid, btn) {
+  if (btn) { btn.disabled = true; }
+  api.post('/blocked-users', { user_id: uid, action: 'unblock' }).then(function () {
+    if (btn && btn.parentElement) btn.parentElement.style.display = 'none';
+    toast('Unblocked');
+  }).catch(function () { if (btn) btn.disabled = false; });
+};
+
+// ══════════ Download my data ══════════
+window.downloadMyData = function (btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
+  api.get('/profile').then(function (res) {
+    var data = JSON.stringify(res, null, 2);
+    var blob = new Blob([data], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'yidplus-my-data.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    toast('✅ Your data downloaded');
+    if (btn) { btn.disabled = false; btn.textContent = 'Export'; }
+  }).catch(function () { toast('❌ Could not export'); if (btn) { btn.disabled = false; btn.textContent = 'Export'; } });
+};
+
+// Shared lightweight settings modal
+function _settingsModal(title, bodyHtml) {
+  var old = document.getElementById('settings-modal-x'); if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'settings-modal-x';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100060;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = '<div style="background:var(--surface);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:1rem 1.1rem 1.5rem;max-height:80vh;overflow-y:auto">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem">' +
+      '<div style="font-weight:800;font-size:1.05rem">' + title + '</div>' +
+      '<button onclick="document.getElementById(\'settings-modal-x\').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.3rem;padding:0 .3rem">×</button>' +
+    '</div>' + bodyHtml + '</div>';
+  document.body.appendChild(ov);
+}
