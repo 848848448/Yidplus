@@ -114,52 +114,57 @@ window.buildSettingsPage = function () {
     }).join('');
     var isDarkNow = document.documentElement.classList.contains('dark-mode');
 
-    host.innerHTML = _section('Appearance', [
-      _row(_svg_sun(), 'Dark Mode', '<div class="toggle-sw' + (isDarkNow?' on':'') + '" id="darkmode-toggle-sw" onclick="toggleDarkMode(this)"></div>'),
-      _row(_svg_text(), 'Text Size', '<div style="display:flex;gap:.35rem">' +
+    host.innerHTML = _section(t('Appearance'), [
+      _row(_svg_sun(), t('Dark Mode'), '<div class="toggle-sw' + (isDarkNow?' on':'') + '" id="darkmode-toggle-sw" onclick="toggleDarkMode(this)"></div>'),
+      _row(_svg_text(), t('Text Size'), '<div style="display:flex;gap:.35rem">' +
         ['S','M','L'].map(function(s,i){return '<button class="cs-font-btn' + (i===1?' active':'') + '" onclick="setChatFont(\'' + ['sm','md','lg'][i] + '\',this)">' + s + '</button>';}).join('') +
       '</div>'),
+      _row('🌐', t('Language'), '<select onchange="setLang(this.value)" style="padding:.35rem .5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem">' +
+        '<option value="en"' + (YP_LANG==='en'?' selected':'') + '>English</option>' +
+        '<option value="yi"' + (YP_LANG==='yi'?' selected':'') + '>ייִדיש</option>' +
+        '<option value="he"' + (YP_LANG==='he'?' selected':'') + '>עברית</option>' +
+      '</select>'),
     ]) +
-    _section('Color Theme', [
+    _section(t('Color Theme'), [
       '<div class="theme-swatch-row">' + swatches + '</div>',
       _row('', 'Accent color', '<input type="color" id="theme-custom-gold" value="' + ((current&&current.gold)||THEME_PRESETS[0].gold) + '" oninput="THEME_custom()">'),
       _row('', 'Background', '<input type="color" id="theme-custom-bg" value="' + ((current&&current.bg)||THEME_PRESETS[0].bg) + '" oninput="THEME_custom()">'),
       '<button class="theme-reset-btn" onclick="resetTheme()">Reset to Default</button>',
     ]) +
-    _section('Stats', [
+    _section(t('Stats'), [
       _statRow('📹', 'Videos', stats.shorts || 0),
       _statRow('🎵', 'Music Tracks', stats.music || 0),
       _statRow('💬', 'Messages', stats.messages || 0),
       _statRow('👁️', 'Profile Views', stats.profile_views || 0),
       _statRow('👥', 'Followers', stats.followers || 0),
     ]) +
-    _section('Profile', [
+    _section(t('Profile'), [
       _row(_svg_bio(), 'Bio', '<button class="settings-edit-btn" onclick="openEditField(\'bio\',\'Bio\',\'' + escHtml(p.bio||'') + '\')">Edit</button>'),
       _row(_svg_loc(), 'Location', '<button class="settings-edit-btn" onclick="openEditField(\'location\',\'Location\',\'' + escHtml(p.location||'') + '\')">Edit</button>'),
       _row(_svg_bday(), 'Birthday', '<button class="settings-edit-btn" onclick="openEditField(\'birthday\',\'Birthday\',\'' + escHtml(p.birthday||'') + '\',\'date\')">Edit</button>'),
       _row(_svg_web(), 'Website', '<button class="settings-edit-btn" onclick="openEditField(\'website\',\'Website\',\'' + escHtml(p.website||'') + '\',\'url\')">Edit</button>'),
       _row('📸', 'Instagram', '<button class="settings-edit-btn" onclick="openEditField(\'instagram\',\'Instagram\',\'' + escHtml(p.instagram||'') + '\')">Edit</button>'),
       _row('▶️', 'YouTube', '<button class="settings-edit-btn" onclick="openEditField(\'youtube\',\'YouTube\',\'' + escHtml(p.youtube||'') + '\',\'url\')">Edit</button>'),
-      _row(_svg_key(), 'Change Password', '<button class="settings-edit-btn" onclick="openChangePassword()">Change</button>'),
+      _row(_svg_key(), t('Change Password'), '<button class="settings-edit-btn" onclick="openChangePassword()">Change</button>'),
     ]) +
-    _section('Privacy', [
-      _row('🔒', 'Private Account', _toggle('is_private', !!p.is_private) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">When ON, people must request to follow you before seeing your posts and statuses.</div>'),
-      _row('👥', 'Follow Requests', '<button class="settings-edit-btn" onclick="openFollowRequests()" id="follow-req-btn">View</button>'),
-      _row('🟢', 'Active status', _toggle('show_online', p.show_online !== 0) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Let others see when you\'re online.</div>'),
-      _row('✔️', 'Read receipts', _toggle('read_receipts', p.read_receipts !== 0) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Show others when you\'ve read their message.</div>'),
-      _row(_svg_privacy(), 'Who can see my profile', _select('privacy_profile', p.privacy_profile||'public', ['public:Everyone','friends:Friends only','private:Only me'])),
-      _row(_svg_msg(), 'Who can message me', _select('privacy_messages', p.privacy_messages||'everyone', ['everyone:Everyone','friends:Friends only','nobody:Nobody'])),
-      _row('🚫', 'Blocked users', '<button class="settings-edit-btn" onclick="openBlockedUsers()">Manage</button>'),
+    _section(t('Privacy'), [
+      _row('🔒', t('Private Account'), _toggle('is_private', !!p.is_private) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">When ON, people must request to follow you before seeing your posts and statuses.</div>'),
+      _row('👥', t('Follow Requests'), '<button class="settings-edit-btn" onclick="openFollowRequests()" id="follow-req-btn">View</button>'),
+      _row('🟢', t('Active status'), _toggle('show_online', p.show_online !== 0) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Let others see when you\'re online.</div>'),
+      _row('✔️', t('Read receipts'), _toggle('read_receipts', p.read_receipts !== 0) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Show others when you\'ve read their message.</div>'),
+      _row(_svg_privacy(), t('Who can see my profile'), _select('privacy_profile', p.privacy_profile||'public', ['public:Everyone','friends:Friends only','private:Only me'])),
+      _row(_svg_msg(), t('Who can message me'), _select('privacy_messages', p.privacy_messages||'everyone', ['everyone:Everyone','friends:Friends only','nobody:Nobody'])),
+      _row('🚫', t('Blocked users'), '<button class="settings-edit-btn" onclick="openBlockedUsers()">Manage</button>'),
     ]) +
-    _section('Security', [
-      _row(_svg_key(), 'Change Password', '<button class="settings-edit-btn" onclick="openChangePassword()">Change</button>'),
-      _row('🔐', 'Two-factor authentication', '<button class="settings-edit-btn" id="twofa-btn" onclick="open2FA()">Set up</button>'),
+    _section(t('Security'), [
+      _row(_svg_key(), t('Change Password'), '<button class="settings-edit-btn" onclick="openChangePassword()">Change</button>'),
+      _row('🔐', t('Two-factor authentication'), '<button class="settings-edit-btn" id="twofa-btn" onclick="open2FA()">Set up</button>'),
     ]) +
-    _section('Chat', [
-      _row('🖼️', 'Chat wallpaper', '<button class="settings-edit-btn" onclick="openWallpaperPicker()">Change</button>'),
-      _row('🔕', 'Muted chats', '<button class="settings-edit-btn" onclick="openMutedChats()">View</button>'),
+    _section(t('Chat'), [
+      _row('🖼️', t('Chat wallpaper'), '<button class="settings-edit-btn" onclick="openWallpaperPicker()">Change</button>'),
+      _row('🔕', t('Muted chats'), '<button class="settings-edit-btn" onclick="openMutedChats()">View</button>'),
     ]) +
-    _section('Notifications', [
+    _section(t('Notifications'), [
       _row(_svg_notif(), 'New Messages', _toggle('notif_messages', p.notif_messages!==0)),
       _row('❤️', 'New Likes', _toggle('notif_likes', p.notif_likes!==0)),
       _row('👤', 'New Followers', _toggle('notif_followers', p.notif_followers!==0)),
@@ -174,7 +179,7 @@ window.buildSettingsPage = function () {
       }).join('') +
       (sessions.length > 1 ? '<button class="theme-reset-btn" style="color:#E11D48;border-color:#FFCDD2;margin-top:.5rem" onclick="logoutAllSessions()">Logout All Devices</button>' : ''),
     ]) +
-    _section('Verification', [
+    _section(t('Verification'), [
       p.verified
         ? _row('✅', 'Verified account', '<span style="font-size:.72rem;color:var(--green);font-weight:700">Active</span>')
         : _row('✅', 'Get verified', '<button class="settings-edit-btn" onclick="requestVerification(this)">Request</button>'),
@@ -189,15 +194,15 @@ window.buildSettingsPage = function () {
       _row('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
         'Add to Home Screen', '<button class="settings-edit-btn" onclick="PWA.install()">Install</button>'),
     ]) +
-    _section('Help & About', [
-      _row('💬', 'Help & Support', '›', 'onclick="openGuidedSupport()"'),
-      _row(_svg_feedback(), 'Send Feedback', '›', 'onclick="openFeedbackModal()"'),
-      _row('🧹', 'Clear cache', '<button class="settings-edit-btn" onclick="clearAppCache(this)">Clear</button>'),
-      _row('ℹ️', 'About YID PLUS', '<span style="font-size:.72rem;color:var(--muted)">' + (window.YP_VERSION || 'v1.0') + '</span>'),
-      _row('📥', 'Download my data', '<button class="settings-edit-btn" onclick="downloadMyData(this)">Export</button>'),
+    _section(t('Help & About'), [
+      _row('💬', t('Help & Support'), '›', 'onclick="openGuidedSupport()"'),
+      _row(_svg_feedback(), t('Send Feedback'), '›', 'onclick="openFeedbackModal()"'),
+      _row('🧹', t('Clear cache'), '<button class="settings-edit-btn" onclick="clearAppCache(this)">Clear</button>'),
+      _row('ℹ️', t('About YID PLUS'), '<span style="font-size:.72rem;color:var(--muted)">' + (window.YP_VERSION || 'v1.0') + '</span>'),
+      _row('📥', t('Download my data'), '<button class="settings-edit-btn" onclick="downloadMyData(this)">Export</button>'),
     ]) +
-    _section('More', [
-      isAnyAdmin() ? _row(_svg_admin(), 'Admin Panel', '›', 'onclick="goPage(\'/admin\')"') : '',
+    _section(t('More'), [
+      isAnyAdmin() ? _row(_svg_admin(), t('Admin Panel'), '›', 'onclick="goPage(\'/admin\')"') : '',
     ]) +
     '<div class="settings-danger-section">' +
       '<button class="settings-danger-btn" onclick="confirmDeleteAccount()">Delete Account</button>' +
