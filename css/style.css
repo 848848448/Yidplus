@@ -1961,3 +1961,14 @@ html.dark-mode .bubble.me .voice-dur { color: rgba(255,255,255,.85); }
 .ig-post-caption b { font-weight: 700; cursor: pointer; margin-inline-end: .3rem; }
 .ig-post-comments { font-size: .86rem; color: var(--muted); padding: .3rem .85rem 0; cursor: pointer; }
 .ig-post-time { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; padding: .35rem .85rem 0; }
+
+/* ══════════ Modern settings polish ══════════ */
+.settings-icon-badge { width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, #35B090, #1F6F5C); color: #fff; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: .95rem; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.settings-icon-badge svg { width: 17px; height: 17px; stroke: #fff; }
+.settings-item-row { padding: .7rem .9rem; gap: .6rem; }
+.settings-item-label { font-weight: 500; }
+.settings-section-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 800; padding: 1rem 1rem .4rem; }
+.settings-profile-hdr { background: linear-gradient(160deg, rgba(31,111,92,.10), var(--surface) 60%); }
+html.dark-mode .settings-profile-hdr { background: linear-gradient(160deg, rgba(46,158,130,.16), var(--surface) 60%); }
+.settings-avatar { border: 3px solid #fff; box-shadow: 0 3px 12px rgba(0,0,0,.12); }
+html.dark-mode .settings-avatar { border-color: var(--surface); }

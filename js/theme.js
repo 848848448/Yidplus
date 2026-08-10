@@ -178,9 +178,14 @@ window.buildSettingsPage = function () {
       _row('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
         'Add to Home Screen', '<button class="settings-edit-btn" onclick="PWA.install()">Install</button>'),
     ]) +
+    _section('Help & About', [
+      _row('💬', 'Help & Support', '›', 'onclick="openGuidedSupport()"'),
+      _row(_svg_feedback(), 'Send Feedback', '›', 'onclick="openFeedbackModal()"'),
+      _row('🧹', 'Clear cache', '<button class="settings-edit-btn" onclick="clearAppCache(this)">Clear</button>'),
+      _row('ℹ️', 'About YID PLUS', '<span style="font-size:.72rem;color:var(--muted)">' + (window.YP_VERSION || 'v1.0') + '</span>'),
+    ]) +
     _section('More', [
       isAnyAdmin() ? _row(_svg_admin(), 'Admin Panel', '›', 'onclick="goPage(\'/admin\')"') : '',
-      _row(_svg_feedback(), 'Send Feedback', '›', 'onclick="openFeedbackModal()"'),
     ]) +
     '<div class="settings-danger-section">' +
       '<button class="settings-danger-btn" onclick="confirmDeleteAccount()">Delete Account</button>' +
@@ -208,7 +213,7 @@ function _section(title, rows) {
 function _row(icon, label, control, extraAttrs) {
   return '<div class="settings-item-row" ' + (extraAttrs||'') + '>' +
     '<div style="display:flex;align-items:center;gap:.6rem;flex:1;min-width:0">' +
-      (icon ? '<span style="color:var(--gold);flex-shrink:0;width:20px;text-align:center">' + icon + '</span>' : '') +
+      (icon ? '<span class="settings-icon-badge">' + icon + '</span>' : '') +
       '<span class="settings-item-label">' + label + '</span>' +
     '</div>' +
     '<div class="settings-item-control">' + control + '</div>' +
@@ -218,10 +223,10 @@ function _row(icon, label, control, extraAttrs) {
 function _statRow(icon, label, val) {
   return '<div class="settings-item-row">' +
     '<div style="display:flex;align-items:center;gap:.6rem;flex:1">' +
-      '<span style="color:var(--gold);width:20px;text-align:center">' + icon + '</span>' +
+      '<span class="settings-icon-badge">' + icon + '</span>' +
       '<span class="settings-item-label">' + label + '</span>' +
     '</div>' +
-    '<span style="font-size:.88rem;font-weight:700;color:var(--gold)">' + fmtN(val) + '</span>' +
+    '<span style="font-size:.88rem;font-weight:700;color:var(--accent,#1F6F5C)">' + fmtN(val) + '</span>' +
   '</div>';
 }
 
@@ -468,4 +473,26 @@ window.requestVerification = function (btn) {
       toast('❌ ' + err.message);
       if (btn) { btn.disabled = false; btn.textContent = 'Request'; }
     });
+};
+
+// Clear caches + service worker caches and reload fresh (handy if the app feels
+// stuck on an old version).
+window.clearAppCache = function (btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Clearing…'; }
+  var done = function () {
+    try {
+      // Keep the session token; clear the rest of the cached app state.
+      var keep = {};
+      ['yp_token', 'authToken', 'token'].forEach(function (k) { if (localStorage.getItem(k)) keep[k] = localStorage.getItem(k); });
+    } catch (e) {}
+    toast('✅ Cache cleared — reloading…');
+    setTimeout(function () { location.reload(); }, 600);
+  };
+  try {
+    if (window.caches && caches.keys) {
+      caches.keys().then(function (names) {
+        return Promise.all(names.map(function (n) { return caches.delete(n); }));
+      }).then(done).catch(done);
+    } else { done(); }
+  } catch (e) { done(); }
 };
