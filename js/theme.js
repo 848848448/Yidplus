@@ -151,6 +151,10 @@ window.buildSettingsPage = function () {
       _row(_svg_msg(), 'Who can message me', _select('privacy_messages', p.privacy_messages||'everyone', ['everyone:Everyone','friends:Friends only','nobody:Nobody'])),
       _row('🚫', 'Blocked users', '<button class="settings-edit-btn" onclick="openBlockedUsers()">Manage</button>'),
     ]) +
+    _section('Security', [
+      _row(_svg_key(), 'Change Password', '<button class="settings-edit-btn" onclick="openChangePassword()">Change</button>'),
+      _row('🔐', 'Two-factor authentication', '<button class="settings-edit-btn" id="twofa-btn" onclick="open2FA()">Set up</button>'),
+    ]) +
     _section('Chat', [
       _row('🖼️', 'Chat wallpaper', '<button class="settings-edit-btn" onclick="openWallpaperPicker()">Change</button>'),
       _row('🔕', 'Muted chats', '<button class="settings-edit-btn" onclick="openMutedChats()">View</button>'),
@@ -621,3 +625,62 @@ function _settingsModal(title, bodyHtml) {
     '</div>' + bodyHtml + '</div>';
   document.body.appendChild(ov);
 }
+
+// ══════════ Two-factor authentication (TOTP) ══════════
+window.open2FA = function () {
+  _settingsModal('Two-factor authentication', '<div id="twofa-body" style="font-size:.85rem;color:var(--muted)">Loading…</div>');
+  api.get('/2fa').then(function (res) {
+    var body = document.getElementById('twofa-body');
+    if (!body) return;
+    if (res.enabled) {
+      body.innerHTML =
+        '<div style="color:var(--text);margin-bottom:.8rem">🔐 Two-factor authentication is <b style="color:#1F6F5C">ON</b>. You\'ll enter a 6-digit code from your authenticator app each time you sign in.</div>' +
+        '<label style="font-size:.75rem;color:var(--muted)">Enter a current code to turn it off</label>' +
+        '<input id="twofa-code" inputmode="numeric" maxlength="6" placeholder="000000" style="width:100%;box-sizing:border-box;text-align:center;letter-spacing:.4em;font-size:1.3rem;padding:.6rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);margin:.4rem 0 .8rem">' +
+        '<button class="theme-reset-btn" style="color:#E11D48;border-color:#FFCDD2;width:100%" onclick="disable2FA(this)">Turn off 2FA</button>';
+    } else {
+      body.innerHTML = '<div style="color:var(--text);margin-bottom:.8rem">Add an extra layer of security. You\'ll use an authenticator app (Google Authenticator, Authy, 1Password…) to get a 6-digit code when signing in.</div>' +
+        '<button class="settings-edit-btn" style="width:100%;padding:.6rem" onclick="start2FASetup(this)">Begin setup</button>';
+    }
+  }).catch(function () { var b = document.getElementById('twofa-body'); if (b) b.textContent = 'Could not load.'; });
+};
+window.start2FASetup = function (btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Setting up…'; }
+  api.post('/2fa', { action: 'setup' }).then(function (res) {
+    var body = document.getElementById('twofa-body');
+    if (!body) return;
+    if (!res.ok) { toast('❌ ' + (res.error || 'Failed')); return; }
+    window._2faSecret = res.secret;
+    body.innerHTML =
+      '<div style="color:var(--text);margin-bottom:.5rem">1. In your authenticator app, add an account and enter this key:</div>' +
+      '<div onclick="_copy2fa()" style="font-family:monospace;font-size:1.05rem;font-weight:800;letter-spacing:.12em;text-align:center;background:var(--bg3);border:1px dashed var(--border);border-radius:10px;padding:.7rem;color:var(--text);cursor:pointer;word-break:break-all">' + res.secret + '</div>' +
+      '<div style="font-size:.68rem;color:var(--muted);text-align:center;margin:.2rem 0 .9rem">Tap to copy · Account: YID PLUS</div>' +
+      '<div style="color:var(--text);margin-bottom:.4rem">2. Enter the 6-digit code it shows:</div>' +
+      '<input id="twofa-code" inputmode="numeric" maxlength="6" placeholder="000000" style="width:100%;box-sizing:border-box;text-align:center;letter-spacing:.4em;font-size:1.3rem;padding:.6rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);margin:.2rem 0 .8rem">' +
+      '<button class="settings-edit-btn" style="width:100%;padding:.6rem" onclick="enable2FA(this)">Turn on 2FA</button>';
+  }).catch(function () { toast('❌ Could not start setup'); });
+};
+window._copy2fa = function () {
+  try { navigator.clipboard.writeText(window._2faSecret || ''); toast('📋 Key copied'); } catch (e) {}
+};
+window.enable2FA = function (btn) {
+  var code = (document.getElementById('twofa-code') || {}).value || '';
+  if (code.replace(/\D/g, '').length !== 6) { toast('Enter the 6-digit code'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
+  api.post('/2fa', { action: 'enable', secret: window._2faSecret, code: code }).then(function (res) {
+    if (!res.ok) { toast('❌ ' + (res.error || 'Wrong code')); if (btn) { btn.disabled = false; btn.textContent = 'Turn on 2FA'; } return; }
+    toast('🔐 Two-factor is ON');
+    var b = document.getElementById('twofa-btn'); if (b) b.textContent = 'On';
+    var ov = document.getElementById('settings-modal-x'); if (ov) ov.remove();
+  }).catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Turn on 2FA'; } });
+};
+window.disable2FA = function (btn) {
+  var code = (document.getElementById('twofa-code') || {}).value || '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Turning off…'; }
+  api.post('/2fa', { action: 'disable', code: code }).then(function (res) {
+    if (!res.ok) { toast('❌ ' + (res.error || 'Failed')); if (btn) { btn.disabled = false; btn.textContent = 'Turn off 2FA'; } return; }
+    toast('Two-factor turned off');
+    var b = document.getElementById('twofa-btn'); if (b) b.textContent = 'Set up';
+    var ov = document.getElementById('settings-modal-x'); if (ov) ov.remove();
+  }).catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Turn off 2FA'; } });
+};

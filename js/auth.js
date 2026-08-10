@@ -80,7 +80,7 @@ function AUTH_goHome() {
 }
 
 // ── LOGIN ────────────────────────────────────────
-window.doLogin = function () {
+window.doLogin = function (totpCode) {
   var email = (document.getElementById('l-email').value || '').trim();
   var pass  =  document.getElementById('l-pass').value  || '';
   AUTH_clearMsg();
@@ -90,7 +90,7 @@ window.doLogin = function () {
 
   setLoad('l', true);
 
-  AUTH.login(email, pass)
+  AUTH.login(email, pass, totpCode)
     .then(function (user) {
       setLoad('l', false);
 
@@ -111,6 +111,13 @@ window.doLogin = function () {
     })
     .catch(function (err) {
       setLoad('l', false);
+      // Account has two-factor on — ask for the 6-digit code and retry.
+      if (err && err.data && err.data.need_2fa) {
+        var code = prompt('🔐 Two-factor authentication\n\nEnter the 6-digit code from your authenticator app:');
+        if (code && code.replace(/\D/g, '').length === 6) { window.doLogin(code.replace(/\D/g, '')); }
+        else AUTH_showMsg('err', 'A 6-digit code is required to sign in.');
+        return;
+      }
       var msg = (err.message || '').indexOf('Invalid') !== -1
         ? 'Wrong email or password.'
         : (err.message || 'Login failed.');

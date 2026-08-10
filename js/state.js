@@ -654,8 +654,8 @@ window.AUTH = {
     } catch (e) { return ''; }
   },
 
-  login: function (email, password) {
-    return api.post('/auth/login', { email: email, password: password, fingerprint: AUTH._fingerprint() })
+  login: function (email, password, totpCode) {
+    return api.post('/auth/login', { email: email, password: password, totp_code: totpCode || '', fingerprint: AUTH._fingerprint() })
       .then(function (res) {
         STATE.user = res.user;
         Presence.start();

@@ -116,6 +116,22 @@ export async function onRequestPost(context) {
     }
     if (user.blocked) return json({ ok: false, error: 'Account suspended. Contact support.' }, 403);
 
+    // ── Two-factor authentication ──
+    // If this account has 2FA on, a valid TOTP code is required before we issue
+    // a session. Missing code → tell the client to prompt for one.
+    try {
+      const tf = await env.DB.prepare('SELECT totp_secret, totp_enabled FROM users WHERE id = ?').bind(user.id).first().catch(() => null);
+      if (tf && tf.totp_enabled && tf.totp_secret) {
+        const { verifyTotp } = await import('../_totp.js');
+        const code = (body.totp_code || '').toString().trim();
+        if (!code) return json({ ok: false, need_2fa: true, error: 'Enter your 6-digit authentication code.' }, 401);
+        if (!(await verifyTotp(tf.totp_secret, code))) {
+          return json({ ok: false, need_2fa: true, error: 'That code is not correct.' }, 401);
+        }
+      }
+    } catch (e) { /* if the 2FA check errors, don't lock the user out */ }
+
+
     // Email verification is a soft reminder now, not a hard gate — signing in
     // never locks someone out of their own account. If the setting is on and
     // this account hasn't confirmed yet, we let them in but flag it so the app
