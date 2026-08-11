@@ -2386,6 +2386,7 @@ function _isVid(key) { return /\.(mp4|webm|mov|mkv|avi|m4v|3gp|3g2|ogv|qt|mpeg|m
 
 function renderMessages(scrollDown) {
   if (typeof applyChatWallpaper === 'function') applyChatWallpaper();
+  if (typeof _updateCallButtons === 'function') _updateCallButtons();
   var cont = document.getElementById('chat-msgs');
   if (!cont || !CHAT_curRoom) return;
 
@@ -7874,3 +7875,23 @@ window._imgRetry = function (el) {
     setTimeout(function () { try { el.removeAttribute('src'); el.src = s; } catch (e) {} }, 800);
   } catch (e) {}
 };
+
+// ══════════ Voice/Video call buttons (1-on-1 only) ══════════
+function _updateCallButtons() {
+  var isPrivate = CHAT_curRoom && CHAT_curRoom.type === 'private';
+  ['cr-call-audio', 'cr-call-video'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle('show', !!isPrivate);
+  });
+}
+window.crStartCall = function (kind) {
+  if (!CHAT_curRoom || CHAT_curRoom.type !== 'private') { toast('Calls are for 1-on-1 chats'); return; }
+  var uid = CHAT_curRoom.other_user_id || CHAT_curRoom.id;
+  var name = CHAT_curRoom.nick || CHAT_curRoom.name || 'User';
+  var photo = CHAT_curRoom.other_photo || CHAT_curRoom.photo_url || CHAT_curRoom.other_photo_url || '';
+  if (typeof startCall === 'function') startCall(uid, name, kind, photo);
+  else toast('Calling is loading — try again in a moment');
+};
+// Watch for incoming calls whenever the chat page is open and signed in.
+if (typeof startCallWatcher === 'function') { try { startCallWatcher(); } catch (e) {} }
+else { document.addEventListener('DOMContentLoaded', function () { if (typeof startCallWatcher === 'function') startCallWatcher(); }); }

@@ -1972,3 +1972,22 @@ html.dark-mode .bubble.me .voice-dur { color: rgba(255,255,255,.85); }
 html.dark-mode .settings-profile-hdr { background: linear-gradient(160deg, rgba(46,158,130,.16), var(--surface) 60%); }
 .settings-avatar { border: 3px solid #fff; box-shadow: 0 3px 12px rgba(0,0,0,.12); }
 html.dark-mode .settings-avatar { border-color: var(--surface); }
+
+/* ══════════ Voice/Video calls ══════════ */
+#call-overlay { position: fixed; inset: 0; z-index: 100080; background: #0b141a; display: flex; align-items: center; justify-content: center; }
+#call-remote-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #0b141a; }
+#call-remote-fallback { position: relative; z-index: 1; text-align: center; color: #fff; }
+#call-local-video { position: absolute; top: max(1rem, env(safe-area-inset-top)); right: 1rem; width: 104px; height: 150px; object-fit: cover; border-radius: 14px; border: 2px solid rgba(255,255,255,.35); background: #1a2730; z-index: 2; box-shadow: 0 4px 16px rgba(0,0,0,.4); }
+.call-av-big { width: 110px; height: 110px; border-radius: 50%; margin: 0 auto 1rem; background: linear-gradient(135deg, #35B090, #1F6F5C); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-size: 2.6rem; font-weight: 800; color: #fff; box-shadow: 0 6px 24px rgba(0,0,0,.4); }
+.call-peer-name { font-size: 1.4rem; font-weight: 700; color: #fff; margin-bottom: .3rem; }
+#call-status { color: #cbd5e1; font-size: .9rem; }
+.call-controls { position: absolute; bottom: max(2rem, env(safe-area-inset-bottom)); left: 0; right: 0; display: flex; gap: 1.4rem; justify-content: center; z-index: 3; }
+.call-btn { width: 62px; height: 62px; border-radius: 50%; border: none; cursor: pointer; background: rgba(255,255,255,.18); color: #fff; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); transition: transform .1s, background .15s; }
+.call-btn:active { transform: scale(.9); }
+.call-btn-off { background: #fff; color: #0b141a; }
+.call-btn-end { background: #ef4444; }
+.call-btn-accept { background: #22c55e; }
+#call-incoming { position: fixed; inset: 0; z-index: 100090; background: rgba(11,20,26,.97); display: flex; align-items: center; justify-content: center; }
+.call-inc-card { text-align: center; padding: 2rem; }
+.cr-call-btn { display: none; }
+.cr-call-btn.show { display: flex; }
