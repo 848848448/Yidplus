@@ -273,19 +273,39 @@
   }
 
   // Flip between front and back camera.
-  window.flipCamera = function () {
-    if (!CALL.local || CALL.kind !== 'video' || !CALL.pc) return;
+  window.flipCamera = function (btn) {
+    if (!CALL.local || CALL.kind !== 'video' || !CALL.pc) { toast && toast('Flip is only for video calls'); return; }
+    if (CALL._flipping) return; CALL._flipping = true;
     CALL._facing = CALL._facing === 'environment' ? 'user' : 'environment';
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: CALL._facing }, audio: false })
+    var old = CALL.local.getVideoTracks()[0];
+    // Some phones only allow one camera open at a time — release the old one first.
+    if (old) { try { old.stop(); } catch (e) {} }
+    navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: CALL._facing } } })
       .then(function (stream) {
-        var nt = stream.getVideoTracks()[0]; if (!nt) return;
+        var nt = stream.getVideoTracks()[0];
+        if (!nt) throw new Error('no track');
         var sender = CALL.pc.getSenders().filter(function (s) { return s.track && s.track.kind === 'video'; })[0];
         if (sender) sender.replaceTrack(nt);
-        var old = CALL.local.getVideoTracks()[0];
-        if (old) { CALL.local.removeTrack(old); old.stop(); }
+        if (old) { try { CALL.local.removeTrack(old); } catch (e) {} }
         CALL.local.addTrack(nt);
+        // Mirror the self-view only for the front camera (like the phone camera app).
+        var lv = document.getElementById('call-local-video');
+        if (lv) lv.style.transform = CALL._facing === 'user' ? 'scaleX(-1)' : 'none';
         _attachLocal(CALL.local);
-      }).catch(function () { toast && toast('Could not switch camera'); });
+        CALL._flipping = false;
+      })
+      .catch(function () {
+        CALL._flipping = false;
+        // Restore the previous camera if the flip failed.
+        navigator.mediaDevices.getUserMedia({ audio: false, video: _videoConstraints() })
+          .then(function (s2) {
+            var t2 = s2.getVideoTracks()[0]; if (!t2) return;
+            var snd = CALL.pc.getSenders().filter(function (s) { return s.track && s.track.kind === 'video'; })[0];
+            if (snd) snd.replaceTrack(t2);
+            CALL.local.addTrack(t2); _attachLocal(CALL.local);
+          }).catch(function () {});
+        toast && toast('This device has only one camera');
+      });
   };
 
   // Share your screen (swap the camera track for the screen track).
