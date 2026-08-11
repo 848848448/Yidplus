@@ -2387,6 +2387,7 @@ function _isVid(key) { return /\.(mp4|webm|mov|mkv|avi|m4v|3gp|3g2|ogv|qt|mpeg|m
 function renderMessages(scrollDown) {
   if (typeof applyChatWallpaper === 'function') applyChatWallpaper();
   if (typeof _updateCallButtons === 'function') _updateCallButtons();
+  if (typeof _syncGroupCallBanner === 'function') _syncGroupCallBanner();
   var cont = document.getElementById('chat-msgs');
   if (!cont || !CHAT_curRoom) return;
 
@@ -7903,3 +7904,40 @@ window.crStartCall = function (kind) {
 // Watch for incoming calls whenever the chat page is open and signed in.
 if (typeof startCallWatcher === 'function') { try { startCallWatcher(); } catch (e) {} }
 else { document.addEventListener('DOMContentLoaded', function () { if (typeof startCallWatcher === 'function') startCallWatcher(); }); }
+
+// ══════════ "Call in progress — Join" banner for group chats ══════════
+var _gcWatchedRoom = null, _gcBannerTimer = null;
+function _syncGroupCallBanner() {
+  var rid = (CHAT_curRoom && CHAT_curRoom.type === 'group') ? CHAT_curRoom.id : null;
+  if (rid === _gcWatchedRoom) return;         // same room, nothing to do
+  _gcWatchedRoom = rid;
+  clearInterval(_gcBannerTimer); _hideGcBanner();
+  if (!rid) return;
+  var check = function () {
+    if (!CHAT_curRoom || CHAT_curRoom.id !== rid || CHAT_curRoom.type !== 'group') { clearInterval(_gcBannerTimer); _hideGcBanner(); return; }
+    if (window.GCALL && GCALL.roomId === rid) { _hideGcBanner(); return; }   // I'm already in it
+    api.get('/group-call?room_id=' + encodeURIComponent(rid)).then(function (res) {
+      if (res && res.ok && (res.participants || []).length) _showGcBanner((res.participants || []).length);
+      else _hideGcBanner();
+    }).catch(function () {});
+  };
+  check();
+  _gcBannerTimer = setInterval(check, 6000);
+}
+function _showGcBanner(n) {
+  var b = document.getElementById('gc-join-banner');
+  if (!b) {
+    var msgs = document.getElementById('chat-msgs') || document.querySelector('.chat-messages');
+    if (!msgs || !msgs.parentNode) return;
+    b = document.createElement('div');
+    b.id = 'gc-join-banner';
+    b.style.cssText = 'position:absolute;top:0;left:0;right:0;z-index:20;background:#1F6F5C;color:#fff;display:flex;align-items:center;justify-content:center;gap:.6rem;padding:.55rem;font-size:.85rem;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)';
+    b.onclick = function () { crStartCall('video'); };
+    msgs.parentNode.style.position = msgs.parentNode.style.position || 'relative';
+    msgs.parentNode.insertBefore(b, msgs);
+  }
+  b.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>' +
+    '<span>Call in progress · ' + n + ' on the call — tap to join</span>';
+  b.style.display = 'flex';
+}
+function _hideGcBanner() { var b = document.getElementById('gc-join-banner'); if (b) b.style.display = 'none'; }
