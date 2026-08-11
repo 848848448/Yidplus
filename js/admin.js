@@ -5597,6 +5597,12 @@ function buildGodModePanel(content) {
       '<input id="gm-search" placeholder="Search any user by name or email…" oninput="_gmSearch()" style="flex:1;padding:.6rem .8rem;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);font-family:inherit;font-size:.9rem">' +
     '</div>' +
     '<div id="gm-results" style="margin-bottom:1rem"></div>' +
+    '<div id="gm-bulk-bar" style="display:none;align-items:center;gap:.5rem;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.5rem .7rem;margin-bottom:1rem">' +
+      '<span style="font-size:.8rem;font-weight:700"><span id="gm-bulk-count">0</span> selected</span>' +
+      '<button onclick="_gmBulk(\'verify\')" style="background:#1F6F5C;color:#fff;border:none;border-radius:8px;padding:.35rem .7rem;font-size:.76rem;font-weight:700;cursor:pointer">✓ Verify</button>' +
+      '<button onclick="_gmBulk(\'block\')" style="background:#E11D48;color:#fff;border:none;border-radius:8px;padding:.35rem .7rem;font-size:.76rem;font-weight:700;cursor:pointer">🚫 Block</button>' +
+      '<button onclick="_gmBulk(\'unblock\')" style="background:none;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:.35rem .7rem;font-size:.76rem;font-weight:700;cursor:pointer">Unblock</button>' +
+    '</div>' +
     // Quick stats
     '<div id="gm-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.5rem;margin-bottom:1rem"></div>' +
     // Live feed
@@ -5631,11 +5637,14 @@ window._gmSearch = function () {
       var el = document.getElementById('gm-results'); if (!el) return;
       if (!list.length) { el.innerHTML = '<div style="color:var(--muted);font-size:.82rem;padding:.5rem">No users found.</div>'; return; }
       el.innerHTML = list.map(function (u) {
-        return '<div onclick="openUserDetailModal(\'' + escAttrA(u.id) + '\')" style="display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border:1px solid var(--border);border-radius:10px;margin-bottom:.4rem;cursor:pointer;background:var(--surface)">' +
-          '<div style="width:34px;height:34px;border-radius:50%;background:' + (u.photo_url ? 'url(' + u.photo_url + ') center/cover' : 'linear-gradient(135deg,#35B090,#1F6F5C)') + ';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0">' + (u.photo_url ? '' : escHtml((u.nickname || '?').slice(0,1).toUpperCase())) + '</div>' +
-          '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.86rem">' + escHtml(u.nickname || 'User') + (u.verified ? ' ✓' : '') + '</div>' +
-          '<div style="font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(u.email || '') + (u.blocked ? ' · 🚫 blocked' : '') + '</div></div>' +
-          '<span style="font-size:.7rem;color:var(--blue,#185FA5);font-weight:700">Open →</span>' +
+        return '<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border:1px solid var(--border);border-radius:10px;margin-bottom:.4rem;background:var(--surface)">' +
+          '<input type="checkbox" onclick="event.stopPropagation();_gmToggleSel(\'' + escAttrA(u.id) + '\',this)" style="width:18px;height:18px;flex-shrink:0">' +
+          '<div onclick="openUserDetailModal(\'' + escAttrA(u.id) + '\')" style="display:flex;align-items:center;gap:.6rem;flex:1;min-width:0;cursor:pointer">' +
+            '<div style="width:34px;height:34px;border-radius:50%;background:' + (u.photo_url ? 'url(' + u.photo_url + ') center/cover' : 'linear-gradient(135deg,#35B090,#1F6F5C)') + ';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0">' + (u.photo_url ? '' : escHtml((u.nickname || '?').slice(0,1).toUpperCase())) + '</div>' +
+            '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.86rem">' + escHtml(u.nickname || 'User') + (u.verified ? ' ✓' : '') + '</div>' +
+            '<div style="font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(u.email || '') + (u.blocked ? ' · 🚫 blocked' : '') + '</div></div>' +
+          '</div>' +
+          '<button onclick="event.stopPropagation();openLiveWatch(\'' + escAttrA(u.id) + '\',\'' + escAttrA(u.nickname || '') + '\')" title="Live watch" style="background:none;border:1px solid var(--border);border-radius:8px;padding:.3rem .5rem;cursor:pointer;font-size:.72rem;flex-shrink:0">📡</button>' +
         '</div>';
       }).join('');
     }).catch(function () {});
@@ -5698,3 +5707,67 @@ function _gmAgo(ts) {
   if (s < 86400) return Math.floor(s / 3600) + 'h ago';
   return Math.floor(s / 86400) + 'd ago';
 }
+
+// ══════════ God Mode: Live Watch a single user ══════════
+window.openLiveWatch = function (userId, name) {
+  var ov = document.getElementById('live-watch-overlay'); if (ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'live-watch-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100070;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+  ov.onclick = function (e) { if (e.target === ov) closeLiveWatch(); };
+  ov.innerHTML = '<div style="background:var(--surface);width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:1rem 1.1rem 1.5rem;max-height:82vh;overflow-y:auto">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem">' +
+      '<div style="font-weight:800;font-size:1.05rem">📡 Live Watch <span id="lw-live" style="color:#ef4444;font-size:.7rem">● LIVE</span></div>' +
+      '<button onclick="closeLiveWatch()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.3rem">×</button>' +
+    '</div>' +
+    '<div id="lw-head" style="font-size:.8rem;color:var(--muted);margin-bottom:.8rem">Loading @' + escHtml(name || '') + '…</div>' +
+    '<div id="lw-body"><div class="feed-state"><div class="spinner"></div></div></div>' +
+  '</div>';
+  document.body.appendChild(ov);
+  window._lwUser = userId;
+  _lwLoad();
+  clearInterval(window._lwTimer);
+  window._lwTimer = setInterval(function () { if (document.getElementById('live-watch-overlay')) _lwLoad(true); else clearInterval(window._lwTimer); }, 8000);
+};
+window.closeLiveWatch = function () { clearInterval(window._lwTimer); var o = document.getElementById('live-watch-overlay'); if (o) o.remove(); };
+function _lwLoad(quiet) {
+  api.get('/admin/user-activity?user_id=' + encodeURIComponent(window._lwUser)).then(function (res) {
+    if (!res.ok) return;
+    var h = document.getElementById('lw-head');
+    if (h && res.profile) h.innerHTML = '<b style="color:var(--text)">@' + escHtml(res.profile.nickname || 'user') + '</b> · ' + (res.profile.online ? '🟢 online' : '⚪ offline') + (res.profile.blocked ? ' · 🚫 blocked' : '') + ' · <a onclick="closeLiveWatch();openUserDetailModal(\'' + escAttrA(window._lwUser) + '\')" style="color:var(--blue,#185FA5);cursor:pointer">full profile →</a>';
+    var b = document.getElementById('lw-body'); if (!b) return;
+    var evs = res.events || [];
+    if (!evs.length) { b.innerHTML = '<div style="color:var(--muted);font-size:.82rem;padding:.5rem">No recent activity.</div>'; return; }
+    b.innerHTML = evs.map(function (e) {
+      return '<div style="display:flex;gap:.55rem;padding:.5rem .2rem;border-bottom:1px solid var(--border)">' +
+        '<span>' + e.icon + '</span><div style="flex:1"><div style="font-size:.84rem">' + escHtml(e.text) + '</div>' +
+        '<div style="font-size:.68rem;color:var(--muted)">' + _gmAgo(e.t) + '</div></div></div>';
+    }).join('');
+  }).catch(function () {});
+}
+
+// ══════════ God Mode: bulk actions on selected users ══════════
+window._gmSelected = {};
+window._gmToggleSel = function (id, cb) {
+  if (cb.checked) window._gmSelected[id] = 1; else delete window._gmSelected[id];
+  var n = Object.keys(window._gmSelected).length;
+  var bar = document.getElementById('gm-bulk-bar');
+  if (bar) { bar.style.display = n ? 'flex' : 'none'; var c = document.getElementById('gm-bulk-count'); if (c) c.textContent = n; }
+};
+window._gmBulk = function (action) {
+  var ids = Object.keys(window._gmSelected);
+  if (!ids.length) return;
+  var verb = action === 'verify' ? 'Verify' : action === 'block' ? 'Block' : action === 'unblock' ? 'Unblock' : action;
+  if (!confirm(verb + ' ' + ids.length + ' selected user(s)?')) return;
+  var calls = ids.map(function (id) {
+    if (action === 'verify') return api.post('/admin/users', { action: 'verify', user_id: id, verified: true });
+    if (action === 'block') return api.post('/admin/users', { action: 'block', user_id: id, blocked: true });
+    if (action === 'unblock') return api.post('/admin/users', { action: 'block', user_id: id, blocked: false });
+    return Promise.resolve();
+  });
+  Promise.allSettled(calls).then(function () {
+    toast('✅ ' + verb + 'ed ' + ids.length + ' user(s)');
+    window._gmSelected = {}; _gmSearch();
+    var bar = document.getElementById('gm-bulk-bar'); if (bar) bar.style.display = 'none';
+  });
+};
