@@ -117,12 +117,21 @@
       CALL.remote = e.streams[0];
       var rv = document.getElementById('call-remote-video');
       if (rv) { rv.srcObject = e.streams[0]; rv.play && rv.play().catch(function () {}); }
+      // Reveal the remote video (the avatar fallback sits on top) once media flows.
+      var hasVideo = e.streams[0] && e.streams[0].getVideoTracks && e.streams[0].getVideoTracks().length > 0;
+      var fb = document.getElementById('call-remote-fallback');
+      if (fb) fb.style.display = hasVideo ? 'none' : '';
       _setStatus('Connected');
       _stopRing();
     };
+    pc.oniceconnectionstatechange = function () {
+      var st = pc.iceConnectionState;
+      if (st === 'connected' || st === 'completed') { _setStatus('Connected'); _stopRing(); }
+    };
     pc.onconnectionstatechange = function () {
-      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') _setStatus('Connection lost');
-      if (pc.connectionState === 'connected') _setStatus('Connected');
+      if (pc.connectionState === 'connected') { _setStatus('Connected'); _stopRing(); }
+      else if (pc.connectionState === 'failed') { _setStatus('Connection failed'); }
+      else if (pc.connectionState === 'disconnected') { _setStatus('Reconnecting…'); }
     };
   }
 
