@@ -13,6 +13,8 @@ const KEYS = [
   { key: 'RESEND_API_KEY',          label: 'Email API key (Resend)',        secret: true },
   { key: 'RESEND_FROM_EMAIL',       label: 'Email "from" address',          secret: false, hint: 'e.g. YID PLUS <noreply@yidplus.com>' },
   { key: 'RESEND_REPLY_TO',         label: 'Email "reply-to" address',      secret: false, hint: 'Where replies to your emails should go (e.g. your Gmail, or reply@yidplus.com routed to your bot). Leave blank for no-reply.' },
+  { key: 'CF_TURN_KEY_ID',          label: 'Cloudflare TURN Key ID',        secret: false, hint: 'For voice/video calls. Cloudflare dashboard → Calls → TURN → create key. Free up to 1TB/month.' },
+  { key: 'CF_TURN_API_TOKEN',       label: 'Cloudflare TURN API Token',     secret: true,  hint: 'The API token paired with the TURN Key ID. Used to mint short-lived call credentials.' },
   { key: 'TG_BOT_TOKEN',            label: 'Telegram bot token',            secret: true },
   { key: 'PRIVATE_BOT_TOKEN',       label: 'Private (email) bot token',     secret: true },
   { key: 'PRIVATE_BOT_WEBHOOK_SECRET', label: 'Private bot webhook secret', secret: true },
