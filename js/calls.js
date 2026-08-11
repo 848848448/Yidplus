@@ -77,6 +77,9 @@
       .then(function (res) {
         if (!res.ok) { _fail(res.error || 'Could not start call'); return; }
         CALL.id = res.call_id;
+        // Send any ICE candidates that were gathered before we had the call id.
+        (CALL.outIce || []).forEach(function (c) { api('/call', { action: 'ice', call_id: CALL.id, candidate: c }); });
+        CALL.outIce = [];
         _setStatus('Ringing ' + CALL.peerName + '…');
         _startPoll();
         _playRingback();
@@ -136,7 +139,9 @@
     var pc = new RTCPeerConnection({ iceServers: ice });
     CALL.pc = pc;
     pc.onicecandidate = function (e) {
-      if (e.candidate && CALL.id) api('/call', { action: 'ice', call_id: CALL.id, candidate: e.candidate });
+      if (!e.candidate) return;
+      if (CALL.id) api('/call', { action: 'ice', call_id: CALL.id, candidate: e.candidate });
+      else { CALL.outIce = CALL.outIce || []; CALL.outIce.push(e.candidate); }  // no id yet — buffer
     };
     pc.ontrack = function (e) {
       CALL.remote = e.streams[0];
@@ -382,7 +387,7 @@
     if (CALL.pc) { try { CALL.pc.close(); } catch (e) {} CALL.pc = null; }
     if (CALL.local) { CALL.local.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} }); CALL.local = null; }
     CALL.remote = null; CALL.id = null; CALL.role = null; CALL.cursor = 0;
-    CALL.haveRemote = false; CALL.pendingIce = []; CALL._incoming = null;
+    CALL.haveRemote = false; CALL.pendingIce = []; CALL.outIce = []; CALL._incoming = null;
     var ov = document.getElementById('call-overlay'); if (ov) ov.remove();
     _hideIncoming();
   }
