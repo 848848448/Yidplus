@@ -35,6 +35,21 @@ export async function onRequestGet(context) {
 
     ev.sort((a, b) => (b.t || '').localeCompare(a.t || ''));
 
-    return json({ ok: true, online_now: (online && online.c) || 0, events: ev.slice(0, 40) });
+    // Quick command-center stats.
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const [totalU, newToday, pendReports] = await Promise.all([
+      env.DB.prepare(`SELECT COUNT(*) AS c FROM users`).first().catch(() => ({ c: 0 })),
+      env.DB.prepare(`SELECT COUNT(*) AS c FROM users WHERE created_at > ?`).bind(todayStart.toISOString()).first().catch(() => ({ c: 0 })),
+      env.DB.prepare(`SELECT COUNT(*) AS c FROM reports WHERE COALESCE(status,'open') = 'open'`).first().catch(() => ({ c: 0 })),
+    ]);
+
+    return json({
+      ok: true,
+      online_now: (online && online.c) || 0,
+      total_users: (totalU && totalU.c) || 0,
+      new_today: (newToday && newToday.c) || 0,
+      reports_pending: (pendReports && pendReports.c) || 0,
+      events: ev.slice(0, 40),
+    });
   } catch (e) { return json({ ok: false, error: e.message }, 500); }
 }

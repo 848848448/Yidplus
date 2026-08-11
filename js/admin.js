@@ -5597,10 +5597,18 @@ function buildGodModePanel(content) {
       '<input id="gm-search" placeholder="Search any user by name or email…" oninput="_gmSearch()" style="flex:1;padding:.6rem .8rem;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);font-family:inherit;font-size:.9rem">' +
     '</div>' +
     '<div id="gm-results" style="margin-bottom:1rem"></div>' +
+    // Quick stats
+    '<div id="gm-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.5rem;margin-bottom:1rem"></div>' +
     // Live feed
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">' +
       '<div style="font-weight:800;font-size:.95rem">🌐 Live activity</div>' +
       '<button onclick="_gmLoadFeed()" style="background:none;border:none;color:var(--blue,#185FA5);font-weight:700;font-size:.8rem;cursor:pointer">↻ Refresh</button>' +
+    '</div>' +
+    '<div id="gm-filters" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.6rem">' +
+      ['all:All','signup:Signups','login:Logins','post:Posts','report:🚩 Reports','short:Shorts','status:Status'].map(function (o) {
+        var v = o.split(':')[0], lbl = o.split(':')[1];
+        return '<button class="gm-filter' + (v === 'all' ? ' active' : '') + '" data-f="' + v + '" onclick="_gmFilter(\'' + v + '\',this)">' + lbl + '</button>';
+      }).join('') +
     '</div>' +
     '<div id="gm-feed"><div class="feed-state"><div class="spinner"></div></div></div>';
 
@@ -5634,25 +5642,52 @@ window._gmSearch = function () {
   }, 300);
 };
 
+window._gmFilterType = 'all';
+window._gmEvents = [];
 window._gmLoadFeed = function (quiet) {
   var el = document.getElementById('gm-feed');
   if (el && !quiet && !el.querySelector('.gm-ev')) el.innerHTML = '<div class="feed-state"><div class="spinner"></div></div>';
   api.get('/admin/god-feed').then(function (res) {
     if (!res.ok) { if (el) el.innerHTML = '<div style="color:var(--muted);padding:.5rem">Could not load.</div>'; return; }
     var on = document.getElementById('gm-online'); if (on) on.textContent = '· ' + (res.online_now || 0) + ' online now';
-    if (!el) return;
-    var evs = res.events || [];
-    if (!evs.length) { el.innerHTML = '<div style="color:var(--muted);padding:.5rem;font-size:.82rem">No recent activity.</div>'; return; }
-    el.innerHTML = evs.map(function (e) {
-      var clk = e.user_id ? ' onclick="openUserDetailModal(\'' + escAttrA(e.user_id) + '\')" style="cursor:pointer"' : '';
-      return '<div class="gm-ev"' + clk + ' style="display:flex;align-items:flex-start;gap:.55rem;padding:.5rem .2rem;border-bottom:1px solid var(--border)">' +
-        '<span style="font-size:1rem;flex-shrink:0">' + e.icon + '</span>' +
-        '<div style="flex:1;min-width:0"><div style="font-size:.84rem;color:var(--text)">' + escHtml(e.text) + '</div>' +
-        '<div style="font-size:.68rem;color:var(--muted)">' + _gmAgo(e.t) + '</div></div>' +
-      '</div>';
-    }).join('');
+    var sb = document.getElementById('gm-stats');
+    if (sb) {
+      var cards = [
+        ['👥', res.total_users || 0, 'Total users'],
+        ['🟢', res.online_now || 0, 'Online now'],
+        ['✨', res.new_today || 0, 'New today'],
+        ['🚩', res.reports_pending || 0, 'Open reports'],
+      ];
+      sb.innerHTML = cards.map(function (c) {
+        return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.6rem .4rem;text-align:center">' +
+          '<div style="font-size:1.3rem;font-weight:800;color:var(--text)">' + fmtN(c[1]) + '</div>' +
+          '<div style="font-size:.66rem;color:var(--muted)">' + c[0] + ' ' + c[2] + '</div></div>';
+      }).join('');
+    }
+    window._gmEvents = res.events || [];
+    _gmRenderFeed();
   }).catch(function () {});
 };
+window._gmFilter = function (type, btn) {
+  window._gmFilterType = type;
+  var wrap = document.getElementById('gm-filters');
+  if (wrap) Array.prototype.forEach.call(wrap.querySelectorAll('.gm-filter'), function (b) { b.classList.toggle('active', b === btn); });
+  _gmRenderFeed();
+};
+function _gmRenderFeed() {
+  var el = document.getElementById('gm-feed'); if (!el) return;
+  var f = window._gmFilterType || 'all';
+  var evs = (window._gmEvents || []).filter(function (e) { return f === 'all' || e.type === f; });
+  if (!evs.length) { el.innerHTML = '<div style="color:var(--muted);padding:.5rem;font-size:.82rem">No activity for this filter.</div>'; return; }
+  el.innerHTML = evs.map(function (e) {
+    var clk = e.user_id ? ' onclick="openUserDetailModal(\'' + escAttrA(e.user_id) + '\')" style="cursor:pointer"' : '';
+    return '<div class="gm-ev"' + clk + ' style="display:flex;align-items:flex-start;gap:.55rem;padding:.5rem .2rem;border-bottom:1px solid var(--border)">' +
+      '<span style="font-size:1rem;flex-shrink:0">' + e.icon + '</span>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:.84rem;color:var(--text)">' + escHtml(e.text) + '</div>' +
+      '<div style="font-size:.68rem;color:var(--muted)">' + _gmAgo(e.t) + '</div></div>' +
+    '</div>';
+  }).join('');
+}
 
 function _gmAgo(ts) {
   if (!ts) return '';

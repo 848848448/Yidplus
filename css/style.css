@@ -1998,3 +1998,7 @@ html.dark-mode .settings-avatar { border-color: var(--surface); }
 .gtile { position: relative; background: #1a2730; border-radius: 12px; overflow: hidden; min-height: 0; aspect-ratio: 3/4; }
 .gtile video { width: 100%; height: 100%; object-fit: cover; }
 .gtile-name { position: absolute; bottom: 6px; left: 6px; background: rgba(0,0,0,.5); color: #fff; font-size: .72rem; padding: .1rem .45rem; border-radius: 6px; }
+
+/* God Mode feed filters */
+.gm-filter { background: var(--surface); border: 1px solid var(--border); color: var(--muted); font-size: .74rem; font-weight: 700; padding: .3rem .6rem; border-radius: 999px; cursor: pointer; font-family: inherit; }
+.gm-filter.active { background: #1F6F5C; color: #fff; border-color: #1F6F5C; }
