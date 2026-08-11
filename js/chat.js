@@ -7878,17 +7878,25 @@ window._imgRetry = function (el) {
 
 // ══════════ Voice/Video call buttons (1-on-1 only) ══════════
 function _updateCallButtons() {
-  var isPrivate = CHAT_curRoom && CHAT_curRoom.type === 'private';
+  var r = CHAT_curRoom;
+  var canCall = r && (r.type === 'private' || r.type === 'group');
   ['cr-call-audio', 'cr-call-video'].forEach(function (id) {
     var el = document.getElementById(id);
-    if (el) el.classList.toggle('show', !!isPrivate);
+    if (el) el.classList.toggle('show', !!canCall);
   });
 }
 window.crStartCall = function (kind) {
-  if (!CHAT_curRoom || CHAT_curRoom.type !== 'private') { toast('Calls are for 1-on-1 chats'); return; }
-  var uid = CHAT_curRoom.other_user_id || CHAT_curRoom.id;
-  var name = CHAT_curRoom.nick || CHAT_curRoom.name || 'User';
-  var photo = CHAT_curRoom.other_photo || CHAT_curRoom.photo_url || CHAT_curRoom.other_photo_url || '';
+  var r = CHAT_curRoom;
+  if (!r) return;
+  if (r.type === 'group') {
+    if (typeof startGroupCall === 'function') startGroupCall(r.id, kind);
+    else toast('Calling is loading — try again in a moment');
+    return;
+  }
+  if (r.type !== 'private') { toast('Calls are for chats and groups'); return; }
+  var uid = r.other_user_id || r.id;
+  var name = r.nick || r.name || 'User';
+  var photo = r.other_photo || r.photo_url || r.other_photo_url || '';
   if (typeof startCall === 'function') startCall(uid, name, kind, photo);
   else toast('Calling is loading — try again in a moment');
 };
