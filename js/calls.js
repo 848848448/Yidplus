@@ -29,14 +29,16 @@
   window.startCall = function (userId, name, kind, photo) {
     if (CALL.id) { toast && toast('Already in a call'); return; }
     if (!userId) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast && toast('This device/browser can\'t make calls'); return; }
     CALL.role = 'caller'; CALL.kind = kind === 'audio' ? 'audio' : 'video';
     CALL.peerName = name || 'User'; CALL.peerPhoto = photo || '';
-    _showCallUI('Calling ' + CALL.peerName + '…');
+    _showCallUI('Requesting camera & mic…');
 
     navigator.mediaDevices.getUserMedia({ audio: true, video: CALL.kind === 'video' })
       .then(function (stream) {
         CALL.local = stream;
         _attachLocal(stream);
+        _setStatus('Connecting…');
         return getIce();
       })
       .then(function (ice) {
@@ -53,6 +55,7 @@
       .then(function (res) {
         if (!res.ok) { _fail(res.error || 'Could not start call'); return; }
         CALL.id = res.call_id;
+        _setStatus('Ringing ' + CALL.peerName + '…');
         _startPoll();
         _playRingback();
       })
@@ -458,4 +461,14 @@
     GCALL.roomId = null; GCALL.me = null; GCALL.cursor = 0;
     var ov = document.getElementById('gcall-overlay'); if (ov) ov.remove();
   }
+})();
+
+// Start the incoming-call watcher on ANY page (not just chat), once signed in,
+// so a call reaches you wherever you are in the app.
+(function () {
+  function boot() {
+    if (typeof startCallWatcher === 'function') { try { startCallWatcher(); } catch (e) {} }
+  }
+  if (document.readyState !== 'loading') boot();
+  else document.addEventListener('DOMContentLoaded', boot);
 })();
