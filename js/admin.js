@@ -5535,6 +5535,12 @@ function buildAppConfigPanel(content) {
         '<button class="save-pill" style="width:100%" onclick="cacheAvatarsRun(this)">Download &amp; cache avatars</button>' +
         '<div id="cache-avatars-status" style="font-size:.78rem;color:var(--muted);margin-top:.5rem"></div>' +
       '</div>' +
+      '<div class="admin-card">' +
+        '<div class="admin-card-title">📞 Test call setup (TURN)</div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">Checks whether your Cloudflare TURN key works. If it fails, video calls won\'t connect on most networks (you\'ll see a frozen picture with no sound).</div>' +
+        '<button class="save-pill" style="width:100%" onclick="turnTestRun(this)">Run TURN test</button>' +
+        '<div id="turn-test-status" style="font-size:.82rem;margin-top:.6rem"></div>' +
+      '</div>' +
     '</div>';
   }).catch(function (e) {
     content.innerHTML = '<div class="admin-panel"><div class="admin-card" style="color:#DC2626">Failed to load: ' + escHtmlA((e && e.message) || 'error') + '</div></div>';
@@ -5769,5 +5775,21 @@ window._gmBulk = function (action) {
     toast('✅ ' + verb + 'ed ' + ids.length + ' user(s)');
     window._gmSelected = {}; _gmSearch();
     var bar = document.getElementById('gm-bulk-bar'); if (bar) bar.style.display = 'none';
+  });
+};
+
+window.turnTestRun = function (btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Testing…'; }
+  var st = document.getElementById('turn-test-status');
+  if (st) st.innerHTML = 'Checking Cloudflare TURN…';
+  api.get('/admin/turn-test').then(function (res) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Run TURN test'; }
+    if (!st) return;
+    var color = res.turn_working ? '#1F6F5C' : '#E11D48';
+    st.innerHTML = '<div style="color:' + color + ';font-weight:700">' + escHtmlA(res.message || '') + '</div>' +
+      (res.turn_configured && !res.turn_working ? '<div style="font-size:.72rem;color:var(--muted);margin-top:.3rem">Tip: the Key ID goes in the URL slot (from /keys/…) and the API Token is the long "Bearer" code. Make sure they aren\'t swapped.</div>' : '');
+  }).catch(function () {
+    if (btn) { btn.disabled = false; btn.textContent = 'Run TURN test'; }
+    if (st) st.innerHTML = '<div style="color:#E11D48">Could not run the test.</div>';
   });
 };
