@@ -186,25 +186,104 @@
     var lv = document.getElementById('call-local-video');
     if (lv) { lv.srcObject = stream; lv.muted = true; lv.play && lv.play().catch(function () {}); }
   }
-  function _setStatus(t) { var el = document.getElementById('call-status'); if (el) el.textContent = t; }
+  function _setStatus(t) {
+    var el = document.getElementById('call-status'); if (el) el.textContent = t;
+    var tb = document.getElementById('call-top-status'); if (tb) tb.textContent = t;
+  }
 
   function _showCallUI(status) {
     _hideIncoming();
     var ov = document.getElementById('call-overlay'); if (ov) ov.remove();
     ov = document.createElement('div');
     ov.id = 'call-overlay';
+    var isVideo = CALL.kind === 'video';
     ov.innerHTML =
       '<video id="call-remote-video" autoplay playsinline></video>' +
+      '<div id="call-top-bar"><div class="call-top-name">' + (CALL.peerName || 'User') + '</div><div id="call-top-status">' + status + '</div></div>' +
       '<div id="call-remote-fallback"><div class="call-av-big"' + (CALL.peerPhoto ? ' style="background-image:url(' + CALL.peerPhoto + ')"' : '') + '>' + (CALL.peerPhoto ? '' : (CALL.peerName || '?').slice(0,1).toUpperCase()) + '</div>' +
         '<div class="call-peer-name">' + (CALL.peerName || 'User') + '</div>' +
         '<div id="call-status">' + status + '</div></div>' +
-      '<video id="call-local-video" autoplay playsinline muted></video>' +
+      (isVideo ? '<video id="call-local-video" autoplay playsinline muted></video>' : '') +
       '<div class="call-controls">' +
         '<button class="call-btn" onclick="toggleMute(this)" title="Mute"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a1 1 0 0 0-2 0 5 5 0 0 1-10 0 1 1 0 0 0-2 0 7 7 0 0 0 6 6.9V21a1 1 0 0 0 2 0v-3.1A7 7 0 0 0 19 11z"/></svg></button>' +
-        (CALL.kind === 'video' ? '<button class="call-btn" onclick="toggleCam(this)" title="Camera"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg></button>' : '') +
+        (isVideo ? '<button class="call-btn" onclick="toggleCam(this)" title="Camera"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg></button>' : '') +
+        (isVideo ? '<button class="call-btn" onclick="flipCamera(this)" title="Flip camera"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 8h4a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1"/><path d="M8 11l2-2-2-2"/><path d="M16 13l-2 2 2 2"/><circle cx="12" cy="14" r="2.2"/></svg></button>' : '') +
+        (isVideo ? '<button class="call-btn" onclick="shareScreen(this)" title="Share screen"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M12 7v6M9 10l3-3 3 3"/></svg></button>' : '') +
         '<button class="call-btn call-btn-end" onclick="endCall()" title="End"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M21 15.5c-1.2 0-2.4-.2-3.5-.6a1 1 0 0 0-1 .2l-2.2 2.2a15 15 0 0 1-6.6-6.6l2.2-2.2a1 1 0 0 0 .2-1A11 11 0 0 1 9.5 4a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1 17 17 0 0 0 17 17 1 1 0 0 0 1-1v-3.5a1 1 0 0 0-1-1z" transform="rotate(135 12 12)"/></svg></button>' +
       '</div>';
     document.body.appendChild(ov);
+    var lv = document.getElementById('call-local-video');
+    if (lv) _makeDraggable(lv);
+  }
+
+  // Drag the local PiP anywhere (touch + mouse), like WhatsApp.
+  function _makeDraggable(el) {
+    var sx, sy, ox, oy, moved = false, dragging = false;
+    function down(e) {
+      dragging = true; moved = false;
+      var p = e.touches ? e.touches[0] : e;
+      sx = p.clientX; sy = p.clientY;
+      var r = el.getBoundingClientRect(); ox = r.left; oy = r.top;
+      el.style.transition = 'none';
+    }
+    function move(e) {
+      if (!dragging) return;
+      var p = e.touches ? e.touches[0] : e;
+      var dx = p.clientX - sx, dy = p.clientY - sy;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      if (e.cancelable) e.preventDefault();
+      var nx = Math.max(6, Math.min(window.innerWidth - el.offsetWidth - 6, ox + dx));
+      var ny = Math.max(50, Math.min(window.innerHeight - el.offsetHeight - 100, oy + dy));
+      el.style.left = nx + 'px'; el.style.top = ny + 'px'; el.style.right = 'auto'; el.style.bottom = 'auto';
+    }
+    function up() { dragging = false; }
+    el.addEventListener('mousedown', down);
+    el.addEventListener('touchstart', down, { passive: true });
+    document.addEventListener('mousemove', move);
+    document.addEventListener('touchmove', move, { passive: false });
+    document.addEventListener('mouseup', up);
+    document.addEventListener('touchend', up);
+  }
+
+  // Flip between front and back camera.
+  window.flipCamera = function () {
+    if (!CALL.local || CALL.kind !== 'video' || !CALL.pc) return;
+    CALL._facing = CALL._facing === 'environment' ? 'user' : 'environment';
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: CALL._facing }, audio: false })
+      .then(function (stream) {
+        var nt = stream.getVideoTracks()[0]; if (!nt) return;
+        var sender = CALL.pc.getSenders().filter(function (s) { return s.track && s.track.kind === 'video'; })[0];
+        if (sender) sender.replaceTrack(nt);
+        var old = CALL.local.getVideoTracks()[0];
+        if (old) { CALL.local.removeTrack(old); old.stop(); }
+        CALL.local.addTrack(nt);
+        _attachLocal(CALL.local);
+      }).catch(function () { toast && toast('Could not switch camera'); });
+  };
+
+  // Share your screen (swap the camera track for the screen track).
+  window.shareScreen = function (btn) {
+    if (!CALL.pc) return;
+    if (CALL._sharing) { _stopScreen(btn); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { toast && toast('Screen sharing not supported here'); return; }
+    navigator.mediaDevices.getDisplayMedia({ video: true }).then(function (stream) {
+      var st = stream.getVideoTracks()[0]; if (!st) return;
+      var sender = CALL.pc.getSenders().filter(function (s) { return s.track && s.track.kind === 'video'; })[0];
+      if (sender) sender.replaceTrack(st);
+      CALL._sharing = true; CALL._screen = stream;
+      if (btn) btn.classList.add('call-btn-off');
+      var lv = document.getElementById('call-local-video'); if (lv) { lv.srcObject = stream; lv.play && lv.play().catch(function () {}); }
+      st.onended = function () { _stopScreen(btn); };
+    }).catch(function () {});
+  };
+  function _stopScreen(btn) {
+    if (CALL._screen) { CALL._screen.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} }); CALL._screen = null; }
+    var cam = CALL.local && CALL.local.getVideoTracks()[0];
+    var sender = CALL.pc && CALL.pc.getSenders().filter(function (s) { return s.track && s.track.kind === 'video'; })[0];
+    if (sender && cam) sender.replaceTrack(cam);
+    CALL._sharing = false;
+    if (btn) btn.classList.remove('call-btn-off');
+    _attachLocal(CALL.local);
   }
 
   function _showIncoming(call) {
