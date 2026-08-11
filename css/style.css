@@ -2002,3 +2002,10 @@ html.dark-mode .settings-avatar { border-color: var(--surface); }
 /* God Mode feed filters */
 .gm-filter { background: var(--surface); border: 1px solid var(--border); color: var(--muted); font-size: .74rem; font-weight: 700; padding: .3rem .6rem; border-radius: 999px; cursor: pointer; font-family: inherit; }
 .gm-filter.active { background: #1F6F5C; color: #fff; border-color: #1F6F5C; }
+
+/* In-chat call log (missed / ended) */
+.sys-msg.call-log { cursor: pointer; }
+.sys-msg.call-log span { background: rgba(31,111,92,.12); color: #1F6F5C; font-weight: 600; }
+.sys-msg.call-log.missed span { background: rgba(225,29,72,.12); color: #E11D48; }
+html.dark-mode .sys-msg.call-log span { background: rgba(53,176,144,.2); color: #6fe0c0; }
+html.dark-mode .sys-msg.call-log.missed span { background: rgba(255,120,140,.18); color: #ff9db0; }

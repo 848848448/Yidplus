@@ -20,6 +20,34 @@ async function ensure(env) {
   ).run().catch(() => {});
 }
 
+// Drop a "missed call" / "call ended" line into the 1-on-1 chat, like WhatsApp.
+async function _logCallEvent(env, call, wasAnswered) {
+  try {
+    const room = await env.DB.prepare(
+      `SELECT r.id FROM rooms r
+         JOIN room_members m1 ON m1.room_id = r.id AND m1.user_id = ?
+         JOIN room_members m2 ON m2.room_id = r.id AND m2.user_id = ?
+        WHERE r.type = 'private' LIMIT 1`
+    ).bind(call.caller_id, call.callee_id).first().catch(() => null);
+    if (!room) return;
+    const kind = call.kind === 'audio' ? 'voice' : 'video';
+    let text;
+    if (wasAnswered) {
+      const secs = Math.max(1, Math.round((Date.now() - new Date(call.updated_at || call.created_at).getTime()) / 1000));
+      const dur = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+      text = '📞 ' + kind.charAt(0).toUpperCase() + kind.slice(1) + ' call · ' + dur;
+    } else {
+      text = '📞 Missed ' + kind + ' call';
+    }
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await env.DB.prepare(
+      `INSERT INTO messages (id, room_id, sender_id, sender_nick, type, text, media_key, reply_to_id, view_once, opened, created_at, read)
+       VALUES (?, ?, ?, ?, 'call', ?, NULL, NULL, 0, 0, ?, 0)`
+    ).bind(id, room.id, call.caller_id, '', text, now).run().catch(() => {});
+  } catch (e) { /* logging is best-effort */ }
+}
+
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
 export async function onRequestGet(context) {
@@ -101,6 +129,11 @@ export async function onRequestPost(context) {
       return json({ ok: true });
     }
     if (action === 'decline' || action === 'end' || action === 'cancel') {
+      // Only log/close once — ignore if already finished.
+      if (call.status === 'ringing' || call.status === 'active') {
+        const wasAnswered = call.status === 'active';
+        await _logCallEvent(env, call, wasAnswered);
+      }
       const st = action === 'decline' ? 'declined' : 'ended';
       await env.DB.prepare('UPDATE calls SET status=?, updated_at=? WHERE id=?').bind(st, now, callId).run();
       return json({ ok: true });

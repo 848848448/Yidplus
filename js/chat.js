@@ -2449,6 +2449,10 @@ function renderMessages(scrollDown) {
     }
 
     // System messages (e.g. "X joined the group") — centered, no bubble
+    if (m.type === 'call') {
+      var _missed = (m.text || '').indexOf('Missed') !== -1;
+      return dateSep + '<div class="sys-msg call-log' + (_missed ? ' missed' : '') + '" onclick="crStartCall(\'video\')"><span>' + escHtml(m.text || '📞 Call') + '</span></div>';
+    }
     if (m.type === 'system') {
       return dateSep + '<div class="sys-msg"><span>' + escHtml(m.text || '') + '</span></div>';
     }
