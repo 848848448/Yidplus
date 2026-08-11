@@ -10,6 +10,28 @@
   };
   window.CALL = CALL;
 
+  // Keep video light so it doesn't saturate a weak connection (which makes the
+  // whole internet feel "stuck"). Modest resolution + a bitrate cap.
+  function _videoConstraints() {
+    return { width: { ideal: 480, max: 640 }, height: { ideal: 360, max: 480 }, frameRate: { ideal: 20, max: 24 } };
+  }
+  function _mediaFor(kind) {
+    return { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: kind === 'video' ? _videoConstraints() : false };
+  }
+  function _capBitrate(pc, kbps) {
+    try {
+      (pc.getSenders() || []).forEach(function (snd) {
+        if (snd.track && snd.track.kind === 'video' && snd.getParameters) {
+          var p = snd.getParameters();
+          if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+          p.encodings[0].maxBitrate = kbps * 1000;
+          p.encodings[0].scaleResolutionDownBy = 1;
+          snd.setParameters(p).catch(function () {});
+        }
+      });
+    } catch (e) {}
+  }
+
   function api(path, body, method) {
     return fetch((window.CONFIG ? CONFIG.API_BASE : '/api') + path, {
       method: method || (body ? 'POST' : 'GET'),
@@ -34,7 +56,7 @@
     CALL.peerName = name || 'User'; CALL.peerPhoto = photo || '';
     _showCallUI('Requesting camera & mic…');
 
-    navigator.mediaDevices.getUserMedia({ audio: true, video: CALL.kind === 'video' })
+    navigator.mediaDevices.getUserMedia(_mediaFor(CALL.kind))
       .then(function (stream) {
         CALL.local = stream;
         _attachLocal(stream);
@@ -71,7 +93,7 @@
     _showCallUI('Connecting…');
     var offer = JSON.parse(inc.offer);
 
-    navigator.mediaDevices.getUserMedia({ audio: true, video: CALL.kind === 'video' })
+    navigator.mediaDevices.getUserMedia(_mediaFor(CALL.kind))
       .then(function (stream) { CALL.local = stream; _attachLocal(stream); return getIce(); })
       .then(function (ice) {
         _makePc(ice);
@@ -132,7 +154,7 @@
       if (st === 'connected' || st === 'completed') { _setStatus('Connected'); _stopRing(); }
     };
     pc.onconnectionstatechange = function () {
-      if (pc.connectionState === 'connected') { _setStatus('Connected'); _stopRing(); }
+      if (pc.connectionState === 'connected') { _setStatus('Connected'); _stopRing(); _capBitrate(pc, 500); }
       else if (pc.connectionState === 'failed') { _setStatus('Connection failed'); }
       else if (pc.connectionState === 'disconnected') { _setStatus('Reconnecting…'); }
     };
