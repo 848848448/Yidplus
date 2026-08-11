@@ -217,7 +217,11 @@
   function _hideIncoming() { var el = document.getElementById('call-incoming'); if (el) el.remove(); clearTimeout(CALL._incTimeout); }
 
   // ── Ringtones (WebAudio, no files) ──
+  function _callsSilent() {
+    try { return localStorage.getItem('yp_silent_calls') === '1'; } catch (e) { return false; }
+  }
   function _playRingtone() {
+    if (_callsSilent()) return;   // silent mode — show the call, make no sound
     try {
       _stopRing();
       var ctx = new (window.AudioContext || window.webkitAudioContext)();

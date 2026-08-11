@@ -163,6 +163,7 @@ window.buildSettingsPage = function () {
     _section(t('Chat'), [
       _row('🖼️', t('Chat wallpaper'), '<button class="settings-edit-btn" onclick="openWallpaperPicker()">Change</button>'),
       _row('🔕', t('Muted chats'), '<button class="settings-edit-btn" onclick="openMutedChats()">View</button>'),
+      _row('🔔', 'Silent calls', _localToggle('yp_silent_calls', (function(){try{return localStorage.getItem('yp_silent_calls')==='1'}catch(e){return false}})()) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Incoming calls appear on screen with no ringtone.</div>'),
     ]) +
     _section(t('Notifications'), [
       _row(_svg_notif(), 'New Messages', _toggle('notif_messages', p.notif_messages!==0)),
@@ -688,4 +689,14 @@ window.disable2FA = function (btn) {
     var b = document.getElementById('twofa-btn'); if (b) b.textContent = 'Set up';
     var ov = document.getElementById('settings-modal-x'); if (ov) ov.remove();
   }).catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Turn off 2FA'; } });
+};
+
+// Local-only setting toggle (stored in localStorage, e.g. silent calls).
+function _localToggle(lsKey, isOn) {
+  return '<div class="toggle-sw' + (isOn ? ' on' : '') + '" onclick="toggleLocalSetting(\'' + lsKey + '\',this)"></div>';
+}
+window.toggleLocalSetting = function (lsKey, el) {
+  var on = el.classList.toggle('on');
+  try { localStorage.setItem(lsKey, on ? '1' : '0'); } catch (e) {}
+  if (lsKey === 'yp_silent_calls') toast(on ? '🔕 Calls will be silent' : '🔔 Call ringtone on');
 };
