@@ -193,6 +193,7 @@ var ADMIN_ICONS = {
 };
 
 var ADMIN_PANELS = [
+  { id:'god-mode',       label:'👁 God Mode',      roles:['owner'] },
   { id:'now',            label:'Now',             roles:['admin_limited','admin_super','owner'] },
   { id:'features',       label:'Features',        roles:['owner'] },
   { id:'analytics',      label:'Analytics',      roles:['admin_limited','admin_super','owner'] },
@@ -588,6 +589,9 @@ function buildAdminPanel(id) {
 
   } else if (id === 'verify-requests') {
     buildVerifyRequestsPanel(content);
+
+  } else if (id === 'god-mode') {
+    buildGodModePanel(content);
 
   } else if (id === 'now') {
     buildNowPanel(content);
@@ -5577,3 +5581,85 @@ window.cacheAvatarsRun = function (btn) {
   }
   batch();
 };
+
+// ══════════════════════════════════════════════════════════════════════════
+// GOD MODE — the owner's command center: search anyone, see everything live,
+// act on anyone (via the existing user-detail modal + View-as impersonation).
+// ══════════════════════════════════════════════════════════════════════════
+function buildGodModePanel(content) {
+  content.innerHTML =
+    '<div style="margin-bottom:1rem">' +
+      '<div style="font-size:1.15rem;font-weight:800;display:flex;align-items:center;gap:.4rem">👁 God Mode</div>' +
+      '<div style="font-size:.78rem;color:var(--muted);margin-top:.2rem">See everything, find anyone, act on anyone. <span id="gm-online" style="color:#1F6F5C;font-weight:700"></span></div>' +
+    '</div>' +
+    // Search
+    '<div style="display:flex;gap:.5rem;margin-bottom:1rem">' +
+      '<input id="gm-search" placeholder="Search any user by name or email…" oninput="_gmSearch()" style="flex:1;padding:.6rem .8rem;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);font-family:inherit;font-size:.9rem">' +
+    '</div>' +
+    '<div id="gm-results" style="margin-bottom:1rem"></div>' +
+    // Live feed
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">' +
+      '<div style="font-weight:800;font-size:.95rem">🌐 Live activity</div>' +
+      '<button onclick="_gmLoadFeed()" style="background:none;border:none;color:var(--blue,#185FA5);font-weight:700;font-size:.8rem;cursor:pointer">↻ Refresh</button>' +
+    '</div>' +
+    '<div id="gm-feed"><div class="feed-state"><div class="spinner"></div></div></div>';
+
+  _gmLoadFeed();
+  clearInterval(window._gmFeedTimer);
+  window._gmFeedTimer = setInterval(function () {
+    if (!document.getElementById('gm-feed')) { clearInterval(window._gmFeedTimer); return; }
+    _gmLoadFeed(true);
+  }, 12000);
+}
+
+var _gmSearchTimer = null;
+window._gmSearch = function () {
+  clearTimeout(_gmSearchTimer);
+  var q = (document.getElementById('gm-search') || {}).value || '';
+  if (q.trim().length < 2) { var r = document.getElementById('gm-results'); if (r) r.innerHTML = ''; return; }
+  _gmSearchTimer = setTimeout(function () {
+    api.get('/admin/user-lists?search=' + encodeURIComponent(q.trim()) + '&limit=10').then(function (res) {
+      var list = (res && (res.users || res.results)) || [];
+      var el = document.getElementById('gm-results'); if (!el) return;
+      if (!list.length) { el.innerHTML = '<div style="color:var(--muted);font-size:.82rem;padding:.5rem">No users found.</div>'; return; }
+      el.innerHTML = list.map(function (u) {
+        return '<div onclick="openUserDetailModal(\'' + escAttrA(u.id) + '\')" style="display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border:1px solid var(--border);border-radius:10px;margin-bottom:.4rem;cursor:pointer;background:var(--surface)">' +
+          '<div style="width:34px;height:34px;border-radius:50%;background:' + (u.photo_url ? 'url(' + u.photo_url + ') center/cover' : 'linear-gradient(135deg,#35B090,#1F6F5C)') + ';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0">' + (u.photo_url ? '' : escHtml((u.nickname || '?').slice(0,1).toUpperCase())) + '</div>' +
+          '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.86rem">' + escHtml(u.nickname || 'User') + (u.verified ? ' ✓' : '') + '</div>' +
+          '<div style="font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(u.email || '') + (u.blocked ? ' · 🚫 blocked' : '') + '</div></div>' +
+          '<span style="font-size:.7rem;color:var(--blue,#185FA5);font-weight:700">Open →</span>' +
+        '</div>';
+      }).join('');
+    }).catch(function () {});
+  }, 300);
+};
+
+window._gmLoadFeed = function (quiet) {
+  var el = document.getElementById('gm-feed');
+  if (el && !quiet && !el.querySelector('.gm-ev')) el.innerHTML = '<div class="feed-state"><div class="spinner"></div></div>';
+  api.get('/admin/god-feed').then(function (res) {
+    if (!res.ok) { if (el) el.innerHTML = '<div style="color:var(--muted);padding:.5rem">Could not load.</div>'; return; }
+    var on = document.getElementById('gm-online'); if (on) on.textContent = '· ' + (res.online_now || 0) + ' online now';
+    if (!el) return;
+    var evs = res.events || [];
+    if (!evs.length) { el.innerHTML = '<div style="color:var(--muted);padding:.5rem;font-size:.82rem">No recent activity.</div>'; return; }
+    el.innerHTML = evs.map(function (e) {
+      var clk = e.user_id ? ' onclick="openUserDetailModal(\'' + escAttrA(e.user_id) + '\')" style="cursor:pointer"' : '';
+      return '<div class="gm-ev"' + clk + ' style="display:flex;align-items:flex-start;gap:.55rem;padding:.5rem .2rem;border-bottom:1px solid var(--border)">' +
+        '<span style="font-size:1rem;flex-shrink:0">' + e.icon + '</span>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:.84rem;color:var(--text)">' + escHtml(e.text) + '</div>' +
+        '<div style="font-size:.68rem;color:var(--muted)">' + _gmAgo(e.t) + '</div></div>' +
+      '</div>';
+    }).join('');
+  }).catch(function () {});
+};
+
+function _gmAgo(ts) {
+  if (!ts) return '';
+  var d = new Date(ts).getTime(); if (isNaN(d)) return '';
+  var s = Math.floor((Date.now() - d) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
