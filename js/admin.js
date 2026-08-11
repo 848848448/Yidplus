@@ -245,8 +245,8 @@ var ADMIN_PANELS = [
    GROUPED DASHBOARD (categories)
 ══════════════════════════════════ */
 var ADMIN_CATEGORIES = [
-  { id:'overview',   label:'Overview',   desc:'Now, analytics and leaderboard',       color:'#185FA5', bg:'#E6F1FB', bgd:'#0C447C',
-    panels:['now','analytics','growth','leaderboard'] },
+  { id:'overview',   label:'Overview',   desc:'God Mode, analytics and leaderboard',  color:'#185FA5', bg:'#E6F1FB', bgd:'#0C447C',
+    panels:['god-mode','now','analytics','growth','leaderboard'] },
   { id:'people',     label:'People',     desc:'Access, verify, users, invites',       color:'#0F6E56', bg:'#E1F5EE', bgd:'#085041',
     panels:['access-control','verify-requests','invite-codes','users','warnings','badges','sessions','banned-devices','ad-exempt'] },
   { id:'moderation', label:'Moderation', desc:'Reports, feedback, support, filter',   color:'#A32D2D', bg:'#FCEBEB', bgd:'#791F1F',
