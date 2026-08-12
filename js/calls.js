@@ -38,6 +38,22 @@
   function _mediaFor(kind) {
     return { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: kind === 'video' ? _videoConstraints() : false };
   }
+  // Route media through ONE connection: force TURN relay when available (so we
+  // don't open many peer-to-peer UDP flows that overwhelm a home router and drop
+  // the whole internet), and bundle all tracks onto a single transport.
+  window._pcConfig = function (ice) {
+    var hasTurn = (ice || []).some(function (s) {
+      var urls = Array.isArray(s.urls) ? s.urls : [s.urls];
+      return urls.some(function (u) { return String(u).indexOf('turn:') === 0 || String(u).indexOf('turns:') === 0; });
+    });
+    return {
+      iceServers: ice,
+      iceCandidatePoolSize: 0,
+      iceTransportPolicy: hasTurn ? 'relay' : 'all',
+      bundlePolicy: 'max-bundle',
+      rtcpMuxPolicy: 'require',
+    };
+  };
   function _capBitrate(pc, kbps) {
     try {
       (pc.getSenders() || []).forEach(function (snd) {
@@ -161,7 +177,7 @@
 
   // ── Peer connection ──
   function _makePc(ice) {
-    var pc = new RTCPeerConnection({ iceServers: ice });
+    var pc = new RTCPeerConnection(_pcConfig(ice));
     CALL.pc = pc;
     pc.onicecandidate = function (e) {
       if (!e.candidate) return;
@@ -494,7 +510,7 @@
 
   function _gPeerObj(id) {
     if (GCALL.peers[id]) return GCALL.peers[id];
-    var pc = new RTCPeerConnection({ iceServers: GCALL.ice });
+    var pc = new RTCPeerConnection(_pcConfig(GCALL.ice));
     var peer = { pc: pc, haveRemote: false, pendingIce: [] };
     GCALL.peers[id] = peer;
     GCALL.local.getTracks().forEach(function (t) { pc.addTrack(t, GCALL.local); });
