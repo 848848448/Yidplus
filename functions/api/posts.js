@@ -10,6 +10,23 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
+// Runs once per worker isolate: ensures the featured column exists and, more
+// importantly, that the feed has proper indexes (posts had none, so every feed
+// load was a full table scan + sort — the main source of site-wide slowness).
+let _postsReady = false;
+async function ensurePostsSchema(env) {
+  if (_postsReady) return;
+  _postsReady = true;
+  try {
+    await env.DB.prepare('ALTER TABLE posts ADD COLUMN is_featured INTEGER DEFAULT 0').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_posts_feed ON posts(is_featured, created_at)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_posts_user_created ON posts(user_id, created_at)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_post_likes_user ON post_likes(user_id)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_post_likes_post ON post_likes(post_id)').run().catch(() => {});
+  } catch (e) { _postsReady = false; }
+}
+
 export async function onRequestGet(context) {
   const { request, env } = context;
 
@@ -17,8 +34,9 @@ export async function onRequestGet(context) {
     const user = await requireUser(request, env).catch(() => null);
     const url = new URL(request.url);
     const filterUserId = url.searchParams.get('user_id');
-    // Featured/pinned posts support.
-    await env.DB.prepare('ALTER TABLE posts ADD COLUMN is_featured INTEGER DEFAULT 0').run().catch(() => {});
+    // One-time (per worker) schema + index setup so the feed query is fast and
+    // we don't run DDL on every request.
+    await ensurePostsSchema(env);
 
     let results;
     try {

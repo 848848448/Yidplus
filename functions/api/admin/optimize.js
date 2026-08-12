@@ -30,6 +30,11 @@ const INDEXES = [
   "CREATE INDEX IF NOT EXISTS idx_users_created ON users(created_at)",
   "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)",
   // Feeds.
+  "CREATE INDEX IF NOT EXISTS idx_posts_feed ON posts(is_featured, created_at)",
+  "CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at)",
+  "CREATE INDEX IF NOT EXISTS idx_posts_user_created ON posts(user_id, created_at)",
+  "CREATE INDEX IF NOT EXISTS idx_post_likes_user ON post_likes(user_id)",
+  "CREATE INDEX IF NOT EXISTS idx_post_likes_post ON post_likes(post_id)",
   "CREATE INDEX IF NOT EXISTS idx_shorts_owner_created ON shorts(owner_id, created_at)",
   "CREATE INDEX IF NOT EXISTS idx_shorts_created ON shorts(created_at)",
   "CREATE INDEX IF NOT EXISTS idx_music_owner ON music_tracks(owner_id)",
