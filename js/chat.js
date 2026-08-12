@@ -138,6 +138,7 @@ var CHAT_recStart    = 0;
 var CHAT_unreadNew   = 0;   // new messages since last scroll
 var CHAT_pinnedMsgId = null;
 var CHAT_atBottom    = true;
+var CHAT_renderLimit = 80;   // how many recent messages are rendered as DOM nodes
 var CHAT_members     = [];  // current room members
 var CHAT_drafts      = {};  // roomId -> draft text
 
@@ -1653,6 +1654,7 @@ window.openChatRoom = function (roomId, topicId, topicName) {
   CHAT_replyTo   = null;
   CHAT_unreadNew = 0;
   CHAT_atBottom  = true;
+  CHAT_renderLimit = 80;   // start each room with a light, fast render
   room.unread    = 0;
   // Remember which chat is open so a page refresh returns here instead of the list.
   // pushState, not replaceState: Back needs an entry to return to. Everything
@@ -2404,16 +2406,19 @@ function renderMessages(scrollDown) {
   var isGroup   = CHAT_curRoom.type === 'group';
   var isChannel = CHAT_curRoom.type === 'channel';
   var lastDate  = '';
+  // Performance: only render the most recent slice of messages as DOM nodes.
+  // Older ones stay in memory (search, etc.) and render when you scroll up.
+  var visible = CHAT_messages.length > CHAT_renderLimit ? CHAT_messages.slice(-CHAT_renderLimit) : CHAT_messages;
   // Group consecutive media messages into albums
-  var albumGroups = _groupMediaAlbums(CHAT_messages);
+  var albumGroups = _groupMediaAlbums(visible);
 
-  var _htmlArr = CHAT_messages.map(function (m, idx) {
+  var _htmlArr = visible.map(function (m, idx) {
     var isMe = m.sender_id === meId;
     // Telegram-style grouping: consecutive messages from the same sender within
     // a few minutes are one visual group — name on the first, avatar on the
     // last, tighter spacing between.
-    var _prevM = CHAT_messages[idx - 1];
-    var _nextM = CHAT_messages[idx + 1];
+    var _prevM = visible[idx - 1];
+    var _nextM = visible[idx + 1];
     var _grpGap = 5 * 60 * 1000;
     var _sameGrp = function (a, b) {
       if (!a || !b) return false;
@@ -2760,7 +2765,7 @@ function renderMessages(scrollDown) {
   // Build per-message units (id + change-signature + html) and reconcile them
   // against the DOM so we only touch what actually changed — no full rebuild,
   // no flicker, no scroll jump (the WhatsApp/Telegram feel).
-  var units = CHAT_messages.map(function (m, i) {
+  var units = visible.map(function (m, i) {
     return { id: String(m.id), sig: _msgSig(m), html: _htmlArr[i] };
   }).filter(function (u) { return u.html && u.html.trim(); });
   _reconcileMessages(cont, units, scrollDown);
@@ -2921,6 +2926,14 @@ function _attachMessageGestures(cont) {
 function _onMsgsScroll() {
   var cont = document.getElementById('chat-msgs');
   if (!cont) return;
+  // Near the top and there are older messages not yet rendered → render more,
+  // keeping the scroll position steady so it doesn't jump.
+  if (cont.scrollTop < 200 && CHAT_renderLimit < CHAT_messages.length) {
+    var prevH = cont.scrollHeight;
+    CHAT_renderLimit = Math.min(CHAT_renderLimit + 80, CHAT_messages.length);
+    renderMessages(false);
+    cont.scrollTop += (cont.scrollHeight - prevH);
+  }
   CHAT_atBottom = (cont.scrollTop + cont.clientHeight >= cont.scrollHeight - 50);
   var arrow = document.getElementById('new-arrow');
   if (!arrow) return;
