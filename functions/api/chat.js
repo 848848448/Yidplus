@@ -8,6 +8,20 @@
 import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner, canDeleteContent, logAudit } from './_helpers.js';
 import { sendWebPush } from './_webpush.js';
 
+// Runs once per worker: the message list query relies on these indexes, so
+// create them automatically instead of waiting for a manual "Optimize DB".
+let _chatIdxReady = false;
+async function ensureChatIndexes(env) {
+  if (_chatIdxReady) return;
+  _chatIdxReady = true;
+  try {
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_messages_room_created ON messages(room_id, created_at)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_messages_room_topic ON messages(room_id, topic_id, created_at)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_room_members_pair ON room_members(room_id, user_id)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_reactions_message ON reactions(message_id)').run().catch(() => {});
+  } catch (e) { _chatIdxReady = false; }
+}
+
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
@@ -54,6 +68,7 @@ export async function onRequestGet(context) {
   const { request, env } = context;
 
   try {
+    await ensureChatIndexes(env);
     const user = await requireUser(request, env);
     const url = new URL(request.url);
     const searchQ = url.searchParams.get('search');
