@@ -13,7 +13,27 @@
   // Keep video light so it doesn't saturate a weak connection (which makes the
   // whole internet feel "stuck"). Modest resolution + a bitrate cap.
   function _videoConstraints() {
-    return { width: { ideal: 480, max: 640 }, height: { ideal: 360, max: 480 }, frameRate: { ideal: 20, max: 24 } };
+    return { width: { ideal: 320, max: 480 }, height: { ideal: 240, max: 360 }, frameRate: { ideal: 15, max: 20 } };
+  }
+  // Cap the video bandwidth right in the SDP so the encoder never bursts and
+  // chokes the connection (which was knocking the whole browser offline).
+  window._capSdp = function (sdp, kbps) {
+    try {
+      if (!sdp) return sdp;
+      var out = [], lines = sdp.split(/\r\n|\n/), inVideo = false;
+      for (var i = 0; i < lines.length; i++) {
+        var l = lines[i];
+        out.push(l);
+        if (l.indexOf('m=video') === 0) {
+          inVideo = true;
+          // Insert b=AS right after the m=video line (after any c= line).
+          if (lines[i + 1] && lines[i + 1].indexOf('c=') === 0) { out.push(lines[++i]); }
+          out.push('b=AS:' + kbps);
+          out.push('b=TIAS:' + (kbps * 1000));
+        } else if (l.indexOf('m=') === 0) { inVideo = false; }
+      }
+      return out.join('\r\n');
+    } catch (e) { return sdp; }
   }
   function _mediaFor(kind) {
     return { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: kind === 'video' ? _videoConstraints() : false };
@@ -69,6 +89,7 @@
         return CALL.pc.createOffer();
       })
       .then(function (offer) {
+        offer.sdp = _capSdp(offer.sdp, 350);
         return CALL.pc.setLocalDescription(offer).then(function () { return offer; });
       })
       .then(function (offer) {
@@ -77,8 +98,12 @@
       .then(function (res) {
         if (!res.ok) { _fail(res.error || 'Could not start call'); return; }
         CALL.id = res.call_id;
-        // Send any ICE candidates that were gathered before we had the call id.
-        (CALL.outIce || []).forEach(function (c) { api('/call', { action: 'ice', call_id: CALL.id, candidate: c }); });
+        // Send buffered ICE candidates spaced out, so we don't burst a weak link.
+        (function flush(list, i) {
+          if (i >= list.length) return;
+          api('/call', { action: 'ice', call_id: CALL.id, candidate: list[i] });
+          setTimeout(function () { flush(list, i + 1); }, 120);
+        })(CALL.outIce || [], 0);
         CALL.outIce = [];
         _setStatus('Ringing ' + CALL.peerName + '…');
         _startPoll();
@@ -104,7 +129,7 @@
         return CALL.pc.setRemoteDescription(new RTCSessionDescription(offer));
       })
       .then(function () { CALL.haveRemote = true; _flushIce(); return CALL.pc.createAnswer(); })
-      .then(function (ans) { return CALL.pc.setLocalDescription(ans).then(function () { return ans; }); })
+      .then(function (ans) { ans.sdp = _capSdp(ans.sdp, 350); return CALL.pc.setLocalDescription(ans).then(function () { return ans; }); })
       .then(function (ans) { return api('/call', { action: 'answer', call_id: CALL.id, answer: ans }); })
       .then(function () { _startPoll(); })
       .catch(function (e) { _fail(_mediaErr(e)); });
@@ -159,7 +184,7 @@
       if (st === 'connected' || st === 'completed') { _setStatus('Connected'); _stopRing(); }
     };
     pc.onconnectionstatechange = function () {
-      if (pc.connectionState === 'connected') { _setStatus('Connected'); _stopRing(); _capBitrate(pc, 500); }
+      if (pc.connectionState === 'connected') { _setStatus('Connected'); _stopRing(); _capBitrate(pc, 350); }
       else if (pc.connectionState === 'failed') { _setStatus('Connection failed'); }
       else if (pc.connectionState === 'disconnected') { _setStatus('Reconnecting…'); }
     };
@@ -193,7 +218,7 @@
           }
         });
       }).catch(function () {});
-    }, 1200);
+    }, 2000);
   }
 
   // ── Incoming-call watcher (runs whenever signed in on the chat page) ──
@@ -486,7 +511,7 @@
     if (String(GCALL.me) < String(id)) {
       var peer = _gPeerObj(id);
       peer.pc.createOffer()
-        .then(function (o) { return peer.pc.setLocalDescription(o).then(function () { return o; }); })
+        .then(function (o) { o.sdp = _capSdp(o.sdp, 300); return peer.pc.setLocalDescription(o).then(function () { return o; }); })
         .then(function (o) { _gSignal(id, 'offer', o); })
         .catch(function () {});
     }
@@ -518,7 +543,7 @@
           if (s.type === 'offer') {
             peer.pc.setRemoteDescription(new RTCSessionDescription(data))
               .then(function () { peer.haveRemote = true; _gFlush(s.from_id); return peer.pc.createAnswer(); })
-              .then(function (a) { return peer.pc.setLocalDescription(a).then(function () { return a; }); })
+              .then(function (a) { a.sdp = _capSdp(a.sdp, 300); return peer.pc.setLocalDescription(a).then(function () { return a; }); })
               .then(function (a) { _gSignal(s.from_id, 'answer', a); }).catch(function () {});
           } else if (s.type === 'answer') {
             peer.pc.setRemoteDescription(new RTCSessionDescription(data)).then(function () { peer.haveRemote = true; _gFlush(s.from_id); }).catch(function () {});
