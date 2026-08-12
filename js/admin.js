@@ -194,6 +194,7 @@ var ADMIN_ICONS = {
 
 var ADMIN_PANELS = [
   { id:'god-mode',       label:'👁 God Mode',      roles:['owner'] },
+  { id:'calls',          label:'📞 Calls',        roles:['owner'] },
   { id:'now',            label:'Now',             roles:['admin_limited','admin_super','owner'] },
   { id:'features',       label:'Features',        roles:['owner'] },
   { id:'analytics',      label:'Analytics',      roles:['admin_limited','admin_super','owner'] },
@@ -246,7 +247,7 @@ var ADMIN_PANELS = [
 ══════════════════════════════════ */
 var ADMIN_CATEGORIES = [
   { id:'overview',   label:'Overview',   desc:'God Mode, analytics and leaderboard',  color:'#185FA5', bg:'#E6F1FB', bgd:'#0C447C',
-    panels:['god-mode','now','analytics','growth','leaderboard'] },
+    panels:['god-mode','calls','now','analytics','growth','leaderboard'] },
   { id:'people',     label:'People',     desc:'Access, verify, users, invites',       color:'#0F6E56', bg:'#E1F5EE', bgd:'#085041',
     panels:['access-control','verify-requests','invite-codes','users','warnings','badges','sessions','banned-devices','ad-exempt'] },
   { id:'moderation', label:'Moderation', desc:'Reports, feedback, support, filter',   color:'#A32D2D', bg:'#FCEBEB', bgd:'#791F1F',
@@ -592,6 +593,9 @@ function buildAdminPanel(id) {
 
   } else if (id === 'god-mode') {
     buildGodModePanel(content);
+
+  } else if (id === 'calls') {
+    buildCallsPanel(content);
 
   } else if (id === 'now') {
     buildNowPanel(content);
@@ -5792,4 +5796,84 @@ window.turnTestRun = function (btn) {
     if (btn) { btn.disabled = false; btn.textContent = 'Run TURN test'; }
     if (st) st.innerHTML = '<div style="color:#E11D48">Could not run the test.</div>';
   });
+};
+
+// ══════════════════════════════════════════════════════════════════════════
+// CALLS — live call oversight + history + control (metadata only).
+// ══════════════════════════════════════════════════════════════════════════
+function buildCallsPanel(content) {
+  content.innerHTML =
+    '<div style="margin-bottom:1rem">' +
+      '<div style="font-size:1.15rem;font-weight:800">📞 Calls</div>' +
+      '<div style="font-size:.78rem;color:var(--muted);margin-top:.2rem">Live calls, history and control. <span id="calls-stat" style="color:#1F6F5C;font-weight:700"></span></div>' +
+    '</div>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">' +
+      '<div style="font-weight:800;font-size:.95rem">🔴 Live now</div>' +
+      '<button onclick="_callsLoad()" style="background:none;border:none;color:var(--blue,#185FA5);font-weight:700;font-size:.8rem;cursor:pointer">↻ Refresh</button>' +
+    '</div>' +
+    '<div id="calls-live"><div class="feed-state"><div class="spinner"></div></div></div>' +
+    '<div style="font-weight:800;font-size:.95rem;margin:1.2rem 0 .5rem">🕘 Recent calls</div>' +
+    '<div id="calls-recent"></div>';
+  _callsLoad();
+  clearInterval(window._callsTimer);
+  window._callsTimer = setInterval(function () {
+    if (!document.getElementById('calls-live')) { clearInterval(window._callsTimer); return; }
+    _callsLoad(true);
+  }, 6000);
+}
+
+window._callsLoad = function (quiet) {
+  api.get('/admin/calls').then(function (res) {
+    if (!res.ok) return;
+    var st = document.getElementById('calls-stat'); if (st) st.textContent = '· ' + (res.calls_today || 0) + ' calls today';
+    // Live (1-on-1 + group)
+    var live = document.getElementById('calls-live');
+    if (live) {
+      var rows = [];
+      (res.active || []).forEach(function (c) {
+        var ring = c.status === 'ringing';
+        rows.push('<div style="display:flex;align-items:center;gap:.6rem;padding:.6rem .7rem;border:1px solid var(--border);border-radius:10px;margin-bottom:.5rem;background:var(--surface)">' +
+          '<span style="font-size:1.1rem">' + (c.kind === 'audio' ? '🎙️' : '📹') + '</span>' +
+          '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.85rem">' + escHtmlA(c.caller_nick || '?') + ' → ' + escHtmlA(c.callee_nick || '?') + '</div>' +
+          '<div style="font-size:.72rem;color:' + (ring ? '#E0A15C' : '#1F6F5C') + ';font-weight:700">' + (ring ? '● Ringing…' : '● In call · ' + _callDur(c.updated_at)) + '</div></div>' +
+          '<button onclick="_callEnd(\'' + escAttrA(c.id) + '\')" style="background:#E11D48;color:#fff;border:none;border-radius:8px;padding:.35rem .6rem;font-size:.72rem;font-weight:700;cursor:pointer">End</button>' +
+        '</div>');
+      });
+      (res.group_active || []).forEach(function (g) {
+        rows.push('<div style="display:flex;align-items:center;gap:.6rem;padding:.6rem .7rem;border:1px solid var(--border);border-radius:10px;margin-bottom:.5rem;background:var(--surface)">' +
+          '<span style="font-size:1.1rem">👥</span>' +
+          '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.85rem">Group call' + (g.room_name ? ' · ' + escHtmlA(g.room_name) : '') + '</div>' +
+          '<div style="font-size:.72rem;color:#1F6F5C;font-weight:700">● ' + g.n + ' on the call</div></div>' +
+          '<button onclick="_callEndGroup(\'' + escAttrA(g.room_id) + '\')" style="background:#E11D48;color:#fff;border:none;border-radius:8px;padding:.35rem .6rem;font-size:.72rem;font-weight:700;cursor:pointer">End</button>' +
+        '</div>');
+      });
+      live.innerHTML = rows.length ? rows.join('') : '<div style="color:var(--muted);font-size:.82rem;padding:.5rem">No calls happening right now.</div>';
+    }
+    // Recent
+    var rec = document.getElementById('calls-recent');
+    if (rec) {
+      var list = res.recent || [];
+      rec.innerHTML = list.length ? list.map(function (c) {
+        var missed = c.status === 'declined';
+        return '<div style="display:flex;align-items:center;gap:.55rem;padding:.5rem .2rem;border-bottom:1px solid var(--border)">' +
+          '<span>' + (c.kind === 'audio' ? '🎙️' : '📹') + '</span>' +
+          '<div style="flex:1;min-width:0"><div style="font-size:.83rem">' + escHtmlA(c.caller_nick || '?') + ' → ' + escHtmlA(c.callee_nick || '?') + (missed ? ' <span style="color:#E11D48">(missed)</span>' : '') + '</div>' +
+          '<div style="font-size:.68rem;color:var(--muted)">' + _gmAgo(c.updated_at || c.created_at) + '</div></div>' +
+        '</div>';
+      }).join('') : '<div style="color:var(--muted);font-size:.82rem;padding:.5rem">No calls yet.</div>';
+    }
+  }).catch(function () {});
+};
+function _callDur(since) {
+  if (!since) return '';
+  var s = Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 1000));
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+window._callEnd = function (id) {
+  if (!confirm('Force-end this call?')) return;
+  api.post('/admin/calls', { action: 'end', call_id: id }).then(function () { toast('Call ended'); _callsLoad(); });
+};
+window._callEndGroup = function (roomId) {
+  if (!confirm('Force-end this group call?')) return;
+  api.post('/admin/calls', { action: 'end_group', room_id: roomId }).then(function () { toast('Group call ended'); _callsLoad(); });
 };
