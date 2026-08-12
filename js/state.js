@@ -2429,6 +2429,9 @@ window._confirmWithPassword = function (opts) {
       // browser features) load from our domain but don't exist — not ours, not
       // fixable.
       if (/via_inject_blocker|_inject_|injectedScript|browser-polyfill|\/adblock/i.test(_rsrc)) return;
+      // A blob: preview URL (optimistic send) that got revoked mid-transition —
+      // the server copy replaces it moments later, so this isn't a real error.
+      if (/^blob:/i.test(_rsrc)) return;
       // External CDN avatars (WhatsApp/Facebook/Instagram) carry expiring URLs
       // we don't control; the onerror fallback already shows an initial, so
       // don't log these as fixable errors.

@@ -7874,9 +7874,12 @@ function _applyLocalSeen() {
 window._imgRetry = function (el) {
   try {
     if (!el) return;
+    var s = el.getAttribute('src') || '';
+    // A blob: preview (optimistic send) can't be re-fetched once revoked —
+    // retrying just errors again. Leave it; the server copy replaces it shortly.
+    if (s.indexOf('blob:') === 0) { el.removeAttribute('src'); return; }
     if (el.getAttribute('data-retried')) { el.style.display = 'none'; return; }
     el.setAttribute('data-retried', '1');
-    var s = el.getAttribute('src');
     setTimeout(function () { try { el.removeAttribute('src'); el.src = s; } catch (e) {} }, 800);
   } catch (e) {}
 };
