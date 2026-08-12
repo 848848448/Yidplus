@@ -2013,6 +2013,4 @@ html.dark-mode .settings-avatar { border-color: var(--surface); }
 html.dark-mode .sys-msg.call-log span { background: rgba(53,176,144,.2); color: #6fe0c0; }
 html.dark-mode .sys-msg.call-log.missed span { background: rgba(255,120,140,.18); color: #ff9db0; }
 
-/* Scroll-to-bottom button */
-#scroll-bottom-fab { position: absolute; right: 14px; bottom: 84px; width: 42px; height: 42px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--text); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,.18); cursor: pointer; opacity: 0; transform: translateY(8px) scale(.9); pointer-events: none; transition: opacity .15s, transform .15s; z-index: 15; }
-#scroll-bottom-fab.show { opacity: 1; transform: none; pointer-events: auto; }
+

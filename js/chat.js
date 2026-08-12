@@ -2388,7 +2388,6 @@ function renderMessages(scrollDown) {
   if (typeof applyChatWallpaper === 'function') applyChatWallpaper();
   if (typeof _updateCallButtons === 'function') _updateCallButtons();
   if (typeof _syncGroupCallBanner === 'function') _syncGroupCallBanner();
-  if (typeof _setupScrollFab === 'function') _setupScrollFab();
   var cont = document.getElementById('chat-msgs');
   if (!cont || !CHAT_curRoom) return;
 
@@ -7950,21 +7949,3 @@ function _showGcBanner(n) {
 }
 function _hideGcBanner() { var b = document.getElementById('gc-join-banner'); if (b) b.style.display = 'none'; }
 
-// ══════════ Scroll-to-bottom button (WhatsApp-style) ══════════
-function _setupScrollFab() {
-  var box = document.getElementById('chat-msgs');
-  if (!box || box._fabWired) return;
-  box._fabWired = true;
-  var fab = document.createElement('button');
-  fab.id = 'scroll-bottom-fab';
-  fab.title = 'Jump to latest';
-  fab.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
-  fab.onclick = function () { try { box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' }); } catch (e) { box.scrollTop = box.scrollHeight; } };
-  (box.parentNode || document.body).appendChild(fab);
-  var onScroll = function () {
-    var nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 140;
-    fab.classList.toggle('show', !nearBottom);
-  };
-  box.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
-}
