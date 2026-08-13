@@ -76,7 +76,7 @@ export async function onRequestGet(context) {
       case 'statuses':
         title = 'Statuses';
         rows = (await q(
-          'SELECT id, caption AS nickname, created_at FROM statuses WHERE user_id = ? ORDER BY created_at DESC LIMIT 200',
+          'SELECT id, text AS nickname, created_at FROM statuses WHERE user_id = ? ORDER BY created_at DESC LIMIT 200',
           targetId)).results;
         break;
 

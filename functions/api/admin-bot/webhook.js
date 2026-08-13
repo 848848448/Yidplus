@@ -27,17 +27,27 @@ export async function onRequestPost(context) {
     const msg = update.message || update.edited_message || update.channel_post;
     if (msg && msg.chat && msg.chat.id != null) {
       const chatId = String(msg.chat.id);
-      await saveSetting(env, 'admin_bot_chat_id', chatId);
-      const text = (msg.text || '').trim();
 
-      // Only act on commands from the linked owner chat.
+      // Only act on commands from the linked owner chat. The FIRST chat to
+      // ever message this bot claims the link (that's the owner opening it
+      // from the admin panel's "send /start" instructions); every message
+      // after that from a DIFFERENT chat is ignored rather than re-linking,
+      // so a stranger who finds the bot can't hijack notifications or run
+      // privileged commands (/users, /block, /broadcast, ...).
       let linked = '';
       try {
         const r = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'admin_bot_chat_id'").first();
-        linked = (r && r.value) || chatId;
-      } catch (e) { linked = chatId; }
+        linked = (r && r.value) || '';
+      } catch (e) { linked = ''; }
 
-      if (token && text) {
+      if (!linked) {
+        linked = chatId;
+        await saveSetting(env, 'admin_bot_chat_id', chatId);
+      }
+
+      const text = (msg.text || '').trim();
+
+      if (token && text && chatId === linked) {
         const reply = (t) => fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ chat_id: msg.chat.id, text: String(t).slice(0, 3900), parse_mode: 'HTML', disable_web_page_preview: true }),

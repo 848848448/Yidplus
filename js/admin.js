@@ -2195,32 +2195,9 @@ window.toggleAdActive = function (id, active) {
     .catch(function (err) { toast('❌ ' + err.message); });
 };
 
-function loadAdsList() {
-  api.get('/admin/ads')
-    .then(function (res) {
-      var ads = res.ads || [];
-      var el = document.getElementById('ads-list');
-      if (!el) return;
-      if (!ads.length) {
-        el.innerHTML = '<div style="padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">No ads yet</div>';
-        return;
-      }
-      el.innerHTML = ads.map(function (a) {
-        return '<div class="video-row">' +
-          '<div class="vid-thumb">' + (a.media_url ? '<img src="' + a.media_url + '" style="width:100%;height:100%;object-fit:cover">' : '📣') + '</div>' +
-          '<div class="vid-info"><div class="vid-title">' + escHtml(a.title) + '</div><div class="vid-meta">' + (a.active ? '🟢 Active' : '⚪ Inactive') + (a.link_url ? ' · has link' : '') + '</div></div>' +
-          '<button class="ma-btn ma-trend' + (a.active ? ' on' : '') + '" onclick="toggleAdActive(\'' + a.id + '\',' + !a.active + ')">' + (a.active ? 'Disable' : 'Enable') + '</button>' +
-          '<button class="del-btn" onclick="deleteAd(\'' + a.id + '\')" style="margin-left:.3rem">🗑</button>' +
-        '</div>';
-      }).join('');
-    })
-    .catch(function (err) {
-      var el = document.getElementById('ads-list');
-      if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">' + escHtml(err.message) + '</div>';
-    });
-}
-
-// (old createAd removed)
+// (old createAd + duplicate loadAdsList removed — the duplicate function
+// declaration below used to silently shadow the real loadAdsList() above,
+// which meant the ⏱ Interval / 📄 Pages / 🚫 Exempt buttons never rendered.)
 
 window.deleteAd = function (id) {
   ypConfirm('Delete this ad?', { danger: true }).then(function (ok) {
@@ -5772,13 +5749,16 @@ window._gmBulk = function (action) {
   var verb = action === 'verify' ? 'Verify' : action === 'block' ? 'Block' : action === 'unblock' ? 'Unblock' : action;
   if (!confirm(verb + ' ' + ids.length + ' selected user(s)?')) return;
   var calls = ids.map(function (id) {
-    if (action === 'verify') return api.post('/admin/users', { action: 'verify', user_id: id, verified: true });
-    if (action === 'block') return api.post('/admin/users', { action: 'block', user_id: id, blocked: true });
-    if (action === 'unblock') return api.post('/admin/users', { action: 'block', user_id: id, blocked: false });
+    if (action === 'verify') return api.put('/admin/users', { id: id, verified: true });
+    if (action === 'block') return api.put('/admin/users', { id: id, blocked: true });
+    if (action === 'unblock') return api.put('/admin/users', { id: id, blocked: false });
     return Promise.resolve();
   });
-  Promise.allSettled(calls).then(function () {
-    toast('✅ ' + verb + 'ed ' + ids.length + ' user(s)');
+  Promise.allSettled(calls).then(function (results) {
+    var failed = results.filter(function (r) { return r.status === 'rejected'; }).length;
+    var ok = results.length - failed;
+    if (failed) toast((ok ? '✅ ' + ok + ' ' + verb.toLowerCase() + 'ed' : '❌ Failed') + (failed ? ' — ' + failed + ' failed' : ''));
+    else toast('✅ ' + verb + 'ed ' + ids.length + ' user(s)');
     window._gmSelected = {}; _gmSearch();
     var bar = document.getElementById('gm-bulk-bar'); if (bar) bar.style.display = 'none';
   });
