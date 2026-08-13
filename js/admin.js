@@ -4445,6 +4445,8 @@ function buildTelegramPanel(content) {
         '</details>' +
         '<div id="bmail-status" style="font-size:.78rem;margin-bottom:.5rem"></div>' +
         '<button class="save-pill" style="width:100%" onclick="bmailSave(this)">Save recipients</button>' +
+        '<button class="save-pill" style="width:100%;margin-top:.5rem;background:#185FA5" onclick="bmailDiagnose(this)">🔍 Diagnose &amp; send test email</button>' +
+        '<div id="bmail-diag" style="font-size:.8rem;margin-top:.6rem"></div>' +
       '</div>' +
 
       // ── Channel session (MTProto userbot) re-login ──
@@ -5876,4 +5878,30 @@ window._callEnd = function (id) {
 window._callEndGroup = function (roomId) {
   if (!confirm('Force-end this group call?')) return;
   api.post('/admin/calls', { action: 'end_group', room_id: roomId }).then(function () { toast('Group call ended'); _callsLoad(); });
+};
+
+// Run the full bot-email diagnostic and show a clear checklist of what's wrong.
+window.bmailDiagnose = function (btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+  var out = document.getElementById('bmail-diag');
+  if (out) out.innerHTML = 'Running checks…';
+  api.get('/admin/bot-email-diagnose').then(function (res) {
+    if (btn) { btn.disabled = false; btn.innerHTML = '🔍 Diagnose &amp; send test email'; }
+    if (!out) return;
+    if (!res.ok) { out.innerHTML = '<div style="color:#E11D48">' + escHtmlA(res.error || 'Failed') + '</div>'; return; }
+    var rows = (res.checks || []).map(function (c) {
+      return '<div style="display:flex;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--border)">' +
+        '<span>' + (c.ok ? '✅' : '❌') + '</span>' +
+        '<div style="flex:1"><div style="font-weight:600;font-size:.82rem">' + escHtmlA(c.label) + '</div>' +
+        (c.detail ? '<div style="font-size:.72rem;color:var(--muted)">' + escHtmlA(c.detail) + '</div>' : '') + '</div>' +
+      '</div>';
+    }).join('');
+    var banner = res.all_ok
+      ? '<div style="background:#DCFCE7;color:#166534;padding:.5rem .7rem;border-radius:8px;font-weight:700;margin-bottom:.5rem">Everything checks out — a test email was sent.</div>'
+      : '<div style="background:#FEE2E2;color:#991B1B;padding:.5rem .7rem;border-radius:8px;font-weight:700;margin-bottom:.5rem">Found problems — see the ❌ items below.</div>';
+    out.innerHTML = banner + rows;
+  }).catch(function () {
+    if (btn) { btn.disabled = false; btn.innerHTML = '🔍 Diagnose &amp; send test email'; }
+    if (out) out.innerHTML = '<div style="color:#E11D48">Could not run the diagnostic.</div>';
+  });
 };
