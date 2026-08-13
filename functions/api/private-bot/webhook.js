@@ -195,7 +195,12 @@ async function forwardToEmail(env, msg, recipients) {
   }
 
   const esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-  const subject = (mediaLabel || 'Message') + ' from ' + from + (text ? ' — ' + text.slice(0, 60) : '');
+  // An email Subject header cannot contain newlines or control characters —
+  // long news text often has them in the first line, which made Resend silently
+  // reject the whole email. Collapse whitespace and strip control chars.
+  const _subjText = text ? ' — ' + text.slice(0, 80) : '';
+  const subject = ((mediaLabel || 'Message') + ' from ' + from + _subjText)
+    .replace(/[\r\n\t]+/g, ' ').replace(/[\x00-\x1F\x7F]/g, '').replace(/\s+/g, ' ').trim().slice(0, 200);
 
   const isVideoLabel = mediaLabel === 'Video';
   const isAudioLabel = mediaLabel === 'Audio' || mediaLabel === 'Voice note';
@@ -252,19 +257,29 @@ async function forwardToEmail(env, msg, recipients) {
   const _replyTo = await getConfig(env, 'RESEND_REPLY_TO');
   if (_replyTo) payload.reply_to = _replyTo;
   try {
-    const r = await fetch('https://api.resend.com/emails', {
+    let r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${_rk}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    // If the attachment made it too big for Resend, retry once with just the link.
+    // If it failed and we had an attachment, retry with just the link (payload too big).
     if (!r.ok && attachments.length) {
       const lite = { from: fromAddr, to: recipients, subject, html };
       if (_replyTo) lite.reply_to = _replyTo;
-      await fetch('https://api.resend.com/emails', {
+      r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${_rk}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(lite),
+      }).catch(() => r);
+    }
+    // If it STILL failed (e.g. a bad subject), retry once with a plain safe subject.
+    if (!r.ok) {
+      const safe = { from: fromAddr, to: recipients, subject: 'New message from ' + String(from).replace(/[\r\n]+/g, ' ').slice(0, 80), html };
+      if (_replyTo) safe.reply_to = _replyTo;
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${_rk}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(safe),
       }).catch(() => {});
     }
   } catch (e) { /* best effort */ }
