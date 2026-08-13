@@ -82,11 +82,11 @@
 
   <!-- 2 floating buttons: 📷 status (small) + ✏️ new chat (big, blue) -->
   <div style="position:fixed;right:1rem;bottom:80px;display:flex;flex-direction:column;align-items:center;gap:.75rem;pointer-events:none;z-index:100">
-    <button id="status-fab-btn" onclick="_handleStatusButtonTap()" style="pointer-events:all;position:relative;width:48px;height:48px;border-radius:50%;background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 12px rgba(0,0,0,.15);display:none;align-items:center;justify-content:center;color:var(--text);cursor:pointer">
+    <button id="status-fab-btn" class="fab-btn" onclick="_handleStatusButtonTap()" style="pointer-events:all;position:relative;width:48px;height:48px;border-radius:50%;background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 12px rgba(0,0,0,.15);display:none;align-items:center;justify-content:center;color:var(--text);cursor:pointer">
       <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
       <span id="status-fab-badge" style="display:none;position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--blue);color:#fff;font-size:.66rem;font-weight:800;line-height:20px;text-align:center;border:2px solid var(--bg)"></span>
     </button>
-    <button onclick="toggleChatFab()" style="pointer-events:all;width:56px;height:56px;border-radius:50%;background:var(--blue);box-shadow:0 4px 14px rgba(31,111,92,.4);display:flex;align-items:center;justify-content:center;color:#fff;border:none;cursor:pointer">
+    <button class="fab-btn" onclick="toggleChatFab()" style="pointer-events:all;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent-l),var(--blue));box-shadow:0 4px 14px rgba(31,111,92,.4);display:flex;align-items:center;justify-content:center;color:#fff;border:none;cursor:pointer">
       <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     </button>
   </div>

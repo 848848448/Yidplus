@@ -5975,12 +5975,20 @@ function _svSegments(count, isMine) {
   return segs;
 }
 window._svSegments = _svSegments;
-function _buildStatusRing(count, color) {
+function _buildStatusRing(count, color, gradId) {
   var r = 25, cx = 27, cy = 27;
   var gap = count > 1 ? 0.12 : 0;
   var total = 2 * Math.PI;
   var segAngle = (total - gap * count) / count;
   var paths = [];
+  var strokeVal = gradId ? ('url(#' + gradId + ')') : color;
+  var defs = gradId
+    ? '<defs><linearGradient id="' + gradId + '" x1="0%" y1="0%" x2="100%" y2="100%">' +
+        '<stop offset="0%" stop-color="#f9ce34"/>' +
+        '<stop offset="45%" stop-color="#ee2a7b"/>' +
+        '<stop offset="100%" stop-color="#6228d7"/>' +
+      '</linearGradient></defs>'
+    : '';
   for (var i = 0; i < count; i++) {
     var startAngle = -Math.PI / 2 + i * (segAngle + gap);
     var endAngle   = startAngle + segAngle;
@@ -5989,9 +5997,9 @@ function _buildStatusRing(count, color) {
     var x2 = cx + r * Math.cos(endAngle);
     var y2 = cy + r * Math.sin(endAngle);
     var largeArc = segAngle > Math.PI ? 1 : 0;
-    paths.push('<path d="M' + x1.toFixed(2) + ' ' + y1.toFixed(2) + ' A' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + x2.toFixed(2) + ' ' + y2.toFixed(2) + '" fill="none" stroke="' + color + '" stroke-width="2.8" stroke-linecap="round"/>');
+    paths.push('<path d="M' + x1.toFixed(2) + ' ' + y1.toFixed(2) + ' A' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + x2.toFixed(2) + ' ' + y2.toFixed(2) + '" fill="none" stroke="' + strokeVal + '" stroke-width="2.8" stroke-linecap="round"/>');
   }
-  return '<svg width="54" height="54" viewBox="0 0 54 54" style="position:absolute;inset:0">' + paths.join('') + '</svg>';
+  return '<svg width="54" height="54" viewBox="0 0 54 54" style="position:absolute;inset:0">' + defs + paths.join('') + '</svg>';
 }
 
 function buildStatusRow() {
@@ -6013,7 +6021,7 @@ function buildStatusRow() {
         '</div>' +
       '</div>' +
       '<div class="status-name">My Status</div>' +
-    '</div>';
+    '</div>' +
     (HOME_HIGHLIGHTS.length
       ? '<div class="status-item" onclick="openHighlightsModal()">' +
           '<div class="status-ring" style="border-color:#f59e0b">' +
@@ -6057,9 +6065,10 @@ function buildStatusRow() {
           ? '<div style="width:100%;height:100%;border-radius:50%;background-image:url(\'' + s.photo_url + '\');background-size:cover;background-position:center"></div>'
           : '<div style="font-size:.9rem;font-weight:700">' + initial + '</div>';
 
-        // Build WhatsApp-style segmented ring
-        var ringColor = isMine ? 'var(--blue)' : 'var(--green,#25D366)';
-        var ringHTML = _buildStatusRing(count, ringColor);
+        // Build WhatsApp-style segmented ring — other users get an Instagram-style gradient
+        var ringHTML = isMine
+          ? _buildStatusRing(count, 'var(--blue)')
+          : _buildStatusRing(count, null, 'storyGrad' + i);
 
         el.innerHTML =
           '<div style="position:relative;width:54px;height:54px;flex-shrink:0">' +
