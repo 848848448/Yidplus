@@ -628,7 +628,7 @@ function buildStatusRow() {
         '</div>' +
       '</div>' +
       '<div class="status-name">My Status</div>' +
-    '</div>';
+    '</div>' +
     (HOME_HIGHLIGHTS.length
       ? '<div class="status-item" onclick="openHighlightsModal()">' +
           '<div class="status-ring" style="border-color:#f59e0b">' +
@@ -3055,11 +3055,10 @@ function _updateBadgesFromRooms(rooms) {
     el.style.display = unread > 0 ? 'flex' : 'none';
     el.textContent = unread > 99 ? '99+' : unread;
   });
-  var notifBadge = document.getElementById('notif-badge');
-  if (notifBadge) {
-    notifBadge.style.display = unread > 0 ? 'flex' : 'none';
-    notifBadge.textContent = unread > 99 ? '99+' : unread;
-  }
+  // The bell badge (notif-badge) tracks real notifications (likes/follows/…),
+  // not chats — same distinction _updateNavBadges makes. Fetch it here too so
+  // it's correct on first load, not just after the 90s interval kicks in.
+  if (typeof _updateNotifBadge === 'function') _updateNotifBadge();
 }
 
 function _showWelcomeBannerIfFirst() {

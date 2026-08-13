@@ -378,8 +378,10 @@ export async function onRequestPut(context) {
       return json({ ok: false, error: 'Only the group admin can change group settings' }, 403);
     }
 
+    const room = await env.DB.prepare(`SELECT type FROM rooms WHERE id = ?`).bind(roomId).first();
+
     // Channels stay public always — only allow read_only toggle
-    if (typeof body.read_only === 'boolean' && room.type !== 'channel') {
+    if (typeof body.read_only === 'boolean' && room && room.type !== 'channel') {
       await env.DB.prepare(`UPDATE rooms SET read_only = ? WHERE id = ?`).bind(body.read_only ? 1 : 0, roomId).run();
     }
 

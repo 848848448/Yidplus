@@ -27,8 +27,8 @@ export async function onRequestPost(context) {
     const password = (body && body.password) || '';
     if (!password) return json({ ok: true, valid: false });
 
-    const valid = await verifyPassword(password, row.password_hash);
-    return json({ ok: true, valid: !!valid });
+    const check = await verifyPassword(password, row.password_hash);
+    return json({ ok: true, valid: !!check.valid });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }

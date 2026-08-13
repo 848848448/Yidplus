@@ -317,7 +317,7 @@ window.playTrack = function (trackId) {
   if (artistEl) artistEl.textContent = t.artist;
   if (artworkEmoji) artworkEmoji.textContent = t.video_url ? '🎬' : '🎵';
   if (artworkBg) artworkBg.textContent = t.video_url ? '🎬' : '🎵';
-  var artworkEl = document.getElementById('artwork');
+  var artworkEl = document.getElementById('artwork-wrap');
   if (artworkEl) {
     artworkEl.style.background = 'var(--bg3)';
     artworkEl.classList.add('playing');
@@ -395,7 +395,7 @@ window.togglePlay = function () {
   if (MUSIC_playing) MUSIC_audioEl.play().catch(function () {});
   else MUSIC_audioEl.pause();
   setPlayBtn(MUSIC_playing ? '⏸' : '▶');
-  var artworkEl = document.getElementById('artwork');
+  var artworkEl = document.getElementById('artwork-wrap');
   if (artworkEl) artworkEl.classList.toggle('playing', MUSIC_playing);
   var vid = document.querySelector('#vid-player-wrap video');
   if (vid) { if (MUSIC_playing) vid.play().catch(function(){}); else vid.pause(); }

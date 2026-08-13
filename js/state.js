@@ -79,10 +79,20 @@ window.api = {
     _apiInflight[cacheKey] = promise;
     return promise;
   },
-  // Invalidate cache for a path
+  // Invalidate cache for a path. GET results are cached under the full
+  // path+query (e.g. "/posts?limit=20"), but mutations bust by base path
+  // only (e.g. "/posts") — so also clear any cached key whose query-less
+  // base matches, or a POST/PUT/DELETE would leave the querystring variant
+  // stale and the UI wouldn't reflect the change until the TTL expired.
   bust: function (path) {
-    delete _apiCache[path];
-    delete _apiCacheTTL[path];
+    var base = path.split('?')[0];
+    Object.keys(_apiCache).forEach(function (k) {
+      if (k === path || k.split('?')[0] === base) {
+        delete _apiCache[k];
+        delete _apiCacheTTL[k];
+        delete _apiInflight[k];
+      }
+    });
     delete _apiInflight[path];
   },
   post: function (path, body, isForm) {

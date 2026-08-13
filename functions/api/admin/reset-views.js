@@ -13,7 +13,7 @@ export async function onRequestPost(context) {
   const { request, env } = context;
   try {
     const user = await requireUser(request, env);
-    if (!user || !isOwnerOrCoOwner(user)) {
+    if (!user || !isOwnerOrCoOwner(user, env.OWNER_EMAIL)) {
       return json({ ok: false, error: 'Owner only' }, 403);
     }
 
