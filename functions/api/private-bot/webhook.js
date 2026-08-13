@@ -125,7 +125,7 @@ async function forwardToEmail(env, msg, recipients) {
     }
     const declaredSize = Number(fileTarget.file_size || 0);
     const BOT_DL_LIMIT = 20 * 1024 * 1024;   // Telegram Bot API can't download bigger than this
-    const ATTACH_LIMIT = 10 * 1024 * 1024;   // only base64-attach up to here (keeps CPU sane)
+    const ATTACH_LIMIT = 20 * 1024 * 1024;   // attach anything the bot can download (≤20MB); Resend allows ~40MB and base64 of 20MB (~27MB) fits, with a link fallback if it doesn't
     try {
       if (declaredSize && declaredSize > BOT_DL_LIMIT) {
         // A bot literally cannot fetch files over 20MB — say so instead of silently dropping it.
