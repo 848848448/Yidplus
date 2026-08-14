@@ -7,6 +7,18 @@
 //   GET  /api/group-call?room_id=X&since=N  -> { participants:[...], signals:[...] }
 import { json, corsHeaders, requireUser } from './_helpers.js';
 
+// A group call rides on a chat room's id, but nothing here ever checked the
+// caller actually belongs to that room — anyone signed in who learned a
+// room_id could join, appear in the participant list, and exchange WebRTC
+// signaling for a call that was never theirs. Mirrors the membership check
+// every other room-scoped endpoint (chat.js, reactions.js, etc.) already does.
+async function isRoomMember(env, roomId, userId) {
+  const row = await env.DB.prepare(
+    'SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?'
+  ).bind(roomId, userId).first().catch(() => null);
+  return !!row;
+}
+
 async function ensure(env) {
   await env.DB.prepare(
     `CREATE TABLE IF NOT EXISTS group_call_participants (
@@ -35,6 +47,7 @@ export async function onRequestGet(context) {
     const roomId = url.searchParams.get('room_id');
     const since = parseInt(url.searchParams.get('since') || '0', 10);
     if (!roomId) return json({ ok: false, error: 'room_id required' }, 400);
+    if (!(await isRoomMember(env, roomId, user.id))) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const now = Date.now();
     // Keep my presence fresh.
@@ -67,6 +80,7 @@ export async function onRequestPost(context) {
     const now = new Date().toISOString();
     const roomId = body.room_id;
     if (!roomId) return json({ ok: false, error: 'room_id required' }, 400);
+    if (!(await isRoomMember(env, roomId, user.id))) return json({ ok: false, error: 'Forbidden' }, 403);
 
     if (body.action === 'join') {
       await env.DB.prepare(

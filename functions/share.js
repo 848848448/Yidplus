@@ -3,9 +3,20 @@
 // (title/text/url and optionally a file). We stash it briefly and redirect into
 // the app, where the user picks where to send it (a chat, a channel, the feed).
 
+import { requireUser } from './api/_helpers.js';
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   try {
+    // The OS only invokes this from an installed PWA's share sheet, but that
+    // doesn't guarantee the visitor is signed in — without this check anyone
+    // could POST arbitrary files straight into R2 storage with no account,
+    // no size limit and no way to trace who did it (unlike /api/upload,
+    // which always requires a session). Not signed in -> just bounce to the
+    // sign-in screen instead of accepting the upload.
+    const user = await requireUser(request, env);
+    if (!user) return new Response(null, { status: 303, headers: { Location: '/chat' } });
+
     const form = await request.formData();
     const title = (form.get('title') || '').toString();
     const text = (form.get('text') || '').toString();
@@ -20,13 +31,16 @@ export async function onRequestPost(context) {
 
     let mediaKey = '';
     if (file && typeof file === 'object' && file.arrayBuffer) {
+      const MAX_BYTES = 100 * 1024 * 1024; // matches /api/upload's cap
       const ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop().toLowerCase() : 'bin';
-      mediaKey = `share-inbox/${Date.now()}_${crypto.randomUUID()}.${ext}`;
-      try {
-        await env.MY_BUCKET.put(mediaKey, await file.arrayBuffer(), {
-          httpMetadata: { contentType: file.type || 'application/octet-stream' },
-        });
-      } catch (e) { mediaKey = ''; }
+      if (file.size <= MAX_BYTES) {
+        mediaKey = `share-inbox/${user.id}/${Date.now()}_${crypto.randomUUID()}.${ext}`;
+        try {
+          await env.MY_BUCKET.put(mediaKey, await file.arrayBuffer(), {
+            httpMetadata: { contentType: file.type || 'application/octet-stream' },
+          });
+        } catch (e) { mediaKey = ''; }
+      }
     }
 
     // Redirect into the chat page with the shared payload, where a picker opens.

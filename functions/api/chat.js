@@ -372,7 +372,19 @@ export async function onRequestPost(context) {
       if (!already) return json({ ok: false, error: 'This is a private group. You need an invite to join.' }, 403);
     }
 
-    await ensureMember(env, roomId, user.id);
+    // Only group/channel rooms use "post to join" — a private DM is a fixed
+    // 2-person room set up when it's created (POST /api/chat/rooms adds both
+    // members then). Auto-joining here on any POST would let anyone who
+    // learns/guesses another private room_id add themselves as a third
+    // member and read + send into a DM that was never theirs.
+    if (room && room.type === 'private') {
+      const isMember = await env.DB.prepare(
+        'SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?'
+      ).bind(roomId, user.id).first();
+      if (!isMember) return json({ ok: false, error: 'Forbidden' }, 403);
+    } else {
+      await ensureMember(env, roomId, user.id);
+    }
 
     // Read-only groups: only the group's sub-admins and Super Admins may post.
     if (room && room.type === 'group' && room.read_only) {

@@ -82,7 +82,12 @@ export async function onRequestPost(context) {
        WHERE ip = ? AND action = 'fail' AND created_at > datetime('now', '-15 minutes')`
     ).bind(ip).first().catch(() => ({ cnt: 0 }));
 
-    if (!isOwnerEmail && (recentFails?.cnt || 0) >= 10) {
+    // Deliberately NOT exempting the owner/co-owner email here — that exemption
+    // exists above for maintenance/lockdown/device-bans (so the owner can't be
+    // locked out of their own site), but the owner's account is exactly the
+    // highest-value target for a credential-stuffing attack, so it must not be
+    // the one login exempt from brute-force throttling.
+    if ((recentFails?.cnt || 0) >= 10) {
       // A wall of failed sign-ins from one IP is a brute-force / credential-
       // stuffing attempt — record it to the security log (with full geo /
       // device intel) so the owner can see and ban the source. The shared
@@ -126,6 +131,13 @@ export async function onRequestPost(context) {
         const code = (body.totp_code || '').toString().trim();
         if (!code) return json({ ok: false, need_2fa: true, error: 'Enter your 6-digit authentication code.' }, 401);
         if (!(await verifyTotp(tf.totp_secret, code))) {
+          // Count this as a "fail" for the same IP brute-force counter checked
+          // above — otherwise someone who already has a valid password could
+          // guess the 6-digit TOTP code with unlimited attempts (the password
+          // check above is the only thing that was ever logged/rate-limited).
+          await env.DB.prepare(
+            `INSERT INTO login_logs (id, user_id, ip, fingerprint, action, created_at) VALUES (?, ?, ?, ?, 'fail', ?)`
+          ).bind(crypto.randomUUID(), user.id, ip, fingerprint || null, new Date().toISOString()).run().catch(() => {});
           return json({ ok: false, need_2fa: true, error: 'That code is not correct.' }, 401);
         }
       }
