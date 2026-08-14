@@ -635,8 +635,12 @@ async function streamMedia(env, request, ctx) {
     const msg = e.error_message || e.message || '';
     // A stale file_reference is the usual cause — rebuild it once and retry.
     if (/FILE_REFERENCE/i.test(msg)) {
-      info = await fileLocation(env, mtproto, username, msgId, true);
-      bytes = await readSlice(env, mtproto, info, username, msgId, alignedStart);
+      try {
+        info = await fileLocation(env, mtproto, username, msgId, true);
+        bytes = await readSlice(env, mtproto, info, username, msgId, alignedStart);
+      } catch (e2) {
+        return new Response('Stream error: ' + (e2.error_message || e2.message || ''), { status: 502 });
+      }
     } else if (/FLOOD_WAIT/i.test(msg)) {
       // Telegram is rate-limiting us. 503 + Retry-After is the honest answer:
       // players back off and try again, where a 502 reads as "this file is

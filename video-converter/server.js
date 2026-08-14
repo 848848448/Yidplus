@@ -20,10 +20,16 @@ const path = require('path');
 const SECRET = process.env.CONVERTER_SECRET || '';
 const PORT = process.env.PORT || 8080;
 
+// Hard ceilings so a stuck/hostile input (e.g. a file crafted to make ffmpeg
+// spin) can't tie up the box forever — without these a hung process is a leak
+// that survives the request and never gets cleaned up.
+const FFPROBE_TIMEOUT_MS = 20 * 1000;
+const FFMPEG_TIMEOUT_MS = 5 * 60 * 1000;
+
 function ffprobeDuration(file) {
   return new Promise((resolve) => {
     const p = spawn('ffprobe', ['-v', 'error', '-show_entries', 'format=duration',
-      '-of', 'default=noprint_wrappers=1:nokey=1', file]);
+      '-of', 'default=noprint_wrappers=1:nokey=1', file], { timeout: FFPROBE_TIMEOUT_MS });
     let out = '';
     p.stdout.on('data', (d) => (out += d));
     p.on('close', () => resolve(parseFloat(out.trim()) || 0));
@@ -52,7 +58,7 @@ function compress(inFile, outFile, targetMB, durationSec) {
       '-movflags', '+faststart',
       outFile,
     ];
-    const p = spawn('ffmpeg', args);
+    const p = spawn('ffmpeg', args, { timeout: FFMPEG_TIMEOUT_MS });
     let err = '';
     p.stderr.on('data', (d) => (err += d.toString().slice(-2000)));
     p.on('close', (code) => (code === 0 ? resolve() : reject(new Error('ffmpeg exited ' + code + ': ' + err.slice(-500)))));

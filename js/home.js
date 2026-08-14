@@ -105,9 +105,17 @@ window.init_home = function () {
   // Only set intervals once
   if (!_homeInitDone) {
     _homeInitDone = true;
-    setInterval(_updateNotifBadge, 45000);  // was 30s
-    setInterval(_updateNavBadges, 90000);   // was 60s
-    setInterval(listenBroadcasts, 120000);  // every 2 min
+    // Unlike every other poller in the app (chat, calls, admin panels), these
+    // three had no document.hidden check, so a backgrounded/minimized home
+    // tab kept hitting the API forever — every 45s, 90s and 2min, indefinitely.
+    setInterval(function () { if (!document.hidden) _updateNotifBadge(); }, 45000);  // was 30s
+    setInterval(function () { if (!document.hidden) _updateNavBadges(); }, 90000);   // was 60s
+    setInterval(function () { if (!document.hidden) listenBroadcasts(); }, 120000);  // every 2 min
+    // Catch up immediately when the tab regains focus instead of waiting out
+    // whatever's left of the interval.
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) { _updateNotifBadge(); _updateNavBadges(); }
+    });
   }
 };
 
@@ -440,9 +448,10 @@ window.adminDeletePost = function (postId) {
 // ── BROADCASTS ───────────────────────────────────────────
 function listenBroadcasts() {
   fetchLatestBroadcast();
-  // Poll every 30s for new broadcasts (cheap "realtime" via D1)
+  // Poll every 30s for new broadcasts (cheap "realtime" via D1) — but not
+  // while the tab is backgrounded, same as every other poller in the app.
   clearInterval(HOME_bcTimer);
-  HOME_bcTimer = setInterval(fetchLatestBroadcast, 30000);
+  HOME_bcTimer = setInterval(function () { if (!document.hidden) fetchLatestBroadcast(); }, 30000);
 }
 function fetchLatestBroadcast() {
   api.get('/broadcasts?limit=1')

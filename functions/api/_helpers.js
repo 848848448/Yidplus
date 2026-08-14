@@ -673,20 +673,35 @@ export async function notifyChannelFollowers(env, ctx, channelOwnerId, ownerNick
       if (!followerIds.length) return;
       const { sendWebPush } = await import('./_webpush.js');
       const now = new Date().toISOString();
+      const link = '/?channel=' + channelOwnerId;
+      const text = (ownerNick || 'Channel') + ' posted something new';
       await env.DB.prepare(`CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT, type TEXT, actor_id TEXT, actor_nick TEXT, text TEXT, link TEXT, read INTEGER DEFAULT 0, created_at TEXT)`).run().catch(() => {});
-      for (const uid of followerIds) {
-        // In-app notification row
-        await env.DB.prepare(
-          `INSERT INTO notifications (id, user_id, type, actor_id, actor_nick, text, link, read, created_at) VALUES (?,?,?,?,?,?,?,0,?)`
-        ).bind(crypto.randomUUID(), uid, 'channel_post', channelOwnerId, ownerNick,
-          (ownerNick || 'Channel') + ' posted something new', '/?channel=' + channelOwnerId, now
-        ).run().catch(() => {});
-        // Web Push
-        const subs = await env.DB.prepare(`SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?`).bind(uid).all().catch(() => ({ results: [] }));
-        for (const s of (subs.results || [])) {
+
+      // A popular channel can have hundreds of followers. This used to be one
+      // sequential awaited INSERT + one sequential awaited SELECT per
+      // follower — for 300 followers, ~600 round trips to D1 before the loop
+      // finished. Batch the inserts (one network round trip per chunk via
+      // DB.batch) and fetch every follower's push subscriptions in a single
+      // IN(...) query instead of one per follower.
+      const insertStmt = env.DB.prepare(
+        `INSERT INTO notifications (id, user_id, type, actor_id, actor_nick, text, link, read, created_at) VALUES (?,?,?,?,?,?,?,0,?)`
+      );
+      const CHUNK = 50; // stay well under D1's per-batch/per-statement bound-parameter limits
+      for (let i = 0; i < followerIds.length; i += CHUNK) {
+        const chunkIds = followerIds.slice(i, i + CHUNK);
+        const inserts = chunkIds.map(uid =>
+          insertStmt.bind(crypto.randomUUID(), uid, 'channel_post', channelOwnerId, ownerNick, text, link, now)
+        );
+        await env.DB.batch(inserts).catch(() => {});
+
+        const ph = chunkIds.map(() => '?').join(',');
+        const { results: subs } = await env.DB.prepare(
+          `SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id IN (${ph})`
+        ).bind(...chunkIds).all().catch(() => ({ results: [] }));
+        for (const s of (subs || [])) {
           await sendWebPush(
             { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-            { title: ownerNick || 'YID PLUS', body: 'New post in channel', url: '/?channel=' + channelOwnerId, tag: 'yp-ch-' + channelOwnerId },
+            { title: ownerNick || 'YID PLUS', body: 'New post in channel', url: link, tag: 'yp-ch-' + channelOwnerId },
             env
           ).catch(() => {});
         }

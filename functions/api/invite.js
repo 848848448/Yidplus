@@ -36,6 +36,13 @@ export async function onRequestPost(context) {
       `SELECT * FROM rooms WHERE invite_code = ?`
     ).bind(code).first();
     if (!room) return json({ ok: false, error: 'Invalid invite link' }, 404);
+    // Invite links are for groups/channels only — a 'private' room is a fixed
+    // 2-person DM, and letting anyone with a code join one would turn it into
+    // a group without either original participant agreeing (mirrors the same
+    // guard chat/join.js already applies on the room_id join path).
+    if (!['group', 'channel'].includes(room.type)) {
+      return json({ ok: false, error: 'Invalid invite link' }, 404);
+    }
 
     // Already a member?
     const already = await env.DB.prepare(
