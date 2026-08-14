@@ -1879,19 +1879,55 @@ function _loadChannelPosts() {
         el.innerHTML = newPostBtn + '<div style="padding:2rem;text-align:center;font-size:.85rem;color:var(--muted)">No posts yet</div>';
         return;
       }
-      // Render with the shared X-style card so channel posts match the feed.
-      el.innerHTML = newPostBtn;
-      posts.forEach(function (p) {
-        var card = buildPostCard(_chPostShape(p));
-        card.style.borderBottom = '1px solid var(--border)';
-        el.appendChild(card);
-      });
+      // Instagram-profile-style square grid — tapping a tile opens the full
+      // post (same ig-post card the main feed uses) in an overlay, so the
+      // rich view/like/comment interactions still work unchanged.
+      var shaped = posts.map(_chPostShape);
+      window._CH_POSTS_CACHE = shaped;
+      el.innerHTML = newPostBtn + '<div class="ch-grid">' +
+        shaped.map(function (p, i) {
+          var content = (p.content || '').trim();
+          var hasMedia = content && (content.indexOf('/') !== -1 || content.indexOf('http') === 0);
+          var url = hasMedia ? (content.indexOf('http') === 0 ? content : ('/api/media/' + encodeURIComponent(content.replace(/^\//, '')))) : '';
+          var isVideo = hasMedia && /\.(mp4|webm|mov|m4v|mkv|3gp)(\?|$)/i.test(url);
+          var thumb = hasMedia
+            ? (isVideo
+                ? '<video src="' + url + '" muted preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video>' +
+                  '<div style="position:absolute;top:.3rem;right:.3rem;color:#fff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>'
+                : '<img src="' + url + '" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">')
+            : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:.5rem;background:linear-gradient(135deg,var(--bg3),var(--bg4));font-size:.68rem;color:var(--muted);text-align:center;overflow:hidden;line-height:1.3">' + escHtml((p.caption || '').slice(0, 90)) + '</div>';
+          return '<div class="ch-grid-item" style="position:relative;aspect-ratio:1/1;background:var(--bg3);overflow:hidden;cursor:pointer" onclick="openChannelPostDetail(' + i + ')">' + thumb + '</div>';
+        }).join('') +
+      '</div>';
     })
     .catch(function () {
       var el2 = document.getElementById('ch-posts-list');
       if (el2) el2.innerHTML = '<div style="padding:1rem;color:var(--red);font-size:.8rem">Could not load posts</div>';
     });
 }
+
+// Tapping a grid tile opens the full post — the same ig-post card the main
+// feed renders, in a dismissible overlay — instead of building a second,
+// parallel "post detail" view with its own like/comment/share wiring.
+window.openChannelPostDetail = function (idx) {
+  var p = (window._CH_POSTS_CACHE || [])[idx];
+  if (!p) return;
+  var old = document.getElementById('post-detail-modal');
+  if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'post-detail-modal';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:1rem';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  var card = buildPostCard(p);
+  card.style.width = '100%';
+  card.style.maxWidth = '420px';
+  card.style.maxHeight = '90vh';
+  card.style.overflowY = 'auto';
+  card.style.background = 'var(--surface)';
+  card.style.borderRadius = '16px';
+  ov.appendChild(card);
+  document.body.appendChild(ov);
+};
 
 window.openChannelPostComposer = function () {
   if (!CHANNEL_current) return;
