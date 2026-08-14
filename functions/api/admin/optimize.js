@@ -44,9 +44,33 @@ const INDEXES = [
   "CREATE INDEX IF NOT EXISTS idx_follows_following ON user_follows(following_id)",
   "CREATE INDEX IF NOT EXISTS idx_blocks_blocker ON user_blocks(blocker_id)",
   "CREATE INDEX IF NOT EXISTS idx_blocks_blocked ON user_blocks(blocked_id)",
-  // Comments.
-  "CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id)",
-  "CREATE INDEX IF NOT EXISTS idx_comments_short ON comments(short_id)",
+  // channel_followers is keyed (channel_owner_id, follower_id) so owner-side
+  // lookups ("who follows my channel") are already covered, but follower_id
+  // alone (channels.js "how many channels do I follow", posts.js feed
+  // privacy filter) was a full scan.
+  "CREATE INDEX IF NOT EXISTS idx_channel_followers_follower ON channel_followers(follower_id)",
+  // Comments — the real tables are post_comments / short_comments (there is no
+  // "comments" table), so the two statements that used to live here silently
+  // failed every single run (caught by the try/catch below) and never indexed
+  // anything. post_comments/short_comments back every post and short's comment
+  // list AND the per-row `(SELECT COUNT(*) FROM short_comments WHERE short_id
+  // = s.id)` subquery that runs on every shorts feed load — both were doing
+  // full table scans.
+  "CREATE INDEX IF NOT EXISTS idx_post_comments_post ON post_comments(post_id, created_at)",
+  "CREATE INDEX IF NOT EXISTS idx_short_comments_short ON short_comments(short_id, created_at)",
+  // Likes — post_likes was covered below already; short_likes/music_likes use
+  // the identical WHERE short_id=?/track_id=? and WHERE user_id=? patterns
+  // (feed "did I like this" checks + toggle) but were never added.
+  "CREATE INDEX IF NOT EXISTS idx_short_likes_short ON short_likes(short_id)",
+  "CREATE INDEX IF NOT EXISTS idx_short_likes_user ON short_likes(user_id)",
+  "CREATE INDEX IF NOT EXISTS idx_music_likes_track ON music_likes(track_id)",
+  "CREATE INDEX IF NOT EXISTS idx_music_likes_user ON music_likes(user_id)",
+  // Notifications — polled by every signed-in user every 45-90s for the bell
+  // badge count, plus the full list fetch and the "trim to latest 100" cleanup
+  // on every write. Never indexed.
+  "CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at)",
+  // Saved items (shorts/music "save for later" list).
+  "CREATE INDEX IF NOT EXISTS idx_saved_items_user ON saved_items(user_id, item_type, created_at)",
   // Moderation / security.
   "CREATE INDEX IF NOT EXISTS idx_reports_message ON reports(message_id)",
   "CREATE INDEX IF NOT EXISTS idx_reports_reported ON reports(reported_id)",

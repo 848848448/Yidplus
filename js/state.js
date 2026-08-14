@@ -2313,6 +2313,12 @@ window.addEventListener('popstate', function (e) {
   function tick() {
     if (!(window.STATE && STATE.user)) return;         // only when signed in
     if (document.hidden) return;                        // tab in background → OS push handles it
+    // On the chat list screen itself, chat.js's own _chatListPollTimer already
+    // re-fetches /chat/rooms on this same ~6s cadence and updates the unread
+    // badges live — polling it again here from this banner would just double
+    // the request for no benefit, since the user is already looking at the list.
+    var chatListScreen = document.getElementById('screen-chats');
+    if (chatListScreen && !chatListScreen.classList.contains('hidden')) return;
     api.get('/chat/rooms', true).then(function (res) {
       var rooms = (res && res.rooms) || [];
       var next = {};
