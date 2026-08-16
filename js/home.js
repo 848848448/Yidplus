@@ -1879,38 +1879,12 @@ function _loadChannelPosts() {
         el.innerHTML = newPostBtn + '<div style="padding:2rem;text-align:center;font-size:.85rem;color:var(--muted)">No posts yet</div>';
         return;
       }
-      // Instagram-profile-style square grid — tapping a tile opens the full
-      // post (same ig-post card the main feed uses) in an overlay, so the
-      // rich view/like/comment interactions still work unchanged.
+      // X / Twitter-style feed — a vertical list of posts, text-first, with
+      // avatar + name + @handle + time and reply/repost/like/views actions.
       var shaped = posts.map(_chPostShape);
       window._CH_POSTS_CACHE = shaped;
-      el.innerHTML = newPostBtn + '<div class="ch-grid">' +
-        shaped.map(function (p, i) {
-          var content = (p.content || '').trim();
-          var hasMedia = content && (content.indexOf('/') !== -1 || content.indexOf('http') === 0);
-          var url = hasMedia ? (content.indexOf('http') === 0 ? content : ('/api/media/' + encodeURIComponent(content.replace(/^\//, '')))) : '';
-          var isVideo = hasMedia && /\.(mp4|webm|mov|m4v|mkv|3gp)(\?|$)/i.test(url);
-          var thumb = hasMedia
-            ? (isVideo
-                ? '<video src="' + url + '" muted preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video>' +
-                  '<div style="position:absolute;top:.3rem;right:.3rem;color:#fff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>'
-                : '<img src="' + url + '" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">')
-            : (function () {
-                var grads = [
-                  'linear-gradient(135deg,#667eea,#764ba2)', 'linear-gradient(135deg,#f093fb,#f5576c)',
-                  'linear-gradient(135deg,#4facfe,#00f2fe)', 'linear-gradient(135deg,#43e97b,#38f9d7)',
-                  'linear-gradient(135deg,#fa709a,#fee140)', 'linear-gradient(160deg,#30cfd0,#330867)',
-                  'linear-gradient(135deg,#5ee7df,#b490ca)', 'linear-gradient(135deg,#f6d365,#fda085)',
-                  'linear-gradient(135deg,#0ba360,#3cba92)', 'linear-gradient(135deg,#ee9ca7,#ffdde1)'
-                ];
-                var h = 0, s = String(p.id || '');
-                for (var k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) | 0;
-                var g = grads[Math.abs(h) % grads.length];
-                var txt = (p.caption || '').slice(0, 120);
-                return '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:.8rem;background:' + g + ';color:#fff;text-align:center;overflow:hidden;line-height:1.35;font-size:.9rem;font-weight:700;word-break:break-word;text-shadow:0 1px 3px rgba(0,0,0,.25);unicode-bidi:plaintext">' + escHtml(txt) + '</div>';
-              })();
-          return '<div class="ch-grid-item" style="position:relative;aspect-ratio:1/1;background:var(--bg3);overflow:hidden;cursor:pointer" onclick="openChannelPostDetail(' + i + ')">' + thumb + '</div>';
-        }).join('') +
+      el.innerHTML = newPostBtn + '<div class="x-feed">' +
+        shaped.map(function (p, i) { return _xChPost(p, i); }).join('') +
       '</div>';
     })
     .catch(function () {
@@ -3136,3 +3110,55 @@ function _showWelcomeBannerIfFirst() {
   } catch(e) {}
                                            }
 
+
+// ══════════ X / Twitter-style post card (for channel Posts) ══════════
+function _xChPost(p, idx) {
+  var name = p.nickname || p.username || 'User';
+  var handle = p.username || 'user';
+  var caption = (p.caption || '').trim();
+  var timeStr = p.created_at ? _xTimeH(p.created_at) : '';
+  var photo = p.photo_url || '';
+  var verified = p.verified ? 1 : 0;
+
+  var content = (p.content || '').trim();
+  var hasMedia = content && (content.indexOf('/') !== -1 || content.indexOf('http') === 0);
+  var mediaHtml = '';
+  if (hasMedia) {
+    var url = content.indexOf('http') === 0 ? content : ('/api/media/' + encodeURIComponent(content.replace(/^\//, '')));
+    var isVideo = /\.(mp4|webm|mov|m4v|mkv|3gp)(\?|$)/i.test(url);
+    mediaHtml = '<div class="x-post-media">' + (isVideo
+      ? '<video src="' + url + '" controls preload="metadata" playsinline onerror="_imgRetry&&_imgRetry(this)"></video>'
+      : '<img src="' + url + '" loading="lazy" onerror="_imgRetry&&_imgRetry(this)">') + '</div>';
+  }
+
+  var avatarHtml = photo
+    ? '<div class="x-post-av" style="background-image:url(' + photo + ')"></div>'
+    : '<div class="x-post-av x-post-av-init">' + escHtml(name.charAt(0).toUpperCase()) + '</div>';
+  var verifiedSvg = verified
+    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="#1d9bf0" style="flex-shrink:0"><path d="M12 2l2.4 2.4 3.3-.6.6 3.3L21 12l-2.7 2.4.6 3.3-3.3.6L12 22l-2.4-2.7-3.3.6-.6-3.3L3 12l2.7-2.4-.6-3.3 3.3.6z"/><path d="M10.5 14.5l-2-2 1-1 1 1 3-3 1 1z" fill="#fff"/></svg>'
+    : '';
+
+  var heart = p.liked
+    ? '<svg width="19" height="19" viewBox="0 0 24 24" fill="#f91880" stroke="#f91880" stroke-width="1.6"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>'
+    : '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+  var reply = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
+  var repost = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>';
+  var eye = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+
+  return '<article class="x-post" onclick="openChannelPostDetail(' + idx + ')">' +
+      avatarHtml +
+      '<div class="x-post-body">' +
+        '<div class="x-post-head"><span class="x-post-name">' + escHtml(name) + '</span>' + verifiedSvg +
+          '<span class="x-post-handle">@' + escHtml(handle) + '</span>' + (timeStr ? '<span class="x-post-dot">·</span><span class="x-post-time">' + escHtml(timeStr) + '</span>' : '') +
+        '</div>' +
+        (caption ? '<div class="x-post-text">' + (typeof filterContent === 'function' ? filterContent(_linkHashtags(escHtml(caption))) : _linkHashtags(escHtml(caption))) + '</div>' : '') +
+        mediaHtml +
+        '<div class="x-post-actions" onclick="event.stopPropagation()">' +
+          '<button class="x-act" onclick="openPostComments(\'' + escJs(p.id) + '\')">' + reply + (p.comments ? '<span>' + fmtN(p.comments) + '</span>' : '') + '</button>' +
+          '<button class="x-act x-act-rt" onclick="copyPostLink(\'' + escJs(p.id) + '\')">' + repost + '</button>' +
+          '<button class="x-act x-act-like' + (p.liked ? ' liked' : '') + '" id="like-btn-' + p.id + '" onclick="handleLike(this,\'' + escJs(p.id) + '\')">' + heart + (p.likes ? '<span id="likes-line-' + p.id + '">' + fmtN(p.likes) + '</span>' : '') + '</button>' +
+          (p.views ? '<span class="x-act x-views">' + eye + '<span>' + fmtN(p.views) + '</span></span>' : '') +
+        '</div>' +
+      '</div>' +
+    '</article>';
+}
