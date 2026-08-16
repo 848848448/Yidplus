@@ -1895,7 +1895,20 @@ function _loadChannelPosts() {
                 ? '<video src="' + url + '" muted preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video>' +
                   '<div style="position:absolute;top:.3rem;right:.3rem;color:#fff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>'
                 : '<img src="' + url + '" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">')
-            : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:.5rem;background:linear-gradient(135deg,var(--bg3),var(--bg4));font-size:.68rem;color:var(--muted);text-align:center;overflow:hidden;line-height:1.3">' + escHtml((p.caption || '').slice(0, 90)) + '</div>';
+            : (function () {
+                var grads = [
+                  'linear-gradient(135deg,#667eea,#764ba2)', 'linear-gradient(135deg,#f093fb,#f5576c)',
+                  'linear-gradient(135deg,#4facfe,#00f2fe)', 'linear-gradient(135deg,#43e97b,#38f9d7)',
+                  'linear-gradient(135deg,#fa709a,#fee140)', 'linear-gradient(160deg,#30cfd0,#330867)',
+                  'linear-gradient(135deg,#5ee7df,#b490ca)', 'linear-gradient(135deg,#f6d365,#fda085)',
+                  'linear-gradient(135deg,#0ba360,#3cba92)', 'linear-gradient(135deg,#ee9ca7,#ffdde1)'
+                ];
+                var h = 0, s = String(p.id || '');
+                for (var k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) | 0;
+                var g = grads[Math.abs(h) % grads.length];
+                var txt = (p.caption || '').slice(0, 120);
+                return '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:.8rem;background:' + g + ';color:#fff;text-align:center;overflow:hidden;line-height:1.35;font-size:.9rem;font-weight:700;word-break:break-word;text-shadow:0 1px 3px rgba(0,0,0,.25);unicode-bidi:plaintext">' + escHtml(txt) + '</div>';
+              })();
           return '<div class="ch-grid-item" style="position:relative;aspect-ratio:1/1;background:var(--bg3);overflow:hidden;cursor:pointer" onclick="openChannelPostDetail(' + i + ')">' + thumb + '</div>';
         }).join('') +
       '</div>';
