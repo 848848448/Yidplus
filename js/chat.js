@@ -3218,7 +3218,7 @@ window.toggleVoiceRec = function () {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       return toast('⚠ Microphone not available in this browser.');
     }
-    navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+    navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: false, noiseSuppression: true, autoGainControl: false } })
       .then(function (stream) {
         CHAT_recChunks = [];
         CHAT_recPeaks  = [];
