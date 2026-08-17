@@ -101,11 +101,18 @@ export async function onRequestGet(context) {
     }
 
     // Defense in depth: force anything script-capable to download, never render
-    // as a page on this origin.
-    const renderable = ct.startsWith('image/') || ct.startsWith('video/') || ct.startsWith('audio/');
+    // as a page on this origin. PDFs are safe to view inline (browsers sandbox
+    // their PDF viewer), so allow those to open instead of downloading.
+    const renderable = ct.startsWith('image/') || ct.startsWith('video/') || ct.startsWith('audio/') || ct === 'application/pdf';
     if (!renderable || ct === 'image/svg+xml') {
       headers.set('Content-Type', 'application/octet-stream');
       headers.set('Content-Disposition', 'attachment');
+    } else if (ct === 'application/pdf') {
+      // Open in the browser's PDF viewer (unless ?dl=1 already forced download).
+      if (!new URL(request.url).searchParams.get('dl')) {
+        const fname = (key.split('/').pop() || 'file.pdf');
+        headers.set('Content-Disposition', 'inline; filename="' + fname.replace(/"/g, '') + '"');
+      }
     } else if (ct.startsWith('audio/') || ct.startsWith('video/')) {
       // Serve a clean base type — a "audio/webm;codecs=opus" Content-Type makes
       // some browsers reject the source ("no supported source found"). The

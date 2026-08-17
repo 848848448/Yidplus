@@ -3206,6 +3206,7 @@ window.joinGroup = function () {
 var CHAT_recPeaks    = [];
 var CHAT_recAnalyser = null;
 var CHAT_recRaf      = null;
+var CHAT_recAudioCtx = null;
 
 window.toggleVoiceRec = function () {
   if (CHAT_isRecording) {
@@ -3261,7 +3262,11 @@ window.toggleVoiceRec = function () {
         }
         var ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
 
-        CHAT_mediaRec = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+        CHAT_recAudioCtx = audioCtx;   // keep a handle so we can close it on stop
+        var _recOpts = { audioBitsPerSecond: 128000 };   // clearer voice notes
+        if (mimeType) _recOpts.mimeType = mimeType;
+        try { CHAT_mediaRec = new MediaRecorder(stream, _recOpts); }
+        catch (e) { CHAT_mediaRec = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream); }
         CHAT_mediaRec.ondataavailable = function (e) { if (e.data.size > 0) CHAT_recChunks.push(e.data); };
         CHAT_mediaRec.onstop = function () {
           CHAT_isRecording = false;
@@ -3270,6 +3275,9 @@ window.toggleVoiceRec = function () {
           var btn2 = document.getElementById('voice-rec-btn');
           if (btn2) { btn2.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>'; btn2.classList.remove('rec'); }
           stream.getTracks().forEach(function (t) { t.stop(); });
+          // Close the analyser's AudioContext so the mic is fully released and we
+          // don't leak contexts (which also prevents cross-recording feedback).
+          if (CHAT_recAudioCtx) { try { CHAT_recAudioCtx.close(); } catch (e) {} CHAT_recAudioCtx = null; }
 
           if (CHAT_recCancelled) {
             toast('🗑 Recording discarded');
