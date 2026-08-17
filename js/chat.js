@@ -2407,9 +2407,9 @@ function renderMessages(scrollDown) {
   var isGroup   = CHAT_curRoom.type === 'group';
   var isChannel = CHAT_curRoom.type === 'channel';
   var lastDate  = '';
-  // Performance: only render the most recent slice of messages as DOM nodes.
-  // Older ones stay in memory (search, etc.) and render when you scroll up.
-  var visible = CHAT_messages.length > CHAT_renderLimit ? CHAT_messages.slice(-CHAT_renderLimit) : CHAT_messages;
+  // Render all messages so every photo and file in the history is reachable.
+  // (Site speed is handled by the database indexes, not by trimming the DOM.)
+  var visible = CHAT_messages;
   // Group consecutive media messages into albums
   var albumGroups = _groupMediaAlbums(visible);
 
@@ -2930,16 +2930,6 @@ function _attachMessageGestures(cont) {
 function _onMsgsScroll() {
   var cont = document.getElementById('chat-msgs');
   if (!cont) return;
-  // Near the top and there are older messages not yet rendered → render more,
-  // keeping the scroll position steady so it doesn't jump.
-  if (cont.scrollTop < 300 && !CHAT_loadingMore && CHAT_renderLimit < CHAT_messages.length) {
-    CHAT_loadingMore = true;
-    var prevH = cont.scrollHeight;
-    CHAT_renderLimit = Math.min(CHAT_renderLimit + 60, CHAT_messages.length);
-    renderMessages(false);
-    cont.scrollTop += (cont.scrollHeight - prevH);
-    setTimeout(function () { CHAT_loadingMore = false; }, 400);
-  }
   CHAT_atBottom = (cont.scrollTop + cont.clientHeight >= cont.scrollHeight - 50);
   var arrow = document.getElementById('new-arrow');
   if (!arrow) return;
