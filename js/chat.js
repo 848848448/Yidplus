@@ -139,6 +139,7 @@ var CHAT_unreadNew   = 0;   // new messages since last scroll
 var CHAT_pinnedMsgId = null;
 var CHAT_atBottom    = true;
 var CHAT_renderLimit = 80;   // how many recent messages are rendered as DOM nodes
+var CHAT_loadingMore = false;
 var CHAT_members     = [];  // current room members
 var CHAT_drafts      = {};  // roomId -> draft text
 
@@ -2387,9 +2388,9 @@ function loadMessages(scrollToBottom) {
 function _isVid(key) { return /\.(mp4|webm|mov|mkv|avi|m4v|3gp|3g2|ogv|qt|mpeg|mpg|wmv|flv|ts|mts|m2ts|divx)$/i.test(key || ''); }
 
 function renderMessages(scrollDown) {
-  if (typeof applyChatWallpaper === 'function') applyChatWallpaper();
-  if (typeof _updateCallButtons === 'function') _updateCallButtons();
-  if (typeof _syncGroupCallBanner === 'function') _syncGroupCallBanner();
+  try { if (typeof applyChatWallpaper === 'function') applyChatWallpaper(); } catch (e) {}
+  try { if (typeof _updateCallButtons === 'function') _updateCallButtons(); } catch (e) {}
+  try { if (typeof _syncGroupCallBanner === 'function') _syncGroupCallBanner(); } catch (e) {}
   var cont = document.getElementById('chat-msgs');
   if (!cont || !CHAT_curRoom) return;
 
@@ -2931,11 +2932,13 @@ function _onMsgsScroll() {
   if (!cont) return;
   // Near the top and there are older messages not yet rendered → render more,
   // keeping the scroll position steady so it doesn't jump.
-  if (cont.scrollTop < 200 && CHAT_renderLimit < CHAT_messages.length) {
+  if (cont.scrollTop < 300 && !CHAT_loadingMore && CHAT_renderLimit < CHAT_messages.length) {
+    CHAT_loadingMore = true;
     var prevH = cont.scrollHeight;
-    CHAT_renderLimit = Math.min(CHAT_renderLimit + 80, CHAT_messages.length);
+    CHAT_renderLimit = Math.min(CHAT_renderLimit + 60, CHAT_messages.length);
     renderMessages(false);
     cont.scrollTop += (cont.scrollHeight - prevH);
+    setTimeout(function () { CHAT_loadingMore = false; }, 400);
   }
   CHAT_atBottom = (cont.scrollTop + cont.clientHeight >= cont.scrollHeight - 50);
   var arrow = document.getElementById('new-arrow');
