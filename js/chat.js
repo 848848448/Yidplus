@@ -2669,7 +2669,10 @@ function renderMessages(scrollDown) {
         '</div>';
       } else {
         var ficon = /\.pdf$/i.test(fk) ? '📕' : /\.(zip|rar|7z)$/i.test(fk) ? '🗜️' : /\.(doc|docx)$/i.test(fk) ? '📘' : /\.(xls|xlsx|csv)$/i.test(fk) ? '📊' : /\.(ppt|pptx)$/i.test(fk) ? '📙' : '📄';
-        inner += '<a href="' + m.media_url + '" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:.6rem;text-decoration:none;color:inherit;min-width:180px">' +
+        // Cache-bust so we get the fixed (inline for PDF) response, not a stale
+        // year-cached "download" one from before the fix.
+        var _fileUrl = m.media_url + (m.media_url.indexOf('?') === -1 ? '?o=2' : '&o=2');
+        inner += '<a href="' + _fileUrl + '" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:.6rem;text-decoration:none;color:inherit;min-width:180px">' +
           '<div style="font-size:2rem;flex-shrink:0">' + ficon + '</div>' +
           '<div style="min-width:0"><div style="font-size:.83rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px" dir="auto">' + fname + '</div>' +
           '<div style="font-size:.68rem;opacity:.65;margin-top:.1rem">Tap to open</div></div>' +
