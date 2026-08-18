@@ -26,57 +26,16 @@ async function handleRequest(request, env) {
 
   // ── INIT DATABASE ──────────────────────────────────────
   if (path === 'init') {
-    await env.DB.exec(`
-      CREATE TABLE IF NOT EXISTS filter_profiles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        description TEXT,
-        level TEXT DEFAULT 'basic',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS filter_apps (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        profile_id INTEGER,
-        app_name TEXT NOT NULL,
-        package_name TEXT NOT NULL,
-        app_icon TEXT,
-        status TEXT DEFAULT 'allowed',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (profile_id) REFERENCES filter_profiles(id)
-      );
-
-      CREATE TABLE IF NOT EXISTS filter_websites (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        profile_id INTEGER,
-        domain TEXT NOT NULL,
-        status TEXT DEFAULT 'blocked',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (profile_id) REFERENCES filter_profiles(id)
-      );
-
-      CREATE TABLE IF NOT EXISTS filter_users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT,
-        phone TEXT,
-        profile_id INTEGER,
-        device_id TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (profile_id) REFERENCES filter_profiles(id)
-      );
-
-      CREATE TABLE IF NOT EXISTS filter_requests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        app_name TEXT NOT NULL,
-        package_name TEXT,
-        reason TEXT,
-        status TEXT DEFAULT 'pending',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES filter_users(id)
-      );
-    `);
+    const tables = [
+      `CREATE TABLE IF NOT EXISTS filter_profiles (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT, level TEXT DEFAULT 'basic', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS filter_apps (id INTEGER PRIMARY KEY AUTOINCREMENT, profile_id INTEGER, app_name TEXT NOT NULL, package_name TEXT NOT NULL, app_icon TEXT, status TEXT DEFAULT 'allowed', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS filter_websites (id INTEGER PRIMARY KEY AUTOINCREMENT, profile_id INTEGER, domain TEXT NOT NULL, status TEXT DEFAULT 'blocked', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS filter_users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT, phone TEXT, profile_id INTEGER, device_id TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS filter_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, app_name TEXT NOT NULL, package_name TEXT, reason TEXT, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
+    ];
+    for (const sql of tables) {
+      await env.DB.prepare(sql).run();
+    }
     return json({ ok: true, message: 'Database initialized' });
   }
 
