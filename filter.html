@@ -117,28 +117,19 @@ nav { padding: 12px 10px; flex: 1; }
 .content { padding: 28px; flex: 1; }
 
 /* ── STATS ── */
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
 .stat {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
-  position: relative;
-  overflow: hidden;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
-.stat::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent), #a855f7);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-.stat:hover::before { opacity: 1; }
-.stat-icon { font-size: 22px; margin-bottom: 12px; }
-.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -1px; }
-.stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 500; }
+.stat-icon { font-size: 18px; }
+.stat-num { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
+.stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; font-weight: 500; }
 
 /* ── PANELS ── */
 .panel { display: none; }
@@ -315,20 +306,22 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .toast.show { transform: translateX(-50%) translateY(0); }
 
 /* ── QUICK ACTIONS ── */
-.quick-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.quick-actions { display: flex; flex-direction: column; gap: 8px; }
 .quick-action {
-  background: var(--surface);
+  background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 18px;
+  border-radius: 10px;
+  padding: 12px 16px;
   cursor: pointer;
   transition: all 0.15s;
-  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
-.quick-action:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--card-shadow); }
-.quick-action .qa-icon { font-size: 24px; margin-bottom: 10px; }
-.quick-action .qa-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-.quick-action .qa-desc { font-size: 12px; color: var(--muted); }
+.quick-action:hover { border-color: var(--accent); }
+.quick-action .qa-icon { font-size: 18px; }
+.quick-action .qa-title { font-size: 13px; font-weight: 600; }
+.quick-action .qa-desc { font-size: 11px; color: var(--muted); margin-top: 1px; }
 
 /* ── MOBILE ── */
 @media (max-width: 768px) {
@@ -397,23 +390,19 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="stats">
         <div class="stat">
           <div class="stat-icon">📋</div>
-          <div class="stat-num" id="s-profiles">—</div>
-          <div class="stat-label">Filter Profiles</div>
+          <div><div class="stat-num" id="s-profiles">0</div><div class="stat-label">Profiles</div></div>
         </div>
         <div class="stat">
           <div class="stat-icon">👤</div>
-          <div class="stat-num" id="s-users">—</div>
-          <div class="stat-label">Active Users</div>
+          <div><div class="stat-num" id="s-users">0</div><div class="stat-label">Users</div></div>
         </div>
         <div class="stat">
           <div class="stat-icon">📱</div>
-          <div class="stat-num" id="s-apps">—</div>
-          <div class="stat-label">Managed Apps</div>
+          <div><div class="stat-num" id="s-apps">0</div><div class="stat-label">Apps</div></div>
         </div>
         <div class="stat">
           <div class="stat-icon">📩</div>
-          <div class="stat-num" id="s-requests">—</div>
-          <div class="stat-label">Pending Requests</div>
+          <div><div class="stat-num" id="s-requests">0</div><div class="stat-label">Pending</div></div>
         </div>
       </div>
       <div style="margin-bottom:20px;">
@@ -424,18 +413,15 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <div class="quick-actions">
             <div class="quick-action" onclick="showPanel('profiles');openModal('modal-profile')">
               <div class="qa-icon">➕</div>
-              <div class="qa-title">New Filter Profile</div>
-              <div class="qa-desc">Create a custom filter set</div>
+              <div><div class="qa-title">New Filter Profile</div><div class="qa-desc">Create a custom filter set</div></div>
             </div>
             <div class="quick-action" onclick="showPanel('users');openModal('modal-user')">
               <div class="qa-icon">👤</div>
-              <div class="qa-title">Add User</div>
-              <div class="qa-desc">Assign a profile to a user</div>
+              <div><div class="qa-title">Add User</div><div class="qa-desc">Assign a profile to a user</div></div>
             </div>
             <div class="quick-action" onclick="showPanel('requests')">
               <div class="qa-icon">📩</div>
-              <div class="qa-title">Review Requests</div>
-              <div class="qa-desc">Approve or reject app requests</div>
+              <div><div class="qa-title">Review Requests</div><div class="qa-desc">Approve or reject app requests</div></div>
             </div>
           </div>
         </div>
