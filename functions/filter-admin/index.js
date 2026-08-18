@@ -1,10 +1,730 @@
+const HTML = `<!DOCTYPE html>
+<html lang="yi" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>כשר'ע פילטער סיסטעם</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #1a1a2e; direction: rtl; }
+
+  .header {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: white;
+    padding: 20px 30px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  }
+  .header h1 { font-size: 1.5rem; }
+  .header .logo { font-size: 2rem; }
+
+  .tabs {
+    display: flex;
+    background: white;
+    border-bottom: 2px solid #e0e0e0;
+    overflow-x: auto;
+    padding: 0 20px;
+  }
+  .tab {
+    padding: 15px 25px;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    font-weight: 600;
+    color: #666;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .tab.active { border-bottom-color: #4f46e5; color: #4f46e5; }
+  .tab:hover { color: #4f46e5; background: #f8f7ff; }
+
+  .content { padding: 25px; max-width: 1200px; margin: 0 auto; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+
+  .card h2 { font-size: 1.2rem; margin-bottom: 15px; color: #1a1a2e; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+
+  .item-card {
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 15px;
+    position: relative;
+  }
+  .item-card h3 { font-size: 1rem; margin-bottom: 5px; }
+  .item-card p { font-size: 0.85rem; color: #666; }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 8px;
+  }
+  .badge-basic { background: #e3f2fd; color: #1565c0; }
+  .badge-strict { background: #fce4ec; color: #c62828; }
+  .badge-kids { background: #e8f5e9; color: #2e7d32; }
+  .badge-custom { background: #f3e5f5; color: #6a1b9a; }
+  .badge-allowed { background: #e8f5e9; color: #2e7d32; }
+  .badge-blocked { background: #fce4ec; color: #c62828; }
+  .badge-pending { background: #fff8e1; color: #f57f17; }
+  .badge-approved { background: #e8f5e9; color: #2e7d32; }
+  .badge-rejected { background: #fce4ec; color: #c62828; }
+
+  .btn {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: #4f46e5; color: white; }
+  .btn-primary:hover { background: #4338ca; }
+  .btn-danger { background: #ef4444; color: white; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-success { background: #22c55e; color: white; }
+  .btn-success:hover { background: #16a34a; }
+  .btn-warning { background: #f59e0b; color: white; }
+  .btn-warning:hover { background: #d97706; }
+  .btn-sm { padding: 5px 12px; font-size: 0.8rem; }
+
+  .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+  .form-group { margin-bottom: 15px; }
+  .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    direction: rtl;
+  }
+  .form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+  }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal h2 { margin-bottom: 20px; font-size: 1.2rem; }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin-bottom: 25px; }
+  .stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .stat-card .num { font-size: 2rem; font-weight: 700; color: #4f46e5; }
+  .stat-card .lbl { font-size: 0.85rem; color: #666; margin-top: 5px; }
+
+  .empty { text-align: center; padding: 40px; color: #999; }
+  .empty .icon { font-size: 3rem; margin-bottom: 10px; }
+
+  .search-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .search-bar input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    direction: rtl;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a2e;
+    color: white;
+    padding: 12px 25px;
+    border-radius: 25px;
+    z-index: 9999;
+    font-size: 0.9rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 600px) {
+    .content { padding: 15px; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="logo">🛡️</span>
+  <div>
+    <h1>כשר'ע פילטער סיסטעם</h1>
+    <p style="font-size:0.85rem;opacity:0.7">filter.yidplus.com</p>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('dashboard')">📊 דאשבאָרד</div>
+  <div class="tab" onclick="showTab('profiles')">📋 פילטערס</div>
+  <div class="tab" onclick="showTab('apps')">📱 עפס</div>
+  <div class="tab" onclick="showTab('websites')">🌐 וועבסייטן</div>
+  <div class="tab" onclick="showTab('users')">👤 יוזערס</div>
+  <div class="tab" onclick="showTab('requests')">📩 ריקוועסטן</div>
+</div>
+
+<div class="content">
+
+  <!-- DASHBOARD -->
+  <div class="panel active" id="panel-dashboard">
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card"><div class="num" id="stat-profiles">-</div><div class="lbl">פילטערס</div></div>
+      <div class="stat-card"><div class="num" id="stat-users">-</div><div class="lbl">יוזערס</div></div>
+      <div class="stat-card"><div class="num" id="stat-apps">-</div><div class="lbl">ערלויבטע עפס</div></div>
+      <div class="stat-card"><div class="num" id="stat-requests">-</div><div class="lbl">אפענע ריקוועסטן</div></div>
+    </div>
+    <div class="card">
+      <h2>⚡ שנעלע אקציעס</h2>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+        <button class="btn btn-primary" onclick="showTab('profiles');openModal('modal-profile')">➕ נייע פילטער</button>
+        <button class="btn btn-success" onclick="showTab('users');openModal('modal-user')">➕ נייע יוזער</button>
+        <button class="btn btn-warning" onclick="showTab('requests')">📩 זע ריקוועסטן</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFILES -->
+  <div class="panel" id="panel-profiles">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+        <h2>📋 מיינע פילטערס</h2>
+        <button class="btn btn-primary" onclick="openModal('modal-profile')">➕ נייע פילטער</button>
+      </div>
+      <div class="grid" id="profiles-list">
+        <div class="empty"><div class="icon">📋</div><p>לאדט...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPS -->
+  <div class="panel" id="panel-apps">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+        <h2>📱 עפס מאנאגמענט</h2>
+        <button class="btn btn-primary" onclick="openModal('modal-app')">➕ נייע עפ</button>
+      </div>
+      <div class="form-group" style="max-width:300px;">
+        <select id="apps-profile-filter" onchange="loadApps()">
+          <option value="">אלע פילטערס</option>
+        </select>
+      </div>
+      <div class="grid" id="apps-list">
+        <div class="empty"><div class="icon">📱</div><p>לאדט...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEBSITES -->
+  <div class="panel" id="panel-websites">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+        <h2>🌐 וועבסייטן בלאקירונג</h2>
+        <button class="btn btn-primary" onclick="openModal('modal-website')">➕ נייע וועבסייט</button>
+      </div>
+      <div class="form-group" style="max-width:300px;">
+        <select id="websites-profile-filter" onchange="loadWebsites()">
+          <option value="">אלע פילטערס</option>
+        </select>
+      </div>
+      <div class="grid" id="websites-list">
+        <div class="empty"><div class="icon">🌐</div><p>לאדט...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- USERS -->
+  <div class="panel" id="panel-users">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+        <h2>👤 יוזערס</h2>
+        <button class="btn btn-primary" onclick="openModal('modal-user')">➕ נייע יוזער</button>
+      </div>
+      <div class="grid" id="users-list">
+        <div class="empty"><div class="icon">👤</div><p>לאדט...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REQUESTS -->
+  <div class="panel" id="panel-requests">
+    <div class="card">
+      <h2>📩 ריקוועסטן פון יוזערס</h2>
+      <div class="grid" id="requests-list">
+        <div class="empty"><div class="icon">📩</div><p>לאדט...</p></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODALS -->
+
+<!-- Profile Modal -->
+<div class="modal-overlay" id="modal-profile">
+  <div class="modal">
+    <h2>➕ נייע פילטער פראפיל</h2>
+    <div class="form-group">
+      <label>פילטער נאמען</label>
+      <input type="text" id="profile-name" placeholder="z.b. בסיסי, שטרענג, קינדער...">
+    </div>
+    <div class="form-group">
+      <label>באשרייבונג</label>
+      <input type="text" id="profile-desc" placeholder="קורצע באשרייבונג...">
+    </div>
+    <div class="form-group">
+      <label>לעוועל</label>
+      <select id="profile-level">
+        <option value="basic">בסיסי</option>
+        <option value="strict">שטרענג</option>
+        <option value="kids">קינדער</option>
+        <option value="custom">קאסטאם</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-profile')">אָפזאגן</button>
+      <button class="btn btn-primary" onclick="createProfile()">שאַפן</button>
+    </div>
+  </div>
+</div>
+
+<!-- App Modal -->
+<div class="modal-overlay" id="modal-app">
+  <div class="modal">
+    <h2>➕ נייע עפ</h2>
+    <div class="form-group">
+      <label>פילטער פראפיל</label>
+      <select id="app-profile"></select>
+    </div>
+    <div class="form-group">
+      <label>עפ נאמען</label>
+      <input type="text" id="app-name" placeholder="z.b. WhatsApp">
+    </div>
+    <div class="form-group">
+      <label>Package Name</label>
+      <input type="text" id="app-package" placeholder="z.b. com.whatsapp" dir="ltr">
+    </div>
+    <div class="form-group">
+      <label>סטאטוס</label>
+      <select id="app-status">
+        <option value="allowed">✅ ערלויבט</option>
+        <option value="blocked">🚫 בלאקירט</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-app')">אָפזאגן</button>
+      <button class="btn btn-primary" onclick="createApp()">שאַפן</button>
+    </div>
+  </div>
+</div>
+
+<!-- Website Modal -->
+<div class="modal-overlay" id="modal-website">
+  <div class="modal">
+    <h2>➕ וועבסייט בלאקירן</h2>
+    <div class="form-group">
+      <label>פילטער פראפיל</label>
+      <select id="website-profile"></select>
+    </div>
+    <div class="form-group">
+      <label>דאמיין</label>
+      <input type="text" id="website-domain" placeholder="z.b. youtube.com" dir="ltr">
+    </div>
+    <div class="form-group">
+      <label>סטאטוס</label>
+      <select id="website-status">
+        <option value="blocked">🚫 בלאקירט</option>
+        <option value="allowed">✅ ערלויבט</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-website')">אָפזאגן</button>
+      <button class="btn btn-primary" onclick="createWebsite()">שאַפן</button>
+    </div>
+  </div>
+</div>
+
+<!-- User Modal -->
+<div class="modal-overlay" id="modal-user">
+  <div class="modal">
+    <h2>➕ נייע יוזער</h2>
+    <div class="form-group">
+      <label>נאמען</label>
+      <input type="text" id="user-name" placeholder="פולע נאמען">
+    </div>
+    <div class="form-group">
+      <label>טעלעפאן נומער</label>
+      <input type="text" id="user-phone" placeholder="+1..." dir="ltr">
+    </div>
+    <div class="form-group">
+      <label>פילטער פראפיל</label>
+      <select id="user-profile"></select>
+    </div>
+    <div class="form-group">
+      <label>דעוויס ID (אפציאנאל)</label>
+      <input type="text" id="user-device" placeholder="דעוויס ID" dir="ltr">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-user')">אָפזאגן</button>
+      <button class="btn btn-primary" onclick="createUser()">שאַפן</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/filter';
+let profiles = [];
+
+// ── UTILS ──────────────────────────────────────────────
+function showTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', t.textContent.includes(
+      {dashboard:'דאשבאָרד',profiles:'פילטערס',apps:'עפס',websites:'וועבסייטן',users:'יוזערס',requests:'ריקוועסטן'}[tab]
+    ));
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'profiles') loadProfiles();
+  if (tab === 'apps') loadApps();
+  if (tab === 'websites') loadWebsites();
+  if (tab === 'users') loadUsers();
+  if (tab === 'requests') loadRequests();
+  if (tab === 'dashboard') loadDashboard();
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+  populateProfileSelects();
+}
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+function toast(msg, color = '#1a1a2e') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = color;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function api(path, method = 'GET', body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + '/' + path, opts);
+  return res.json();
+}
+
+function levelBadge(level) {
+  const map = { basic: 'badge-basic', strict: 'badge-strict', kids: 'badge-kids', custom: 'badge-custom' };
+  const labels = { basic: 'בסיסי', strict: 'שטרענג', kids: 'קינדער', custom: 'קאסטאם' };
+  return `<span class="badge \${map[level] || 'badge-basic'}">\${labels[level] || level}</span>`;
+}
+
+// ── DASHBOARD ──────────────────────────────────────────
+async function loadDashboard() {
+  const [p, u, a, r] = await Promise.all([
+    api('profiles'), api('users'), api('apps'), api('requests')
+  ]);
+  document.getElementById('stat-profiles').textContent = p.length || 0;
+  document.getElementById('stat-users').textContent = u.length || 0;
+  document.getElementById('stat-apps').textContent = a.length || 0;
+  document.getElementById('stat-requests').textContent = (r.filter ? r.filter(x => x.status === 'pending') : r).length || 0;
+}
+
+// ── PROFILES ───────────────────────────────────────────
+async function loadProfiles() {
+  profiles = await api('profiles');
+  const el = document.getElementById('profiles-list');
+  if (!profiles.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">📋</div><p>קיין פילטערס נישט</p></div>';
+    return;
+  }
+  el.innerHTML = profiles.map(p => `
+    <div class="item-card">
+      <h3>📋 \${p.name}</h3>
+      <p>\${p.description || ''}</p>
+      \${levelBadge(p.level)}
+      <p style="font-size:0.75rem;color:#999;margin-top:5px;">\${new Date(p.created_at).toLocaleDateString('yi')}</p>
+      <div class="actions">
+        <button class="btn btn-danger btn-sm" onclick="deleteProfile(\${p.id})">🗑️ לעשן</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function createProfile() {
+  const name = document.getElementById('profile-name').value.trim();
+  if (!name) return toast('שרייב א נאמען!', '#ef4444');
+  await api('profiles', 'POST', {
+    name,
+    description: document.getElementById('profile-desc').value,
+    level: document.getElementById('profile-level').value
+  });
+  closeModal('modal-profile');
+  toast('✅ פילטער געשאפן!', '#22c55e');
+  loadProfiles();
+  document.getElementById('profile-name').value = '';
+  document.getElementById('profile-desc').value = '';
+}
+
+async function deleteProfile(id) {
+  if (!confirm('זיכער לעשן?')) return;
+  await api('profiles/' + id, 'DELETE');
+  toast('🗑️ געלעשט', '#ef4444');
+  loadProfiles();
+}
+
+// ── APPS ───────────────────────────────────────────────
+async function loadApps() {
+  const profileId = document.getElementById('apps-profile-filter')?.value;
+  const url = profileId ? `apps?profile_id=\${profileId}` : 'apps';
+  const apps = await api(url);
+  const el = document.getElementById('apps-list');
+  if (!apps.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">📱</div><p>קיין עפס נישט</p></div>';
+    return;
+  }
+  el.innerHTML = apps.map(a => `
+    <div class="item-card">
+      <h3>📱 \${a.app_name}</h3>
+      <p style="font-size:0.8rem;direction:ltr;">\${a.package_name}</p>
+      <span class="badge badge-\${a.status}">\${a.status === 'allowed' ? '✅ ערלויבט' : '🚫 בלאקירט'}</span>
+      <div class="actions">
+        <button class="btn btn-danger btn-sm" onclick="deleteApp(\${a.id})">🗑️</button>
+        <button class="btn btn-warning btn-sm" onclick="toggleApp(\${a.id}, '\${a.status}')">
+          \${a.status === 'allowed' ? '🚫 בלאקירן' : '✅ ערלויבן'}
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function createApp() {
+  const name = document.getElementById('app-name').value.trim();
+  const pkg = document.getElementById('app-package').value.trim();
+  if (!name || !pkg) return toast('פיל אויס אלע פעלדער!', '#ef4444');
+  await api('apps', 'POST', {
+    profile_id: document.getElementById('app-profile').value,
+    app_name: name,
+    package_name: pkg,
+    status: document.getElementById('app-status').value
+  });
+  closeModal('modal-app');
+  toast('✅ עפ צוגעגעבן!', '#22c55e');
+  loadApps();
+}
+
+async function deleteApp(id) {
+  await api('apps/' + id, 'DELETE');
+  toast('🗑️ געלעשט', '#ef4444');
+  loadApps();
+}
+
+async function toggleApp(id, currentStatus) {
+  const newStatus = currentStatus === 'allowed' ? 'blocked' : 'allowed';
+  // get current app info
+  const apps = await api('apps');
+  const app = apps.find(a => a.id === id);
+  if (!app) return;
+  await api('apps/' + id, 'PUT', { app_name: app.app_name, package_name: app.package_name, status: newStatus });
+  toast('✅ אפדעיטעד!', '#22c55e');
+  loadApps();
+}
+
+// ── WEBSITES ───────────────────────────────────────────
+async function loadWebsites() {
+  const profileId = document.getElementById('websites-profile-filter')?.value;
+  const url = profileId ? `websites?profile_id=\${profileId}` : 'websites';
+  const sites = await api(url);
+  const el = document.getElementById('websites-list');
+  if (!sites.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">🌐</div><p>קיין וועבסייטן נישט</p></div>';
+    return;
+  }
+  el.innerHTML = sites.map(s => `
+    <div class="item-card">
+      <h3>🌐 \${s.domain}</h3>
+      <span class="badge badge-\${s.status}">\${s.status === 'blocked' ? '🚫 בלאקירט' : '✅ ערלויבט'}</span>
+      <div class="actions">
+        <button class="btn btn-danger btn-sm" onclick="deleteWebsite(\${s.id})">🗑️ לעשן</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function createWebsite() {
+  const domain = document.getElementById('website-domain').value.trim();
+  if (!domain) return toast('שרייב א דאמיין!', '#ef4444');
+  await api('websites', 'POST', {
+    profile_id: document.getElementById('website-profile').value,
+    domain,
+    status: document.getElementById('website-status').value
+  });
+  closeModal('modal-website');
+  toast('✅ וועבסייט צוגעגעבן!', '#22c55e');
+  loadWebsites();
+}
+
+async function deleteWebsite(id) {
+  await api('websites/' + id, 'DELETE');
+  toast('🗑️ געלעשט', '#ef4444');
+  loadWebsites();
+}
+
+// ── USERS ──────────────────────────────────────────────
+async function loadUsers() {
+  const users = await api('users');
+  const el = document.getElementById('users-list');
+  if (!users.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">👤</div><p>קיין יוזערס נישט</p></div>';
+    return;
+  }
+  el.innerHTML = users.map(u => `
+    <div class="item-card">
+      <h3>👤 \${u.name}</h3>
+      <p>\${u.phone || u.email || ''}</p>
+      <p style="font-size:0.8rem;color:#4f46e5;">📋 \${u.profile_name || 'קיין פראפיל'}</p>
+      <div class="actions">
+        <button class="btn btn-danger btn-sm" onclick="deleteUser(\${u.id})">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function createUser() {
+  const name = document.getElementById('user-name').value.trim();
+  if (!name) return toast('שרייב א נאמען!', '#ef4444');
+  await api('users', 'POST', {
+    name,
+    phone: document.getElementById('user-phone').value,
+    profile_id: document.getElementById('user-profile').value,
+    device_id: document.getElementById('user-device').value
+  });
+  closeModal('modal-user');
+  toast('✅ יוזער צוגעגעבן!', '#22c55e');
+  loadUsers();
+}
+
+async function deleteUser(id) {
+  if (!confirm('זיכער לעשן?')) return;
+  await api('users/' + id, 'DELETE');
+  toast('🗑️ געלעשט', '#ef4444');
+  loadUsers();
+}
+
+// ── REQUESTS ───────────────────────────────────────────
+async function loadRequests() {
+  const reqs = await api('requests');
+  const el = document.getElementById('requests-list');
+  if (!reqs.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">📩</div><p>קיין ריקוועסטן נישט</p></div>';
+    return;
+  }
+  el.innerHTML = reqs.map(r => `
+    <div class="item-card">
+      <h3>📱 \${r.app_name}</h3>
+      <p>👤 \${r.user_name || 'אומבאקאנט'}</p>
+      <p style="font-size:0.8rem;color:#666;">\${r.reason || ''}</p>
+      <span class="badge badge-\${r.status}">\${
+        r.status === 'pending' ? '⏳ ווארט' :
+        r.status === 'approved' ? '✅ אנגענומען' : '❌ אפגעזאגט'
+      }</span>
+      \${r.status === 'pending' ? `
+      <div class="actions">
+        <button class="btn btn-success btn-sm" onclick="handleRequest(\${r.id},'approved')">✅ אנעמען</button>
+        <button class="btn btn-danger btn-sm" onclick="handleRequest(\${r.id},'rejected')">❌ אפזאגן</button>
+      </div>` : ''}
+    </div>
+  `).join('');
+}
+
+async function handleRequest(id, status) {
+  await api('requests/' + id, 'PUT', { status });
+  toast(status === 'approved' ? '✅ אנגענומען!' : '❌ אפגעזאגט!', status === 'approved' ? '#22c55e' : '#ef4444');
+  loadRequests();
+  loadDashboard();
+}
+
+// ── POPULATE SELECTS ───────────────────────────────────
+async function populateProfileSelects() {
+  const profs = await api('profiles');
+  profiles = profs;
+  const opts = profs.map(p => `<option value="\${p.id}">\${p.name}</option>`).join('');
+  ['app-profile','website-profile','user-profile'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts || '<option value="">קיין פילטערס</option>';
+  });
+  ['apps-profile-filter','websites-profile-filter'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<option value="">אלע פילטערס</option>' + opts;
+  });
+}
+
+// ── INIT ───────────────────────────────────────────────
+async function init() {
+  // Initialize DB
+  await fetch(API + '/init');
+  await populateProfileSelects();
+  loadDashboard();
+}
+
+init();
+</script>
+</body>
+</html>`;
+
 export async function onRequest(context) {
-  // Fetch filter.html from the same Pages deployment
-  const url = new URL(context.request.url);
-  url.pathname = '/filter.html';
-  const response = await fetch(url.toString());
-  const html = await response.text();
-  return new Response(html, {
+  return new Response(HTML, {
     headers: { 'Content-Type': 'text/html;charset=UTF-8' }
   });
 }
