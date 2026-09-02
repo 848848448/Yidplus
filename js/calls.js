@@ -15,6 +15,31 @@
   function _videoConstraints() {
     return { width: { ideal: 320, max: 480 }, height: { ideal: 240, max: 360 }, frameRate: { ideal: 15, max: 20 } };
   }
+  // Microphone constraints shared by 1-on-1 AND group calls. Acoustic echo
+  // cancellation + noise suppression + auto gain are what stop a call from
+  // echoing badly when someone isn't wearing headphones. Group calls used to
+  // pass a bare `audio: true`, which turned all of this OFF — the main cause of
+  // the "very strong echo".
+  window._ypMicConstraints = function () {
+    return { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+  };
+  // Robust playback. Browsers can block a media element's .play() under the
+  // autoplay policy when a remote track arrives outside a user gesture — which
+  // is exactly why call audio sometimes never starts ("can't always hear it").
+  // Try to play; if it's blocked, retry once on the next tap/click anywhere.
+  window._ypPlay = function (el) {
+    if (!el || !el.play) return;
+    var p = el.play();
+    if (p && p.catch) p.catch(function () {
+      var retry = function () {
+        document.removeEventListener('click', retry, true);
+        document.removeEventListener('touchend', retry, true);
+        el.play && el.play().catch(function () {});
+      };
+      document.addEventListener('click', retry, true);
+      document.addEventListener('touchend', retry, true);
+    });
+  };
   // Cap the video bandwidth right in the SDP so the encoder never bursts and
   // chokes the connection (which was knocking the whole browser offline).
   window._capSdp = function (sdp, kbps) {
@@ -36,7 +61,7 @@
     } catch (e) { return sdp; }
   }
   function _mediaFor(kind) {
-    return { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: kind === 'video' ? _videoConstraints() : false };
+    return { audio: window._ypMicConstraints(), video: kind === 'video' ? _videoConstraints() : false };
   }
   // Route media through ONE connection: force TURN relay when available (so we
   // don't open many peer-to-peer UDP flows that overwhelm a home router and drop
@@ -187,7 +212,7 @@
     pc.ontrack = function (e) {
       CALL.remote = e.streams[0];
       var rv = document.getElementById('call-remote-video');
-      if (rv) { rv.srcObject = e.streams[0]; rv.play && rv.play().catch(function () {}); }
+      if (rv) { rv.srcObject = e.streams[0]; window._ypPlay(rv); }
       // Reveal the remote video (the avatar fallback sits on top) once media flows.
       var hasVideo = e.streams[0] && e.streams[0].getVideoTracks && e.streams[0].getVideoTracks().length > 0;
       var fb = document.getElementById('call-remote-fallback');
@@ -479,7 +504,7 @@
     GCALL.roomId = roomId; GCALL.kind = kind === 'audio' ? 'audio' : 'video';
     GCALL.peers = {}; GCALL.names = {}; GCALL.cursor = 0;
     _gShowUI();
-    navigator.mediaDevices.getUserMedia({ audio: true, video: GCALL.kind === 'video' })
+    navigator.mediaDevices.getUserMedia({ audio: window._ypMicConstraints(), video: GCALL.kind === 'video' ? true : false })
       .then(function (stream) { GCALL.local = stream; _gAddTile('local', 'You', stream, true); return gIce(); })
       .then(function (ice) { GCALL.ice = ice; return gapi('/group-call', { action: 'join', room_id: roomId, kind: GCALL.kind }); })
       .then(function (res) {
@@ -604,7 +629,7 @@
       grid.appendChild(tile);
     }
     var v = tile.querySelector('video');
-    if (v && stream) { v.srcObject = stream; v.play && v.play().catch(function () {}); }
+    if (v && stream) { v.srcObject = stream; window._ypPlay(v); }
     _gRelayout();
   }
   function _gRelayout() {
