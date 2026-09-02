@@ -128,6 +128,21 @@ export async function onRequestPost(context) {
         .bind(callId, user.id, 'ice', JSON.stringify(body.candidate), now).run();
       return json({ ok: true });
     }
+    // Mid-call renegotiation for ICE restart — how a dropped connection recovers
+    // instead of dying. Relayed exactly like an offer/answer, but with distinct
+    // types so the initial-offer lookup (incoming call) never picks these up.
+    if (action === 'renegotiate') {
+      if (!body.offer) return json({ ok: false, error: 'offer required' }, 400);
+      await env.DB.prepare('INSERT INTO call_signals (call_id, from_id, type, data, created_at) VALUES (?,?,?,?,?)')
+        .bind(callId, user.id, 'reoffer', JSON.stringify(body.offer), now).run();
+      return json({ ok: true });
+    }
+    if (action === 'reanswer') {
+      if (!body.answer) return json({ ok: false, error: 'answer required' }, 400);
+      await env.DB.prepare('INSERT INTO call_signals (call_id, from_id, type, data, created_at) VALUES (?,?,?,?,?)')
+        .bind(callId, user.id, 'reanswer', JSON.stringify(body.answer), now).run();
+      return json({ ok: true });
+    }
     if (action === 'decline' || action === 'end' || action === 'cancel') {
       // Only log/close once — ignore if already finished.
       if (call.status === 'ringing' || call.status === 'active') {

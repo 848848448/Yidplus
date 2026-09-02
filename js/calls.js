@@ -222,13 +222,45 @@
     };
     pc.oniceconnectionstatechange = function () {
       var st = pc.iceConnectionState;
-      if (st === 'connected' || st === 'completed') { _setStatus('Connected'); _stopRing(); }
+      if (st === 'connected' || st === 'completed') {
+        _setStatus('Connected'); _stopRing();
+        clearTimeout(CALL._recoverTimer); CALL._restarting = false;
+      } else if (st === 'disconnected') {
+        // A brief blip often heals itself — give it a moment, then restart ICE.
+        _setStatus('Reconnecting…');
+        clearTimeout(CALL._recoverTimer);
+        CALL._recoverTimer = setTimeout(_restartIce, 2000);
+      } else if (st === 'failed') {
+        _setStatus('Reconnecting…'); _restartIce();
+      }
     };
     pc.onconnectionstatechange = function () {
-      if (pc.connectionState === 'connected') { _setStatus('Connected'); _stopRing(); _capBitrate(pc, 350); }
-      else if (pc.connectionState === 'failed') { _setStatus('Connection failed'); }
-      else if (pc.connectionState === 'disconnected') { _setStatus('Reconnecting…'); }
+      if (pc.connectionState === 'connected') {
+        _setStatus('Connected'); _stopRing(); _capBitrate(pc, 350);
+        clearTimeout(CALL._recoverTimer); CALL._restarting = false;
+      } else if (pc.connectionState === 'failed') {
+        _setStatus('Reconnecting…'); _restartIce();
+      } else if (pc.connectionState === 'disconnected') {
+        _setStatus('Reconnecting…');
+        clearTimeout(CALL._recoverTimer);
+        CALL._recoverTimer = setTimeout(_restartIce, 2000);
+      }
     };
+  }
+
+  // Recover a dropped call instead of letting it die. The CALLER re-offers with
+  // an ICE restart (only one side re-offers, to avoid glare); the callee applies
+  // the reoffer and answers. New candidates flow and the media path is rebuilt.
+  function _restartIce() {
+    if (!CALL.pc || !CALL.id || CALL._restarting) return;
+    if (CALL.pc.iceConnectionState === 'connected' || CALL.pc.iceConnectionState === 'completed') return;
+    if (CALL.role !== 'caller') { try { CALL.pc.restartIce && CALL.pc.restartIce(); } catch (e) {} return; }
+    CALL._restarting = true;
+    CALL.pc.createOffer({ iceRestart: true })
+      .then(function (o) { o.sdp = _capSdp(o.sdp, 350); return CALL.pc.setLocalDescription(o).then(function () { return o; }); })
+      .then(function (o) { return api('/call', { action: 'renegotiate', call_id: CALL.id, offer: o }); })
+      .then(function () { CALL._restarting = false; })
+      .catch(function () { CALL._restarting = false; });
   }
 
   function _flushIce() {
@@ -256,6 +288,15 @@
           } else if (s.type === 'ice') {
             if (CALL.haveRemote) CALL.pc.addIceCandidate(new RTCIceCandidate(data)).catch(function () {});
             else CALL.pendingIce.push(data);
+          } else if (s.type === 'reoffer') {
+            // The other side restarted ICE — apply its new offer and answer back.
+            CALL.pc.setRemoteDescription(new RTCSessionDescription(data))
+              .then(function () { return CALL.pc.createAnswer(); })
+              .then(function (a) { a.sdp = _capSdp(a.sdp, 350); return CALL.pc.setLocalDescription(a).then(function () { return a; }); })
+              .then(function (a) { return api('/call', { action: 'reanswer', call_id: CALL.id, answer: a }); })
+              .catch(function () {});
+          } else if (s.type === 'reanswer') {
+            CALL.pc.setRemoteDescription(new RTCSessionDescription(data)).catch(function () {});
           }
         });
       }).catch(function () {});
@@ -469,6 +510,7 @@
 
   function _cleanup() {
     _stopRing();
+    clearTimeout(CALL._recoverTimer); CALL._recoverTimer = null; CALL._restarting = false;
     clearInterval(CALL.poll); CALL.poll = null;
     if (CALL.pc) { try { CALL.pc.close(); } catch (e) {} CALL.pc = null; }
     if (CALL.local) { CALL.local.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} }); CALL.local = null; }
