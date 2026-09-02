@@ -115,11 +115,11 @@ window.buildSettingsPage = function () {
     var isDarkNow = document.documentElement.classList.contains('dark-mode');
 
     host.innerHTML = _section(t('Appearance'), [
-      _row(_svg_sun(), t('Dark Mode'), '<div class="toggle-sw' + (isDarkNow?' on':'') + '" id="darkmode-toggle-sw" onclick="toggleDarkMode(this)"></div>'),
-      _row(_svg_text(), t('Text Size'), '<div style="display:flex;gap:.35rem">' +
+      _row(_msym('dark_mode'), t('Dark Mode'), '<div class="toggle-sw' + (isDarkNow?' on':'') + '" id="darkmode-toggle-sw" onclick="toggleDarkMode(this)"></div>'),
+      _row(_msym('format_size'), t('Text Size'), '<div style="display:flex;gap:.35rem">' +
         ['S','M','L'].map(function(s,i){return '<button class="cs-font-btn' + (i===1?' active':'') + '" onclick="setChatFont(\'' + ['sm','md','lg'][i] + '\',this)">' + s + '</button>';}).join('') +
       '</div>'),
-      _row('🌐', t('Language'), '<select onchange="setLang(this.value)" style="padding:.35rem .5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem">' +
+      _row(_msym('language'), t('Language'), '<select onchange="setLang(this.value)" style="padding:.35rem .5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem">' +
         '<option value="en"' + (YP_LANG==='en'?' selected':'') + '>English</option>' +
         '<option value="yi"' + (YP_LANG==='yi'?' selected':'') + '>ייִדיש</option>' +
         '<option value="he"' + (YP_LANG==='he'?' selected':'') + '>עברית</option>' +
@@ -132,49 +132,49 @@ window.buildSettingsPage = function () {
       '<button class="theme-reset-btn" onclick="resetTheme()">Reset to Default</button>',
     ]) +
     _section(t('Stats'), [
-      _statRow('📹', 'Videos', stats.shorts || 0),
-      _statRow('🎵', 'Music Tracks', stats.music || 0),
-      _statRow('💬', 'Messages', stats.messages || 0),
-      _statRow('👁️', 'Profile Views', stats.profile_views || 0),
-      _statRow('👥', 'Followers', stats.followers || 0),
+      _statRow(_msym('movie'), 'Videos', stats.shorts || 0),
+      _statRow(_msym('music_note'), 'Music Tracks', stats.music || 0),
+      _statRow(_msym('chat_bubble'), 'Messages', stats.messages || 0),
+      _statRow(_msym('visibility'), 'Profile Views', stats.profile_views || 0),
+      _statRow(_msym('group'), 'Followers', stats.followers || 0),
     ]) +
     _section(t('Profile'), [
-      _row(_svg_bio(), 'Bio', '<button class="settings-edit-btn" onclick="openEditField(\'bio\',\'Bio\',\'' + escHtml(p.bio||'') + '\')">Edit</button>'),
-      _row(_svg_loc(), 'Location', '<button class="settings-edit-btn" onclick="openEditField(\'location\',\'Location\',\'' + escHtml(p.location||'') + '\')">Edit</button>'),
-      _row(_svg_bday(), 'Birthday', '<button class="settings-edit-btn" onclick="openEditField(\'birthday\',\'Birthday\',\'' + escHtml(p.birthday||'') + '\',\'date\')">Edit</button>'),
-      _row(_svg_web(), 'Website', '<button class="settings-edit-btn" onclick="openEditField(\'website\',\'Website\',\'' + escHtml(p.website||'') + '\',\'url\')">Edit</button>'),
-      _row('📸', 'Instagram', '<button class="settings-edit-btn" onclick="openEditField(\'instagram\',\'Instagram\',\'' + escHtml(p.instagram||'') + '\')">Edit</button>'),
-      _row('▶️', 'YouTube', '<button class="settings-edit-btn" onclick="openEditField(\'youtube\',\'YouTube\',\'' + escHtml(p.youtube||'') + '\',\'url\')">Edit</button>'),
-      _row(_svg_key(), t('Change Password'), '<button class="settings-edit-btn" onclick="openChangePassword()">Change</button>'),
+      _row(_msym('notes'), 'Bio', '<button class="settings-edit-btn" onclick="openEditField(\'bio\',\'Bio\',\'' + escHtml(p.bio||'') + '\')">Edit</button>'),
+      _row(_msym('location_on'), 'Location', '<button class="settings-edit-btn" onclick="openEditField(\'location\',\'Location\',\'' + escHtml(p.location||'') + '\')">Edit</button>'),
+      _row(_msym('cake'), 'Birthday', '<button class="settings-edit-btn" onclick="openEditField(\'birthday\',\'Birthday\',\'' + escHtml(p.birthday||'') + '\',\'date\')">Edit</button>'),
+      _row(_msym('public'), 'Website', '<button class="settings-edit-btn" onclick="openEditField(\'website\',\'Website\',\'' + escHtml(p.website||'') + '\',\'url\')">Edit</button>'),
+      _row(_msym('photo_camera'), 'Instagram', '<button class="settings-edit-btn" onclick="openEditField(\'instagram\',\'Instagram\',\'' + escHtml(p.instagram||'') + '\')">Edit</button>'),
+      _row(_msym('smart_display'), 'YouTube', '<button class="settings-edit-btn" onclick="openEditField(\'youtube\',\'YouTube\',\'' + escHtml(p.youtube||'') + '\',\'url\')">Edit</button>'),
+      _row(_msym('password'), t('Change Password'), '<button class="settings-edit-btn" onclick="openChangePassword()">Change</button>'),
     ]) +
     _section(t('Privacy'), [
-      _row('🔒', t('Private Account'), _toggle('is_private', !!p.is_private) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">When ON, people must request to follow you before seeing your posts and statuses.</div>'),
-      _row('👥', t('Follow Requests'), '<button class="settings-edit-btn" onclick="openFollowRequests()" id="follow-req-btn">View</button>'),
-      _row('🟢', t('Active status'), _toggle('show_online', p.show_online !== 0) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Let others see when you\'re online.</div>'),
-      _row('✔️', t('Read receipts'), _toggle('read_receipts', p.read_receipts !== 0) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Show others when you\'ve read their message.</div>'),
-      _row(_svg_privacy(), t('Who can see my profile'), _select('privacy_profile', p.privacy_profile||'public', ['public:Everyone','friends:Friends only','private:Only me'])),
-      _row(_svg_msg(), t('Who can message me'), _select('privacy_messages', p.privacy_messages||'everyone', ['everyone:Everyone','friends:Friends only','nobody:Nobody'])),
-      _row('🚫', t('Blocked users'), '<button class="settings-edit-btn" onclick="openBlockedUsers()">Manage</button>'),
+      _row(_msym('lock'), t('Private Account'), _toggle('is_private', !!p.is_private) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">When ON, people must request to follow you before seeing your posts and statuses.</div>'),
+      _row(_msym('person_add'), t('Follow Requests'), '<button class="settings-edit-btn" onclick="openFollowRequests()" id="follow-req-btn">View</button>'),
+      _row(_msym('radio_button_checked'), t('Active status'), _toggle('show_online', p.show_online !== 0) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Let others see when you\'re online.</div>'),
+      _row(_msym('done_all'), t('Read receipts'), _toggle('read_receipts', p.read_receipts !== 0) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Show others when you\'ve read their message.</div>'),
+      _row(_msym('visibility'), t('Who can see my profile'), _select('privacy_profile', p.privacy_profile||'public', ['public:Everyone','friends:Friends only','private:Only me'])),
+      _row(_msym('chat'), t('Who can message me'), _select('privacy_messages', p.privacy_messages||'everyone', ['everyone:Everyone','friends:Friends only','nobody:Nobody'])),
+      _row(_msym('block'), t('Blocked users'), '<button class="settings-edit-btn" onclick="openBlockedUsers()">Manage</button>'),
     ]) +
     _section(t('Security'), [
-      _row(_svg_key(), t('Change Password'), '<button class="settings-edit-btn" onclick="openChangePassword()">Change</button>'),
-      _row('🔐', t('Two-factor authentication'), '<button class="settings-edit-btn" id="twofa-btn" onclick="open2FA()">Set up</button>'),
+      _row(_msym('password'), t('Change Password'), '<button class="settings-edit-btn" onclick="openChangePassword()">Change</button>'),
+      _row(_msym('security'), t('Two-factor authentication'), '<button class="settings-edit-btn" id="twofa-btn" onclick="open2FA()">Set up</button>'),
     ]) +
     _section(t('Chat'), [
-      _row('🖼️', t('Chat wallpaper'), '<button class="settings-edit-btn" onclick="openWallpaperPicker()">Change</button>'),
-      _row('🔕', t('Muted chats'), '<button class="settings-edit-btn" onclick="openMutedChats()">View</button>'),
-      _row('🔔', 'Silent calls', _localToggle('yp_silent_calls', (function(){try{return localStorage.getItem('yp_silent_calls')==='1'}catch(e){return false}})()) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Incoming calls appear on screen with no ringtone.</div>'),
+      _row(_msym('wallpaper'), t('Chat wallpaper'), '<button class="settings-edit-btn" onclick="openWallpaperPicker()">Change</button>'),
+      _row(_msym('notifications_off'), t('Muted chats'), '<button class="settings-edit-btn" onclick="openMutedChats()">View</button>'),
+      _row(_msym('phone_disabled'), 'Silent calls', _localToggle('yp_silent_calls', (function(){try{return localStorage.getItem('yp_silent_calls')==='1'}catch(e){return false}})()) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Incoming calls appear on screen with no ringtone.</div>'),
     ]) +
     _section(t('Notifications'), [
-      _row(_svg_notif(), 'New Messages', _toggle('notif_messages', p.notif_messages!==0)),
-      _row('❤️', 'New Likes', _toggle('notif_likes', p.notif_likes!==0)),
-      _row('👤', 'New Followers', _toggle('notif_followers', p.notif_followers!==0)),
-      _row('📡', 'Channel Updates', _toggle('notif_channels', p.notif_channels!==0)),
+      _row(_msym('mail'), 'New Messages', _toggle('notif_messages', p.notif_messages!==0)),
+      _row(_msym('favorite'), 'New Likes', _toggle('notif_likes', p.notif_likes!==0)),
+      _row(_msym('person_add'), 'New Followers', _toggle('notif_followers', p.notif_followers!==0)),
+      _row(_msym('campaign'), 'Channel Updates', _toggle('notif_channels', p.notif_channels!==0)),
     ]) +
     _section('Devices (' + sessions.length + ' active)', [
       sessions.slice(0,5).map(function(s,i) {
         var isThis = i === 0;
-        return _row(_svg_device(), 'Session ' + (isThis ? '(This device)' : (i+1)), isThis
+        return _row(_msym('devices'), 'Session ' + (isThis ? '(This device)' : (i+1)), isThis
           ? '<span style="font-size:.7rem;color:var(--green)">Active</span>'
           : '<button class="settings-edit-btn" style="color:#E11D48" onclick="logoutSession(\'' + s.id + '\')">Logout</button>');
       }).join('') +
@@ -182,28 +182,28 @@ window.buildSettingsPage = function () {
     ]) +
     _section(t('Verification'), [
       p.verified
-        ? _row('✅', 'Verified account', '<span style="font-size:.72rem;color:var(--green);font-weight:700">Active</span>')
-        : _row('✅', 'Get verified', '<button class="settings-edit-btn" onclick="requestVerification(this)">Request</button>'),
+        ? _row(_msym('verified'), 'Verified account', '<span style="font-size:.72rem;color:var(--green);font-weight:700">Active</span>')
+        : _row(_msym('verified'), 'Get verified', '<button class="settings-edit-btn" onclick="requestVerification(this)">Request</button>'),
     ]) +
     _section('Share Profile', [
-      _row(_svg_share(), 'Share my profile', '<button class="settings-edit-btn" onclick="shareProfile()">Share</button>'),
-      _row('🔗', 'Copy link', '<button class="settings-edit-btn" onclick="copyProfileLink()">Copy</button>'),
+      _row(_msym('share'), 'Share my profile', '<button class="settings-edit-btn" onclick="shareProfile()">Share</button>'),
+      _row(_msym('link'), 'Copy link', '<button class="settings-edit-btn" onclick="copyProfileLink()">Copy</button>'),
     ]) +
     _section('App', [
-      _row(_svg_notif(), 'Push Notifications',
+      _row(_msym('notifications'), 'Push Notifications',
         '<div class="toggle-sw' + (typeof PWA !== 'undefined' && PWA.isPushEnabled() ? ' on' : '') + '" id="push-notif-toggle" onclick="togglePushNotifications(this)"></div>'),
-      _row('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+      _row(_msym('install_mobile'),
         'Add to Home Screen', '<button class="settings-edit-btn" onclick="PWA.install()">Install</button>'),
     ]) +
     _section(t('Help & About'), [
-      _row('💬', t('Help & Support'), '›', 'onclick="openGuidedSupport()"'),
-      _row(_svg_feedback(), t('Send Feedback'), '›', 'onclick="openFeedbackModal()"'),
-      _row('🧹', t('Clear cache'), '<button class="settings-edit-btn" onclick="clearAppCache(this)">Clear</button>'),
-      _row('ℹ️', t('About YID PLUS'), '<span style="font-size:.72rem;color:var(--muted)">' + (window.YP_VERSION || 'v1.0') + '</span>'),
-      _row('📥', t('Download my data'), '<button class="settings-edit-btn" onclick="downloadMyData(this)">Export</button>'),
+      _row(_msym('help'), t('Help & Support'), '›', 'onclick="openGuidedSupport()"'),
+      _row(_msym('feedback'), t('Send Feedback'), '›', 'onclick="openFeedbackModal()"'),
+      _row(_msym('cleaning_services'), t('Clear cache'), '<button class="settings-edit-btn" onclick="clearAppCache(this)">Clear</button>'),
+      _row(_msym('info'), t('About YID PLUS'), '<span style="font-size:.72rem;color:var(--muted)">' + (window.YP_VERSION || 'v1.0') + '</span>'),
+      _row(_msym('download'), t('Download my data'), '<button class="settings-edit-btn" onclick="downloadMyData(this)">Export</button>'),
     ]) +
     _section(t('More'), [
-      isAnyAdmin() ? _row(_svg_admin(), t('Admin Panel'), '›', 'onclick="goPage(\'/admin\')"') : '',
+      isAnyAdmin() ? _row(_msym('admin_panel_settings'), t('Admin Panel'), '›', 'onclick="goPage(\'/admin\')"') : '',
     ]) +
     '<div class="settings-danger-section">' +
       '<button class="settings-danger-btn" onclick="confirmDeleteAccount()">Delete Account</button>' +
@@ -220,6 +220,11 @@ window.buildSettingsPage = function () {
 };
 
 // ── HELPERS ──
+// Google Material Symbols (Rounded) icon by ligature name — the modern icon
+// set used across Google's own apps. Replaces the old mix of Feather-style
+// line SVGs and emoji so every settings row shares one consistent look.
+function _msym(name) { return '<span class="material-symbols-rounded">' + name + '</span>'; }
+
 function _section(title, rows) {
   var content = Array.isArray(rows) ? rows.join('') : rows;
   return '<div class="settings-card">' +

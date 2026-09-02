@@ -1,4 +1,4 @@
-import { json, corsHeaders, hashPassword, isValidEmail, generateSessionToken, checkRateLimit, notifyAdmin } from '../_helpers.js';
+import { json, corsHeaders, hashPassword, isValidEmail, generateSessionToken, checkRateLimit, notifyAdmin, isOwnerEmail } from '../_helpers.js';
 import { sendVerificationEmail } from './send-verification.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
@@ -29,8 +29,7 @@ export async function onRequestPost(context) {
       "SELECT value FROM app_settings WHERE key = 'maintenance_mode'"
     ).first().catch(() => null);
     if (maintRow && maintRow.value === 'true') {
-      const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
-      if (!OWNER_EMAILS.includes(email)) {
+      if (!isOwnerEmail(email, env.OWNER_EMAIL)) {
         return json({ ok: false, error: 'Site is under maintenance. Registration is temporarily disabled.' }, 503);
       }
     }
@@ -43,7 +42,6 @@ export async function onRequestPost(context) {
       "SELECT value FROM app_settings WHERE key = 'signin_locked'"
     ).first().catch(() => null);
     if (_lockRow && _lockRow.value === 'true') {
-      const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
       const preAllowed = await env.DB.prepare(
         'SELECT email FROM access_allowlist WHERE email = ?'
       ).bind(email).first().catch(() => null);
@@ -61,7 +59,7 @@ export async function onRequestPost(context) {
         }
       }
 
-      if (!OWNER_EMAILS.includes(email) && !preAllowed && !inviteOk) {
+      if (!isOwnerEmail(email, env.OWNER_EMAIL) && !preAllowed && !inviteOk) {
         return json({ ok: false, error: 'Sign-up is currently disabled. An invite is required.' }, 403);
       }
       // Consume one use of the invite code.
@@ -87,14 +85,14 @@ export async function onRequestPost(context) {
     if (password.length < 6) return json({ ok: false, error: 'Password must be at least 6 characters' }, 400);
     if (password.length > 128) return json({ ok: false, error: 'Password too long' }, 400);
 
-    const isOwnerEmail = email === env.OWNER_EMAIL || email === 'jmittelman2@gmail.com';
+    const emailIsOwner = isOwnerEmail(email, env.OWNER_EMAIL);
 
     // ── IP + fingerprint ban check (non-owners only) ──
     const ip = request.headers.get('CF-Connecting-IP') ||
                request.headers.get('X-Forwarded-For') ||
                '0.0.0.0';
 
-    if (!isOwnerEmail) {
+    if (!emailIsOwner) {
       if (ip && ip !== '0.0.0.0') {
         const ipBan = await env.DB.prepare(
           `SELECT id FROM device_bans WHERE ip = ? LIMIT 1`
@@ -148,7 +146,7 @@ export async function onRequestPost(context) {
 
     const userId = crypto.randomUUID();
     const now = new Date().toISOString();
-    const role = isOwnerEmail ? 'admin_super' : 'member';
+    const role = emailIsOwner ? 'admin_super' : 'member';
 
     await env.DB.prepare(
       'INSERT INTO users (id, email, nickname, phone, password_hash, role, verified, blocked, online, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, ?)'

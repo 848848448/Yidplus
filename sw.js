@@ -96,11 +96,11 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
-  // Never cache navigations (HTML documents). Clean URLs like /yidplus-admin,
-  // /yidplus-chat, etc. have no .html extension, so the NEVER_CACHE list below
-  // misses them — and a cached page would keep loading an OLD ?v= script bundle
-  // after a deploy. Treat any document/navigation request as network-first.
-  if (e.request.mode === 'navigate' || (e.request.headers.get('accept') || '').includes('text/html')) {
+  // Never cache HTML documents. Real navigations are already handled above;
+  // this also catches document requests that don't report mode 'navigate' but
+  // still ask for text/html (e.g. some prefetches), so a cached page can't keep
+  // loading an OLD ?v= script bundle after a deploy. Network-first either way.
+  if ((e.request.headers.get('accept') || '').includes('text/html')) {
     e.respondWith(
       fetch(e.request).catch(function () {
         return caches.match(e.request).then(function (c) { return c || new Response('Offline', { status: 503 }); });

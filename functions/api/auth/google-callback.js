@@ -1,6 +1,6 @@
 // GET /api/auth/google-callback?code=...&state=...
 // Exchanges the Google auth code for tokens, creates/logs in the user, sets session cookie.
-import { json, generateSessionToken, notifyAdmin } from '../_helpers.js';
+import { json, generateSessionToken, notifyAdmin, isOwnerEmail, GOOGLE_OAUTH_SENTINEL } from '../_helpers.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -66,17 +66,16 @@ export async function onRequestGet(context) {
       "SELECT value FROM app_settings WHERE key = 'maintenance_mode'"
     ).first().catch(() => null);
     if (maintRow && maintRow.value === 'true') {
-      const OWNER_EMAILS_M = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
-      if (!OWNER_EMAILS_M.includes(email)) {
+      if (!isOwnerEmail(email, env.OWNER_EMAIL)) {
         return Response.redirect(`${origin}/?error=maintenance`, 302);
       }
     }
 
     // ── Check device bans (same as regular login) ──
     const ip = request.headers.get('CF-Connecting-IP') || '0.0.0.0';
-    const isOwnerEmail = email === env.OWNER_EMAIL || email === 'jmittelman2@gmail.com';
+    const emailIsOwner = isOwnerEmail(email, env.OWNER_EMAIL);
 
-    if (!isOwnerEmail && ip && ip !== '0.0.0.0') {
+    if (!emailIsOwner && ip && ip !== '0.0.0.0') {
       const ipBan = await env.DB.prepare(`SELECT id FROM device_bans WHERE ip = ? LIMIT 1`).bind(ip).first().catch(() => null);
       if (ipBan) return Response.redirect(`${origin}/index.html?error=banned`, 302);
     }
@@ -87,7 +86,7 @@ export async function onRequestGet(context) {
     const lockRow = await env.DB.prepare(
       "SELECT value FROM app_settings WHERE key = 'signin_locked'"
     ).first().catch(() => null);
-    if (lockRow && lockRow.value === 'true' && !isOwnerEmail) {
+    if (lockRow && lockRow.value === 'true' && !emailIsOwner) {
       const allowed = await env.DB.prepare(
         'SELECT email FROM access_allowlist WHERE email = ?'
       ).bind(email).first().catch(() => null);
@@ -125,7 +124,7 @@ export async function onRequestGet(context) {
         `INSERT INTO users (id, email, nickname, password_hash, role, verified, blocked,
           photo_url, email_verified, created_at)
          VALUES (?, ?, ?, ?, 'member', 0, 0, ?, 1, ?)`
-      ).bind(userId, email, nickname, 'GOOGLE_OAUTH_NO_PASSWORD', googlePhoto || null, now).run();
+      ).bind(userId, email, nickname, GOOGLE_OAUTH_SENTINEL, googlePhoto || null, now).run();
 
       user = { id: userId, email, nickname, role: 'member', verified: 0, blocked: 0, photo_url: googlePhoto };
 

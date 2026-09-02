@@ -1558,33 +1558,107 @@ window.PWA = {
     return outputArray;
   },
 
-  // Show "Add to Home Screen" prompt
+  // ── INSTALL AS APP ──────────────────────────────────────────
   _deferredPrompt: null,
+
+  // Already running as an installed app? Then never nag to install.
+  isStandalone: function () {
+    try {
+      return window.matchMedia('(display-mode: standalone)').matches ||
+             window.navigator.standalone === true;
+    } catch (e) { return false; }
+  },
+
+  // iOS Safari never fires beforeinstallprompt, so it needs a manual hint.
+  // (Covers iPadOS, which reports as MacIntel with a touch screen.)
+  isIOS: function () {
+    var ua = navigator.userAgent || '';
+    return /iPhone|iPad|iPod/.test(ua) ||
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  },
+
+  // Don't re-show the banner for a week after the user dismisses/installs it.
+  _dismissedRecently: function () {
+    try {
+      var t = parseInt(localStorage.getItem('yp_install_dismissed') || '0', 10);
+      return !!t && (Date.now() - t) < 7 * 24 * 60 * 60 * 1000;
+    } catch (e) { return false; }
+  },
+
   initInstallPrompt: function () {
     window.addEventListener('beforeinstallprompt', function (e) {
       e.preventDefault();
       window.PWA._deferredPrompt = e;
-      // Show install button if available
-      var btn = document.getElementById('pwa-install-btn');
-      if (btn) btn.style.display = 'flex';
+      window.PWA._showBanner('android');
     });
     window.addEventListener('appinstalled', function () {
-      var btn = document.getElementById('pwa-install-btn');
-      if (btn) btn.style.display = 'none';
+      window.PWA._hideBanner();
+      try { localStorage.setItem('yp_install_dismissed', String(Date.now())); } catch (e) {}
       toast('✅ YID PLUS installed!');
     });
+    // iOS gets a delayed hint banner (no native prompt exists there).
+    if (PWA.isIOS() && !PWA.isStandalone() && !PWA._dismissedRecently()) {
+      setTimeout(function () { if (!PWA.isStandalone()) PWA._showBanner('ios'); }, 2500);
+    }
+  },
+
+  _buildBanner: function () {
+    if (document.getElementById('pwa-install-banner')) return;
+    var el = document.createElement('div');
+    el.id = 'pwa-install-banner';
+    el.className = 'pwa-install-banner';
+    el.innerHTML =
+      '<img src="/images/icon-192.png" alt="" class="pwa-ib-icon">' +
+      '<div class="pwa-ib-body">' +
+        '<div class="pwa-ib-title">YID PLUS</div>' +
+        '<div class="pwa-ib-sub" id="pwa-ib-sub"></div>' +
+      '</div>' +
+      '<button class="pwa-ib-cta" id="pwa-ib-cta">Install</button>' +
+      '<button class="pwa-ib-close" id="pwa-ib-close" aria-label="Close">✕</button>';
+    document.body.appendChild(el);
+    document.getElementById('pwa-ib-close').onclick = function () { PWA._dismissBanner(); };
+    document.getElementById('pwa-ib-cta').onclick = function () { PWA.install(); };
+  },
+
+  _showBanner: function (mode) {
+    if (PWA.isStandalone() || PWA._dismissedRecently()) return;
+    PWA._buildBanner();
+    var el  = document.getElementById('pwa-install-banner');
+    var sub = document.getElementById('pwa-ib-sub');
+    var cta = document.getElementById('pwa-ib-cta');
+    if (mode === 'ios') {
+      sub.innerHTML = 'To install: tap Share, then “Add to Home Screen”.';
+      cta.style.display = 'none';
+    } else {
+      sub.textContent = 'Install the app for a faster, full-screen experience.';
+      cta.style.display = '';
+    }
+    // next frame so the CSS transition runs
+    requestAnimationFrame(function () { el.classList.add('show'); });
+  },
+
+  _hideBanner: function () {
+    var el = document.getElementById('pwa-install-banner');
+    if (el) el.classList.remove('show');
+  },
+
+  _dismissBanner: function () {
+    PWA._hideBanner();
+    try { localStorage.setItem('yp_install_dismissed', String(Date.now())); } catch (e) {}
   },
 
   install: function () {
     var prompt = window.PWA._deferredPrompt;
     if (!prompt) {
-      toast('Open in browser menu → "Add to Home Screen"');
+      if (PWA.isIOS()) { PWA._showBanner('ios'); toast('Tap Share → “Add to Home Screen”'); }
+      else toast('Open your browser menu → “Install app”');
       return;
     }
     prompt.prompt();
     prompt.userChoice.then(function (result) {
       if (result.outcome === 'accepted') toast('Installing YID PLUS...');
       window.PWA._deferredPrompt = null;
+      PWA._hideBanner();
     });
   },
 };
