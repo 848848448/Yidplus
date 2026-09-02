@@ -265,6 +265,26 @@ body.night {
   display: flex; align-items: center;
 }
 
+/* ══════════ Accessibility polish ══════════ */
+/* A visible focus ring for keyboard users only (mouse clicks never show it),
+   so the app is navigable by keyboard without adding an outline for everyone. */
+:focus-visible {
+  outline: 2px solid var(--accent, #1F6F5C);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* Respect the OS "reduce motion" setting — ease off animations/transitions for
+   users who get motion sick or simply prefer calm. Durations are kept tiny
+   rather than zero so any transitionend-driven logic still fires. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ---------- FORM FIELDS ---------- */
 .field {
   width: 100%;
