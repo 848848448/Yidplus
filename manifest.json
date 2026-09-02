@@ -4,6 +4,7 @@
   "description": "The Jewish social platform",
   "lang": "yi",
   "dir": "rtl",
+  "id": "/",
   "start_url": "/chat",
   "scope": "/",
   "display": "standalone",
