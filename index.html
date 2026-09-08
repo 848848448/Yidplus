@@ -641,12 +641,6 @@ window.submitFeedback = function () {
 // ── BOOT ──
 document.addEventListener('DOMContentLoaded', function () {
   AUTH.restore().then(function (user) {
-    if (!user) {
-      return new Promise(function (resolve) { setTimeout(resolve, 300); })
-        .then(function () { return AUTH.restore(); });
-    }
-    return user;
-  }).then(function (user) {
     // Show feedback for Google sign-in errors or email verification results
     var urlParams0 = new URLSearchParams(window.location.search);
     var errParam = urlParams0.get('error');

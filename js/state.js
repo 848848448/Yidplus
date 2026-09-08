@@ -505,7 +505,7 @@ window.navTo = function (id) {
   var prevEl = document.getElementById('screen-' + prev);
   if (prevEl) {
     prevEl.classList.add('prev');
-    setTimeout(function () { prevEl.classList.remove('prev'); }, 350);
+    setTimeout(function () { prevEl.classList.remove('prev'); }, 150);
   }
   nextEl.classList.add('active');
 
@@ -540,16 +540,15 @@ window.navTo = function (id) {
 
 // Cross-page navigation (multi-page architecture: dashboard/chat/music/shorts/admin)
 window.goPage = function (page) {
-  // Create a full-screen fade overlay so the page transition looks smooth
   var fade = document.createElement('div');
-  fade.style.cssText = 'position:fixed;inset:0;background:var(--bg,#fff);z-index:99999;opacity:0;transition:opacity .18s ease;pointer-events:all';
+  fade.style.cssText = 'position:fixed;inset:0;background:var(--bg,#fff);z-index:99999;opacity:0;transition:opacity .12s ease;pointer-events:all';
   document.body.appendChild(fade);
   requestAnimationFrame(function () {
     fade.style.opacity = '1';
-    setTimeout(function () {
-      window.location.href = page;
-    }, 180);
   });
+  setTimeout(function () {
+    window.location.href = page;
+  }, 120);
 };
 
 // ============================================================
@@ -633,6 +632,9 @@ window.AUTH = {
       _renderImpersonationBanner();
       if (typeof renderVerifyBanner === 'function') renderVerifyBanner();
       Presence.start();
+      // Clean up guest-mode login button if auth succeeded
+      var gb = document.getElementById('guest-login-btn');
+      if (gb) gb.remove();
       return res.user;
     }).catch(function () {
       STATE.user = null;
@@ -1945,10 +1947,8 @@ function _interceptGuestActions() {
   }, true);
 }
 
-// Auto-load guest mode
-(function () {
-  setTimeout(function () { _loadGuestMode(); }, 500);
-})();
+// Guest mode is loaded by each page's own boot flow after AUTH.restore
+// completes — no auto-fire here to avoid racing authentication.
 
 /* ══════════════════════════════════
    FEATURE BLOCKS — per-user, per-feature access blocks set by the owner

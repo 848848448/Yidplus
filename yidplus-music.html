@@ -490,9 +490,6 @@ window._updateMiniPlayer = function(track, isPlaying) {
 
 document.addEventListener('DOMContentLoaded', function () {
   AUTH.restore().then(function (user) {
-    if (!user) return new Promise(function(r){setTimeout(r,300)}).then(function(){return AUTH.restore();});
-    return user;
-  }).then(function (user) {
     if (!user) {
       // No account: with Guest Mode on, let them LISTEN (actions still prompt
       // sign-in). Otherwise send them to sign-in.
