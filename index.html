@@ -201,18 +201,60 @@
     <!-- ── SHORTS STRIP ── -->
     <div class="home-section" id="sec-shorts">
       <div class="section-hdr"><h2>🔥 Hot Shorts</h2><button class="see-all" onclick="goPage('/shorts')" dir="rtl">See all ←</button></div>
-      <div class="h-scroll" id="home-shorts" style="padding:0 .85rem .4rem"></div>
+      <div class="h-scroll" id="home-shorts" style="padding:0 .85rem .4rem">
+        <div class="skeleton-shorts-strip" id="skel-shorts">
+          <div style="flex-shrink:0;width:120px;height:180px;border-radius:14px" class="skeleton"></div>
+          <div style="flex-shrink:0;width:120px;height:180px;border-radius:14px" class="skeleton"></div>
+          <div style="flex-shrink:0;width:120px;height:180px;border-radius:14px" class="skeleton"></div>
+          <div style="flex-shrink:0;width:120px;height:180px;border-radius:14px" class="skeleton"></div>
+        </div>
+      </div>
     </div>
 
     <!-- ── CHANNELS STRIP ── -->
     <div class="home-section" id="sec-channels">
       <div class="section-hdr"><h2>⭐ Popular Channels</h2><button class="see-all" onclick="navTo('explore')" dir="rtl">See all ←</button></div>
-      <div class="h-scroll" id="home-channels" style="padding:0 .85rem .4rem"></div>
+      <div class="h-scroll" id="home-channels" style="padding:0 .85rem .4rem">
+        <div class="skeleton-channels-strip" id="skel-channels">
+          <div style="flex-shrink:0;width:140px;display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:.75rem">
+            <div class="skeleton-circle" style="width:56px;height:56px"></div>
+            <div class="skeleton-text" style="width:80px;height:12px"></div>
+          </div>
+          <div style="flex-shrink:0;width:140px;display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:.75rem">
+            <div class="skeleton-circle" style="width:56px;height:56px"></div>
+            <div class="skeleton-text" style="width:80px;height:12px"></div>
+          </div>
+          <div style="flex-shrink:0;width:140px;display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:.75rem">
+            <div class="skeleton-circle" style="width:56px;height:56px"></div>
+            <div class="skeleton-text" style="width:80px;height:12px"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ── FEED ── -->
     <div class="section-hdr"><h2>📰 Latest Posts</h2></div>
-    <div style="padding:0 .85rem" id="home-feed"></div>
+    <div style="padding:0 .85rem" id="home-feed">
+      <div id="skel-feed">
+        <div class="skeleton-card">
+          <div style="display:flex;align-items:center;gap:.65rem;margin-bottom:.75rem">
+            <div class="skeleton-circle" style="width:40px;height:40px"></div>
+            <div style="flex:1"><div class="skeleton-text" style="width:50%;height:14px;margin-bottom:.4rem"></div><div class="skeleton-text" style="width:30%;height:10px"></div></div>
+          </div>
+          <div class="skeleton-text" style="width:100%;height:12px;margin-bottom:.4rem"></div>
+          <div class="skeleton-text" style="width:85%;height:12px;margin-bottom:.4rem"></div>
+          <div class="skeleton-text" style="width:60%;height:12px"></div>
+        </div>
+        <div class="skeleton-card">
+          <div style="display:flex;align-items:center;gap:.65rem;margin-bottom:.75rem">
+            <div class="skeleton-circle" style="width:40px;height:40px"></div>
+            <div style="flex:1"><div class="skeleton-text" style="width:40%;height:14px;margin-bottom:.4rem"></div><div class="skeleton-text" style="width:25%;height:10px"></div></div>
+          </div>
+          <div class="skeleton" style="width:100%;height:180px;border-radius:12px;margin-bottom:.5rem"></div>
+          <div class="skeleton-text" style="width:70%;height:12px"></div>
+        </div>
+      </div>
+    </div>
   </div>
   <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon"><span class="material-symbols-rounded">forum</span></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><span class="material-symbols-rounded">music_note</span></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon"><span class="material-symbols-rounded">movie</span></span><span class="nav-label">Shorts</span></button><button class="nav-item" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><span class="material-symbols-rounded">explore</span></span><span class="nav-label">Channels</span></button><button class="nav-item" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><span class="material-symbols-rounded">settings</span></span><span class="nav-label">Settings</span></button></nav>
 </div>

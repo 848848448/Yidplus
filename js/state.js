@@ -386,10 +386,12 @@ window.watermarkFile = function (file) {
   return Promise.resolve(file);
 };
 
-window.toast = function (msg, ms) {
+window.toast = function (msg, ms, type) {
   var el = document.getElementById('app-toast');
   if (!el) return;
   el.textContent = msg;
+  el.className = '';
+  if (type) el.classList.add('toast-' + type);
   el.classList.add('show');
   clearTimeout(el._t);
   el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2400);

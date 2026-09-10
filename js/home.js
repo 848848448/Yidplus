@@ -25,7 +25,8 @@ var HOME_STATUSES = [
 function buildShortsPrev() {
   var row = document.getElementById('home-shorts');
   if (!row) return;
-  row.innerHTML = '<div class="feed-state" style="padding:1rem"><div class="spinner"></div></div>';
+  var skel = document.getElementById('skel-shorts');
+  if (!skel) row.innerHTML = '<div class="feed-state" style="padding:1rem"><div class="spinner"></div></div>';
 
   api.get('/shorts')
     .then(function (res) {
@@ -58,7 +59,8 @@ function buildShortsPrev() {
 function buildChannelsPrev() {
   var row = document.getElementById('home-channels');
   if (!row) return;
-  row.innerHTML = '<div class="feed-state" style="padding:1rem"><div class="spinner"></div></div>';
+  var skel = document.getElementById('skel-channels');
+  if (!skel) row.innerHTML = '<div class="feed-state" style="padding:1rem"><div class="spinner"></div></div>';
 
   api.get('/channels')
     .then(function (res) {
@@ -212,10 +214,13 @@ window.loadDynamicFeed = function () {
   var feed = document.getElementById('home-feed');
   if (!feed) return;
 
-  feed.innerHTML =
-    '<div class="feed-state">' +
-      '<div class="spinner"></div>' +
-    '</div>';
+  var skel = document.getElementById('skel-feed');
+  if (!skel) {
+    feed.innerHTML =
+      '<div class="feed-state">' +
+        '<div class="spinner"></div>' +
+      '</div>';
+  }
 
   // Limit to 20 posts for speed
   api.get('/posts?limit=20')

@@ -411,24 +411,7 @@ body.night {
 .h-scroll { display: flex; gap: .75rem; overflow-x: auto; scrollbar-width: none; }
 .h-scroll::-webkit-scrollbar { display: none; }
 
-/* ---------- TOAST ---------- */
-#app-toast {
-  position: fixed;
-  bottom: 5.5rem; left: 50%;
-  transform: translateX(-50%);
-  background: #111;
-  border-radius: 10px;
-  padding: .6rem 1.25rem;
-  font-size: .8rem; color: #fff;
-  z-index: 9999;
-  opacity: 0;
-  transition: opacity .3s;
-  pointer-events: none;
-  white-space: nowrap;
-  box-shadow: 0 4px 16px rgba(0,0,0,.2);
-  max-width: 90vw; overflow: hidden; text-overflow: ellipsis;
-}
-#app-toast.show { opacity: 1; }
+/* ---------- TOAST (see end-of-file colored variants) ---------- */
 
 /* ---------- ANIMATIONS ---------- */
 @keyframes fadeIn  { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
@@ -2221,6 +2204,10 @@ html.dark-mode .sys-msg.call-log.missed span { background: rgba(255,120,140,.18)
 .skeleton-chat-item .skeleton-lines { flex: 1; display: flex; flex-direction: column; gap: .35rem; }
 .skeleton-chat-item .skeleton-line-1 { height: 14px; width: 55%; }
 .skeleton-chat-item .skeleton-line-2 { height: 11px; width: 80%; }
+.skeleton-shorts-strip,
+.skeleton-channels-strip {
+  display: flex; gap: .65rem;
+}
 
 /* =============================================
    MODAL / OVERLAY BACKDROP BLUR
@@ -2238,12 +2225,12 @@ html.dark-mode .sys-msg.call-log.missed span { background: rgba(255,120,140,.18)
    ============================================= */
 #app-toast {
   position: fixed;
-  bottom: 80px; left: 50%;
+  bottom: 5.5rem; left: 50%;
   transform: translateX(-50%);
   z-index: 99999;
+  opacity: 0;
+  transition: opacity .3s;
   pointer-events: none;
-}
-.toast {
   padding: .65rem 1.25rem;
   border-radius: 12px;
   font-size: .82rem;
@@ -2253,18 +2240,20 @@ html.dark-mode .sys-msg.call-log.missed span { background: rgba(255,120,140,.18)
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 4px 16px rgba(0,0,0,.2);
-  animation: toastIn .3s var(--ease-standard) both;
-  pointer-events: auto;
   text-align: center;
-  max-width: 320px;
+  max-width: 90vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.toast.toast-success {
+#app-toast.show { opacity: 1; pointer-events: auto; }
+#app-toast.toast-success {
   background: rgba(46,125,50,.92);
 }
-.toast.toast-error {
+#app-toast.toast-error {
   background: rgba(211,47,47,.92);
 }
-.toast.toast-info {
+#app-toast.toast-info {
   background: rgba(31,111,92,.92);
 }
 @keyframes toastIn {
