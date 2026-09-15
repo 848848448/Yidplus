@@ -220,6 +220,8 @@ body.night {
   font-family: inherit;
   transition: transform .15s var(--ease-standard);
 }
+.nav-item:hover  { color: var(--text); }
+.nav-item:hover .nav-icon { background: var(--bg3); }
 .nav-item:active { transform: scale(.9); }
 .nav-item { color: var(--muted); }
 .nav-item.active { color: var(--accent); }
@@ -596,7 +598,8 @@ html.dark-mode .auth-google-btn { background: var(--bg3); color: var(--text); }
 .follow-pill.following { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 /* Feed posts */
-.feed-post { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); margin-bottom: 1rem; overflow: hidden; box-shadow: none; }
+.feed-post { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); margin-bottom: 1rem; overflow: hidden; box-shadow: none; transition: box-shadow .2s, border-color .2s; }
+.feed-post:hover { border-color: var(--border2); box-shadow: var(--shadow-xs); }
 .post-media { background: var(--bg3); line-height: 0; }
 .post-emoji-big { padding: 2rem 1rem; text-align: center; font-size: 4rem; background: var(--bg2); }
 .post-caption { padding: .35rem .85rem .7rem; font-size: .9rem; color: var(--text); line-height: 1.5; unicode-bidi: plaintext; word-break: break-word; }
@@ -1354,7 +1357,8 @@ html.dark-mode .chat-messages { background:
 /* Hamburger side menu */
 .hamburger-overlay { position: fixed; inset: 0; z-index: 250; background: rgba(0,0,0,.4); display: none; }
 .hamburger-overlay.open { display: block; }
-.hamburger-panel { position: fixed; top: 0; left: 0; bottom: 0; width: 80%; max-width: 320px; background: var(--surface); box-shadow: 4px 0 24px rgba(0,0,0,.15); transform: translateX(-100%); transition: transform .25s ease; overflow-y: auto; }
+.hamburger-panel { position: fixed; top: 0; inset-inline-start: 0; bottom: 0; width: 80%; max-width: 320px; background: var(--surface); box-shadow: 4px 0 24px rgba(0,0,0,.15); transform: translateX(100%); transition: transform .25s ease; overflow-y: auto; }
+[dir="ltr"] .hamburger-panel { transform: translateX(-100%); }
 .hamburger-overlay.open .hamburger-panel { transform: translateX(0); }
 .hamburger-profile-hdr { background: linear-gradient(135deg, #1F6F5C 0%, #2B8A73 100%); color: #fff; padding: 1.5rem 1.25rem; }
 .hamburger-avatar { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.2); border: 2px solid rgba(255,255,255,.3); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 700; margin-bottom: .75rem; overflow: hidden; background-size: cover; background-position: center; }
@@ -1565,6 +1569,7 @@ html.dark-mode .settings-card { box-shadow: 0 1px 6px rgba(0,0,0,.25); }
 .settings-item-row { display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; border-bottom: .5px solid var(--border); cursor: default; transition: background .12s; }
 .settings-item-row:last-child { border-bottom: none; }
 .settings-item-row[onclick] { cursor: pointer; }
+.settings-item-row[onclick]:hover  { background: var(--bg2); }
 .settings-item-row[onclick]:active { background: var(--bg3); }
 .settings-item-label { font-size: .88rem; color: var(--text); }
 .settings-item-control { flex-shrink: 0; margin-inline-start: .5rem; }
@@ -1586,7 +1591,7 @@ html.dark-mode .settings-card { box-shadow: 0 1px 6px rgba(0,0,0,.25); }
 
 /* ── Performance: smooth transitions ── */
 * { -webkit-tap-highlight-color: transparent; }
-img { loading: lazy; }
+/* `loading` is an HTML attribute, not a CSS property — removed invalid rule */
 
 /* ══════════════════════════════════
    LAZY LOADING / PERFORMANCE
@@ -1772,6 +1777,7 @@ img { opacity: 1; }
   color: var(--text); cursor: pointer;
   transition: background .15s;
 }
+.cc-chip:hover  { background: var(--bg4); border-color: var(--border2); }
 .cc-chip:active { background: var(--bg4); }
 .cc-post {
   margin-inline-start: auto;
@@ -1801,7 +1807,8 @@ img { opacity: 1; }
   cursor: pointer; font-family: inherit;
   transition: transform .12s, box-shadow .12s;
 }
-.qt-tile:active { transform: scale(.95); }
+.qt-tile:hover  { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.qt-tile:active { transform: scale(.95); box-shadow: none; }
 .qt-ic {
   width: 36px; height: 36px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
@@ -1816,7 +1823,10 @@ img { opacity: 1; }
 /* ── SHORT / CHANNEL PREVIEW CARDS ── */
 .sp-card {
   flex-shrink: 0; width: 106px; cursor: pointer;
+  transition: transform .15s var(--ease-standard);
 }
+.sp-card:hover { transform: translateY(-2px); }
+.sp-card:active { transform: scale(.96); }
 .sp-thumb {
   width: 106px; height: 168px; border-radius: 14px;
   background: #101112; overflow: hidden; position: relative;
@@ -1831,7 +1841,8 @@ img { opacity: 1; }
   text-align: center; cursor: pointer;
   transition: transform .12s;
 }
-.chp-card:active { transform: scale(.96); }
+.chp-card:hover  { box-shadow: var(--shadow-sm); transform: translateY(-2px); }
+.chp-card:active { transform: scale(.96); box-shadow: none; }
 
 /* ── EMPTY FEED CTA ── */
 .feed-empty-cta {
@@ -1959,6 +1970,18 @@ html.dark-mode .bubble.me .poll-add-suggest-btn { color: #fff !important; border
   #screen-chats { width: 440px !important; }
   #screen-chatroom { left: 440px !important; }
   .chat-messages { padding-inline: 14%; }
+}
+
+/* ── Touch devices: disable hover lift so it doesn't "stick" after tapping ── */
+@media (hover: none) {
+  .qt-tile:hover,
+  .chp-card:hover,
+  .sp-card:hover,
+  .feed-post:hover { transform: none; box-shadow: none; border-color: var(--border); }
+  .nav-item:hover { color: var(--muted); }
+  .nav-item:hover .nav-icon { background: transparent; }
+  .cc-chip:hover { background: var(--bg3); border-color: var(--border); }
+  .settings-item-row[onclick]:hover { background: transparent; }
 }
 
 /* Tablets: too wide for a phone layout, too narrow to split in two. Hold the
