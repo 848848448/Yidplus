@@ -1336,7 +1336,7 @@ html.dark-mode .chat-messages { background:
 .chat-item:hover  { background: var(--bg2); }
 .chat-item:active { background: var(--bg3); }
 .chat-item.unread { background: color-mix(in srgb, var(--blue) 5%, var(--surface)); }
-.chat-item.unread::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--blue); }
+.chat-item.unread::before { content: ''; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 3px; background: var(--blue); }
 .chat-item.swiped { transform: translateX(-84px); }
 .chat-item-delete { position: absolute; top: 0; right: 0; bottom: 0; width: 84px; background: var(--red); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; cursor: pointer; z-index: 1; }
 
@@ -1672,7 +1672,7 @@ img { opacity: 1; }
 .gs-bot { align-self: flex-start; background: var(--surface); color: var(--text); border-bottom-left-radius: 5px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
 .gs-user { align-self: flex-end; background: var(--gold); color: #fff; border-bottom-right-radius: 5px; }
 .gs-options { display: flex; flex-direction: column; gap: .4rem; align-items: flex-end; margin-top: .25rem; }
-.gs-opt { background: var(--surface); border: 1.5px solid var(--gold); color: var(--gold); padding: .55rem .9rem; border-radius: 18px; font-size: .82rem; font-weight: 600; cursor: pointer; font-family: inherit; text-align: right; max-width: 88%; transition: background .15s; }
+.gs-opt { background: var(--surface); border: 1.5px solid var(--gold); color: var(--gold); padding: .55rem .9rem; border-radius: 18px; font-size: .82rem; font-weight: 600; cursor: pointer; font-family: inherit; text-align: start; max-width: 88%; transition: background .15s; }
 .gs-opt:active { background: var(--bg3); }
 .gs-composer { display: flex; gap: .5rem; align-items: center; margin-top: .4rem; padding: .3rem 0; }
 

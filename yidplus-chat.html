@@ -674,7 +674,7 @@
 <!-- Media viewer -->
 <div id="media-viewer" style="display:none;position:fixed;inset:0;background:#000;z-index:999;flex-direction:column;align-items:center;justify-content:center">
   <div style="position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;padding:.65rem .85rem;background:linear-gradient(to bottom,rgba(0,0,0,.7),transparent)">
-    <div onclick="_mediaViewerClose()" style="cursor:pointer;color:#fff;padding:.3rem;margin-right:.5rem"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    <div onclick="_mediaViewerClose()" style="cursor:pointer;color:#fff;padding:.3rem;margin-inline-end:.5rem"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
     <div style="flex:1"><div id="mv-sender" style="color:#fff;font-size:.9rem;font-weight:700"></div><div id="mv-time" style="color:rgba(255,255,255,.6);font-size:.72rem"></div></div>
   </div>
   <div id="mv-prev" onclick="_mvPrev()" style="position:absolute;left:.5rem;top:50%;transform:translateY(-50%);z-index:3;cursor:pointer;color:#fff;background:rgba(0,0,0,.35);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></div>
@@ -823,7 +823,7 @@ window.openTopicsList = function (roomId) {
           '<div style="flex:1;min-width:0">' +
             '<div style="display:flex;justify-content:space-between;align-items:baseline">' +
               '<div style="font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(t.name) + (t.closed ? ' 🔒' : '') + '</div>' +
-              '<div style="font-size:.68rem;color:var(--muted);flex-shrink:0;margin-right:.4rem">' + (t.last_time ? timeAgo(t.last_time) : '') + '</div>' +
+              '<div style="font-size:.68rem;color:var(--muted);flex-shrink:0;margin-inline-end:.4rem">' + (t.last_time ? timeAgo(t.last_time) : '') + '</div>' +
             '</div>' +
             '<div style="display:flex;justify-content:space-between;align-items:center">' +
               '<div style="font-size:.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext">' + escHtml(t.preview || 'No messages yet') + '</div>' +

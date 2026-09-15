@@ -722,7 +722,7 @@ function _xPostCard(p, username, chTitle) {
   // views + time footer sit underneath. No per-post avatar — just like Telegram.
   var canDelete = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
   var delBtn = canDelete
-    ? '<span onclick="event.stopPropagation();tgDeletePost(' + p.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-right:auto">🗑</span>'
+    ? '<span onclick="event.stopPropagation();tgDeletePost(' + p.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-inline-end:auto">🗑</span>'
     : '';
 
   return '<div style="display:flex;justify-content:flex-start;margin-bottom:.35rem">' +
@@ -733,7 +733,7 @@ function _xPostCard(p, username, chTitle) {
           reactRow +
           '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.25rem;margin-top:.15rem;color:#8a9aa5;font-size:.66rem">' +
             delBtn + eye + '<span>' + _xNum(p.views || 0) + '</span>' +
-            '<span style="margin-left:.15rem">' + when + '</span>' +
+            '<span style="margin-inline-start:.15rem">' + when + '</span>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -1140,7 +1140,7 @@ function _tgAlbumCard(group, username, chTitle) {
   var eye = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.75"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
   var canDelete = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
   var delBtn = canDelete
-    ? '<span onclick="event.stopPropagation();tgDeletePost(' + lead.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-right:auto">🗑</span>'
+    ? '<span onclick="event.stopPropagation();tgDeletePost(' + lead.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-inline-end:auto">🗑</span>'
     : '';
 
   return '<div style="display:flex;justify-content:flex-start;margin-bottom:.35rem">' +
@@ -1150,7 +1150,7 @@ function _tgAlbumCard(group, username, chTitle) {
           (text ? '<div style="font-size:.95rem;line-height:1.45;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' + _tgLpPlaceholder(withText) : '') +
           '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.25rem;margin-top:.15rem;color:#8a9aa5;font-size:.66rem">' +
             delBtn + eye + '<span>' + _xNum(lead.views || 0) + '</span>' +
-            '<span style="margin-left:.15rem">' + when + '</span>' +
+            '<span style="margin-inline-start:.15rem">' + when + '</span>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -2129,7 +2129,7 @@ function _renderMembersList() {
         '<div style="flex:1;min-width:0;unicode-bidi:plaintext;text-align:start">' +
           '<div style="font-size:.95rem;font-weight:600">' + nick + '</div>' + sub +
         '</div>' + badge +
-        (canManageGroup && !isSelf ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:.5rem;flex-shrink:0;opacity:.6"><polyline points="9 18 15 12 9 6"/></svg>' : '') +
+        (canManageGroup && !isSelf ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-inline-start:.5rem;flex-shrink:0;opacity:.6"><polyline points="9 18 15 12 9 6"/></svg>' : '') +
       '</div>';
   }).join('');
 }
@@ -2481,7 +2481,7 @@ function renderMessages(scrollDown) {
     // Group sender nick
     if (!isMe && isGroup && firstInGroup) {
       var titleBadge = m.sender_title
-        ? '<span style="margin-right:.35rem;padding:.05rem .4rem;border-radius:8px;background:rgba(31,111,92,.12);color:var(--blue);font-size:.62rem;font-weight:700;vertical-align:middle">' + escHtml(m.sender_title) + '</span>'
+        ? '<span style="margin-inline-end:.35rem;padding:.05rem .4rem;border-radius:8px;background:rgba(31,111,92,.12);color:var(--blue);font-size:.62rem;font-weight:700;vertical-align:middle">' + escHtml(m.sender_title) + '</span>'
         : '';
       inner += '<div class="bubble-nick" style="cursor:pointer;color:' + nameColor(m.sender_id || m.sender_nick) + '"><span onclick="openUserProfile(\'' + m.sender_id + '\')">' + escHtml(m.sender_nick || '') + '</span>' + titleBadge + '</div>';
     }
@@ -5224,7 +5224,7 @@ function renderChatFoldersRow() {
       (unread ? '<span style="background:' + (isActive ? 'rgba(255,255,255,.3)' : '#1F6F5C') + ';color:#fff;border-radius:10px;padding:.05rem .35rem;font-size:.62rem;font-weight:800;min-width:16px;text-align:center">' + (unread > 99 ? '99+' : unread) + '</span>' : '') +
     '</button>';
   }).join('') +
-  '<button onclick="openFolderManager()" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;border:none;background:var(--bg3);color:var(--muted);cursor:pointer;flex-shrink:0;font-size:.9rem;margin-left:.2rem">' +
+  '<button onclick="openFolderManager()" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;border:none;background:var(--bg3);color:var(--muted);cursor:pointer;flex-shrink:0;font-size:.9rem;margin-inline-start:.2rem">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
   '</button>';
 }
@@ -5520,8 +5520,8 @@ function _runGSearch(q) {
             ? '<div class="chat-av" style="width:38px;height:38px;background-image:url(' + t.photo_url + ');background-size:cover;background-position:center"></div>'
             : '<div class="chat-av" style="width:38px;height:38px;font-size:1rem;background:#229ED9;color:#fff">\ud83d\udce8</div>';
           var join = t.joined
-            ? '<span style="font-size:.68rem;color:var(--muted);margin-left:auto">Joined</span>'
-            : '<button onclick="event.stopPropagation();tgQuickJoin(\'' + escHtml(t.username) + '\',this)" style="margin-left:auto;background:#229ED9;color:#fff;border:none;border-radius:14px;padding:.2rem .8rem;font-size:.7rem;font-weight:700;cursor:pointer">Join</button>';
+            ? '<span style="font-size:.68rem;color:var(--muted);margin-inline-start:auto">Joined</span>'
+            : '<button onclick="event.stopPropagation();tgQuickJoin(\'' + escHtml(t.username) + '\',this)" style="margin-inline-start:auto;background:#229ED9;color:#fff;border:none;border-radius:14px;padding:.2rem .8rem;font-size:.7rem;font-weight:700;cursor:pointer">Join</button>';
           return '<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();openTelegramChannel(\'' + escHtml(t.username) + '\',\'' + escJs(t.title || t.username) + '\')">' +
             av +
             '<div style="min-width:0"><div style="font-size:.86rem;font-weight:600;unicode-bidi:plaintext;text-align:left;direction:ltr">' + escHtml(t.title || t.username) + '</div>' +
@@ -7571,7 +7571,7 @@ function _geToggleHtml(on, id) {
 }
 function _geCard(inner) { return '<div style="background:var(--surface);border-radius:14px;margin:.6rem .8rem;overflow:hidden;border:1px solid var(--border)">' + inner + '</div>'; }
 function _geHdr(t) { return '<div style="font-size:.75rem;color:var(--muted);font-weight:700;padding:1rem 1.4rem .35rem;text-transform:uppercase;letter-spacing:.03em">' + t + '</div>'; }
-function _geSep() { return '<div style="height:1px;background:var(--border);margin-left:3.4rem"></div>'; }
+function _geSep() { return '<div style="height:1px;background:var(--border);margin-inline-start:3.4rem"></div>'; }
 
 function _geRender() {
   var d = _geData;
@@ -7890,7 +7890,7 @@ window._geOpenMembers = function (adminsOnly) {
       return '<div onclick="_openMemberActions(\'' + m.id + '\',\'' + escJs(m.nickname || 'User') + '\',' + (m.is_group_admin ? 'true' : 'false') + ',\'' + escJs(m.title || '') + '\')" style="display:flex;align-items:center;gap:.8rem;padding:.7rem 1.1rem;cursor:pointer;border-bottom:1px solid var(--border)">' +
         av + '<div style="flex:1;min-width:0;unicode-bidi:plaintext;text-align:start"><div style="font-size:.95rem;font-weight:600">' + escHtml(m.nickname || 'User') + '</div>' +
         (m.title ? '<div style="font-size:.75rem;color:var(--accent,#1F6F5C)">' + escHtml(m.title) + '</div>' : '') + '</div>' + badge +
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:.5rem;opacity:.6"><polyline points="9 18 15 12 9 6"/></svg>' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-inline-start:.5rem;opacity:.6"><polyline points="9 18 15 12 9 6"/></svg>' +
       '</div>';
     }).join('');
   }).catch(function (e) {

@@ -443,7 +443,7 @@ window.openFollowRequests = function () {
           av +
           '<div style="flex:1;font-size:.85rem;font-weight:700">@' + escHtml(r.nickname||'User') + (r.verified?' ✅':'') + '</div>' +
           '<button onclick="acceptFollowRequest(\'' + r.id + '\')" style="padding:.4rem .9rem;background:var(--gold);color:#fff;border:none;border-radius:16px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit">Accept</button>' +
-          '<button onclick="rejectFollowRequest(\'' + r.id + '\')" style="padding:.4rem .7rem;background:var(--bg3);border:1px solid var(--border);border-radius:16px;font-size:.78rem;cursor:pointer;font-family:inherit;margin-left:.3rem">✕</button>' +
+          '<button onclick="rejectFollowRequest(\'' + r.id + '\')" style="padding:.4rem .7rem;background:var(--bg3);border:1px solid var(--border);border-radius:16px;font-size:.78rem;cursor:pointer;font-family:inherit;margin-inline-start:.3rem">✕</button>' +
         '</div>';
       }).join('');
     })
