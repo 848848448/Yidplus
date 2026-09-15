@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Google Material Symbols (Rounded) — the modern icon set used across Google's own apps. -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,400..500,0..1,0&display=block">
-<link rel="stylesheet" href="css/style.css?v=202609100900">
+<link rel="stylesheet" href="css/style.css?v=202609151000">
 <script>
 // Apply saved user theme ASAP (before paint) to avoid flash-of-default-colors
 (function () {
@@ -66,29 +66,25 @@
 
 <!-- ══ AUTH SCREEN ══ -->
 <div class="screen active" id="screen-auth">
-  <div style="margin:auto;width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;padding:2rem 1.5rem;animation:fadeIn .5s ease">
+  <div class="auth-logo-wrap">
     <!-- Logo -->
-    <img src="images/logo.png?v=202607241647" id="auth-logo-img" alt="YID PLUS" style="height:64px;width:auto;object-fit:contain;border-radius:16px;margin-bottom:.75rem" onerror="this.style.display='none';document.getElementById('auth-logo-text').style.display='block'" loading="lazy">
-    <div id="auth-logo-text" style="display:none;font-size:2.2rem;font-weight:800;letter-spacing:-.02em;color:var(--text);margin-bottom:.75rem">YID<span style="color:var(--blue)">+</span></div>
+    <img src="images/logo.png?v=202607241647" id="auth-logo-img" alt="YID PLUS" class="auth-logo-img" onerror="this.style.display='none';document.getElementById('auth-logo-text').style.display='block'" loading="lazy">
+    <div id="auth-logo-text" class="auth-logo-fallback">YID<span>+</span></div>
     <div style="margin-bottom:2rem"></div>
 
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:1.75rem;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.06)">
-      <div style="display:flex;background:var(--bg3);border-radius:12px;padding:3px;margin-bottom:1.5rem">
+    <div class="auth-card">
+      <div class="auth-tabs">
         <button class="auth-tab active" onclick="authTab('login')">Sign In</button>
         <button class="auth-tab" onclick="authTab('register')">Register</button>
       </div>
       <div class="auth-msg" id="auth-msg"></div>
 
       <!-- Google Sign-In -->
-      <button onclick="signInWithGoogle()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:.65rem;padding:.7rem;background:#fff;border:1.5px solid var(--border);border-radius:12px;cursor:pointer;font-family:inherit;font-size:.88rem;font-weight:600;color:var(--text);margin-bottom:1rem">
+      <button class="auth-google-btn" onclick="signInWithGoogle()">
         <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.581C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
         Continue with Google
       </button>
-      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem">
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-        <div style="font-size:.75rem;color:var(--muted)">or</div>
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-      </div>
+      <div class="auth-divider"><span class="auth-divider-text">or</span></div>
 
       <div id="auth-login">
         <input class="field" type="email" id="l-email" placeholder="Email address" autocomplete="email">
@@ -200,7 +196,7 @@
 
     <!-- ── SHORTS STRIP ── -->
     <div class="home-section" id="sec-shorts">
-      <div class="section-hdr"><h2>🔥 Hot Shorts</h2><button class="see-all" onclick="goPage('/shorts')" dir="rtl">See all ←</button></div>
+      <div class="section-hdr"><h2>🔥 Hot Shorts</h2><button class="see-all" onclick="goPage('/shorts')">See all →</button></div>
       <div class="h-scroll" id="home-shorts" style="padding:0 .85rem .4rem">
         <div class="skeleton-shorts-strip" id="skel-shorts">
           <div style="flex-shrink:0;width:120px;height:180px;border-radius:14px" class="skeleton"></div>
@@ -213,7 +209,7 @@
 
     <!-- ── CHANNELS STRIP ── -->
     <div class="home-section" id="sec-channels">
-      <div class="section-hdr"><h2>⭐ Popular Channels</h2><button class="see-all" onclick="navTo('explore')" dir="rtl">See all ←</button></div>
+      <div class="section-hdr"><h2>⭐ Popular Channels</h2><button class="see-all" onclick="navTo('explore')">See all →</button></div>
       <div class="h-scroll" id="home-channels" style="padding:0 .85rem .4rem">
         <div class="skeleton-channels-strip" id="skel-channels">
           <div style="flex-shrink:0;width:140px;display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:.75rem">
