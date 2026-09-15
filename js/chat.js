@@ -366,11 +366,11 @@ function renderChatList() {
         '<div class="' + avClass + '" style="' + avStyle + '"' + avatarClickAttr + '>' + avatarContent + onlineDot + '</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
-            '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:left;flex:1">' + escHtml(c.nick || 'Chat') + '</div>' +
+            '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1">' + escHtml(c.nick || 'Chat') + '</div>' +
             '<div style="display:flex;align-items:center;gap:.3rem;flex-shrink:0">' + muteIcon + '<div style="font-size:.68rem;color:var(--muted)">' + timeText + '</div></div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">' +
-            '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:left;flex:1;font-weight:' + (c.unread ? '500' : '400') + '">' + previewHtml + '</div>' +
+            '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1;font-weight:' + (c.unread ? '500' : '400') + '">' + previewHtml + '</div>' +
             unreadBadge +
           '</div>' +
         '</div>' +
@@ -434,7 +434,7 @@ function _tgChannelRow(t) {
       av +
       '<div style="flex:1;min-width:0">' +
         '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
-          '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;text-align:left;unicode-bidi:plaintext;direction:ltr">' + title + '</div>' +
+          '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;text-align:start;unicode-bidi:plaintext;direction:ltr">' + title + '</div>' +
           (when ? '<div style="font-size:.68rem;color:var(--muted);flex-shrink:0">' + when + '</div>' : '') +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:.4rem">' +
@@ -817,7 +817,7 @@ window.tgOpenInfo = function () {
         : '<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">' + escHtml((m.name || '?').charAt(0).toUpperCase()) + '</div>';
       return '<div style="display:flex;align-items:center;gap:.7rem;padding:.55rem 1rem;border-bottom:1px solid var(--border)">' +
         mav +
-        '<div style="flex:1;min-width:0"><div style="font-size:.9rem;font-weight:600;unicode-bidi:plaintext;direction:ltr;text-align:left">' + escHtml(m.name) + '</div>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:.9rem;font-weight:600;unicode-bidi:plaintext;direction:ltr;text-align:start">' + escHtml(m.name) + '</div>' +
         '<div style="font-size:.68rem;color:var(--muted)">Joined ' + (m.joined_at ? new Date(m.joined_at).toLocaleDateString() : '') + '</div></div>' +
         (res.is_admin ? '<button onclick="tgRemoveMember(\'' + m.user_id + '\',this)" style="background:none;border:none;color:var(--red);font-size:.78rem;cursor:pointer">Remove</button>' : '') +
       '</div>';
@@ -2443,8 +2443,8 @@ function renderMessages(scrollDown) {
     if (m._scheduled_pending) time = '🕓 ' + _fmt12(m.scheduled_for) + ' · ' + time;
     else if (m.expires_at) time = '💨 ' + time;
     var tickSvg = m.read
-      ? '<svg width="16" height="10" viewBox="0 0 16 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5l3 3 5-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-      : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      ? '<svg width="16" height="10" viewBox="0 0 16 10" fill="none" style="display:inline-block;vertical-align:middle;margin-inline-start:2px"><path d="M1 5l3 3 5-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5l3 3 5-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="display:inline-block;vertical-align:middle;margin-inline-start:2px"><path d="M1 5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     var ticks;
     if (isMe && isGroup && typeof m.seen_count === 'number') {
       // Group read receipt: show how many members have seen this message.
@@ -5524,7 +5524,7 @@ function _runGSearch(q) {
             : '<button onclick="event.stopPropagation();tgQuickJoin(\'' + escHtml(t.username) + '\',this)" style="margin-inline-start:auto;background:#229ED9;color:#fff;border:none;border-radius:14px;padding:.2rem .8rem;font-size:.7rem;font-weight:700;cursor:pointer">Join</button>';
           return '<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();openTelegramChannel(\'' + escHtml(t.username) + '\',\'' + escJs(t.title || t.username) + '\')">' +
             av +
-            '<div style="min-width:0"><div style="font-size:.86rem;font-weight:600;unicode-bidi:plaintext;text-align:left;direction:ltr">' + escHtml(t.title || t.username) + '</div>' +
+            '<div style="min-width:0"><div style="font-size:.86rem;font-weight:600;unicode-bidi:plaintext;text-align:start;direction:ltr">' + escHtml(t.title || t.username) + '</div>' +
             '<div style="font-size:.68rem;color:var(--muted)">' + _tgMembersLabel(t.members) + '</div></div>' +
             join +
           '</div>';
@@ -7591,7 +7591,7 @@ function _geRender() {
       '<input id="ge-name" value="' + escHtml(d.name || '').replace(/"/g, '&quot;') + '" placeholder="' + (isChannel ? 'Channel' : 'Group') + ' name" style="width:100%;box-sizing:border-box;border:none;background:none;outline:none;font-size:1.05rem;font-weight:700;color:var(--text);font-family:inherit;padding:.2rem 0">' +
       '<div style="height:1px;background:var(--border);margin:.5rem 0"></div>' +
       '<textarea id="ge-desc" rows="2" maxlength="255" placeholder="Description (optional)" oninput="_geDescCount()" style="width:100%;box-sizing:border-box;border:none;background:none;outline:none;font-size:.9rem;color:var(--text);font-family:inherit;resize:none;padding:.2rem 0">' + escHtml(d.description || '') + '</textarea>' +
-      '<div style="text-align:right;font-size:.7rem;color:var(--muted)"><span id="ge-desc-count">' + (255 - (d.description || '').length) + '</span></div>' +
+      '<div style="text-align:end;font-size:.7rem;color:var(--muted)"><span id="ge-desc-count">' + (255 - (d.description || '').length) + '</span></div>' +
       '<button onclick="_geSaveText()" class="ge-save-btn" style="width:100%;margin-top:.4rem;padding:.6rem;border-radius:10px;border:none;background:var(--accent,#1F6F5C);color:#fff;font-weight:700;font-family:inherit;font-size:.88rem;cursor:pointer">Save name & description</button>' +
     '</div>'
   );

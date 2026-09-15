@@ -1805,7 +1805,7 @@ window.openFollowList = function (type) {
         '<div onclick="document.getElementById(\'follow-list\').remove();openChannel(\'' + u.id + '\')" style="display:flex;align-items:center;gap:.7rem;flex:1;min-width:0;cursor:pointer">' +
           av +
           '<div style="flex:1;min-width:0">' +
-            '<div style="font-size:.88rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:plaintext;text-align:left;direction:ltr">' + escHtml(u.nickname || 'User') + '</div>' +
+            '<div style="font-size:.88rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:plaintext;text-align:start;direction:ltr">' + escHtml(u.nickname || 'User') + '</div>' +
           '</div>' +
         '</div>' +
         (canRemove ? '<button onclick="removeFollower(\'' + u.id + '\',this)" style="background:none;border:none;color:var(--red);font-size:.75rem;cursor:pointer;flex-shrink:0">Remove</button>' : '') +
@@ -2579,7 +2579,7 @@ function _openFollowModal(title, path, allowManage) {
           (u.photo_url
             ? '<div style="width:42px;height:42px;border-radius:50%;background-image:url(' + u.photo_url + ');background-size:cover;flex-shrink:0"></div>'
             : '<div style="width:42px;height:42px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">' + (u.nickname||'U').slice(0,1).toUpperCase() + '</div>') +
-          '<div style="min-width:0;flex:1"><div style="font-size:.88rem;font-weight:700;direction:ltr;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@' + escHtml(u.nickname) + (u.verified ? ' ✅' : '') + '</div></div>' +
+          '<div style="min-width:0;flex:1"><div style="font-size:.88rem;font-weight:700;direction:ltr;text-align:start;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@' + escHtml(u.nickname) + (u.verified ? ' ✅' : '') + '</div></div>' +
         '</div>' +
         manageBtns +
       '</div>';

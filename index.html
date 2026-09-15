@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Google Material Symbols (Rounded) — the modern icon set used across Google's own apps. -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,400..500,0..1,0&display=block">
-<link rel="stylesheet" href="css/style.css?v=202609151000">
+<link rel="stylesheet" href="css/style.css?v=202609151100">
 <script>
 // Apply saved user theme ASAP (before paint) to avoid flash-of-default-colors
 (function () {
@@ -605,7 +605,7 @@
 <script defer src="js/app.js?v=202607291705"></script>
 <script defer src="js/auth.js?v=202608101617"></script>
 <script defer src="js/calls.js?v=202609020830"></script>
-<script defer src="js/home.js?v=202608160519"></script>
+<script defer src="js/home.js?v=202609151100"></script>
 
 <script>
 // ── POSTS FEED (Cloudflare D1 via /api/posts) ──
@@ -631,24 +631,6 @@ async function loadPosts() {
       '<button class="feed-retry" onclick="loadPosts()">Try Again</button></div>';
   }
 }
-
-window.publishPost = function () {
-  var ta = document.getElementById('new-post-content');
-  var text = (ta.value || '').trim();
-  if (!text) return toast('⚠ Type something first.');
-  if (!STATE.user) return toast('⚠ Please sign in first.');
-  api.post('/posts', {
-    username: STATE.user.nickname || STATE.user.email,
-    caption: text,
-    content: '📝',
-  }).then(function () {
-    ta.value = '';
-    toast('✅ Posted!');
-    loadPosts();
-  }).catch(function (err) {
-    toast('❌ ' + err.message);
-  });
-};
 
 // ── FEEDBACK MODAL ──
 var FB_type = 'suggest';
