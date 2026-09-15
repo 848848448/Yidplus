@@ -188,7 +188,7 @@ body.night {
 .icon-btn:active { transform: scale(.88); }
 
 .badge {
-  position: absolute; top: -2px; right: -2px;
+  position: absolute; top: -2px; inset-inline-end: -2px;
   width: 14px; height: 14px;
   border-radius: 50%;
   background: var(--red);
@@ -370,9 +370,11 @@ body.night {
 .modal-overlay {
   position: fixed; inset: 0; z-index: 550;
   background: rgba(0,0,0,.4);
-  display: none; align-items: flex-end; justify-content: center;
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s var(--ease-standard);
 }
-.modal-overlay.open { display: flex; }
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
 
 .modal-sheet {
   background: var(--surface);
@@ -380,9 +382,11 @@ body.night {
   border-radius: 20px 20px 0 0;
   padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));
   width: 100%; max-width: 500px;
-  animation: slideUp .32s var(--ease-standard);
+  transform: translateY(100%);
+  transition: transform .3s var(--ease-standard);
   box-shadow: var(--shadow-lg);
 }
+.modal-overlay.open .modal-sheet { transform: translateY(0); }
 @keyframes slideUp {
   from { transform: translateY(40px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
@@ -666,7 +670,7 @@ html.dark-mode .auth-google-btn { background: var(--bg3); color: var(--text); }
 .ctab { flex: 1; padding: .65rem; text-align: center; font-size: .78rem; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; transition: all .2s; }
 .ctab.active { color: var(--text); border-bottom-color: var(--text); font-weight: 700; }
 
-.online-dot  { position: absolute; bottom: 1px; right: 1px; width: 13px; height: 13px; border-radius: 50%; background: var(--green); border: 2.5px solid var(--surface); }
+.online-dot  { position: absolute; bottom: 1px; inset-inline-end: 1px; width: 13px; height: 13px; border-radius: 50%; background: var(--green); border: 2.5px solid var(--surface); }
 .unread-badge { min-width: 20px; height: 20px; border-radius: 10px; background: var(--blue); color: #fff; font-size: .66rem; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 6px; flex-shrink: 0; box-shadow: 0 1px 3px rgba(31,111,92,.35); }
 
 /* Chat room */
@@ -826,8 +830,8 @@ html.dark-mode .bubble.me .vn-dur { color: rgba(255,255,255,.75); }
 .attach-opt:active .attach-icon { transform: scale(.94); }
 .attach-lbl     { font-size: .65rem; color: var(--muted); }
 
-.ctx-menu  { position: fixed; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: .4rem 0; min-width: 160px; box-shadow: var(--shadow-lg); display: none; }
-.ctx-menu.open { display: block; }
+.ctx-menu  { position: fixed; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: .4rem 0; min-width: 160px; box-shadow: var(--shadow-lg); opacity: 0; pointer-events: none; transform: scale(.92); transform-origin: top; transition: opacity .15s var(--ease-standard), transform .15s var(--ease-standard); }
+.ctx-menu.open { opacity: 1; pointer-events: auto; transform: scale(1); }
 .ctx-item  { padding: .6rem 1rem; font-size: .82rem; cursor: pointer; display: flex; align-items: center; gap: .6rem; color: var(--text); }
 .ctx-item:hover { background: var(--bg3); }
 .ctx-item.danger { color: var(--red); }
@@ -872,15 +876,16 @@ html.dark-mode .bubble.me .vn-dur { color: rgba(255,255,255,.75); }
 /* =============================================
    SETTINGS SCREEN
    ============================================= */
-.settings-profile-hdr { display: flex; flex-direction: column; align-items: center; padding: 1.5rem 1rem 1rem; background: var(--bg2); border-bottom: 1px solid var(--border); }
 .settings-av { width: 80px; height: 80px; border-radius: 50%; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border: 2px solid var(--text); position: relative; }
-.avatar-edit-btn { position: absolute; bottom: 0; right: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: .75rem; color: #fff; border: 2px solid var(--surface); cursor: pointer; }
+.avatar-edit-btn { position: absolute; bottom: 0; inset-inline-end: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: .75rem; color: #fff; border: 2px solid var(--surface); cursor: pointer; }
 .settings-sec  { font-size: .65rem; letter-spacing: .01em; color: var(--muted); padding: 1rem 1rem .4rem; }
 .settings-row  { display: flex; align-items: center; justify-content: space-between; padding: 1.05rem 1.1rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .15s; }
 .settings-row:last-child { border: none; }
 .settings-row:hover { background: var(--bg2); }
 .settings-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
-.logout-row { margin: .75rem .75rem 1rem; padding: .85rem; background: rgba(211,47,47,.06); border: 1px solid rgba(211,47,47,.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: .5rem; cursor: pointer; color: var(--red); font-weight: 600; }
+.logout-row { margin: .75rem .75rem 1rem; padding: .85rem; background: rgba(211,47,47,.06); border: 1px solid rgba(211,47,47,.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: .5rem; cursor: pointer; color: var(--red); font-weight: 600; transition: background .15s, transform .15s var(--ease-spring); }
+.logout-row:hover { background: rgba(211,47,47,.12); }
+.logout-row:active { transform: scale(.97); }
 
 /* =============================================
    CHANNEL SCREEN
@@ -1022,7 +1027,7 @@ html.dark-mode .admin-search { background-color: #232427; border-color: #2C2D31;
 .album-cover { width: 128px; height: 128px; border-radius: 12px; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 3.5rem; border: 1px solid var(--border); position: relative; overflow: hidden; margin-bottom: .4rem; }
 .album-cover-bg { position: absolute; inset: 0; opacity: .15; display: flex; align-items: center; justify-content: center; font-size: 8rem; filter: blur(10px); }
 .album-cover-emoji { position: relative; z-index: 1; }
-.trending-star { position: absolute; top: 6px; right: 6px; background: var(--blue); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: .7rem; z-index: 2; }
+.trending-star { position: absolute; top: 6px; inset-inline-start: 6px; background: var(--blue); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: .7rem; z-index: 2; }
 .album-name { font-size: .78rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .album-artist { font-size: .66rem; color: var(--muted); }
 .album-tracks { font-size: .62rem; color: var(--muted2); margin-top: .1rem; }
@@ -1089,13 +1094,15 @@ html.dark-mode .admin-search { background-color: #232427; border-color: #2C2D31;
 .action-avatar-wrap { position: relative; cursor: pointer; }
 .action-avatar { width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.1); border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; overflow: hidden; }
 .action-avatar-plus { position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); width: 18px; height: 18px; border-radius: 50%; background: var(--red); border: 1.5px solid #000; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 900; color: #fff; }
-.upload-modal { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.85); display: none; align-items: flex-end; justify-content: center; }
-.upload-modal.open { display: flex; }
-.upload-sheet { background: var(--surface); border-radius: 20px 20px 0 0; border: 1px solid var(--border); padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom)); width: 100%; max-width: 500px; }
+.upload-modal { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.85); display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s var(--ease-standard); }
+.upload-modal.open { opacity: 1; pointer-events: auto; }
+.upload-sheet { background: var(--surface); border-radius: 20px 20px 0 0; border: 1px solid var(--border); padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom)); width: 100%; max-width: 500px; transform: translateY(100%); transition: transform .3s var(--ease-standard); }
+.upload-modal.open .upload-sheet { transform: translateY(0); }
 .upload-title { font-size: 1rem; text-align: center; margin-bottom: 1.25rem; color: var(--blue); }
 .upload-options { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1rem; }
-.upload-opt { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem .75rem; text-align: center; cursor: pointer; transition: all .2s; }
-.upload-opt:hover { border-color: var(--blue); }
+.upload-opt { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem .75rem; text-align: center; cursor: pointer; transition: all .2s, transform .15s var(--ease-spring); }
+.upload-opt:hover { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 6%, var(--bg2)); }
+.upload-opt:active { transform: scale(.95); }
 .upload-opt-icon { font-size: 2rem; margin-bottom: .4rem; }
 .upload-opt-label { font-size: .78rem; color: var(--muted); }
 .upload-cancel { width: 100%; padding: .75rem; background: transparent; border: 1px solid var(--border); border-radius: 10px; color: var(--muted); font-size: .85rem; cursor: pointer; font-family: inherit; }
@@ -1288,7 +1295,7 @@ html.dark-mode .chat-messages { background:
    TELEGRAM-STYLE additions: new-arrow, report modal,
    group photo upload, profile photo upload, members modal
    ============================================= */
-.new-arrow { position: absolute; bottom: 90px; right: 16px; z-index: 30; background: var(--blue); color: #fff; border: none; border-radius: 20px; padding: .5rem 1rem; font-size: .8rem; display: flex; align-items: center; gap: .4rem; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,.2); }
+.new-arrow { position: absolute; bottom: 90px; inset-inline-end: 16px; z-index: 30; background: var(--blue); color: #fff; border: none; border-radius: 20px; padding: .5rem 1rem; font-size: .8rem; display: flex; align-items: center; gap: .4rem; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,.2); }
 .new-arrow .new-count { background: rgba(255,255,255,.25); border-radius: 10px; padding: 0 .4rem; font-size: .68rem; }
 .typing-indicator-row { display: flex; align-items: center; gap: .5rem; padding: .3rem .9rem; background: var(--surface); flex-shrink: 0; border-top: .5px solid var(--border); }
 .report-reason-opt { display: flex; align-items: center; gap: .6rem; padding: .65rem 0; border-bottom: 1px solid var(--border); cursor: pointer; font-size: .85rem; }
