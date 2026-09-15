@@ -1196,7 +1196,6 @@ window.svDeleteCurrent = function () {
 // Load saved highlights on startup
 try { var _hl = localStorage.getItem('yp_highlights'); if (_hl) HOME_HIGHLIGHTS = JSON.parse(_hl); } catch(e) {}
 
-console.log('YID PLUS: home.js loaded ✓ (Cloudflare D1 mode)');
 
 // ============================================================
 // STATUS UPLOAD (D1 'statuses' table + R2 for media)
@@ -2579,7 +2578,7 @@ function _openFollowModal(title, path, allowManage) {
           (u.photo_url
             ? '<div style="width:42px;height:42px;border-radius:50%;background-image:url(' + u.photo_url + ');background-size:cover;flex-shrink:0"></div>'
             : '<div style="width:42px;height:42px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">' + (u.nickname||'U').slice(0,1).toUpperCase() + '</div>') +
-          '<div style="min-width:0;flex:1"><div style="font-size:.88rem;font-weight:700;direction:ltr;text-align:start;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@' + escHtml(u.nickname) + (u.verified ? ' ✅' : '') + '</div></div>' +
+          '<div style="min-width:0;flex:1"><div style="font-size:.88rem;font-weight:700;unicode-bidi:plaintext;text-align:start;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@' + escHtml(u.nickname) + (u.verified ? ' ✅' : '') + '</div></div>' +
         '</div>' +
         manageBtns +
       '</div>';

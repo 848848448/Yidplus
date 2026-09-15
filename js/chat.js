@@ -4798,7 +4798,6 @@ window.navTo = function (id) {
   }
 };
 
-console.log('[YID PLUS] chat.js loaded ✓ (Telegram-style)');
 
 // ============================================================
 // POLLS — creation modal, rendering, voting
@@ -6728,7 +6727,6 @@ window.svDeleteCurrent = function () {
 // Load saved highlights on startup
 try { var _hl = localStorage.getItem('yp_highlights'); if (_hl) HOME_HIGHLIGHTS = JSON.parse(_hl); } catch(e) {}
 
-console.log('YID PLUS: home.js loaded ✓ (Cloudflare D1 mode)');
 
 // ============================================================
 // STATUS UPLOAD (D1 'statuses' table + R2 for media)

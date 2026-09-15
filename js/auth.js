@@ -217,7 +217,6 @@ document.addEventListener('DOMContentLoaded', function () {
   // so we don't duplicate it here.
 });
 
-console.log('YID PLUS: auth.js loaded ✓ (Cloudflare D1 mode)');
 
 // Real-time nickname availability check
 var _nickCheckTimer = null;

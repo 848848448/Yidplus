@@ -95,6 +95,8 @@ html, body {
   animation: yp-fadein .2s ease both;
 }
 
+::selection { background: rgba(31,111,92,.18); color: inherit; }
+
 /* Display face — headings, brand mark, big numbers. Used sparingly. */
 .font-display, .topbar-logo, .settings-section-title {
   font-family: 'Rubik', 'Heebo', system-ui, sans-serif;
@@ -1451,7 +1453,7 @@ html.dark-mode .uinfo-action-icon { background: #232427; }
 /* Nav badges */
 .nav-badge {
   position: absolute;
-  top: 2px; right: 2px;
+  top: 2px; inset-inline-end: 2px;
   min-width: 16px; height: 16px;
   background: #E53935;
   color: #fff;
@@ -1487,7 +1489,7 @@ html.dark-mode .uinfo-action-icon { background: #232427; }
 
 /* Jump-to-bottom arrow — animates in/out instead of popping */
 .new-arrow-btn {
-  position: absolute; bottom: 76px; right: 12px; z-index: 50; cursor: pointer;
+  position: absolute; bottom: 76px; inset-inline-end: 12px; z-index: 50; cursor: pointer;
   width: 42px; height: 42px; border-radius: 50%;
   background: var(--surface); border: 1px solid var(--border);
   box-shadow: 0 3px 12px rgba(0,0,0,.2);
@@ -1583,7 +1585,7 @@ html.dark-mode .settings-card { box-shadow: 0 1px 6px rgba(0,0,0,.25); }
 /* ── Profile header (clean, no green) ── */
 .settings-profile-hdr { display: flex; flex-direction: column; align-items: center; padding: 1.75rem 1rem 1.25rem; background: var(--surface); border-bottom: 1px solid var(--border); }
 .settings-avatar { width: 80px; height: 80px; border-radius: 50%; background: var(--bg3); border: 2.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 2rem; overflow: hidden; position: relative; cursor: pointer; }
-.avatar-edit-btn { position: absolute; bottom: 0; right: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--gold); color: #fff; display: flex; align-items: center; justify-content: center; border: 2px solid var(--surface); cursor: pointer; }
+.avatar-edit-btn { position: absolute; bottom: 0; inset-inline-end: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--gold); color: #fff; display: flex; align-items: center; justify-content: center; border: 2px solid var(--surface); cursor: pointer; }
 
 /* ── Scroll fix — no jump ── */
 /* Note: main .screen rules are defined above in SCREEN SYSTEM section */
@@ -1673,7 +1675,7 @@ img { opacity: 1; }
    }
 
 /* ── Guided Support Chat (floating) ── */
-#support-fab { position: fixed; bottom: 78px; right: 16px; width: 54px; height: 54px; border-radius: 50%; background: var(--gold); color: #fff; border: none; box-shadow: 0 4px 16px rgba(0,0,0,.22); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 6000; transition: transform .15s; }
+#support-fab { position: fixed; bottom: 78px; inset-inline-end: 16px; width: 54px; height: 54px; border-radius: 50%; background: var(--gold); color: #fff; border: none; box-shadow: 0 4px 16px rgba(0,0,0,.22); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 6000; transition: transform .15s; }
 #support-fab:active { transform: scale(.92); }
 #guided-support { position: fixed; bottom: 0; right: 0; left: 0; margin: 0 auto; max-width: 440px; height: 80vh; max-height: 640px; background: var(--surface); border-radius: 18px 18px 0 0; box-shadow: 0 -6px 30px rgba(0,0,0,.25); z-index: 7000; display: flex; flex-direction: column; overflow: hidden; animation: gsUp .22s ease; }
 @keyframes gsUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -2075,7 +2077,7 @@ html.dark-mode #screen-chatinfo .userinfo-mtab.active { background: #1C2A26; col
 
 /* Floating add-member button (Telegram-style) */
 #info-fab-add {
-  position: absolute; right: 18px; bottom: 24px; width: 56px; height: 56px;
+  position: absolute; inset-inline-end: 18px; bottom: 24px; width: 56px; height: 56px;
   border-radius: 50%; background: linear-gradient(135deg,#2E9E82,#1F6F5C);
   box-shadow: 0 6px 18px rgba(31,111,92,.4); display: none;
   align-items: center; justify-content: center; cursor: pointer; z-index: 20;
@@ -2158,7 +2160,7 @@ html.dark-mode .settings-avatar { border-color: var(--surface); }
 #call-top-status { color: rgba(255,255,255,.8); font-size: .8rem; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
 #call-remote-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #0b141a; }
 #call-remote-fallback { position: relative; z-index: 1; text-align: center; color: #fff; }
-#call-local-video { position: absolute; top: max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem)); right: 1rem; width: 108px; height: 156px; object-fit: cover; border-radius: 16px; border: 2px solid rgba(255,255,255,.4); background: #1a2730; z-index: 5; box-shadow: 0 6px 20px rgba(0,0,0,.5); cursor: grab; touch-action: none; transform: scaleX(-1); }
+#call-local-video { position: absolute; top: max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem)); inset-inline-end: 1rem; width: 108px; height: 156px; object-fit: cover; border-radius: 16px; border: 2px solid rgba(255,255,255,.4); background: #1a2730; z-index: 5; box-shadow: 0 6px 20px rgba(0,0,0,.5); cursor: grab; touch-action: none; transform: scaleX(-1); }
 .call-av-big { width: 110px; height: 110px; border-radius: 50%; margin: 0 auto 1rem; background: linear-gradient(135deg, #35B090, #1F6F5C); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-size: 2.6rem; font-weight: 800; color: #fff; box-shadow: 0 6px 24px rgba(0,0,0,.4); }
 .call-peer-name { font-size: 1.4rem; font-weight: 700; color: #fff; margin-bottom: .3rem; }
 #call-status { color: #cbd5e1; font-size: .9rem; }

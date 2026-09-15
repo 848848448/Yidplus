@@ -1707,7 +1707,6 @@ window.adminUploadLogo = function (e) {
     .catch(function (err) { toast('❌ ' + err.message); });
 };
 
-console.log('[YID PLUS] admin.js loaded ✓ (Cloudflare D1 mode)');
 
 /* ── SUPPORT CHATS ── */
 var SUPPORT_ACTIVE_TAB = 'new';

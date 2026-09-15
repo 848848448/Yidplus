@@ -542,7 +542,6 @@ window.confirmShortUpload = function () {
     .catch(function (err) { toast('❌ ' + err.message); });
 };
 
-console.log('[YID PLUS] shorts.js loaded ✓');
 
 // Reload a short's video once if it hits a transient load error (common when
 // scrolling fast in the feed before it finishes buffering).

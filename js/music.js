@@ -599,4 +599,3 @@ window.submitMusicUpload = function () {
     .catch(function (err) { toast('❌ ' + err.message); });
 };
 
-console.log('[YID PLUS] music.js loaded ✓ (real upload pipeline)');

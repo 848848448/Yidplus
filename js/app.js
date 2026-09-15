@@ -37,4 +37,3 @@ if (!window._APP_outsideClickBound) {
   });
 }
 
-console.log('[YID PLUS] app.js loaded ✓ (Cloudflare D1 mode — thin shim, see state.js)');
