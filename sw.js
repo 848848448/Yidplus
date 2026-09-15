@@ -1,7 +1,7 @@
 // YID PLUS Service Worker v8
 const CACHE_NAME = 'yidplus-v11';
-const CACHE_CSS  = 'yidplus-css-v8';
-const CACHE_JS   = 'yidplus-js-v1';
+const CACHE_CSS  = 'yidplus-css-v9';
+const CACHE_JS   = 'yidplus-js-v2';
 
 // HTML and API — always fresh. HTML is what points at the current build, so it
 // must never be stale; API responses are live data.

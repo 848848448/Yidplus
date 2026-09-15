@@ -1,0 +1,2 @@
+rootProject.name = 'YidPlus'
+include ':app'
