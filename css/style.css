@@ -2378,3 +2378,212 @@ html.dark-mode .sys-msg.call-log.missed span { background: rgba(255,120,140,.18)
   pointer-events: auto;
 }
 
+/* =============================================
+   PULL TO REFRESH
+   ============================================= */
+.ptr-indicator {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%) translateY(-50px);
+  z-index: 30; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--surface); box-shadow: var(--shadow-md);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .3s var(--ease-standard), opacity .3s;
+  opacity: 0; pointer-events: none;
+}
+.ptr-indicator.pulling { opacity: 1; }
+.ptr-indicator.refreshing { opacity: 1; transform: translateX(-50%) translateY(16px); }
+.ptr-indicator svg { width: 22px; height: 22px; color: var(--gold); transition: transform .2s; }
+.ptr-indicator.refreshing svg { animation: ptr-spin .8s linear infinite; }
+@keyframes ptr-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* =============================================
+   DOUBLE-TAP HEART ANIMATION
+   ============================================= */
+@keyframes heart-burst {
+  0%   { transform: translate(-50%,-50%) scale(0); opacity: 1; }
+  40%  { transform: translate(-50%,-50%) scale(1.2); opacity: 1; }
+  70%  { transform: translate(-50%,-50%) scale(.95); opacity: .9; }
+  100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
+}
+.dbl-tap-heart {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%) scale(0);
+  font-size: 80px; pointer-events: none; z-index: 20;
+  animation: heart-burst .8s var(--ease-spring) forwards;
+  filter: drop-shadow(0 4px 12px rgba(237,73,86,.5));
+}
+
+/* =============================================
+   IMAGE LAZY LOAD + BLUR PLACEHOLDER
+   ============================================= */
+.img-blur-wrap {
+  position: relative; overflow: hidden; background: var(--bg3);
+}
+.img-blur-wrap img {
+  transition: filter .4s ease, opacity .4s ease;
+}
+.img-blur-wrap img.loading {
+  filter: blur(20px); opacity: .6;
+  transform: scale(1.05);
+}
+.img-blur-wrap img.loaded {
+  filter: blur(0); opacity: 1;
+  transform: scale(1);
+}
+
+/* =============================================
+   ENHANCED SCREEN TRANSITIONS
+   ============================================= */
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slide-up-fade {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.screen.active.anim-right { animation: slide-in-right .25s var(--ease-standard) both; }
+.screen.active.anim-left  { animation: slide-in-left .25s var(--ease-standard) both; }
+.screen.active.anim-up    { animation: slide-up-fade .22s var(--ease-standard) both; }
+
+/* =============================================
+   ENHANCED TOAST NOTIFICATION
+   ============================================= */
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px) scale(.9); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+@keyframes toast-slide-out {
+  from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateX(-50%) translateY(20px) scale(.9); }
+}
+#app-toast.toast-in {
+  animation: toast-slide-in .35s var(--ease-spring) forwards;
+}
+#app-toast.toast-out {
+  animation: toast-slide-out .25s ease forwards;
+}
+
+/* =============================================
+   ENHANCED SKELETON PULSE VARIANT
+   ============================================= */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: .6; }
+  50%      { opacity: .3; }
+}
+.skeleton-pulse {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  background: var(--bg3);
+  border-radius: 8px;
+}
+
+/* =============================================
+   ONLINE STATUS DOT (enhanced)
+   ============================================= */
+.online-dot-pulse {
+  position: absolute; bottom: 1px; inset-inline-end: 1px;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: #2E7D32; border: 2.5px solid var(--surface);
+  z-index: 5;
+}
+@keyframes online-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(46,125,50,.5); }
+  50%      { box-shadow: 0 0 0 4px rgba(46,125,50,0); }
+}
+.online-dot-pulse.pulse { animation: online-pulse 2s ease infinite; }
+
+/* =============================================
+   PROFILE SCREEN POLISH — cover photo + stats
+   ============================================= */
+.profile-cover {
+  width: 100%; height: 140px;
+  background: linear-gradient(135deg, #14503F 0%, #1F6F5C 50%, #2B8A73 100%);
+  position: relative; overflow: hidden;
+}
+.profile-cover img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.profile-cover-glow {
+  position: absolute; bottom: -40px; right: -20px;
+  width: 140px; height: 140px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.12), transparent 70%);
+  pointer-events: none;
+}
+.profile-avatar-wrap {
+  display: flex; justify-content: center; margin-top: -40px;
+  position: relative; z-index: 5;
+}
+.profile-avatar-big {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: var(--bg3); border: 4px solid var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; font-weight: 800; color: var(--muted);
+  overflow: hidden; box-shadow: var(--shadow-md);
+  background-size: cover; background-position: center;
+}
+.profile-stats-row {
+  display: flex; justify-content: center; gap: 1.75rem;
+  padding: .85rem 0 .5rem;
+}
+.profile-stat {
+  text-align: center; cursor: pointer;
+}
+.profile-stat-val {
+  font-size: 1.15rem; font-weight: 800; color: var(--text);
+}
+.profile-stat-lbl {
+  font-size: .68rem; color: var(--muted); margin-top: .1rem;
+}
+.profile-bio {
+  font-size: .85rem; color: var(--muted); text-align: center;
+  padding: .25rem 1.5rem .75rem; line-height: 1.5;
+  unicode-bidi: plaintext;
+}
+.profile-actions-row {
+  display: flex; gap: .5rem; justify-content: center; padding: 0 1rem .85rem;
+}
+.profile-action-btn {
+  padding: .5rem 1.25rem; border-radius: 20px;
+  font-size: .8rem; font-weight: 700; cursor: pointer;
+  font-family: inherit; transition: all .15s;
+  border: 1.5px solid var(--border);
+  background: transparent; color: var(--text);
+}
+.profile-action-btn.primary {
+  background: var(--gold); color: #fff;
+  border-color: var(--gold);
+}
+.profile-action-btn:active { transform: scale(.96); }
+
+/* =============================================
+   LIKE BUTTON BOUNCE ANIMATION
+   ============================================= */
+@keyframes like-bounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.3); }
+  60%  { transform: scale(.9); }
+  100% { transform: scale(1); }
+}
+.ig-act.liked svg {
+  animation: like-bounce .4s var(--ease-spring);
+}
+
+/* =============================================
+   SWIPE HINT (subtle indicator for tab navigation)
+   ============================================= */
+.swipe-hint {
+  position: fixed; top: 50%; z-index: 50; pointer-events: none;
+  width: 4px; height: 60px; border-radius: 2px;
+  background: var(--border2); opacity: 0;
+  transition: opacity .2s;
+}
+.swipe-hint.left  { left: 2px; transform: translateY(-50%); }
+.swipe-hint.right { right: 2px; transform: translateY(-50%); }
+.swipe-hint.show  { opacity: .5; }
+

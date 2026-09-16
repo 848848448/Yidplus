@@ -2217,25 +2217,25 @@ function _buildProfileScreen(userId) {
     var followBtn = '';
     if (!isMe) {
       if (fdata.is_following) {
-        followBtn = '<button onclick="unfollowUser(\'' + userId + '\')" style="padding:.45rem 1.25rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:600;color:var(--text)">Following</button>';
+        followBtn = '<button class="profile-action-btn" onclick="unfollowUser(\'' + userId + '\')">Following</button>';
       } else if (fdata.has_pending_request) {
-        followBtn = '<button disabled style="padding:.45rem 1.25rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.82rem;font-family:inherit;font-weight:600;color:var(--muted)">Requested</button>';
+        followBtn = '<button class="profile-action-btn" disabled style="color:var(--muted)">Requested</button>';
       } else {
-        followBtn = '<button onclick="followUser(\'' + userId + '\')" style="padding:.45rem 1.25rem;background:var(--gold);border:none;border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:700;color:#fff">' + (fdata.is_private ? 'Request' : 'Follow') + '</button>';
+        followBtn = '<button class="profile-action-btn primary" onclick="followUser(\'' + userId + '\')">' + (fdata.is_private ? 'Request' : 'Follow') + '</button>';
       }
     } else {
-      followBtn = '<button onclick="navTo(\'settings\')" style="padding:.45rem 1.25rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:600">Edit Profile</button>';
+      followBtn = '<button class="profile-action-btn" onclick="navTo(\'settings\')">Edit Profile</button>';
     }
 
     var msgBtn = !isMe
-      ? '<button onclick="openDMWith(\'' + userId + '\')" style="padding:.45rem 1.25rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:600">Message</button>'
+      ? '<button class="profile-action-btn" onclick="openDMWith(\'' + userId + '\')">Message</button>'
       : '';
 
     var moreBtn = !isMe
-      ? '<button onclick="openProfileMoreMenu(\'' + userId + '\',\'' + escJs(p.nickname || 'user') + '\',' + (p.i_blocked ? 'true' : 'false') + ')" style="padding:.45rem .8rem;background:var(--bg3);border:1.5px solid var(--border);border-radius:20px;font-size:.9rem;cursor:pointer;font-family:inherit;font-weight:700;color:var(--text)">⋯</button>'
+      ? '<button class="profile-action-btn" onclick="openProfileMoreMenu(\'' + userId + '\',\'' + escJs(p.nickname || 'user') + '\',' + (p.i_blocked ? 'true' : 'false') + ')" style="padding:.5rem .8rem;font-size:.9rem">⋯</button>'
       : '';
 
-    var bioHtml = p.bio ? '<div style="font-size:.85rem;color:var(--text);text-align:center;padding:0 1.25rem;margin-bottom:.75rem;line-height:1.5">' + escHtml(p.bio) + '</div>' : '';
+    var bioHtml = p.bio ? '<div class="profile-bio">' + escHtml(p.bio) + '</div>' : '';
 
     var linksHtml = '';
     if (p.location) linksHtml += '<span style="font-size:.75rem;color:var(--muted)">📍 ' + escHtml(p.location) + '</span>';
@@ -2243,32 +2243,45 @@ function _buildProfileScreen(userId) {
     if (linksHtml)  linksHtml = '<div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;margin-bottom:.75rem">' + linksHtml + '</div>';
 
     if (body) body.innerHTML =
-      // Banner
-      (p.banner_url ? '<div style="width:100%;height:120px;background-image:url(' + p.banner_url + ');background-size:cover;background-position:center"></div>' : '<div style="width:100%;height:80px;background:linear-gradient(135deg,var(--gold),var(--gold-l))"></div>') +
-
-      // Profile card
-      '<div style="padding:0 1rem 1rem;background:var(--surface);border-bottom:1px solid var(--border)">' +
-        '<div style="display:flex;align-items:flex-end;gap:.75rem;margin-top:-40px;margin-bottom:.75rem">' +
-          avatarHtml +
-          '<div style="flex:1;padding-bottom:.25rem">' +
-            '<div style="font-size:1rem;font-weight:800">' + escHtml(p.nickname || 'User') + (p.verified ? ' ✅' : '') + '</div>' +
-            (p.role && p.role !== 'member' ? '<div style="font-size:.68rem;color:var(--gold);font-weight:700;text-transform:uppercase">' + escHtml(p.role) + '</div>' : '') +
-          '</div>' +
-        '</div>' +
-        bioHtml + linksHtml +
-        // Stats row
-        '<div style="display:flex;justify-content:center;gap:2rem;margin-bottom:.75rem">' +
-          _pStat(fdata.followers || 0, 'Followers', 'openFollowersList(\'' + userId + '\')') +
-          _pStat(fdata.following || 0, 'Following', 'openFollowingList(\'' + userId + '\')') +
-          _pStat(stats.shorts || 0, 'Videos', '') +
-          _pStat(stats.music  || 0, 'Music', '') +
-        '</div>' +
-        // Action buttons
-        '<div style="display:flex;gap:.5rem;justify-content:center">' + followBtn + msgBtn + moreBtn + '</div>' +
+      // Cover photo
+      '<div class="profile-cover">' +
+        (p.banner_url ? '<img src="' + p.banner_url + '" alt="" loading="lazy">' : '') +
+        '<div class="profile-cover-glow"></div>' +
       '</div>' +
 
+      // Avatar centered with overlap
+      '<div class="profile-avatar-wrap">' +
+        (hasStatus
+          ? '<div style="position:relative;width:86px;height:86px;cursor:pointer" onclick="_viewProfileStatus(\'' + userId + '\')">' +
+              '<svg width="86" height="86" style="position:absolute;top:0;left:0">' + _svSegments(statusData.slides.length, false) + '</svg>' +
+              '<div style="position:absolute;inset:3px"><div class="profile-avatar-big" style="width:80px;height:80px;border:3px solid var(--surface);' + (p.photo_url ? 'background-image:url(' + p.photo_url + ')' : '') + '">' + (p.photo_url ? '' : (p.nickname||'U').slice(0,1).toUpperCase()) + '</div></div>' +
+            '</div>'
+          : '<div class="profile-avatar-big" style="' + (p.photo_url ? 'background-image:url(' + p.photo_url + ')' : '') + '">' + (p.photo_url ? '' : (p.nickname||'U').slice(0,1).toUpperCase()) + '</div>') +
+      '</div>' +
+
+      // Name + handle
+      '<div style="text-align:center;padding:.4rem 1rem 0">' +
+        '<div style="font-size:1.1rem;font-weight:800">' + escHtml(p.nickname || 'User') + (p.verified ? ' ✅' : '') + '</div>' +
+        (p.role && p.role !== 'member' ? '<div style="font-size:.68rem;color:var(--gold);font-weight:700;text-transform:uppercase">' + escHtml(p.role) + '</div>' : '') +
+      '</div>' +
+
+      // Bio + links
+      (p.bio ? '<div class="profile-bio">' + escHtml(p.bio) + '</div>' : '<div style="height:.5rem"></div>') +
+      linksHtml +
+
+      // Stats cards
+      '<div class="profile-stats-row">' +
+        _pStat(fdata.followers || 0, 'Followers', 'openFollowersList(\'' + userId + '\')') +
+        _pStat(fdata.following || 0, 'Following', 'openFollowingList(\'' + userId + '\')') +
+        _pStat(stats.shorts || 0, 'Videos', '') +
+        _pStat(stats.music  || 0, 'Music', '') +
+      '</div>' +
+
+      // Action buttons
+      '<div class="profile-actions-row">' + followBtn + msgBtn + moreBtn + '</div>' +
+
       // Content tabs
-      '<div style="display:flex;border-bottom:1px solid var(--border);background:var(--surface);margin-top:.5rem">' +
+      '<div style="display:flex;border-bottom:1px solid var(--border);background:var(--surface);margin-top:.25rem">' +
         '<button class="ctab active" onclick="switchProfileTab(this,\'shorts\')" style="flex:1">Videos</button>' +
         '<button class="ctab" onclick="switchProfileTab(this,\'music\')" style="flex:1">Music</button>' +
       '</div>' +
@@ -2437,9 +2450,9 @@ window.reportUserAction = function (userId, nick) {
 };
 
 function _pStat(val, label, onclick) {
-  return '<div style="text-align:center;cursor:' + (onclick ? 'pointer' : 'default') + '"' + (onclick ? ' onclick="' + onclick + '"' : '') + '>' +
-    '<div style="font-size:1rem;font-weight:800">' + fmtN(val) + '</div>' +
-    '<div style="font-size:.68rem;color:var(--muted)">' + label + '</div>' +
+  return '<div class="profile-stat"' + (onclick ? ' onclick="' + onclick + '" style="cursor:pointer"' : '') + '>' +
+    '<div class="profile-stat-val">' + fmtN(val) + '</div>' +
+    '<div class="profile-stat-lbl">' + label + '</div>' +
   '</div>';
 }
 
@@ -3166,3 +3179,190 @@ function _xChPost(p, idx) {
       '</div>' +
     '</article>';
 }
+
+
+// ══════════════════════════════════════════════════════════
+//  PULL TO REFRESH (Instagram/Twitter-style)
+// ══════════════════════════════════════════════════════════
+(function () {
+  var scrollEl, indicator, startY, pulling, dist;
+  var PTR_THRESHOLD = 70;
+
+  function init() {
+    scrollEl = document.getElementById('home-scroll');
+    indicator = document.getElementById('ptr-indicator');
+    if (!scrollEl || !indicator) return;
+
+    scrollEl.addEventListener('touchstart', function (e) {
+      if (scrollEl.scrollTop > 5) return;
+      startY = e.touches[0].clientY;
+      pulling = true;
+      dist = 0;
+    }, { passive: true });
+
+    scrollEl.addEventListener('touchmove', function (e) {
+      if (!pulling) return;
+      dist = Math.max(0, e.touches[0].clientY - startY);
+      if (dist > 10 && scrollEl.scrollTop <= 0) {
+        var capped = Math.min(dist * 0.5, 80);
+        indicator.style.transform = 'translateX(-50%) translateY(' + (capped - 20) + 'px)';
+        indicator.classList.add('pulling');
+        indicator.querySelector('svg').style.transform = 'rotate(' + (dist * 2) + 'deg)';
+      }
+    }, { passive: true });
+
+    scrollEl.addEventListener('touchend', function () {
+      if (!pulling) return;
+      pulling = false;
+      if (dist > PTR_THRESHOLD && scrollEl.scrollTop <= 0) {
+        indicator.classList.remove('pulling');
+        indicator.classList.add('refreshing');
+        indicator.style.transform = 'translateX(-50%) translateY(16px)';
+        _fetchHomeData().then(done).catch(done);
+        if (typeof loadStatuses === 'function') loadStatuses();
+        _renderHomeHero();
+      } else {
+        done();
+      }
+    });
+
+    function done() {
+      indicator.classList.remove('pulling', 'refreshing');
+      indicator.style.transform = 'translateX(-50%) translateY(-50px)';
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
+
+// ══════════════════════════════════════════════════════════
+//  DOUBLE-TAP TO LIKE (Instagram-style heart burst)
+// ══════════════════════════════════════════════════════════
+(function () {
+  var lastTap = 0;
+
+  document.addEventListener('touchend', function (e) {
+    var post = e.target.closest('.ig-post');
+    if (!post) return;
+    var media = post.querySelector('.ig-post-media');
+    if (!media || !media.contains(e.target)) return;
+
+    var now = Date.now();
+    if (now - lastTap < 350) {
+      lastTap = 0;
+      var btn = post.querySelector('.ig-act.ig-like');
+      if (btn && !btn.classList.contains('liked')) {
+        var id = post.dataset.id;
+        if (id && typeof handleLike === 'function') handleLike(btn, id);
+      }
+      var heart = document.createElement('div');
+      heart.className = 'dbl-tap-heart';
+      heart.textContent = '❤️';
+      media.style.position = 'relative';
+      media.appendChild(heart);
+      setTimeout(function () { if (heart.parentElement) heart.remove(); }, 900);
+    } else {
+      lastTap = now;
+    }
+  });
+})();
+
+
+// ══════════════════════════════════════════════════════════
+//  ENHANCED TOAST — better slide-in/out animation
+// ══════════════════════════════════════════════════════════
+(function () {
+  var origToast = window.toast;
+  if (!origToast) return;
+
+  window.toast = function (msg, duration) {
+    var el = document.getElementById('app-toast');
+    if (!el) { origToast(msg, duration); return; }
+
+    el.className = 'app-toast';
+    el.textContent = msg;
+
+    if (msg.indexOf('✅') !== -1 || msg.indexOf('success') !== -1) el.classList.add('toast-success');
+    else if (msg.indexOf('❌') !== -1 || msg.indexOf('error') !== -1 || msg.indexOf('⚠') !== -1) el.classList.add('toast-error');
+    else el.classList.add('toast-info');
+
+    el.classList.add('show', 'toast-in');
+
+    clearTimeout(el._toastTimer);
+    el._toastTimer = setTimeout(function () {
+      el.classList.remove('toast-in');
+      el.classList.add('toast-out');
+      setTimeout(function () {
+        el.classList.remove('show', 'toast-out', 'toast-success', 'toast-error', 'toast-info');
+      }, 280);
+    }, duration || 2500);
+  };
+})();
+
+
+// ══════════════════════════════════════════════════════════
+//  IMAGE LAZY LOADING WITH BLUR PLACEHOLDER
+// ══════════════════════════════════════════════════════════
+(function () {
+  if (!('IntersectionObserver' in window)) return;
+
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      var img = entry.target;
+      if (img.dataset.src) {
+        img.classList.add('loading');
+        var real = new Image();
+        real.onload = function () {
+          img.src = img.dataset.src;
+          img.classList.remove('loading');
+          img.classList.add('loaded');
+          img.removeAttribute('data-src');
+        };
+        real.onerror = function () {
+          img.classList.remove('loading');
+        };
+        real.src = img.dataset.src;
+      }
+      observer.unobserve(img);
+    });
+  }, { rootMargin: '200px' });
+
+  window._lazyObserve = function (container) {
+    var imgs = (container || document).querySelectorAll('img[data-src]');
+    imgs.forEach(function (img) { observer.observe(img); });
+  };
+})();
+
+
+// ══════════════════════════════════════════════════════════
+//  NAV BADGE SYNC — update badges on all screens
+// ══════════════════════════════════════════════════════════
+(function () {
+  var origUpdate = window._updateNavBadges || _updateNavBadges;
+
+  function syncAllNavBadges() {
+    origUpdate();
+    document.querySelectorAll('.nav-badge').forEach(function (badge) {
+      if (badge.id) return;
+      var navItem = badge.closest('.nav-item');
+      if (!navItem) return;
+      var nav = navItem.dataset.nav;
+      var srcId = nav === 'chats' ? 'nav-badge-chats' : nav === 'shorts' ? 'nav-badge-shorts' : null;
+      if (!srcId) return;
+      var src = document.getElementById(srcId);
+      if (!src) return;
+      badge.textContent = src.textContent;
+      badge.style.display = src.style.display;
+      badge.style.minWidth = src.style.minWidth || '';
+      badge.style.height = src.style.height || '';
+      badge.style.padding = src.style.padding || '';
+    });
+  }
+
+  setInterval(function () {
+    if (!document.hidden) syncAllNavBadges();
+  }, 5000);
+})();

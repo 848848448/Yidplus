@@ -26,7 +26,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Google Material Symbols (Rounded) — the modern icon set used across Google's own apps. -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,400..500,0..1,0&display=block">
-<link rel="stylesheet" href="css/style.css?v=202609161100">
+<link rel="stylesheet" href="css/style.css?v=202609161600">
 <script>
 // Apply saved user theme ASAP (before paint) to avoid flash-of-default-colors
 (function () {
@@ -146,7 +146,10 @@
       <div class="icon-btn" onclick="navTo('settings')" aria-label="Profile" role="button" tabindex="0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
     </div>
   </div>
-  <div class="scroll-area" style="padding-bottom:84px">
+  <div class="scroll-area" id="home-scroll" style="padding-bottom:84px;position:relative">
+    <div class="ptr-indicator" id="ptr-indicator">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    </div>
     <div id="broadcast-bar"></div>
 
     <!-- ── HERO GREETING ── -->
@@ -255,7 +258,7 @@
       </div>
     </div>
   </div>
-  <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon"><span class="material-symbols-rounded">forum</span></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><span class="material-symbols-rounded">music_note</span></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon"><span class="material-symbols-rounded">movie</span></span><span class="nav-label">Shorts</span></button><button class="nav-item" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><span class="material-symbols-rounded">explore</span></span><span class="nav-label">Channels</span></button><button class="nav-item" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><span class="material-symbols-rounded">settings</span></span><span class="nav-label">Settings</span></button></nav>
+  <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon" style="position:relative"><span class="material-symbols-rounded">forum</span><span class="nav-badge" id="nav-badge-chats" style="display:none"></span></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><span class="material-symbols-rounded">music_note</span></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon" style="position:relative"><span class="material-symbols-rounded">movie</span><span class="nav-badge" id="nav-badge-shorts" style="display:none"></span></span><span class="nav-label">Shorts</span></button><button class="nav-item" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><span class="material-symbols-rounded">explore</span></span><span class="nav-label">Channels</span></button><button class="nav-item" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><span class="material-symbols-rounded">settings</span></span><span class="nav-label">Settings</span></button></nav>
 </div>
 
 <!-- ══ EXPLORE SCREEN (Channels) ══ -->
@@ -280,7 +283,7 @@
   <button onclick="try{localStorage.setItem('yp_ch_tab','posts')}catch(e){};CHANNEL_pendingOwnerId=(STATE.user&&STATE.user.id);if(CHANNEL_pendingOwnerId){navTo('channel')}else{toast('\u26a0 Please sign in first')}" title="New post" aria-label="New post" style="position:absolute;bottom:94px;inset-inline-end:18px;width:56px;height:56px;border-radius:50%;background:var(--gold);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;z-index:50">
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
   </button>
-  <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon"><span class="material-symbols-rounded">forum</span></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><span class="material-symbols-rounded">music_note</span></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon"><span class="material-symbols-rounded">movie</span></span><span class="nav-label">Shorts</span></button><button class="nav-item active" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><span class="material-symbols-rounded">explore</span></span><span class="nav-label">Channels</span></button><button class="nav-item" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><span class="material-symbols-rounded">settings</span></span><span class="nav-label">Settings</span></button></nav>
+  <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon" style="position:relative"><span class="material-symbols-rounded">forum</span><span class="nav-badge" id="nav-badge-chats2" style="display:none"></span></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><span class="material-symbols-rounded">music_note</span></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon" style="position:relative"><span class="material-symbols-rounded">movie</span><span class="nav-badge" id="nav-badge-shorts2" style="display:none"></span></span><span class="nav-label">Shorts</span></button><button class="nav-item active" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><span class="material-symbols-rounded">explore</span></span><span class="nav-label">Channels</span></button><button class="nav-item" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><span class="material-symbols-rounded">settings</span></span><span class="nav-label">Settings</span></button></nav>
 </div>
 
 <!-- ══ USER PROFILE SCREEN ══ -->
@@ -294,11 +297,30 @@
     <div style="width:40px"></div>
   </div>
   <div class="scroll-area" id="profile-screen-body" style="padding-bottom:80px">
-    <div style="text-align:center;padding:3rem 1rem;color:var(--muted)">
-      <div class="spinner"></div>
+    <div class="profile-cover" id="profile-cover">
+      <div class="profile-cover-glow"></div>
+    </div>
+    <div class="profile-avatar-wrap">
+      <div class="profile-avatar-big" id="profile-avatar-big"></div>
+    </div>
+    <div style="text-align:center;padding:.4rem 1rem 0">
+      <div style="font-size:1.1rem;font-weight:800" id="profile-display-name"></div>
+      <div style="font-size:.82rem;color:var(--muted);margin-top:.15rem" id="profile-handle"></div>
+    </div>
+    <div class="profile-bio" id="profile-bio-text"></div>
+    <div class="profile-stats-row" id="profile-stats-row">
+      <div class="profile-stat"><div class="profile-stat-val" id="profile-stat-followers">0</div><div class="profile-stat-lbl">Followers</div></div>
+      <div class="profile-stat"><div class="profile-stat-val" id="profile-stat-following">0</div><div class="profile-stat-lbl">Following</div></div>
+      <div class="profile-stat"><div class="profile-stat-val" id="profile-stat-posts">0</div><div class="profile-stat-lbl">Posts</div></div>
+    </div>
+    <div class="profile-actions-row" id="profile-actions-row"></div>
+    <div id="profile-content" style="padding:0 .5rem">
+      <div style="text-align:center;padding:2rem 1rem;color:var(--muted)">
+        <div class="spinner"></div>
+      </div>
     </div>
   </div>
-  <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon"><span class="material-symbols-rounded">forum</span></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><span class="material-symbols-rounded">music_note</span></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon"><span class="material-symbols-rounded">movie</span></span><span class="nav-label">Shorts</span></button><button class="nav-item" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><span class="material-symbols-rounded">explore</span></span><span class="nav-label">Channels</span></button><button class="nav-item" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><span class="material-symbols-rounded">settings</span></span><span class="nav-label">Settings</span></button></nav>
+  <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon" style="position:relative"><span class="material-symbols-rounded">forum</span><span class="nav-badge" style="display:none"></span></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><span class="material-symbols-rounded">music_note</span></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon" style="position:relative"><span class="material-symbols-rounded">movie</span><span class="nav-badge" style="display:none"></span></span><span class="nav-label">Shorts</span></button><button class="nav-item" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><span class="material-symbols-rounded">explore</span></span><span class="nav-label">Channels</span></button><button class="nav-item" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><span class="material-symbols-rounded">settings</span></span><span class="nav-label">Settings</span></button></nav>
 </div>
 
 <!-- ══ SETTINGS SCREEN ══ -->
@@ -342,7 +364,7 @@
       <a href="/terms" target="_blank" style="color:var(--muted);text-decoration:none">Terms of Service</a>
     </div>
   </div>
-  <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon"><span class="material-symbols-rounded">forum</span></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><span class="material-symbols-rounded">music_note</span></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon"><span class="material-symbols-rounded">movie</span></span><span class="nav-label">Shorts</span></button><button class="nav-item" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><span class="material-symbols-rounded">explore</span></span><span class="nav-label">Channels</span></button><button class="nav-item active" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><span class="material-symbols-rounded">settings</span></span><span class="nav-label">Settings</span></button></nav>
+  <nav class="bottom-nav"><button class="nav-item" data-nav="chats" onclick="goPage('/chat')"><span class="nav-icon" style="position:relative"><span class="material-symbols-rounded">forum</span><span class="nav-badge" style="display:none"></span></span><span class="nav-label">Chats</span></button><button class="nav-item" data-nav="music" onclick="goPage('/music')"><span class="nav-icon"><span class="material-symbols-rounded">music_note</span></span><span class="nav-label">Music</span></button><button class="nav-item" data-nav="shorts" onclick="goPage('/shorts')"><span class="nav-icon" style="position:relative"><span class="material-symbols-rounded">movie</span><span class="nav-badge" style="display:none"></span></span><span class="nav-label">Shorts</span></button><button class="nav-item" data-nav="explore" onclick="navTo('explore')"><span class="nav-icon"><span class="material-symbols-rounded">explore</span></span><span class="nav-label">Channels</span></button><button class="nav-item active" data-nav="settings" onclick="navTo('settings')"><span class="nav-icon"><span class="material-symbols-rounded">settings</span></span><span class="nav-label">Settings</span></button></nav>
 </div>
 
 <!-- ══ CHANNEL SCREEN ══ -->
@@ -608,7 +630,7 @@
 <script defer src="js/app.js?v=202607291705"></script>
 <script defer src="js/auth.js?v=202608101617"></script>
 <script defer src="js/calls.js?v=202609020830"></script>
-<script defer src="js/home.js?v=202609151100"></script>
+<script defer src="js/home.js?v=202609161600"></script>
 
 <script>
 // ── POSTS FEED (Cloudflare D1 via /api/posts) ──
