@@ -17,8 +17,10 @@
     { "src": "/images/icon-192-maskable.png?v=202607241637", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "/images/icon-512-maskable.png?v=202607241637", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
+  "categories": ["social", "entertainment"],
   "shortcuts": [
     { "name": "Chats", "url": "/chat" },
+    { "name": "Music", "url": "/music" },
     { "name": "Channels", "url": "/?goto=explore" },
     { "name": "Shorts", "url": "/shorts" }
   ],
