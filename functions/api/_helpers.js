@@ -4,6 +4,25 @@
 
 import { sendWebPush } from './_webpush.js';
 
+// The two ultimate-admin accounts. Centralised here so a change to the owner
+// list happens in exactly one place instead of being copy-pasted into every
+// auth handler. Imported by login.js, register.js, google-callback.js, etc.
+export const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
+
+// True when `email` (any casing) is one of the owner accounts, optionally
+// including the OWNER_EMAIL configured in the environment.
+export function isOwnerEmail(email, ownerEmail) {
+  const e = (email || '').toLowerCase().trim();
+  if (!e) return false;
+  if (OWNER_EMAILS.includes(e)) return true;
+  if (ownerEmail && e === String(ownerEmail).toLowerCase().trim()) return true;
+  return false;
+}
+
+// Sentinel stored in users.password_hash for accounts created via Google
+// OAuth — they have no password and can NEVER be logged into with one.
+export const GOOGLE_OAUTH_SENTINEL = 'GOOGLE_OAUTH_NO_PASSWORD';
+
 export const corsHeaders = {
   'Content-Type': 'application/json',
   // The frontend and API live on the same origin (Cloudflare Pages serves
@@ -39,6 +58,17 @@ export async function checkRateLimit(env, request, bucket, max, windowMinutes) {
     await env.DB.prepare(
       `INSERT INTO rate_limits (id, bucket, ip, created_at) VALUES (?, ?, ?, datetime('now'))`
     ).bind(crypto.randomUUID(), bucket, ip).run().catch(() => {});
+
+    // The COUNT above only ever looks at the last `windowMinutes`, so any row
+    // older than that is dead weight. Without a cleanup this table grows
+    // forever and slowly poisons every rate-limit COUNT. Prune on ~2% of
+    // writes (cheap, self-healing, no cron needed): drop anything older than a
+    // day, comfortably beyond any window we use.
+    if (Math.random() < 0.02) {
+      await env.DB.prepare(
+        `DELETE FROM rate_limits WHERE created_at < datetime('now', '-1 day')`
+      ).run().catch(() => {});
+    }
 
     return true;
   } catch (e) {
@@ -127,6 +157,11 @@ async function _pbkdf2Verify(password, iterations, saltHex, expectedHashHex) {
 // should re-save the password through hashPassword() to upgrade it.
 export async function verifyPassword(password, storedHash) {
   if (!storedHash) return { valid: false, needsUpgrade: false };
+  // Google-OAuth accounts have no password. Reject any password attempt
+  // outright instead of letting the sentinel fall through to the legacy
+  // SHA-256 path (where it would waste a hash and could, in theory, be
+  // matched by a crafted input).
+  if (storedHash === GOOGLE_OAUTH_SENTINEL) return { valid: false, needsUpgrade: false };
   if (storedHash.startsWith('pbkdf2$')) {
     const [, iterStr, saltHex, hashHex] = storedHash.split('$');
     const valid = await _pbkdf2Verify(password, parseInt(iterStr, 10), saltHex, hashHex);
@@ -150,6 +185,9 @@ export async function cleanupUserReferences(env, userId, nickname) {
     'channel_owner_id', 'created_by', 'liked_by', 'reported_by',
     'blocked_by', 'muted_by', 'granted_by', 'recipient_id', 'reviewer_id',
   ];
+  // Only plain SQLite identifiers (letters, digits, underscore) are ever
+  // interpolated into a statement below.
+  const SAFE_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
   try {
     const { results: tables } = await env.DB.prepare(
@@ -163,8 +201,14 @@ export async function cleanupUserReferences(env, userId, nickname) {
         columns = results.map(c => c.name);
       } catch (e) { continue; }
 
+      // Guard against any table/column name that isn't a plain identifier
+      // before it goes into an interpolated SQL string. The values are still
+      // bound as parameters, but a table named with a quote or bracket would
+      // break the statement — so we only ever touch simple, well-formed names.
+      if (!SAFE_IDENT.test(t.name)) continue;
+
       for (const col of columns) {
-        if (!USER_ID_COLUMNS.includes(col)) continue;
+        if (!USER_ID_COLUMNS.includes(col) || !SAFE_IDENT.test(col)) continue;
         await env.DB.prepare(`DELETE FROM "${t.name}" WHERE "${col}" = ?`).bind(userId).run().catch(() => {});
       }
     }
@@ -211,8 +255,7 @@ export async function requireUser(request, env) {
 // admin_super   : "Super Admin" — full access.
 // owner (by email): ultimate admin, cannot be demoted/blocked.
 // CO_OWNER      : jmittelman2@gmail.com — same rights as owner, hardcoded.
-
-const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
+// (OWNER_EMAILS is defined and exported at the top of this file.)
 
 export function isAdminRole(user, ownerEmail) {
   if (!user) return false;

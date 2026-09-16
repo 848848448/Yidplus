@@ -25,7 +25,8 @@ var HOME_STATUSES = [
 function buildShortsPrev() {
   var row = document.getElementById('home-shorts');
   if (!row) return;
-  row.innerHTML = '<div class="feed-state" style="padding:1rem"><div class="spinner"></div></div>';
+  var skel = document.getElementById('skel-shorts');
+  if (!skel) row.innerHTML = '<div class="feed-state" style="padding:1rem"><div class="spinner"></div></div>';
 
   api.get('/shorts')
     .then(function (res) {
@@ -58,7 +59,8 @@ function buildShortsPrev() {
 function buildChannelsPrev() {
   var row = document.getElementById('home-channels');
   if (!row) return;
-  row.innerHTML = '<div class="feed-state" style="padding:1rem"><div class="spinner"></div></div>';
+  var skel = document.getElementById('skel-channels');
+  if (!skel) row.innerHTML = '<div class="feed-state" style="padding:1rem"><div class="spinner"></div></div>';
 
   api.get('/channels')
     .then(function (res) {
@@ -212,10 +214,13 @@ window.loadDynamicFeed = function () {
   var feed = document.getElementById('home-feed');
   if (!feed) return;
 
-  feed.innerHTML =
-    '<div class="feed-state">' +
-      '<div class="spinner"></div>' +
-    '</div>';
+  var skel = document.getElementById('skel-feed');
+  if (!skel) {
+    feed.innerHTML =
+      '<div class="feed-state">' +
+        '<div class="spinner"></div>' +
+      '</div>';
+  }
 
   // Limit to 20 posts for speed
   api.get('/posts?limit=20')
@@ -319,7 +324,7 @@ function buildPostCard(p) {
 }
 
 function viewsSvgSmall() {
-  return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:2px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
+  return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-inline-end:2px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
 }
 
 // Relative time for home/channel posts (Xs / Xm / Xh / Xd / "Mon D").
@@ -1191,7 +1196,6 @@ window.svDeleteCurrent = function () {
 // Load saved highlights on startup
 try { var _hl = localStorage.getItem('yp_highlights'); if (_hl) HOME_HIGHLIGHTS = JSON.parse(_hl); } catch(e) {}
 
-console.log('YID PLUS: home.js loaded ✓ (Cloudflare D1 mode)');
 
 // ============================================================
 // STATUS UPLOAD (D1 'statuses' table + R2 for media)
@@ -1800,7 +1804,7 @@ window.openFollowList = function (type) {
         '<div onclick="document.getElementById(\'follow-list\').remove();openChannel(\'' + u.id + '\')" style="display:flex;align-items:center;gap:.7rem;flex:1;min-width:0;cursor:pointer">' +
           av +
           '<div style="flex:1;min-width:0">' +
-            '<div style="font-size:.88rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:plaintext;text-align:left;direction:ltr">' + escHtml(u.nickname || 'User') + '</div>' +
+            '<div style="font-size:.88rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:plaintext;text-align:start;direction:ltr">' + escHtml(u.nickname || 'User') + '</div>' +
           '</div>' +
         '</div>' +
         (canRemove ? '<button onclick="removeFollower(\'' + u.id + '\',this)" style="background:none;border:none;color:var(--red);font-size:.75rem;cursor:pointer;flex-shrink:0">Remove</button>' : '') +
@@ -1962,7 +1966,7 @@ window._pcPick = function (input) {
       (isVid
         ? '<video src="' + url + '" controls playsinline style="width:100%;max-height:240px;display:block;background:#000"></video>'
         : '<img src="' + url + '" style="width:100%;max-height:240px;object-fit:cover;display:block">') +
-      '<button onclick="_pcClear()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:.9rem">✕</button>' +
+      '<button onclick="_pcClear()" style="position:absolute;top:6px;inset-inline-end:6px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:.9rem">✕</button>' +
     '</div>';
 };
 window._pcClear = function () {
@@ -2459,7 +2463,7 @@ function _loadProfileContent(userId, tab) {
           items.map(function (s) {
             return '<div style="aspect-ratio:9/16;position:relative;background:#000;overflow:hidden;cursor:pointer" onclick="openShort(\'' + s.id + '\')">' +
               (s.media_url ? '<video src="' + s.media_url + '" style="width:100%;height:100%;object-fit:cover" preload="none"></video>' : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff">📹</div>') +
-              '<div style="position:absolute;bottom:4px;left:4px;font-size:.68rem;color:#fff;font-weight:700">▶ ' + fmtN(s.views||0) + '</div>' +
+              '<div style="position:absolute;bottom:4px;inset-inline-start:4px;font-size:.68rem;color:#fff;font-weight:700">▶ ' + fmtN(s.views||0) + '</div>' +
             '</div>';
           }).join('') +
         '</div>';
@@ -2574,7 +2578,7 @@ function _openFollowModal(title, path, allowManage) {
           (u.photo_url
             ? '<div style="width:42px;height:42px;border-radius:50%;background-image:url(' + u.photo_url + ');background-size:cover;flex-shrink:0"></div>'
             : '<div style="width:42px;height:42px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">' + (u.nickname||'U').slice(0,1).toUpperCase() + '</div>') +
-          '<div style="min-width:0;flex:1"><div style="font-size:.88rem;font-weight:700;direction:ltr;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@' + escHtml(u.nickname) + (u.verified ? ' ✅' : '') + '</div></div>' +
+          '<div style="min-width:0;flex:1"><div style="font-size:.88rem;font-weight:700;unicode-bidi:plaintext;text-align:start;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@' + escHtml(u.nickname) + (u.verified ? ' ✅' : '') + '</div></div>' +
         '</div>' +
         manageBtns +
       '</div>';

@@ -366,11 +366,11 @@ function renderChatList() {
         '<div class="' + avClass + '" style="' + avStyle + '"' + avatarClickAttr + '>' + avatarContent + onlineDot + '</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
-            '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:left;flex:1">' + escHtml(c.nick || 'Chat') + '</div>' +
+            '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1">' + escHtml(c.nick || 'Chat') + '</div>' +
             '<div style="display:flex;align-items:center;gap:.3rem;flex-shrink:0">' + muteIcon + '<div style="font-size:.68rem;color:var(--muted)">' + timeText + '</div></div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">' +
-            '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:left;flex:1;font-weight:' + (c.unread ? '500' : '400') + '">' + previewHtml + '</div>' +
+            '<div style="font-size:.83rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext;text-align:start;flex:1;font-weight:' + (c.unread ? '500' : '400') + '">' + previewHtml + '</div>' +
             unreadBadge +
           '</div>' +
         '</div>' +
@@ -434,7 +434,7 @@ function _tgChannelRow(t) {
       av +
       '<div style="flex:1;min-width:0">' +
         '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.18rem;gap:.4rem">' +
-          '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;text-align:left;unicode-bidi:plaintext;direction:ltr">' + title + '</div>' +
+          '<div style="font-size:.94rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;text-align:start;unicode-bidi:plaintext;direction:ltr">' + title + '</div>' +
           (when ? '<div style="font-size:.68rem;color:var(--muted);flex-shrink:0">' + when + '</div>' : '') +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:.4rem">' +
@@ -535,9 +535,9 @@ window.openTelegramChannel = function (username, title) {
         '<div id="tg-feed-state" style="text-align:center;color:var(--muted);font-size:.85rem;padding:2rem 1rem">Loading posts…</div>' +
       '</div>' +
       // Jump-to-latest, like the chat screen. Hidden until you scroll up.
-      '<button id="tg-jump" onclick="_tgScrollBottom()" style="display:none;position:absolute;right:12px;bottom:14px;width:44px;height:44px;border-radius:50%;border:none;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;align-items:center;justify-content:center;color:var(--text)">' +
+      '<button id="tg-jump" onclick="_tgScrollBottom()" style="display:none;position:absolute;inset-inline-end:12px;bottom:14px;width:44px;height:44px;border-radius:50%;border:none;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;align-items:center;justify-content:center;color:var(--text)">' +
         '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>' +
-        '<span id="tg-jump-badge" style="display:none;position:absolute;top:-4px;right:-4px;min-width:19px;height:19px;border-radius:10px;background:#229ED9;color:#fff;font-size:.66rem;font-weight:700;line-height:19px;padding:0 5px"></span>' +
+        '<span id="tg-jump-badge" style="display:none;position:absolute;top:-4px;inset-inline-end:-4px;min-width:19px;height:19px;border-radius:10px;background:#229ED9;color:#fff;font-size:.66rem;font-weight:700;line-height:19px;padding:0 5px"></span>' +
       '</button>' +
     '</div>';
 
@@ -630,7 +630,7 @@ function _xPostCard(p, username, chTitle) {
   // re-encoding every file, far past what one request can do. An overlay puts
   // the mark on screen for free. It rides on top rather than being part of the
   // file, so a saved copy won't carry it.
-  var stamp = '<div style="position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.45);color:#fff;font-size:.6rem;font-weight:600;padding:1px 6px;border-radius:7px;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.5)">Yidplus.com</div>';
+  var stamp = '<div style="position:absolute;inset-inline-end:6px;bottom:6px;background:rgba(0,0,0,.45);color:#fff;font-size:.6rem;font-weight:600;padding:1px 6px;border-radius:7px;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.5)">Yidplus.com</div>';
 
   var media = '';
   if (src) {
@@ -651,12 +651,12 @@ function _xPostCard(p, username, chTitle) {
       // fullscreen player (same swipeable viewer as the photos), which actually
       // plays the video — no dead inline player, no link-out.
       var vthumb = src + (src.indexOf('?') > -1 ? '&' : '?') + 'thumb=1&tv=2';
-      var vdur = p.media_duration ? '<div style="position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.6);color:#fff;font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:6px;pointer-events:none">' + _tgDur(p.media_duration) + '</div>' : '';
+      var vdur = p.media_duration ? '<div style="position:absolute;inset-inline-start:8px;bottom:8px;background:rgba(0,0,0,.6);color:#fff;font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:6px;pointer-events:none">' + _tgDur(p.media_duration) + '</div>' : '';
       media = '<div onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="position:relative;margin:0;overflow:hidden;background:#0b0b0b;cursor:pointer;min-height:170px">' +
           '<img src="' + vthumb + '" onerror="this.style.display=&#39;none&#39;" style="width:100%;display:block;max-height:70vh;object-fit:cover">' +
           '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">' +
             '<div style="width:58px;height:58px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center">' +
-              '<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" style="margin-left:3px"><polygon points="6 4 20 12 6 20 6 4"/></svg>' +
+              '<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" style="margin-inline-start:3px"><polygon points="6 4 20 12 6 20 6 4"/></svg>' +
             '</div>' +
           '</div>' +
           vdur + stamp +
@@ -722,7 +722,7 @@ function _xPostCard(p, username, chTitle) {
   // views + time footer sit underneath. No per-post avatar — just like Telegram.
   var canDelete = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
   var delBtn = canDelete
-    ? '<span onclick="event.stopPropagation();tgDeletePost(' + p.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-right:auto">🗑</span>'
+    ? '<span onclick="event.stopPropagation();tgDeletePost(' + p.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-inline-end:auto">🗑</span>'
     : '';
 
   return '<div style="display:flex;justify-content:flex-start;margin-bottom:.35rem">' +
@@ -733,7 +733,7 @@ function _xPostCard(p, username, chTitle) {
           reactRow +
           '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.25rem;margin-top:.15rem;color:#8a9aa5;font-size:.66rem">' +
             delBtn + eye + '<span>' + _xNum(p.views || 0) + '</span>' +
-            '<span style="margin-left:.15rem">' + when + '</span>' +
+            '<span style="margin-inline-start:.15rem">' + when + '</span>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -817,7 +817,7 @@ window.tgOpenInfo = function () {
         : '<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">' + escHtml((m.name || '?').charAt(0).toUpperCase()) + '</div>';
       return '<div style="display:flex;align-items:center;gap:.7rem;padding:.55rem 1rem;border-bottom:1px solid var(--border)">' +
         mav +
-        '<div style="flex:1;min-width:0"><div style="font-size:.9rem;font-weight:600;unicode-bidi:plaintext;direction:ltr;text-align:left">' + escHtml(m.name) + '</div>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:.9rem;font-weight:600;unicode-bidi:plaintext;direction:ltr;text-align:start">' + escHtml(m.name) + '</div>' +
         '<div style="font-size:.68rem;color:var(--muted)">Joined ' + (m.joined_at ? new Date(m.joined_at).toLocaleDateString() : '') + '</div></div>' +
         (res.is_admin ? '<button onclick="tgRemoveMember(\'' + m.user_id + '\',this)" style="background:none;border:none;color:var(--red);font-size:.78rem;cursor:pointer">Remove</button>' : '') +
       '</div>';
@@ -1010,7 +1010,7 @@ function _tgEntityTags(e) {
     case 'messageEntityStrike':     return ['<s>', '</s>'];
     case 'messageEntityCode':       return ['<code style="background:rgba(0,0,0,.06);padding:0 3px;border-radius:3px">', '</code>'];
     case 'messageEntityPre':        return ['<pre style="background:rgba(0,0,0,.06);padding:.4rem;border-radius:6px;overflow-x:auto;margin:.3rem 0">', '</pre>'];
-    case 'messageEntityBlockquote': return ['<blockquote style="border-left:3px solid #168acd;margin:.3rem 0;padding:.1rem .5rem;opacity:.9">', '</blockquote>'];
+    case 'messageEntityBlockquote': return ['<blockquote style="border-inline-start:3px solid #168acd;margin:.3rem 0;padding:.1rem .5rem;opacity:.9">', '</blockquote>'];
     case 'messageEntitySpoiler':    return ['<span onclick="this.style.filter=&#39;none&#39;" style="filter:blur(5px);cursor:pointer;transition:filter .15s">', '</span>'];
     case 'messageEntityTextUrl':
       // A t.me target would be a way back out to Telegram — keep the styling,
@@ -1113,7 +1113,7 @@ function _tgAlbumCard(group, username, chTitle) {
     ? '<div style="width:34px;height:34px;border-radius:50%;background-image:url(' + lead.author_avatar + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
     : '<div style="width:34px;height:34px;border-radius:50%;background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:700;flex-shrink:0">' + (name.slice(0, 1) || 'C') + '</div>';
 
-  var stamp = '<div style="position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.45);color:#fff;font-size:.55rem;font-weight:600;padding:1px 5px;border-radius:6px;pointer-events:none">Yidplus.com</div>';
+  var stamp = '<div style="position:absolute;inset-inline-end:4px;bottom:4px;background:rgba(0,0,0,.45);color:#fff;font-size:.55rem;font-weight:600;padding:1px 5px;border-radius:6px;pointer-events:none">Yidplus.com</div>';
 
   // Two across, with an odd one out spanning the full width — close to how
   // Telegram tiles an album without reimplementing its exact geometry.
@@ -1126,7 +1126,7 @@ function _tgAlbumCard(group, username, chTitle) {
       // R2-caching proxy so any size works.
       inner = '<div onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;height:100%;position:relative;background:#000;cursor:pointer">' +
           '<img src="' + src + '&thumb=1&tv=2" onerror="this.style.display=&#39;none&#39;" style="width:100%;height:100%;object-fit:cover;display:block">' +
-          '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" style="margin-left:2px"><polygon points="6 4 20 12 6 20 6 4"/></svg></div></div>' +
+          '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" style="margin-inline-start:2px"><polygon points="6 4 20 12 6 20 6 4"/></svg></div></div>' +
         '</div>';
     } else {
       inner = '<img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;height:100%;object-fit:cover;display:block;cursor:pointer" loading="lazy">';
@@ -1140,7 +1140,7 @@ function _tgAlbumCard(group, username, chTitle) {
   var eye = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.75"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
   var canDelete = STATE.user && (STATE.user.role === 'admin_super' || STATE.user.is_owner);
   var delBtn = canDelete
-    ? '<span onclick="event.stopPropagation();tgDeletePost(' + lead.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-right:auto">🗑</span>'
+    ? '<span onclick="event.stopPropagation();tgDeletePost(' + lead.tg_msg_id + ')" style="cursor:pointer;color:var(--red);font-size:.72rem;margin-inline-end:auto">🗑</span>'
     : '';
 
   return '<div style="display:flex;justify-content:flex-start;margin-bottom:.35rem">' +
@@ -1150,7 +1150,7 @@ function _tgAlbumCard(group, username, chTitle) {
           (text ? '<div style="font-size:.95rem;line-height:1.45;color:#000;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext">' + text + '</div>' + _tgLpPlaceholder(withText) : '') +
           '<div style="display:flex;align-items:center;justify-content:flex-end;gap:.25rem;margin-top:.15rem;color:#8a9aa5;font-size:.66rem">' +
             delBtn + eye + '<span>' + _xNum(lead.views || 0) + '</span>' +
-            '<span style="margin-left:.15rem">' + when + '</span>' +
+            '<span style="margin-inline-start:.15rem">' + when + '</span>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -1860,7 +1860,7 @@ window.openChatInfo = function () {
       avBig.title = 'Tap to change photo';
       var cam = document.createElement('div');
       cam.className = 'av-cam-badge';
-      cam.style.cssText = 'position:absolute;right:0;bottom:0;width:30px;height:30px;border-radius:50%;background:var(--accent,#1F6F5C);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;border:2px solid var(--surface,#fff);box-shadow:0 1px 4px rgba(0,0,0,.25);pointer-events:none';
+      cam.style.cssText = 'position:absolute;inset-inline-end:0;bottom:0;width:30px;height:30px;border-radius:50%;background:var(--accent,#1F6F5C);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;border:2px solid var(--surface,#fff);box-shadow:0 1px 4px rgba(0,0,0,.25);pointer-events:none';
       cam.textContent = '📷';
       avBig.appendChild(cam);
     }
@@ -2129,7 +2129,7 @@ function _renderMembersList() {
         '<div style="flex:1;min-width:0;unicode-bidi:plaintext;text-align:start">' +
           '<div style="font-size:.95rem;font-weight:600">' + nick + '</div>' + sub +
         '</div>' + badge +
-        (canManageGroup && !isSelf ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:.5rem;flex-shrink:0;opacity:.6"><polyline points="9 18 15 12 9 6"/></svg>' : '') +
+        (canManageGroup && !isSelf ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-inline-start:.5rem;flex-shrink:0;opacity:.6"><polyline points="9 18 15 12 9 6"/></svg>' : '') +
       '</div>';
   }).join('');
 }
@@ -2443,8 +2443,8 @@ function renderMessages(scrollDown) {
     if (m._scheduled_pending) time = '🕓 ' + _fmt12(m.scheduled_for) + ' · ' + time;
     else if (m.expires_at) time = '💨 ' + time;
     var tickSvg = m.read
-      ? '<svg width="16" height="10" viewBox="0 0 16 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5l3 3 5-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-      : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="display:inline-block;vertical-align:middle;margin-left:2px"><path d="M1 5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      ? '<svg width="16" height="10" viewBox="0 0 16 10" fill="none" style="display:inline-block;vertical-align:middle;margin-inline-start:2px"><path d="M1 5l3 3 5-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5l3 3 5-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="display:inline-block;vertical-align:middle;margin-inline-start:2px"><path d="M1 5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     var ticks;
     if (isMe && isGroup && typeof m.seen_count === 'number') {
       // Group read receipt: show how many members have seen this message.
@@ -2481,7 +2481,7 @@ function renderMessages(scrollDown) {
     // Group sender nick
     if (!isMe && isGroup && firstInGroup) {
       var titleBadge = m.sender_title
-        ? '<span style="margin-right:.35rem;padding:.05rem .4rem;border-radius:8px;background:rgba(31,111,92,.12);color:var(--blue);font-size:.62rem;font-weight:700;vertical-align:middle">' + escHtml(m.sender_title) + '</span>'
+        ? '<span style="margin-inline-end:.35rem;padding:.05rem .4rem;border-radius:8px;background:rgba(31,111,92,.12);color:var(--blue);font-size:.62rem;font-weight:700;vertical-align:middle">' + escHtml(m.sender_title) + '</span>'
         : '';
       inner += '<div class="bubble-nick" style="cursor:pointer;color:' + nameColor(m.sender_id || m.sender_nick) + '"><span onclick="openUserProfile(\'' + m.sender_id + '\')">' + escHtml(m.sender_nick || '') + '</span>' + titleBadge + '</div>';
     }
@@ -3220,7 +3220,7 @@ window.toggleVoiceRec = function () {
         CHAT_recCancelled = false;
         CHAT_recLocked = false;
         var btn = document.getElementById('voice-rec-btn');
-        if (btn) { btn.textContent = '⏹️'; btn.classList.add('rec'); }
+        if (btn) btn.classList.add('rec');
         _showRecordingBar();
 
         try {
@@ -3269,7 +3269,7 @@ window.toggleVoiceRec = function () {
           cancelAnimationFrame(CHAT_recRaf);
           _hideRecordingBar();
           var btn2 = document.getElementById('voice-rec-btn');
-          if (btn2) { btn2.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>'; btn2.classList.remove('rec'); }
+          if (btn2) { btn2.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>'; btn2.classList.remove('rec', 'held'); }
           stream.getTracks().forEach(function (t) { t.stop(); });
           // Close the analyser's AudioContext so the mic is fully released and we
           // don't leak contexts (which also prevents cross-recording feedback).
@@ -3333,58 +3333,78 @@ window.toggleVoiceRec = function () {
 };
 window.startVoiceRec = window.toggleVoiceRec;
 
-// ── Slide-to-Lock / Slide-to-Cancel gesture (drag the mic button) ──
-var CHAT_recCancelled  = false;
-var CHAT_recLocked     = false;
-var CHAT_micStartX     = 0;
-var CHAT_micStartY     = 0;
-var CHAT_micDragActive = false;
+// ── WhatsApp-style hold-to-record with slide gestures ──
+var CHAT_recCancelled      = false;
+var CHAT_recLocked         = false;
+var CHAT_micStartX         = 0;
+var CHAT_micStartY         = 0;
+var CHAT_micDragActive     = false;
+var CHAT_recPendingCancel  = false;
+
+var _CANCEL_THRESHOLD = 100;   // px slide left to cancel
+var _LOCK_THRESHOLD   = 70;    // px slide up to lock
 
 window._micTouchStart = function (e) {
+  var inp = document.getElementById('chat-input');
+  if (inp && (inp.value || '').trim().length > 0) { CHAT_micDragActive = false; return; }
+  e.preventDefault();
   var t = e.touches[0];
   CHAT_micStartX = t.clientX;
   CHAT_micStartY = t.clientY;
   CHAT_micDragActive = true;
-  // Begin recording immediately on press (Telegram/WhatsApp behavior),
-  // unless there's already text in the input (send button takes over instead).
-  var inp = document.getElementById('chat-input');
-  if (inp && (inp.value || '').trim().length > 0) { CHAT_micDragActive = false; return; }
+  CHAT_recPendingCancel = false;
+
+  var btn = document.getElementById('voice-rec-btn');
+  if (btn) btn.classList.add('held');
+
   if (!CHAT_isRecording) toggleVoiceRec();
 };
 
 window._micTouchMove = function (e) {
   if (!CHAT_micDragActive || !CHAT_isRecording || CHAT_recLocked) return;
+  e.preventDefault();
   var t = e.touches[0];
   var dx = t.clientX - CHAT_micStartX;
   var dy = t.clientY - CHAT_micStartY;
 
-  // Sliding LEFT past threshold → cancel
-  var hint = document.getElementById('rec-live-hint');
-  if (dx < -80) {
-    if (hint) hint.textContent = '🗑 Release to cancel';
+  // ── Slide LEFT → cancel zone ──
+  var trash = document.getElementById('rec-trash-zone');
+  var hint = document.getElementById('rec-slide-hint');
+  if (dx < -_CANCEL_THRESHOLD) {
     CHAT_recPendingCancel = true;
+    if (trash) trash.classList.add('active');
+    if (hint) hint.style.opacity = '0';
   } else {
-    if (hint) hint.textContent = '← slide to cancel';
     CHAT_recPendingCancel = false;
+    if (trash) trash.classList.remove('active');
+    if (hint) {
+      var progress = Math.min(Math.abs(dx) / _CANCEL_THRESHOLD, 1);
+      hint.style.opacity = String(1 - progress * 0.7);
+      hint.style.transform = 'translateX(' + Math.min(dx * 0.3, 0) + 'px)';
+    }
   }
 
-  // Sliding UP past threshold → lock (hands-free recording)
-  var lockIcon = document.getElementById('rec-lock-icon');
-  if (dy < -60) {
+  // ── Slide UP → lock ──
+  var lockPill = document.getElementById('rec-lock-pill');
+  if (dy < -_LOCK_THRESHOLD) {
     _lockVoiceRecording();
-  } else if (lockIcon) {
-    lockIcon.style.transform = 'translateY(' + Math.max(dy, -60) + 'px)';
+  } else if (lockPill) {
+    var lockProgress = Math.min(Math.abs(Math.min(dy, 0)) / _LOCK_THRESHOLD, 1);
+    if (lockProgress > 0.5) lockPill.classList.add('near');
+    else lockPill.classList.remove('near');
+    var lockIcon = document.getElementById('rec-lock-icon');
+    if (lockIcon) lockIcon.style.transform = 'translateY(' + Math.max(dy * 0.4, -20) + 'px)';
   }
 };
 
 window._micTouchEnd = function (e) {
+  var btn = document.getElementById('voice-rec-btn');
+  if (btn) btn.classList.remove('held');
+
   if (!CHAT_micDragActive) return;
   CHAT_micDragActive = false;
 
-  if (CHAT_recLocked) {
-    // Locked — recording continues hands-free, user must tap send/cancel buttons.
-    return;
-  }
+  if (CHAT_recLocked) return;
   if (!CHAT_isRecording) return;
 
   if (CHAT_recPendingCancel) {
@@ -3394,20 +3414,90 @@ window._micTouchEnd = function (e) {
   }
   CHAT_recPendingCancel = false;
 };
-var CHAT_recPendingCancel = false;
+
+// Also handle mouse for desktop
+window._micMouseDown = function (e) {
+  var inp = document.getElementById('chat-input');
+  if (inp && (inp.value || '').trim().length > 0) return;
+  e.preventDefault();
+  CHAT_micStartX = e.clientX;
+  CHAT_micStartY = e.clientY;
+  CHAT_micDragActive = true;
+  CHAT_recPendingCancel = false;
+
+  var btn = document.getElementById('voice-rec-btn');
+  if (btn) btn.classList.add('held');
+
+  if (!CHAT_isRecording) toggleVoiceRec();
+
+  function onMove(ev) {
+    if (!CHAT_micDragActive || !CHAT_isRecording || CHAT_recLocked) return;
+    var dx = ev.clientX - CHAT_micStartX;
+    var dy = ev.clientY - CHAT_micStartY;
+
+    var trash = document.getElementById('rec-trash-zone');
+    var hint = document.getElementById('rec-slide-hint');
+    if (dx < -_CANCEL_THRESHOLD) {
+      CHAT_recPendingCancel = true;
+      if (trash) trash.classList.add('active');
+      if (hint) hint.style.opacity = '0';
+    } else {
+      CHAT_recPendingCancel = false;
+      if (trash) trash.classList.remove('active');
+      if (hint) {
+        var progress = Math.min(Math.abs(dx) / _CANCEL_THRESHOLD, 1);
+        hint.style.opacity = String(1 - progress * 0.7);
+      }
+    }
+
+    if (dy < -_LOCK_THRESHOLD) {
+      _lockVoiceRecording();
+    }
+  }
+
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    var b = document.getElementById('voice-rec-btn');
+    if (b) b.classList.remove('held');
+    if (!CHAT_micDragActive) return;
+    CHAT_micDragActive = false;
+    if (CHAT_recLocked) return;
+    if (!CHAT_isRecording) return;
+    if (CHAT_recPendingCancel) cancelVoiceRec();
+    else toggleVoiceRec();
+    CHAT_recPendingCancel = false;
+  }
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+};
 
 function _lockVoiceRecording() {
   CHAT_recLocked = true;
-  var lockIndicator = document.getElementById('rec-lock-indicator');
-  if (lockIndicator) lockIndicator.style.display = 'none';
-  var hint = document.getElementById('rec-live-hint');
-  if (hint) hint.style.display = 'none';
-  var sendBtn = document.getElementById('rec-locked-send-btn');
-  var cancelBtn = document.getElementById('rec-locked-cancel-btn');
-  if (sendBtn) sendBtn.style.display = 'flex';
-  if (cancelBtn) cancelBtn.style.display = 'block';
-  toast('🔒 Recording locked — hands-free');
+  CHAT_micDragActive = false;
+  var btn = document.getElementById('voice-rec-btn');
+  if (btn) btn.classList.remove('held');
+
+  // Hide the hold-mode overlay and lock pill, show the locked bar
+  var overlay = document.getElementById('rec-overlay');
+  if (overlay) overlay.classList.remove('show');
+  var lockPill = document.getElementById('rec-lock-pill');
+  if (lockPill) { lockPill.classList.remove('show', 'near'); }
+  var inputBar = document.getElementById('chat-input-bar');
+  if (inputBar) inputBar.style.display = 'none';
+  var lockedBar = document.getElementById('rec-locked-bar');
+  if (lockedBar) lockedBar.classList.add('show');
+
+  // Build waveform in locked meter
+  _buildRecWaveform(document.getElementById('rec-locked-meter'));
 }
+
+window._stopLockedRec = function () {
+  // Stop button in locked mode — stop recording but don't send, let user review
+  // For simplicity, just send it (WhatsApp also sends on stop in locked mode)
+  stopVoiceRecAndSend();
+};
 
 window.stopVoiceRecAndSend = function () {
   CHAT_recCancelled = false;
@@ -3421,8 +3511,8 @@ window.cancelVoiceRec = function () {
 
 // ── Recording bar waveform bars ──
 var REC_BAR_COUNT = 40;
-function _buildRecWaveform() {
-  var meter = document.getElementById('rec-live-meter');
+function _buildRecWaveform(meter) {
+  if (!meter) meter = document.getElementById('rec-live-meter');
   if (!meter) return;
   meter.innerHTML = '';
   for (var i = 0; i < REC_BAR_COUNT; i++) {
@@ -3435,45 +3525,56 @@ function _buildRecWaveform() {
 
 function _showRecordingBar() {
   _buildRecWaveform();
-  var bar = document.getElementById('rec-live-bar');
-  if (bar) bar.classList.add('show');
-  var lockIndicator = document.getElementById('rec-lock-indicator');
-  if (lockIndicator) lockIndicator.classList.add('show');
-  var hint = document.getElementById('rec-live-hint');
-  if (hint) { hint.style.display = 'block'; hint.textContent = '← slide to cancel'; }
-  var sendBtn = document.getElementById('rec-locked-send-btn');
-  var cancelBtn = document.getElementById('rec-locked-cancel-btn');
-  if (sendBtn) sendBtn.style.display = 'none';
-  if (cancelBtn) cancelBtn.style.display = 'none';
+  // Show the overlay inside the input bar
+  var overlay = document.getElementById('rec-overlay');
+  if (overlay) overlay.classList.add('show');
+  // Show the lock pill above the mic button
+  var lockPill = document.getElementById('rec-lock-pill');
+  if (lockPill) { lockPill.classList.add('show'); lockPill.classList.remove('near'); }
+  // Reset slide hint
+  var hint = document.getElementById('rec-slide-hint');
+  if (hint) { hint.style.opacity = '1'; hint.style.transform = 'none'; }
+  // Reset trash zone
+  var trash = document.getElementById('rec-trash-zone');
+  if (trash) trash.classList.remove('active');
 }
 
 function _hideRecordingBar() {
-  var bar = document.getElementById('rec-live-bar');
-  if (bar) bar.classList.remove('show');
-  var lockIndicator = document.getElementById('rec-lock-indicator');
-  if (lockIndicator) lockIndicator.classList.remove('show');
+  var overlay = document.getElementById('rec-overlay');
+  if (overlay) overlay.classList.remove('show');
+  var lockPill = document.getElementById('rec-lock-pill');
+  if (lockPill) { lockPill.classList.remove('show', 'near'); }
   var lockIcon = document.getElementById('rec-lock-icon');
-  if (lockIcon) lockIcon.style.transform = 'translateY(0)';
+  if (lockIcon) lockIcon.style.transform = '';
+  // Hide locked bar, restore input bar
+  var lockedBar = document.getElementById('rec-locked-bar');
+  if (lockedBar) lockedBar.classList.remove('show');
+  var inputBar = document.getElementById('chat-input-bar');
+  if (inputBar) inputBar.style.display = '';
 }
 
-// Shift bars left and add new one — like Telegram live waveform
+// Shift bars left and add new one — like Telegram/WhatsApp live waveform
 var _recBarVals = new Array(REC_BAR_COUNT).fill(0.05);
 function _updateRecordingBar(level) {
   _recBarVals.shift();
   _recBarVals.push(Math.max(0.04, level));
-  var meter = document.getElementById('rec-live-meter');
-  if (meter) {
+  // Update both the hold-mode meter and locked-mode meter
+  var meters = [document.getElementById('rec-live-meter'), document.getElementById('rec-locked-meter')];
+  for (var m = 0; m < meters.length; m++) {
+    var meter = meters[m];
+    if (!meter) continue;
     var bars = meter.querySelectorAll('.rec-waveform-bar');
     for (var i = 0; i < bars.length; i++) {
       bars[i].style.height = Math.max(3, Math.round(_recBarVals[i] * 28)) + 'px';
       bars[i].style.opacity = 0.4 + _recBarVals[i] * 1.5;
     }
   }
+  var elapsed = Math.round((Date.now() - CHAT_recStart) / 1000);
+  var timeStr = Math.floor(elapsed / 60) + ':' + String(elapsed % 60).padStart(2, '0');
   var timeEl = document.getElementById('rec-live-time');
-  if (timeEl) {
-    var elapsed = Math.round((Date.now() - CHAT_recStart) / 1000);
-    timeEl.textContent = Math.floor(elapsed / 60) + ':' + String(elapsed % 60).padStart(2, '0');
-  }
+  if (timeEl) timeEl.textContent = timeStr;
+  var lockedTime = document.getElementById('rec-locked-time');
+  if (lockedTime) lockedTime.textContent = timeStr;
 }
 
 function _downsamplePeaks(peaks, n) {
@@ -4697,7 +4798,6 @@ window.navTo = function (id) {
   }
 };
 
-console.log('[YID PLUS] chat.js loaded ✓ (Telegram-style)');
 
 // ============================================================
 // POLLS — creation modal, rendering, voting
@@ -5123,7 +5223,7 @@ function renderChatFoldersRow() {
       (unread ? '<span style="background:' + (isActive ? 'rgba(255,255,255,.3)' : '#1F6F5C') + ';color:#fff;border-radius:10px;padding:.05rem .35rem;font-size:.62rem;font-weight:800;min-width:16px;text-align:center">' + (unread > 99 ? '99+' : unread) + '</span>' : '') +
     '</button>';
   }).join('') +
-  '<button onclick="openFolderManager()" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;border:none;background:var(--bg3);color:var(--muted);cursor:pointer;flex-shrink:0;font-size:.9rem;margin-left:.2rem">' +
+  '<button onclick="openFolderManager()" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;border:none;background:var(--bg3);color:var(--muted);cursor:pointer;flex-shrink:0;font-size:.9rem;margin-inline-start:.2rem">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
   '</button>';
 }
@@ -5419,11 +5519,11 @@ function _runGSearch(q) {
             ? '<div class="chat-av" style="width:38px;height:38px;background-image:url(' + t.photo_url + ');background-size:cover;background-position:center"></div>'
             : '<div class="chat-av" style="width:38px;height:38px;font-size:1rem;background:#229ED9;color:#fff">\ud83d\udce8</div>';
           var join = t.joined
-            ? '<span style="font-size:.68rem;color:var(--muted);margin-left:auto">Joined</span>'
-            : '<button onclick="event.stopPropagation();tgQuickJoin(\'' + escHtml(t.username) + '\',this)" style="margin-left:auto;background:#229ED9;color:#fff;border:none;border-radius:14px;padding:.2rem .8rem;font-size:.7rem;font-weight:700;cursor:pointer">Join</button>';
+            ? '<span style="font-size:.68rem;color:var(--muted);margin-inline-start:auto">Joined</span>'
+            : '<button onclick="event.stopPropagation();tgQuickJoin(\'' + escHtml(t.username) + '\',this)" style="margin-inline-start:auto;background:#229ED9;color:#fff;border:none;border-radius:14px;padding:.2rem .8rem;font-size:.7rem;font-weight:700;cursor:pointer">Join</button>';
           return '<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();openTelegramChannel(\'' + escHtml(t.username) + '\',\'' + escJs(t.title || t.username) + '\')">' +
             av +
-            '<div style="min-width:0"><div style="font-size:.86rem;font-weight:600;unicode-bidi:plaintext;text-align:left;direction:ltr">' + escHtml(t.title || t.username) + '</div>' +
+            '<div style="min-width:0"><div style="font-size:.86rem;font-weight:600;unicode-bidi:plaintext;text-align:start;direction:ltr">' + escHtml(t.title || t.username) + '</div>' +
             '<div style="font-size:.68rem;color:var(--muted)">' + _tgMembersLabel(t.members) + '</div></div>' +
             join +
           '</div>';
@@ -6627,7 +6727,6 @@ window.svDeleteCurrent = function () {
 // Load saved highlights on startup
 try { var _hl = localStorage.getItem('yp_highlights'); if (_hl) HOME_HIGHLIGHTS = JSON.parse(_hl); } catch(e) {}
 
-console.log('YID PLUS: home.js loaded ✓ (Cloudflare D1 mode)');
 
 // ============================================================
 // STATUS UPLOAD (D1 'statuses' table + R2 for media)
@@ -7470,7 +7569,7 @@ function _geToggleHtml(on, id) {
 }
 function _geCard(inner) { return '<div style="background:var(--surface);border-radius:14px;margin:.6rem .8rem;overflow:hidden;border:1px solid var(--border)">' + inner + '</div>'; }
 function _geHdr(t) { return '<div style="font-size:.75rem;color:var(--muted);font-weight:700;padding:1rem 1.4rem .35rem;text-transform:uppercase;letter-spacing:.03em">' + t + '</div>'; }
-function _geSep() { return '<div style="height:1px;background:var(--border);margin-left:3.4rem"></div>'; }
+function _geSep() { return '<div style="height:1px;background:var(--border);margin-inline-start:3.4rem"></div>'; }
 
 function _geRender() {
   var d = _geData;
@@ -7490,7 +7589,7 @@ function _geRender() {
       '<input id="ge-name" value="' + escHtml(d.name || '').replace(/"/g, '&quot;') + '" placeholder="' + (isChannel ? 'Channel' : 'Group') + ' name" style="width:100%;box-sizing:border-box;border:none;background:none;outline:none;font-size:1.05rem;font-weight:700;color:var(--text);font-family:inherit;padding:.2rem 0">' +
       '<div style="height:1px;background:var(--border);margin:.5rem 0"></div>' +
       '<textarea id="ge-desc" rows="2" maxlength="255" placeholder="Description (optional)" oninput="_geDescCount()" style="width:100%;box-sizing:border-box;border:none;background:none;outline:none;font-size:.9rem;color:var(--text);font-family:inherit;resize:none;padding:.2rem 0">' + escHtml(d.description || '') + '</textarea>' +
-      '<div style="text-align:right;font-size:.7rem;color:var(--muted)"><span id="ge-desc-count">' + (255 - (d.description || '').length) + '</span></div>' +
+      '<div style="text-align:end;font-size:.7rem;color:var(--muted)"><span id="ge-desc-count">' + (255 - (d.description || '').length) + '</span></div>' +
       '<button onclick="_geSaveText()" class="ge-save-btn" style="width:100%;margin-top:.4rem;padding:.6rem;border-radius:10px;border:none;background:var(--accent,#1F6F5C);color:#fff;font-weight:700;font-family:inherit;font-size:.88rem;cursor:pointer">Save name & description</button>' +
     '</div>'
   );
@@ -7789,7 +7888,7 @@ window._geOpenMembers = function (adminsOnly) {
       return '<div onclick="_openMemberActions(\'' + m.id + '\',\'' + escJs(m.nickname || 'User') + '\',' + (m.is_group_admin ? 'true' : 'false') + ',\'' + escJs(m.title || '') + '\')" style="display:flex;align-items:center;gap:.8rem;padding:.7rem 1.1rem;cursor:pointer;border-bottom:1px solid var(--border)">' +
         av + '<div style="flex:1;min-width:0;unicode-bidi:plaintext;text-align:start"><div style="font-size:.95rem;font-weight:600">' + escHtml(m.nickname || 'User') + '</div>' +
         (m.title ? '<div style="font-size:.75rem;color:var(--accent,#1F6F5C)">' + escHtml(m.title) + '</div>' : '') + '</div>' + badge +
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:.5rem;opacity:.6"><polyline points="9 18 15 12 9 6"/></svg>' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-inline-start:.5rem;opacity:.6"><polyline points="9 18 15 12 9 6"/></svg>' +
       '</div>';
     }).join('');
   }).catch(function (e) {

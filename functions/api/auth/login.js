@@ -1,4 +1,4 @@
-import { json, corsHeaders, verifyPassword, hashPassword, isValidEmail, isOwnerOrCoOwner, generateSessionToken, logAttack } from '../_helpers.js';
+import { json, corsHeaders, verifyPassword, hashPassword, isValidEmail, isOwnerOrCoOwner, isOwnerEmail, generateSessionToken, logAttack } from '../_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
@@ -17,10 +17,9 @@ export async function onRequestPost(context) {
     const ip = request.headers.get('CF-Connecting-IP') ||
                request.headers.get('X-Forwarded-For') ||
                '0.0.0.0';
-    const CO_OWNER = 'jmittelman2@gmail.com';
-    const isOwnerEmail = email === (env.OWNER_EMAIL || '') || email === CO_OWNER;
+    const emailIsOwner = isOwnerEmail(email, env.OWNER_EMAIL);
 
-    if (!isOwnerEmail) {
+    if (!emailIsOwner) {
       // Check IP ban
       if (ip && ip !== '0.0.0.0') {
         const ipBan = await env.DB.prepare(
@@ -48,25 +47,13 @@ export async function onRequestPost(context) {
       }
     }
 
-
-    // ── Check Maintenance Mode ──
-    const maintRow = await env.DB.prepare(
-      "SELECT value FROM app_settings WHERE key = 'maintenance_mode'"
-    ).first().catch(() => null);
-    if (maintRow && maintRow.value === 'true') {
-      const OWNER_EMAILS = ['avrumy5872877@gmail.com', 'jmittelman2@gmail.com'];
-      if (!OWNER_EMAILS.includes(email)) {
-        return json({ ok: false, error: 'Site is under maintenance. Please try again later.' }, 503);
-      }
-    }
-
     // ── Sign-in lockdown ──
     // When enabled, NOBODY can sign in — not even existing accounts — except the
     // owner/co-owner and any email the owner has explicitly allow-listed.
     const lockRow = await env.DB.prepare(
       "SELECT value FROM app_settings WHERE key = 'signin_locked'"
     ).first().catch(() => null);
-    if (lockRow && lockRow.value === 'true' && !isOwnerEmail) {
+    if (lockRow && lockRow.value === 'true' && !emailIsOwner) {
       const allowed = await env.DB.prepare(
         'SELECT email FROM access_allowlist WHERE email = ?'
       ).bind(email).first().catch(() => null);
