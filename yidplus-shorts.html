@@ -37,7 +37,7 @@ html, body { background: #000 !important; }
   <div class="shorts-topbar">
     <div style="flex:1"></div>
     <div class="shorts-topbar-title">Shorts</div>
-    <div class="shorts-upload-btn" onclick="document.getElementById('upload-modal').classList.add('open')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    <div class="shorts-upload-btn" onclick="document.getElementById('upload-modal').classList.add('open')" aria-label="Upload short" role="button" tabindex="0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
   </div>
 
   <div class="swipe-cont" id="swipe-cont" style="height:100vh;width:100%;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain"></div>
@@ -50,12 +50,12 @@ html, body { background: #000 !important; }
   <div class="drawer-handle"></div>
   <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem .5rem">
     <div style="font-size:.9rem;color:var(--text)">💬 Comments <span id="cmt-count" style="color:var(--muted);font-size:.8rem"></span></div>
-    <button style="background:none;border:none;color:var(--muted);cursor:pointer;display:flex;align-items:center" onclick="closeCmts()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <button style="background:none;border:none;color:var(--muted);cursor:pointer;display:flex;align-items:center" onclick="closeCmts()" aria-label="Close comments"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="comments-list" id="cmt-list"></div>
   <div class="comment-input-row">
     <input class="comment-input" id="cmt-input" placeholder="Add a comment..." maxlength="200" onkeydown="if(event.key==='Enter')sendCmt()">
-    <button class="cmt-send-el" onclick="sendCmt()"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+    <button class="cmt-send-el" onclick="sendCmt()" aria-label="Send comment"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
   </div>
 </div>
 
