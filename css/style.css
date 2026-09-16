@@ -792,7 +792,7 @@ html.dark-mode .chat-input-pill { background: #232427; border-color: #2C2D31; }
 @keyframes recSlideHint { 0%,100% { opacity: 1; transform: translateX(0); } 50% { opacity: .5; transform: translateX(-6px); } }
 
 /* Lock pill (floats above the mic button) */
-.rec-lock-pill { position: absolute; bottom: 100%; right: .75rem; width: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; display: none; flex-direction: column; align-items: center; padding: .5rem .25rem .35rem; gap: .25rem; box-shadow: var(--shadow-md); z-index: 6; margin-bottom: 4px; }
+.rec-lock-pill { position: absolute; bottom: 100%; inset-inline-end: .75rem; width: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; display: none; flex-direction: column; align-items: center; padding: .5rem .25rem .35rem; gap: .25rem; box-shadow: var(--shadow-md); z-index: 6; margin-bottom: 4px; }
 .rec-lock-pill.show { display: flex; }
 .rec-lock-icon { color: var(--muted); display: flex; transition: transform .15s, color .15s; }
 .rec-lock-pill.near .rec-lock-icon { color: var(--accent, #1F6F5C); transform: scale(1.15); }
@@ -861,7 +861,7 @@ html.dark-mode .bubble.me .vn-dur { color: rgba(255,255,255,.75); }
 
 .mini-player { position: fixed; bottom: 56px; left: 0; right: 0; z-index: 70; background: var(--surface); border-top: 1px solid var(--border); display: none; align-items: center; gap: .75rem; padding: .6rem 1rem; cursor: pointer; box-shadow: 0 -2px 12px rgba(0,0,0,.08); }
 .mini-player.show { display: flex; }
-#mini-prog { position: absolute; top: 0; left: 0; height: 2px; background: var(--accent); }
+#mini-prog { position: absolute; top: 0; inset-inline-start: 0; height: 2px; background: var(--accent); }
 .mini-thumb { width: 40px; height: 40px; border-radius: 8px; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; border: 1px solid var(--border); }
 .mini-play  { width: 32px; height: 32px; border-radius: 50%; background: var(--text); border: none; font-size: .95rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--bg); }
 
