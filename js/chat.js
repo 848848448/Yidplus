@@ -535,9 +535,9 @@ window.openTelegramChannel = function (username, title) {
         '<div id="tg-feed-state" style="text-align:center;color:var(--muted);font-size:.85rem;padding:2rem 1rem">Loading posts…</div>' +
       '</div>' +
       // Jump-to-latest, like the chat screen. Hidden until you scroll up.
-      '<button id="tg-jump" onclick="_tgScrollBottom()" style="display:none;position:absolute;right:12px;bottom:14px;width:44px;height:44px;border-radius:50%;border:none;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;align-items:center;justify-content:center;color:var(--text)">' +
+      '<button id="tg-jump" onclick="_tgScrollBottom()" style="display:none;position:absolute;inset-inline-end:12px;bottom:14px;width:44px;height:44px;border-radius:50%;border:none;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;align-items:center;justify-content:center;color:var(--text)">' +
         '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>' +
-        '<span id="tg-jump-badge" style="display:none;position:absolute;top:-4px;right:-4px;min-width:19px;height:19px;border-radius:10px;background:#229ED9;color:#fff;font-size:.66rem;font-weight:700;line-height:19px;padding:0 5px"></span>' +
+        '<span id="tg-jump-badge" style="display:none;position:absolute;top:-4px;inset-inline-end:-4px;min-width:19px;height:19px;border-radius:10px;background:#229ED9;color:#fff;font-size:.66rem;font-weight:700;line-height:19px;padding:0 5px"></span>' +
       '</button>' +
     '</div>';
 
@@ -630,7 +630,7 @@ function _xPostCard(p, username, chTitle) {
   // re-encoding every file, far past what one request can do. An overlay puts
   // the mark on screen for free. It rides on top rather than being part of the
   // file, so a saved copy won't carry it.
-  var stamp = '<div style="position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.45);color:#fff;font-size:.6rem;font-weight:600;padding:1px 6px;border-radius:7px;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.5)">Yidplus.com</div>';
+  var stamp = '<div style="position:absolute;inset-inline-end:6px;bottom:6px;background:rgba(0,0,0,.45);color:#fff;font-size:.6rem;font-weight:600;padding:1px 6px;border-radius:7px;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.5)">Yidplus.com</div>';
 
   var media = '';
   if (src) {
@@ -651,12 +651,12 @@ function _xPostCard(p, username, chTitle) {
       // fullscreen player (same swipeable viewer as the photos), which actually
       // plays the video — no dead inline player, no link-out.
       var vthumb = src + (src.indexOf('?') > -1 ? '&' : '?') + 'thumb=1&tv=2';
-      var vdur = p.media_duration ? '<div style="position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.6);color:#fff;font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:6px;pointer-events:none">' + _tgDur(p.media_duration) + '</div>' : '';
+      var vdur = p.media_duration ? '<div style="position:absolute;inset-inline-start:8px;bottom:8px;background:rgba(0,0,0,.6);color:#fff;font-size:.65rem;font-weight:600;padding:1px 6px;border-radius:6px;pointer-events:none">' + _tgDur(p.media_duration) + '</div>' : '';
       media = '<div onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="position:relative;margin:0;overflow:hidden;background:#0b0b0b;cursor:pointer;min-height:170px">' +
           '<img src="' + vthumb + '" onerror="this.style.display=&#39;none&#39;" style="width:100%;display:block;max-height:70vh;object-fit:cover">' +
           '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">' +
             '<div style="width:58px;height:58px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center">' +
-              '<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" style="margin-left:3px"><polygon points="6 4 20 12 6 20 6 4"/></svg>' +
+              '<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" style="margin-inline-start:3px"><polygon points="6 4 20 12 6 20 6 4"/></svg>' +
             '</div>' +
           '</div>' +
           vdur + stamp +
@@ -1010,7 +1010,7 @@ function _tgEntityTags(e) {
     case 'messageEntityStrike':     return ['<s>', '</s>'];
     case 'messageEntityCode':       return ['<code style="background:rgba(0,0,0,.06);padding:0 3px;border-radius:3px">', '</code>'];
     case 'messageEntityPre':        return ['<pre style="background:rgba(0,0,0,.06);padding:.4rem;border-radius:6px;overflow-x:auto;margin:.3rem 0">', '</pre>'];
-    case 'messageEntityBlockquote': return ['<blockquote style="border-left:3px solid #168acd;margin:.3rem 0;padding:.1rem .5rem;opacity:.9">', '</blockquote>'];
+    case 'messageEntityBlockquote': return ['<blockquote style="border-inline-start:3px solid #168acd;margin:.3rem 0;padding:.1rem .5rem;opacity:.9">', '</blockquote>'];
     case 'messageEntitySpoiler':    return ['<span onclick="this.style.filter=&#39;none&#39;" style="filter:blur(5px);cursor:pointer;transition:filter .15s">', '</span>'];
     case 'messageEntityTextUrl':
       // A t.me target would be a way back out to Telegram — keep the styling,
@@ -1113,7 +1113,7 @@ function _tgAlbumCard(group, username, chTitle) {
     ? '<div style="width:34px;height:34px;border-radius:50%;background-image:url(' + lead.author_avatar + ');background-size:cover;background-position:center;flex-shrink:0"></div>'
     : '<div style="width:34px;height:34px;border-radius:50%;background:#229ED9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:700;flex-shrink:0">' + (name.slice(0, 1) || 'C') + '</div>';
 
-  var stamp = '<div style="position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.45);color:#fff;font-size:.55rem;font-weight:600;padding:1px 5px;border-radius:6px;pointer-events:none">Yidplus.com</div>';
+  var stamp = '<div style="position:absolute;inset-inline-end:4px;bottom:4px;background:rgba(0,0,0,.45);color:#fff;font-size:.55rem;font-weight:600;padding:1px 5px;border-radius:6px;pointer-events:none">Yidplus.com</div>';
 
   // Two across, with an odd one out spanning the full width — close to how
   // Telegram tiles an album without reimplementing its exact geometry.
@@ -1126,7 +1126,7 @@ function _tgAlbumCard(group, username, chTitle) {
       // R2-caching proxy so any size works.
       inner = '<div onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;height:100%;position:relative;background:#000;cursor:pointer">' +
           '<img src="' + src + '&thumb=1&tv=2" onerror="this.style.display=&#39;none&#39;" style="width:100%;height:100%;object-fit:cover;display:block">' +
-          '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" style="margin-left:2px"><polygon points="6 4 20 12 6 20 6 4"/></svg></div></div>' +
+          '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" style="margin-inline-start:2px"><polygon points="6 4 20 12 6 20 6 4"/></svg></div></div>' +
         '</div>';
     } else {
       inner = '<img src="' + src + '" onclick="_openTgMediaViewer(' + p.tg_msg_id + ')" style="width:100%;height:100%;object-fit:cover;display:block;cursor:pointer" loading="lazy">';
@@ -1860,7 +1860,7 @@ window.openChatInfo = function () {
       avBig.title = 'Tap to change photo';
       var cam = document.createElement('div');
       cam.className = 'av-cam-badge';
-      cam.style.cssText = 'position:absolute;right:0;bottom:0;width:30px;height:30px;border-radius:50%;background:var(--accent,#1F6F5C);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;border:2px solid var(--surface,#fff);box-shadow:0 1px 4px rgba(0,0,0,.25);pointer-events:none';
+      cam.style.cssText = 'position:absolute;inset-inline-end:0;bottom:0;width:30px;height:30px;border-radius:50%;background:var(--accent,#1F6F5C);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;border:2px solid var(--surface,#fff);box-shadow:0 1px 4px rgba(0,0,0,.25);pointer-events:none';
       cam.textContent = '📷';
       avBig.appendChild(cam);
     }

@@ -1966,7 +1966,7 @@ window._pcPick = function (input) {
       (isVid
         ? '<video src="' + url + '" controls playsinline style="width:100%;max-height:240px;display:block;background:#000"></video>'
         : '<img src="' + url + '" style="width:100%;max-height:240px;object-fit:cover;display:block">') +
-      '<button onclick="_pcClear()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:.9rem">✕</button>' +
+      '<button onclick="_pcClear()" style="position:absolute;top:6px;inset-inline-end:6px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:.9rem">✕</button>' +
     '</div>';
 };
 window._pcClear = function () {
@@ -2463,7 +2463,7 @@ function _loadProfileContent(userId, tab) {
           items.map(function (s) {
             return '<div style="aspect-ratio:9/16;position:relative;background:#000;overflow:hidden;cursor:pointer" onclick="openShort(\'' + s.id + '\')">' +
               (s.media_url ? '<video src="' + s.media_url + '" style="width:100%;height:100%;object-fit:cover" preload="none"></video>' : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff">📹</div>') +
-              '<div style="position:absolute;bottom:4px;left:4px;font-size:.68rem;color:#fff;font-weight:700">▶ ' + fmtN(s.views||0) + '</div>' +
+              '<div style="position:absolute;bottom:4px;inset-inline-start:4px;font-size:.68rem;color:#fff;font-weight:700">▶ ' + fmtN(s.views||0) + '</div>' +
             '</div>';
           }).join('') +
         '</div>';
