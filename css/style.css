@@ -2985,3 +2985,14 @@ html.dark-mode .m3-seg-btn.active {
 .icon-btn:active { transform: scale(.88); }
 html.dark-mode .icon-btn:hover { background: rgba(255,255,255,.08); }
 
+/* ---------- VIEW TRANSITION (cross-document, Chrome 111+) ---------- */
+@view-transition { navigation: auto; }
+::view-transition-old(root) {
+  animation: vt-fade-out .15s ease-out both;
+}
+::view-transition-new(root) {
+  animation: vt-fade-in .2s ease-in both;
+}
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-fade-in  { from { opacity: 0; } }
+
