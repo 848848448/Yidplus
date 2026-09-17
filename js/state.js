@@ -541,16 +541,43 @@ window.navTo = function (id) {
 };
 
 // Cross-page navigation (multi-page architecture: dashboard/chat/music/shorts/admin)
+// Uses View Transition API (Chrome 111+) for a seamless app-like feel;
+// falls back to a fast opacity fade on older browsers.
 window.goPage = function (page) {
+  // Map short paths to actual HTML files
+  var pathMap = {
+    '/chat':   '/yidplus-chat.html',
+    '/music':  '/yidplus-music.html',
+    '/shorts': '/yidplus-shorts.html',
+    '/admin':  '/yidplus-admin.html',
+    '/':       '/'
+  };
+  var href = pathMap[page] || page;
+
+  // Preload the target page in the background so the browser caches it
+  var prelink = document.createElement('link');
+  prelink.rel = 'prefetch';
+  prelink.href = href;
+  document.head.appendChild(prelink);
+
+  // View Transition API — native cross-document transitions
+  if (document.startViewTransition) {
+    document.startViewTransition(function () {
+      window.location.href = href;
+    });
+    return;
+  }
+
+  // Fallback: instant opaque overlay, then navigate
   var fade = document.createElement('div');
-  fade.style.cssText = 'position:fixed;inset:0;background:var(--bg,#fff);z-index:99999;opacity:0;transition:opacity .12s ease;pointer-events:all';
+  fade.style.cssText = 'position:fixed;inset:0;background:var(--bg,#fff);z-index:99999;opacity:0;transition:opacity .08s ease;pointer-events:all';
   document.body.appendChild(fade);
   requestAnimationFrame(function () {
     fade.style.opacity = '1';
   });
   setTimeout(function () {
-    window.location.href = page;
-  }, 120);
+    window.location.href = href;
+  }, 80);
 };
 
 // ============================================================
