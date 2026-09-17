@@ -59,6 +59,11 @@
 
   /* Instagram-style gradient accent, used sparingly (story rings, live badges) */
   --gradient-story: linear-gradient(135deg, #f9ce34, #ee2a7b, #6228d7);
+
+  /* Material 3 tonal elevation — accent-tinted surfaces for depth */
+  --m3-surface-1: rgba(31,111,92,.04);
+  --m3-surface-2: rgba(31,111,92,.07);
+  --m3-surface-3: rgba(31,111,92,.10);
 }
 html.dark-mode {
   --shadow-xs: 0 1px 2px rgba(0,0,0,.24);
@@ -81,6 +86,11 @@ html.dark-mode {
   --text:    #EDEDEC;
   --muted:   #9A9DA6;
   --muted2:  #6B6E78;
+}
+html.dark-mode {
+  --m3-surface-1: rgba(46,158,130,.06);
+  --m3-surface-2: rgba(46,158,130,.10);
+  --m3-surface-3: rgba(46,158,130,.14);
 }
 html.dark-mode .read-ticks  { color: #3EBFA1; }
 html.dark-mode .tg-chat-bg  { background-color: #121314; background-image: none; }
@@ -2586,4 +2596,392 @@ html.dark-mode .sys-msg.call-log.missed span { background: rgba(255,120,140,.18)
 .swipe-hint.left  { left: 2px; transform: translateY(-50%); }
 .swipe-hint.right { right: 2px; transform: translateY(-50%); }
 .swipe-hint.show  { opacity: .5; }
+
+/* =============================================================
+   MATERIAL DESIGN 3 — COMPREHENSIVE UPGRADE
+   12 features: ripple, floating labels, nav pill, surface tint,
+   snackbar, bottom sheet drag, filter chips, segmented button,
+   collapsing topbar, card refresh, page transitions, icon btns
+   ============================================================= */
+
+/* ── 1. RIPPLE EFFECT (Google-style touch feedback) ── */
+.ripple-host {
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.ripple-wave {
+  position: absolute;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  transform: scale(0);
+  pointer-events: none;
+  z-index: 0;
+}
+.ripple-wave.expanding {
+  animation: m3-ripple-in .5s cubic-bezier(.2,.8,.2,1) forwards;
+}
+.ripple-wave.fading {
+  animation: m3-ripple-out .35s ease forwards;
+}
+@keyframes m3-ripple-in {
+  0%   { transform: scale(0); opacity: .14; }
+  100% { transform: scale(2.5); opacity: .06; }
+}
+@keyframes m3-ripple-out {
+  from { opacity: .06; }
+  to   { opacity: 0; }
+}
+
+/* ── 2. FLOATING LABELS (Material 3 text fields) ── */
+.m3-field-wrap {
+  position: relative;
+  margin-bottom: .85rem;
+}
+.m3-field-wrap .field {
+  margin-bottom: 0;
+  padding-top: 1.4rem;
+  padding-bottom: .5rem;
+}
+.m3-field-label {
+  position: absolute;
+  top: 50%;
+  left: 1.05rem;
+  transform: translateY(-50%);
+  font-size: .9rem;
+  color: var(--muted2);
+  pointer-events: none;
+  transition: all .2s var(--ease-standard);
+  transform-origin: left center;
+  background: transparent;
+  line-height: 1;
+}
+.m3-field-wrap .field:focus ~ .m3-field-label,
+.m3-field-wrap .field.has-value ~ .m3-field-label {
+  top: .6rem;
+  transform: translateY(0) scale(.78);
+  color: var(--accent);
+  font-weight: 600;
+}
+.m3-field-wrap .field::placeholder { opacity: 0; transition: opacity .15s; }
+.m3-field-wrap .field:focus::placeholder { opacity: .5; }
+
+/* ── 3. NAV INDICATOR PILL (animated, Material 3) ── */
+.bottom-nav { position: relative; }
+.m3-nav-pill {
+  position: absolute;
+  top: .55rem;
+  height: 30px;
+  width: 56px;
+  border-radius: 16px;
+  background: rgba(31,111,92,.12);
+  transition: left .3s var(--ease-spring);
+  z-index: 0;
+  pointer-events: none;
+}
+html.dark-mode .m3-nav-pill {
+  background: rgba(63,191,161,.15);
+}
+
+/* ── 4. SURFACE TINT UTILITY CLASSES ── */
+.m3-tint-1 { background-color: var(--surface); background-image: linear-gradient(var(--m3-surface-1), var(--m3-surface-1)); }
+.m3-tint-2 { background-color: var(--surface); background-image: linear-gradient(var(--m3-surface-2), var(--m3-surface-2)); }
+.m3-tint-3 { background-color: var(--surface); background-image: linear-gradient(var(--m3-surface-3), var(--m3-surface-3)); }
+
+/* ── 5. SNACKBAR (Material 3 — replaces toast with action) ── */
+.m3-snackbar {
+  position: fixed;
+  bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%) translateY(120%);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  min-width: 260px;
+  max-width: min(92vw, 480px);
+  padding: .75rem .75rem .75rem 1.1rem;
+  border-radius: 14px;
+  background: #323232;
+  color: #fff;
+  font-size: .88rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  transition: transform .4s var(--ease-spring), opacity .3s;
+  opacity: 0;
+  pointer-events: none;
+}
+html.dark-mode .m3-snackbar {
+  background: #E0E0E0;
+  color: #1B1C1E;
+}
+.m3-snackbar.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.m3-snackbar-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+.m3-snackbar-action {
+  background: none;
+  border: none;
+  color: #9ECAFF;
+  font-weight: 700;
+  font-size: .85rem;
+  cursor: pointer;
+  font-family: inherit;
+  padding: .35rem .65rem;
+  border-radius: 8px;
+  white-space: nowrap;
+  transition: background .15s;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+}
+.m3-snackbar-action:hover { background: rgba(255,255,255,.1); }
+html.dark-mode .m3-snackbar-action { color: #1F6F5C; }
+html.dark-mode .m3-snackbar-action:hover { background: rgba(0,0,0,.06); }
+.m3-snackbar-close {
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: .6;
+  cursor: pointer;
+  padding: .2rem;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: opacity .15s;
+}
+.m3-snackbar-close:hover { opacity: .9; }
+
+/* ── 6. BOTTOM SHEET DRAG GESTURE ── */
+.m3-drag-handle {
+  width: 32px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border2);
+  margin: 0 auto 1rem;
+  cursor: grab;
+  flex-shrink: 0;
+}
+.modal-sheet.m3-dragging {
+  transition: none !important;
+}
+
+/* ── 7. FILTER CHIPS (Material 3) ── */
+.m3-chip-row {
+  display: flex;
+  gap: .4rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: .5rem .85rem;
+  flex-shrink: 0;
+}
+.m3-chip-row::-webkit-scrollbar { display: none; }
+.m3-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .42rem .9rem;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1.5px solid var(--border2);
+  background: transparent;
+  color: var(--text);
+  transition: all .2s var(--ease-standard);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.m3-chip:active { transform: scale(.95); }
+.m3-chip.selected {
+  background: rgba(31,111,92,.14);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+html.dark-mode .m3-chip.selected {
+  background: rgba(63,191,161,.18);
+  color: #4FD1AC;
+  border-color: #4FD1AC;
+}
+.m3-chip .m3-chip-check {
+  display: inline-flex;
+  align-items: center;
+  width: 0;
+  overflow: hidden;
+  transition: width .2s var(--ease-standard);
+}
+.m3-chip.selected .m3-chip-check {
+  width: 18px;
+}
+
+/* ── 8. SEGMENTED BUTTON (Material 3) ── */
+.m3-segmented {
+  display: flex;
+  border: 1.5px solid var(--border2);
+  border-radius: 999px;
+  overflow: hidden;
+  background: transparent;
+  flex-shrink: 0;
+}
+.m3-seg-btn {
+  flex: 1;
+  padding: .5rem .7rem;
+  font-size: .78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  transition: all .22s var(--ease-standard);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+}
+.m3-seg-btn + .m3-seg-btn {
+  border-inline-start: 1.5px solid var(--border2);
+}
+.m3-seg-btn.active {
+  background: rgba(31,111,92,.14);
+  color: var(--accent);
+}
+html.dark-mode .m3-seg-btn.active {
+  background: rgba(63,191,161,.18);
+  color: #4FD1AC;
+}
+.m3-seg-check {
+  display: none;
+  width: 16px;
+  height: 16px;
+}
+.m3-seg-btn.active .m3-seg-check {
+  display: inline-flex;
+}
+
+/* ── 9. COLLAPSING TOP APP BAR (Material 3 medium) ── */
+.topbar.m3-collapsible {
+  flex-direction: column;
+  align-items: stretch;
+  padding: .85rem 1.1rem .6rem;
+  transition: padding .3s var(--ease-standard);
+}
+.topbar.m3-collapsible .topbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.m3-topbar-title-large {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  margin-top: .45rem;
+  opacity: 1;
+  max-height: 44px;
+  transition: opacity .22s var(--ease-standard), max-height .28s var(--ease-standard), margin .28s var(--ease-standard);
+  overflow: hidden;
+  color: var(--text);
+}
+.topbar.m3-collapsible.shrunk {
+  padding-bottom: .85rem;
+}
+.topbar.m3-collapsible.shrunk .m3-topbar-title-large {
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
+}
+
+/* ── 10. CARD SYSTEM REFRESH (tonal elevation) ── */
+.feed-post {
+  border: none;
+  border-radius: 20px;
+  box-shadow: none;
+  background-image: linear-gradient(var(--m3-surface-1), var(--m3-surface-1));
+}
+.feed-post:hover {
+  border-color: transparent;
+  box-shadow: none;
+  background-image: linear-gradient(var(--m3-surface-2), var(--m3-surface-2));
+}
+.ch-prev-card {
+  border: none;
+  box-shadow: none;
+  background-image: linear-gradient(var(--m3-surface-1), var(--m3-surface-1));
+}
+.ch-prev-card:hover { box-shadow: none; }
+.qt-tile {
+  border: none;
+  background-image: linear-gradient(var(--m3-surface-1), var(--m3-surface-1));
+}
+.composer-card {
+  border: none;
+  background-image: linear-gradient(var(--m3-surface-1), var(--m3-surface-1));
+}
+.ig-post {
+  border-bottom-color: var(--border);
+}
+.ig-post::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: .85rem;
+  right: .85rem;
+  height: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+.ig-post:last-child::after { display: none; }
+
+/* ── 11. PAGE TRANSITIONS (Material motion: fade through) ── */
+@keyframes m3-fade-through-in {
+  0%   { opacity: 0; transform: scale(.94); }
+  40%  { opacity: 0; }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes m3-container-in {
+  0%   { opacity: 0; transform: translateY(8px) scale(.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.screen.active.m3-enter {
+  animation: m3-container-in .3s var(--ease-standard) both;
+}
+.screen.active.m3-fade-enter {
+  animation: m3-fade-through-in .35s var(--ease-standard) both;
+}
+
+/* ── 12. ICON BUTTON REDESIGN (Material 3 standard) ── */
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .18s var(--ease-standard), transform .12s var(--ease-standard);
+  position: relative;
+  color: var(--text);
+  overflow: hidden;
+  font-size: .9rem;
+}
+.icon-btn:hover { background: rgba(0,0,0,.06); }
+.icon-btn:active { transform: scale(.88); }
+html.dark-mode .icon-btn:hover { background: rgba(255,255,255,.08); }
 
