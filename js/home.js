@@ -3366,3 +3366,369 @@ function _xChPost(p, idx) {
     if (!document.hidden) syncAllNavBadges();
   }, 5000);
 })();
+
+
+// ══════════════════════════════════════════════════════════════════
+//  MATERIAL DESIGN 3 — COMPREHENSIVE UPGRADE (12 FEATURES)
+// ══════════════════════════════════════════════════════════════════
+
+// ── 1. RIPPLE EFFECT — Google-style touch feedback ──
+(function () {
+  function createRipple(el, e) {
+    var rect = el.getBoundingClientRect();
+    var size = Math.max(rect.width, rect.height) * 2;
+    var x, y;
+    if (e.touches && e.touches[0]) {
+      x = e.touches[0].clientX - rect.left - size / 2;
+      y = e.touches[0].clientY - rect.top - size / 2;
+    } else {
+      x = e.clientX - rect.left - size / 2;
+      y = e.clientY - rect.top - size / 2;
+    }
+    var wave = document.createElement('span');
+    wave.className = 'ripple-wave';
+    wave.style.width = wave.style.height = size + 'px';
+    wave.style.left = x + 'px';
+    wave.style.top = y + 'px';
+    el.classList.add('ripple-host');
+    el.appendChild(wave);
+    requestAnimationFrame(function () {
+      wave.classList.add('expanding');
+    });
+    function remove() {
+      wave.classList.remove('expanding');
+      wave.classList.add('fading');
+      wave.addEventListener('animationend', function () { wave.remove(); });
+    }
+    setTimeout(remove, 400);
+  }
+
+  var selectors = [
+    '.btn-primary', '.icon-btn', '.nav-item', '.qt-tile', '.cc-chip',
+    '.cc-post', '.settings-row', '.track-item', '.chat-item',
+    '.ctx-item', '.modal-cancel', '.follow-pill', '.ch-follow-btn',
+    '.profile-action-btn', '.m3-chip', '.m3-seg-btn', '.pwa-ib-cta',
+    '.see-all', '.post-action', '.ig-act', '.x-act', '.s-action',
+    '.logout-row', '.admin-cat-card', '.act-btn'
+  ].join(',');
+
+  document.addEventListener('pointerdown', function (e) {
+    var target = e.target.closest(selectors);
+    if (!target) return;
+    createRipple(target, e);
+  }, { passive: true });
+})();
+
+
+// ── 2. FLOATING LABELS — wrap auth fields ──
+(function () {
+  var fieldMap = [
+    { id: 'l-email', label: 'Email address' },
+    { id: 'l-pass',  label: 'Password' },
+    { id: 'r-email', label: 'Email address' },
+    { id: 'r-nick',  label: 'Nickname' },
+    { id: 'r-phone', label: 'Phone (optional)' },
+    { id: 'r-pass',  label: 'Password (min 6)' },
+    { id: 'r-pass2', label: 'Confirm password' }
+  ];
+
+  fieldMap.forEach(function (item) {
+    var field = document.getElementById(item.id);
+    if (!field || field.closest('.m3-field-wrap')) return;
+    var parent = field.parentElement;
+    if (!parent) return;
+    if (parent.style.position === 'relative' && parent.querySelector('#nick-avail-icon')) return;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'm3-field-wrap';
+    parent.insertBefore(wrap, field);
+    wrap.appendChild(field);
+
+    var lbl = document.createElement('span');
+    lbl.className = 'm3-field-label';
+    lbl.textContent = item.label;
+    wrap.appendChild(lbl);
+
+    field.setAttribute('placeholder', ' ');
+
+    field.addEventListener('input', function () {
+      field.classList.toggle('has-value', field.value.length > 0);
+    });
+    field.addEventListener('change', function () {
+      field.classList.toggle('has-value', field.value.length > 0);
+    });
+  });
+})();
+
+
+// ── 3. NAV INDICATOR PILL — animated sliding pill ──
+(function () {
+  function initNavPill(nav) {
+    if (nav.querySelector('.m3-nav-pill')) return;
+    var pill = document.createElement('div');
+    pill.className = 'm3-nav-pill';
+    nav.appendChild(pill);
+
+    function positionPill() {
+      var active = nav.querySelector('.nav-item.active');
+      if (!active) { pill.style.opacity = '0'; return; }
+      var icon = active.querySelector('.nav-icon');
+      if (!icon) return;
+      var navRect = nav.getBoundingClientRect();
+      var iconRect = icon.getBoundingClientRect();
+      pill.style.left = (iconRect.left - navRect.left) + 'px';
+      pill.style.width = iconRect.width + 'px';
+      pill.style.opacity = '1';
+    }
+
+    positionPill();
+
+    nav.addEventListener('click', function (e) {
+      var item = e.target.closest('.nav-item');
+      if (!item) return;
+      setTimeout(positionPill, 10);
+    });
+
+    var obs = new MutationObserver(function () { positionPill(); });
+    nav.querySelectorAll('.nav-item').forEach(function (item) {
+      obs.observe(item, { attributes: true, attributeFilter: ['class'] });
+    });
+
+    window.addEventListener('resize', positionPill);
+  }
+
+  document.querySelectorAll('.bottom-nav').forEach(initNavPill);
+})();
+
+
+// ── 4. SURFACE TINT — auto-apply to cards ──
+(function () {
+  var tintSelectors = '.admin-card, .admin-cat-card, .stat-card, .skeleton-card';
+  document.querySelectorAll(tintSelectors).forEach(function (el) {
+    el.classList.add('m3-tint-1');
+  });
+})();
+
+
+// ── 5. SNACKBAR — Material 3 toast replacement with action ──
+(function () {
+  var snackbar = document.getElementById('m3-snackbar');
+  var textEl = document.getElementById('m3-snackbar-text');
+  var actionEl = document.getElementById('m3-snackbar-action');
+  var closeEl = document.getElementById('m3-snackbar-close');
+  if (!snackbar || !textEl) return;
+
+  var timer = null;
+
+  function hideSnackbar() {
+    clearTimeout(timer);
+    snackbar.classList.remove('show');
+  }
+
+  closeEl.addEventListener('click', hideSnackbar);
+
+  window.snackbar = function (msg, opts) {
+    opts = opts || {};
+    clearTimeout(timer);
+
+    textEl.textContent = msg;
+
+    if (opts.action && opts.onAction) {
+      actionEl.textContent = opts.action;
+      actionEl.style.display = '';
+      actionEl.onclick = function () {
+        opts.onAction();
+        hideSnackbar();
+      };
+    } else {
+      actionEl.style.display = 'none';
+      actionEl.onclick = null;
+    }
+
+    snackbar.classList.add('show');
+
+    timer = setTimeout(hideSnackbar, opts.duration || 4000);
+  };
+
+  var origToast = window.toast;
+  window.toast = function (msg, duration) {
+    window.snackbar(msg, { duration: duration || 2800 });
+  };
+})();
+
+
+// ── 6. BOTTOM SHEET DRAG GESTURE — swipe down to dismiss ──
+(function () {
+  function initDragSheet(overlay) {
+    var sheet = overlay.querySelector('.modal-sheet');
+    if (!sheet || sheet.dataset.dragInit) return;
+    sheet.dataset.dragInit = '1';
+
+    var handle = document.createElement('div');
+    handle.className = 'm3-drag-handle';
+    sheet.insertBefore(handle, sheet.firstChild);
+
+    var startY = 0, currentY = 0, isDragging = false;
+
+    function onStart(e) {
+      if (e.target.closest('input, textarea, select, button, a')) return;
+      isDragging = true;
+      startY = e.touches ? e.touches[0].clientY : e.clientY;
+      currentY = 0;
+      sheet.classList.add('m3-dragging');
+    }
+    function onMove(e) {
+      if (!isDragging) return;
+      var y = e.touches ? e.touches[0].clientY : e.clientY;
+      currentY = Math.max(0, y - startY);
+      sheet.style.transform = 'translateY(' + currentY + 'px)';
+    }
+    function onEnd() {
+      if (!isDragging) return;
+      isDragging = false;
+      sheet.classList.remove('m3-dragging');
+      if (currentY > 120) {
+        overlay.classList.remove('open');
+        sheet.style.transform = '';
+      } else {
+        sheet.style.transform = '';
+      }
+      currentY = 0;
+    }
+
+    sheet.addEventListener('touchstart', onStart, { passive: true });
+    sheet.addEventListener('touchmove', onMove, { passive: false });
+    sheet.addEventListener('touchend', onEnd);
+  }
+
+  var obs = new MutationObserver(function (mutations) {
+    mutations.forEach(function (m) {
+      if (m.target.classList && m.target.classList.contains('open')) {
+        initDragSheet(m.target);
+      }
+    });
+  });
+
+  document.querySelectorAll('.modal-overlay').forEach(function (o) {
+    obs.observe(o, { attributes: true, attributeFilter: ['class'] });
+    if (o.classList.contains('open')) initDragSheet(o);
+  });
+})();
+
+
+// ── 7. FILTER CHIPS — upgrade tab rows to M3 chips ──
+(function () {
+  function upgradeTabsToChips(tabRow, tabClass) {
+    if (!tabRow || tabRow.dataset.chipped) return;
+    tabRow.dataset.chipped = '1';
+
+    var tabs = tabRow.querySelectorAll('.' + tabClass);
+    if (tabs.length < 2) return;
+
+    var chipRow = document.createElement('div');
+    chipRow.className = 'm3-chip-row';
+    chipRow.style.borderBottom = '1px solid var(--border)';
+    chipRow.style.background = 'var(--surface)';
+
+    tabs.forEach(function (tab) {
+      var chip = document.createElement('button');
+      chip.className = 'm3-chip' + (tab.classList.contains('active') ? ' selected' : '');
+      chip.innerHTML = '<span class="m3-chip-check"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></span>' + tab.textContent.trim();
+      chip.onclick = function () {
+        tab.click();
+        chipRow.querySelectorAll('.m3-chip').forEach(function (c) { c.classList.remove('selected'); });
+        chip.classList.add('selected');
+      };
+      chipRow.appendChild(chip);
+    });
+
+    tabRow.style.display = 'none';
+    tabRow.parentElement.insertBefore(chipRow, tabRow);
+  }
+
+  var chatTabs = document.querySelector('.chat-tabs-row');
+  if (chatTabs) upgradeTabsToChips(chatTabs, 'ctab');
+
+  var musicTabs = document.querySelector('.music-tabs-row');
+  if (musicTabs) upgradeTabsToChips(musicTabs, 'mtab');
+})();
+
+
+// ── 8. SEGMENTED BUTTON — upgrade mode toggles ──
+(function () {
+  function upgradeToSegmented(toggle) {
+    if (!toggle || toggle.dataset.segmented) return;
+    toggle.dataset.segmented = '1';
+
+    var btns = toggle.querySelectorAll('.mode-btn');
+    if (btns.length < 2) return;
+
+    var seg = document.createElement('div');
+    seg.className = 'm3-segmented';
+    seg.style.margin = toggle.style.margin || '0 1.25rem 1.25rem';
+
+    btns.forEach(function (btn) {
+      var segBtn = document.createElement('button');
+      segBtn.className = 'm3-seg-btn' + (btn.classList.contains('active') ? ' active' : '');
+      segBtn.innerHTML = '<svg class="m3-seg-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>' + btn.textContent.trim();
+      segBtn.onclick = function () {
+        btn.click();
+        seg.querySelectorAll('.m3-seg-btn').forEach(function (s) { s.classList.remove('active'); });
+        segBtn.classList.add('active');
+      };
+      seg.appendChild(segBtn);
+    });
+
+    toggle.style.display = 'none';
+    toggle.parentElement.insertBefore(seg, toggle);
+  }
+
+  document.querySelectorAll('.mode-toggle').forEach(upgradeToSegmented);
+})();
+
+
+// ── 9. COLLAPSING TOP APP BAR — shrink on scroll ──
+(function () {
+  var topbar = document.getElementById('home-topbar');
+  var scroll = document.getElementById('home-scroll');
+  if (!topbar || !scroll) return;
+
+  var threshold = 60;
+  var shrunk = false;
+
+  scroll.addEventListener('scroll', function () {
+    var y = scroll.scrollTop;
+    if (y > threshold && !shrunk) {
+      shrunk = true;
+      topbar.classList.add('shrunk');
+    } else if (y <= threshold && shrunk) {
+      shrunk = false;
+      topbar.classList.remove('shrunk');
+    }
+  }, { passive: true });
+})();
+
+
+// ── 10. (Card system — CSS only, no JS needed) ──
+
+
+// ── 11. PAGE TRANSITIONS — Material motion ──
+(function () {
+  var origNavTo = window.navTo;
+  if (!origNavTo) return;
+
+  window.navTo = function (name, opts) {
+    var nextScreen = document.getElementById('screen-' + name);
+    if (nextScreen) {
+      nextScreen.classList.add('m3-enter');
+      nextScreen.addEventListener('animationend', function handler() {
+        nextScreen.classList.remove('m3-enter');
+        nextScreen.removeEventListener('animationend', handler);
+      });
+    }
+    return origNavTo(name, opts);
+  };
+})();
+
+
+// ── 12. (Icon button redesign — CSS only, no JS needed) ──
