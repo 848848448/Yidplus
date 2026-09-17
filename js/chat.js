@@ -1594,6 +1594,8 @@ function _setChatTab(tab) {
     if (on && t.scrollIntoView) { try { t.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); } catch (e) {} }
   });
   renderChatList();
+  var area = document.getElementById('chat-list-area');
+  if (area && typeof _animateTabSwitch === 'function') _animateTabSwitch(area);
   var fab = document.getElementById('status-fab-btn');
   if (fab) fab.style.display = (tab === 'private') ? 'flex' : 'none';
 }
@@ -3148,6 +3150,8 @@ window.sendChatMsg = function () {
   };
   CHAT_messages.push(tempMsg);
   renderMessages(false);
+  var sentEl = document.getElementById('msg-' + tempId);
+  if (sentEl) sentEl.classList.add('sending');
   scrollToBottom();
 
   api.post('/chat', payload)

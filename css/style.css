@@ -3311,3 +3311,166 @@ html.dark-mode .bubble.them::after {
 :root { --surface-rgb: 255,255,255; }
 html.dark-mode { --surface-rgb: 30,32,34; }
 
+/* =============================================
+   MODERN UI UPGRADE ROUND 2 — 8 Features
+   ============================================= */
+
+/* ---------- 1. NOTIFICATION BADGE BOUNCE ---------- */
+.nav-badge {
+  transition: transform .2s var(--ease-spring);
+}
+.nav-badge.bounce {
+  animation: badgeBounce .5s var(--ease-spring);
+}
+@keyframes badgeBounce {
+  0%   { transform: scale(1); }
+  20%  { transform: scale(1.5); }
+  50%  { transform: scale(.8); }
+  70%  { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+.nav-badge.pop-in {
+  animation: badgePopIn .35s var(--ease-spring) both;
+}
+@keyframes badgePopIn {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* ---------- 2. PROFILE PARALLAX COVER ---------- */
+.profile-cover {
+  transform: translateZ(0);
+  will-change: transform;
+  transition: transform .1s linear;
+}
+.profile-avatar-wrap {
+  transition: transform .2s var(--ease-standard);
+  will-change: transform;
+}
+.profile-avatar-big {
+  transition: transform .2s var(--ease-standard), width .2s, height .2s;
+}
+.profile-cover-blur {
+  position: absolute; inset: 0;
+  -webkit-backdrop-filter: blur(0px);
+  backdrop-filter: blur(0px);
+  transition: backdrop-filter .15s, -webkit-backdrop-filter .15s;
+  pointer-events: none;
+}
+
+/* ---------- 3. TYPING INDICATOR UPGRADE — iMessage wave ---------- */
+.typing-dots-wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: .15rem 0;
+}
+.typing-dots-wave span {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  display: inline-block;
+  animation: typingWave 1.4s ease-in-out infinite;
+}
+.typing-dots-wave span:nth-child(2) { animation-delay: .2s; }
+.typing-dots-wave span:nth-child(3) { animation-delay: .4s; }
+@keyframes typingWave {
+  0%, 60%, 100% { transform: translateY(0); opacity: .4; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+
+/* ---------- 4. IMAGE ZOOM GESTURE ---------- */
+.img-zoom-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .25s;
+  cursor: zoom-out;
+}
+.img-zoom-overlay.active { background: rgba(0,0,0,.92); }
+.img-zoom-overlay img {
+  max-width: 95vw; max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+  transform: scale(.5);
+  opacity: 0;
+  transition: transform .3s var(--ease-spring), opacity .2s;
+  box-shadow: 0 8px 40px rgba(0,0,0,.5);
+}
+.img-zoom-overlay.active img {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* ---------- 5. PULL-TO-REFRESH UPGRADE — Material spinner ---------- */
+.ptr-indicator {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 2px 12px rgba(0,0,0,.15);
+  border: none;
+}
+.ptr-indicator svg {
+  color: var(--gold);
+}
+.ptr-indicator.refreshing svg {
+  animation: ptr-spin .7s cubic-bezier(.4,0,.2,1) infinite;
+}
+.ptr-indicator.pulling {
+  transition: transform .15s, opacity .15s;
+}
+
+/* ---------- 6. SETTINGS CARDS SECTIONS ---------- */
+.settings-card {
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05), 0 0 0 1px rgba(0,0,0,.04);
+  border-radius: 18px;
+  overflow: hidden;
+}
+html.dark-mode .settings-card {
+  box-shadow: 0 1px 4px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.04);
+}
+.settings-section-title {
+  font-size: .68rem;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+  padding: 1rem 1rem .4rem;
+}
+.settings-item-row {
+  padding: .85rem 1.1rem;
+  gap: .75rem;
+  transition: background .12s, transform .1s var(--ease-spring);
+}
+.settings-item-row[onclick]:active {
+  transform: scale(.98);
+}
+.settings-item-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: .9rem;
+}
+
+/* ---------- 7. MESSAGE SEND ANIMATION ---------- */
+@keyframes msgSend {
+  0%   { opacity: 0; transform: translateY(24px) scale(.92); }
+  60%  { opacity: 1; transform: translateY(-3px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.msg-wrap.sending {
+  animation: msgSend .35s var(--ease-spring) both;
+}
+
+/* ---------- 8. TAB SWITCH ANIMATION ---------- */
+@keyframes tabContentIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tab-content-enter {
+  animation: tabContentIn .22s var(--ease-standard) both;
+}
+
+
