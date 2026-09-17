@@ -1361,8 +1361,10 @@ html.dark-mode .chat-messages { background:
 .chat-item:active { background: var(--bg3); }
 .chat-item.unread { background: color-mix(in srgb, var(--blue) 5%, var(--surface)); }
 .chat-item.unread::before { content: ''; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 3px; background: var(--blue); }
-.chat-item.swiped { transform: translateX(-84px); }
-.chat-item-delete { position: absolute; top: 0; inset-inline-end: 0; bottom: 0; width: 84px; background: var(--red); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; cursor: pointer; z-index: 1; }
+.chat-item.swiped { transform: translateX(-84px); transition: transform .2s var(--ease-spring); }
+.chat-item-delete { position: absolute; top: 0; inset-inline-end: 0; bottom: 0; width: 84px; background: var(--red); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; font-size: 1.1rem; cursor: pointer; z-index: 1; transition: background .15s; }
+.chat-item-delete:active { background: #C62828; }
+.chat-item-delete::after { content: 'Delete'; font-size: .6rem; font-weight: 600; letter-spacing: .03em; }
 
 .chat-av { width: 54px; height: 54px; border-radius: 50%; background: linear-gradient(135deg, #1F6F5C, #2B8A73); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 800; flex-shrink: 0; position: relative; overflow: hidden; background-size: cover; background-position: center; letter-spacing: .02em; box-shadow: 0 2px 6px rgba(20,80,63,.18); transition: transform .15s var(--ease-spring); }
 .chat-item:active .chat-av { transform: scale(.94); }
@@ -2278,33 +2280,7 @@ html.dark-mode .sys-msg.call-log.missed span { background: rgba(255,120,140,.18)
   0%   { background-position: -400px 0; }
   100% { background-position: 400px 0; }
 }
-.skeleton {
-  background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 37%, var(--bg3) 63%);
-  background-size: 800px 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-  border-radius: 8px;
-}
-.skeleton-circle {
-  background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 37%, var(--bg3) 63%);
-  background-size: 800px 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-  border-radius: 50%;
-}
-.skeleton-text {
-  height: .85em;
-  background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 37%, var(--bg3) 63%);
-  background-size: 800px 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-  border-radius: 4px;
-  margin-bottom: .4em;
-}
-.skeleton-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 1rem;
-  margin-bottom: .75rem;
-}
+/* skeleton/shimmer styles moved to end-of-file Modern UI Upgrade section */
 .skeleton-chat-item {
   display: flex; align-items: center; gap: .9rem;
   padding: .95rem 1.1rem;
@@ -2995,4 +2971,343 @@ html.dark-mode .icon-btn:hover { background: rgba(255,255,255,.08); }
 }
 @keyframes vt-fade-out { to { opacity: 0; } }
 @keyframes vt-fade-in  { from { opacity: 0; } }
+
+/* =============================================
+   MODERN UI UPGRADE — 10 Features
+   ============================================= */
+
+/* ---------- 1. STAGGERED LIST ANIMATIONS ---------- */
+.stagger-item {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: staggerIn .35s var(--ease-standard) both;
+}
+@keyframes staggerIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- 2. GLASSMORPHISM OVERLAYS ---------- */
+.modal-overlay {
+  background: rgba(0,0,0,.25);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+}
+html.dark-mode .modal-overlay {
+  background: rgba(0,0,0,.4);
+}
+.modal-sheet {
+  background: rgba(var(--surface-rgb, 255,255,255), .88);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(24px) saturate(1.6);
+}
+html.dark-mode .modal-sheet {
+  background: rgba(30,32,34, .85);
+}
+
+/* ---------- 3. SWIPE ACTIONS ON CHAT LIST ---------- */
+.chat-item-swipe-wrap {
+  position: relative;
+  overflow: hidden;
+}
+.chat-swipe-actions {
+  position: absolute;
+  top: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  opacity: 0;
+  transition: opacity .15s;
+  pointer-events: none;
+}
+.chat-swipe-actions.left  { left: 0; }
+.chat-swipe-actions.right { right: 0; }
+.chat-item-swipe-wrap.swiping .chat-swipe-actions { opacity: 1; pointer-events: auto; }
+.chat-swipe-action {
+  width: 72px; height: 100%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: .2rem;
+  font-size: .65rem; font-weight: 600;
+  color: #fff; border: none; cursor: pointer;
+  font-family: inherit;
+}
+.chat-swipe-action.delete { background: #E53935; }
+.chat-swipe-action.pin    { background: #FB8C00; }
+.chat-swipe-action.mute   { background: #7B1FA2; }
+.chat-swipe-action .material-symbols-rounded { font-size: 1.2rem; }
+
+/* ---------- 4. ANIMATED COUNTERS ---------- */
+.anim-counter {
+  display: inline-block;
+  transition: transform .3s var(--ease-spring);
+}
+.anim-counter.counting {
+  animation: counterPop .4s var(--ease-spring);
+}
+@keyframes counterPop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+/* ---------- 5. MODERN EMPTY STATES ---------- */
+.empty-state {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  animation: emptyFadeIn .5s var(--ease-standard) both;
+}
+.empty-state-icon {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: var(--bg3);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 1.25rem;
+  color: var(--muted);
+}
+.empty-state-icon .material-symbols-rounded { font-size: 2.2rem; }
+.empty-state-title {
+  font-size: 1.05rem; font-weight: 700;
+  color: var(--text); margin-bottom: .4rem;
+}
+.empty-state-desc {
+  font-size: .82rem; color: var(--muted);
+  line-height: 1.5; max-width: 260px;
+  margin-bottom: 1.25rem;
+}
+.empty-state-btn {
+  padding: .55rem 1.5rem;
+  background: var(--gold); color: #fff;
+  border: none; border-radius: 24px;
+  font-size: .82rem; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  transition: transform .12s, box-shadow .2s;
+  box-shadow: 0 2px 8px rgba(31,111,92,.25);
+}
+.empty-state-btn:active { transform: scale(.95); }
+@keyframes emptyFadeIn {
+  from { opacity: 0; transform: translateY(24px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---------- 6. SCROLL-DRIVEN HEADER MORPH ---------- */
+.topbar.m3-collapsible {
+  transition: background .25s, box-shadow .25s, padding .25s;
+}
+.topbar.m3-collapsible .topbar-row {
+  transition: padding .25s var(--ease-standard);
+}
+.m3-topbar-title-large {
+  transition: font-size .25s var(--ease-standard),
+              opacity .25s var(--ease-standard),
+              max-height .3s var(--ease-standard),
+              padding .25s var(--ease-standard),
+              transform .25s var(--ease-standard);
+  transform-origin: left center;
+}
+.topbar.m3-collapsible.shrunk .m3-topbar-title-large {
+  font-size: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  transform: translateY(-8px) scale(.9);
+}
+.topbar.m3-collapsible.shrunk {
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
+  background: rgba(var(--surface-rgb, 255,255,255), .82);
+}
+html.dark-mode .topbar.m3-collapsible.shrunk {
+  background: rgba(30,32,34, .8);
+}
+
+/* ---------- 7. FAB SPEED DIAL ---------- */
+.fab-speed-dial {
+  position: absolute;
+  bottom: 94px; inset-inline-end: 18px;
+  z-index: 51;
+}
+.fab-main {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: var(--gold); color: #fff;
+  border: none; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; z-index: 52;
+  transition: transform .25s var(--ease-spring), box-shadow .2s;
+}
+.fab-main:active { transform: scale(.9); }
+.fab-main svg {
+  transition: transform .3s var(--ease-spring);
+}
+.fab-speed-dial.open .fab-main svg {
+  transform: rotate(45deg);
+}
+.fab-dial-options {
+  position: absolute;
+  bottom: 68px; inset-inline-end: 4px;
+  display: flex; flex-direction: column-reverse;
+  gap: .6rem;
+  pointer-events: none;
+}
+.fab-dial-item {
+  display: flex; align-items: center; gap: .55rem;
+  flex-direction: row-reverse;
+  opacity: 0;
+  transform: translateY(16px) scale(.7);
+  transition: all .2s var(--ease-spring);
+  pointer-events: none;
+}
+.fab-speed-dial.open .fab-dial-item {
+  opacity: 1; transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+.fab-speed-dial.open .fab-dial-item:nth-child(1) { transition-delay: 0s; }
+.fab-speed-dial.open .fab-dial-item:nth-child(2) { transition-delay: .05s; }
+.fab-speed-dial.open .fab-dial-item:nth-child(3) { transition-delay: .1s; }
+.fab-dial-btn {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(0,0,0,.15);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--gold);
+  transition: transform .12s;
+}
+.fab-dial-btn:active { transform: scale(.88); }
+.fab-dial-label {
+  font-size: .72rem; font-weight: 600;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: .3rem .65rem;
+  border-radius: 8px;
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  white-space: nowrap;
+}
+.fab-dial-overlay {
+  position: fixed; inset: 0;
+  z-index: 50;
+  background: rgba(0,0,0,.15);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s;
+}
+.fab-speed-dial.open ~ .fab-dial-overlay,
+.fab-speed-dial.open .fab-dial-overlay {
+  opacity: 1; pointer-events: auto;
+}
+
+/* ---------- 8. CHAT BUBBLE TAILS ---------- */
+.bubble.me::after {
+  content: '';
+  position: absolute;
+  bottom: 0; right: -6px;
+  width: 12px; height: 12px;
+  background: #E7FBD5;
+  clip-path: polygon(0 0, 0 100%, 100% 100%);
+  border-bottom-right-radius: 3px;
+}
+html.dark-mode .bubble.me::after {
+  background: #17694F;
+}
+.bubble.them::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: -6px;
+  width: 12px; height: 12px;
+  background: var(--surface);
+  clip-path: polygon(100% 0, 0 100%, 100% 100%);
+  border-bottom-left-radius: 3px;
+}
+html.dark-mode .bubble.them::after {
+  background: var(--bg3);
+}
+.bubble.sticker::after,
+.bubble.bubble-emoji::after { display: none !important; }
+
+/* ---------- 9. HAPTIC-STYLE PRESS FEEDBACK ---------- */
+.press-feedback {
+  transition: transform .12s var(--ease-spring);
+  -webkit-user-select: none;
+  user-select: none;
+}
+.press-feedback:active {
+  transform: scale(.95);
+}
+.qt-tile:active {
+  transform: scale(.92);
+  transition: transform .1s var(--ease-spring);
+}
+.nav-item:active {
+  transform: scale(.88);
+  transition: transform .08s var(--ease-spring);
+}
+.cc-chip:active, .cc-post:active {
+  transform: scale(.93);
+  transition: transform .1s var(--ease-spring);
+}
+.see-all:active {
+  transform: scale(.92);
+  transition: transform .08s var(--ease-spring);
+}
+.settings-item:active {
+  transform: scale(.98);
+  transition: transform .1s var(--ease-spring);
+}
+.ch-prev-card:active {
+  transform: scale(.96);
+  transition: transform .12s var(--ease-spring);
+}
+
+/* ---------- 10. SHIMMER LOADING UPGRADE ---------- */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--bg3) 0%,
+    var(--bg3) 20%,
+    var(--bg4) 35%,
+    var(--bg4) 40%,
+    var(--bg3) 55%,
+    var(--bg3) 100%);
+  background-size: 900px 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: 10px;
+}
+.skeleton-circle {
+  background: linear-gradient(90deg,
+    var(--bg3) 0%, var(--bg3) 20%, var(--bg4) 35%, var(--bg4) 40%, var(--bg3) 55%, var(--bg3) 100%);
+  background-size: 900px 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: 50%;
+}
+.skeleton-text {
+  height: .85em;
+  background: linear-gradient(90deg,
+    var(--bg3) 0%, var(--bg3) 20%, var(--bg4) 35%, var(--bg4) 40%, var(--bg3) 55%, var(--bg3) 100%);
+  background-size: 900px 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: 6px;
+  margin-bottom: .4em;
+}
+.skeleton-card {
+  background: var(--surface);
+  border: none;
+  border-radius: var(--r-md);
+  padding: 1.15rem;
+  margin-bottom: .75rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+
+/* Surface RGB token for glassmorphism */
+:root { --surface-rgb: 255,255,255; }
+html.dark-mode { --surface-rgb: 30,32,34; }
 

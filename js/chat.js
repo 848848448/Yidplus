@@ -299,10 +299,11 @@ function renderChatList() {
   if (!filtered.length && !tgHtml) {
     el.innerHTML =
       _aiChatRow() +
-      '<div class="feed-state">' +
-        '<div style="font-size:2.5rem">💬</div>' +
-        '<div>No chats yet</div>' +
-        '<div style="font-size:.75rem;color:var(--muted)">Tap ✏️ to start a chat or 👥 to create a group</div>' +
+      '<div class="empty-state">' +
+        '<div class="empty-state-icon"><span class="material-symbols-rounded">forum</span></div>' +
+        '<div class="empty-state-title">No chats yet</div>' +
+        '<div class="empty-state-desc">Start a conversation or create a group to get going</div>' +
+        '<button class="empty-state-btn" onclick="openNewChatModal()">Start Chatting</button>' +
       '</div>';
     return;
   }
