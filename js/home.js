@@ -3732,3 +3732,140 @@ function _xChPost(p, idx) {
 
 
 // ── 12. (Icon button redesign — CSS only, no JS needed) ──
+
+
+// =============================================
+//  MODERN UI UPGRADE — 10 Features
+// =============================================
+
+// ── 1. STAGGERED LIST ANIMATIONS ──
+(function () {
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      var container = entry.target;
+      observer.unobserve(container);
+      var items = container.children;
+      for (var i = 0; i < items.length; i++) {
+        items[i].classList.add('stagger-item');
+        items[i].style.animationDelay = (i * 0.04) + 's';
+      }
+    });
+  }, { threshold: 0.1 });
+
+  function observeStaggerContainers() {
+    var containers = document.querySelectorAll('#home-feed, #explore-body, .chat-list, #home-shorts .h-scroll, #home-channels .h-scroll');
+    containers.forEach(function (c) { observer.observe(c); });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', observeStaggerContainers);
+  } else {
+    observeStaggerContainers();
+  }
+
+  var origNavTo = window._staggerOrigNavTo || window.navTo;
+  if (origNavTo && !window._staggerOrigNavTo) {
+    window._staggerOrigNavTo = origNavTo;
+  }
+})();
+
+
+// ── 4. ANIMATED COUNTERS ──
+window.animateCounter = function (el, target) {
+  if (!el) return;
+  var start = parseInt(el.textContent) || 0;
+  if (start === target) return;
+  var duration = 500;
+  var startTime = null;
+  el.classList.add('anim-counter');
+
+  function step(ts) {
+    if (!startTime) startTime = ts;
+    var progress = Math.min((ts - startTime) / duration, 1);
+    var eased = 1 - Math.pow(1 - progress, 3);
+    var current = Math.round(start + (target - start) * eased);
+    el.textContent = current.toLocaleString();
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    } else {
+      el.textContent = target.toLocaleString();
+      el.classList.add('counting');
+      setTimeout(function () { el.classList.remove('counting'); }, 400);
+    }
+  }
+  requestAnimationFrame(step);
+};
+
+
+// ── 5. MODERN EMPTY STATES ──
+window.renderEmptyState = function (container, opts) {
+  if (!container) return;
+  var icon = opts.icon || 'inbox';
+  var title = opts.title || 'Nothing here';
+  var desc = opts.desc || '';
+  var btnText = opts.btnText || '';
+  var btnAction = opts.btnAction || '';
+
+  var html = '<div class="empty-state">' +
+    '<div class="empty-state-icon"><span class="material-symbols-rounded">' + icon + '</span></div>' +
+    '<div class="empty-state-title">' + title + '</div>' +
+    '<div class="empty-state-desc">' + desc + '</div>' +
+    (btnText ? '<button class="empty-state-btn" onclick="' + btnAction + '">' + btnText + '</button>' : '') +
+    '</div>';
+  container.innerHTML = html;
+};
+
+
+// ── 6. SCROLL-DRIVEN HEADER MORPH ──
+(function () {
+  var topbar = document.getElementById('home-topbar');
+  var scroll = document.getElementById('home-scroll');
+  var titleSmall = topbar && topbar.querySelector('.topbar-logo');
+  if (!topbar || !scroll || !titleSmall) return;
+
+  scroll.addEventListener('scroll', function () {
+    var y = scroll.scrollTop;
+    var progress = Math.min(y / 80, 1);
+    if (titleSmall) {
+      titleSmall.style.opacity = progress;
+    }
+  }, { passive: true });
+
+  if (titleSmall) titleSmall.style.opacity = '0';
+  if (titleSmall) titleSmall.style.transition = 'opacity .2s ease';
+})();
+
+
+// ── 7. FAB SPEED DIAL ──
+window.toggleFabDial = function (btn) {
+  var dial = btn.closest('.fab-speed-dial');
+  if (!dial) return;
+  dial.classList.toggle('open');
+};
+window.closeFabDial = function () {
+  var dials = document.querySelectorAll('.fab-speed-dial.open');
+  dials.forEach(function (d) { d.classList.remove('open'); });
+};
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('.fab-speed-dial')) {
+    closeFabDial();
+  }
+});
+
+
+// ── 9. HAPTIC-STYLE PRESS FEEDBACK ──
+(function () {
+  var selectors = '.qt-tile, .ch-prev-card, .feed-post, .see-all, .cc-chip, .cc-post';
+  document.addEventListener('pointerdown', function (e) {
+    var el = e.target.closest(selectors);
+    if (!el) return;
+    el.classList.add('press-feedback');
+  }, { passive: true });
+  document.addEventListener('pointerup', function () {
+    var els = document.querySelectorAll('.press-feedback');
+    els.forEach(function (el) {
+      setTimeout(function () { el.classList.remove('press-feedback'); }, 150);
+    });
+  }, { passive: true });
+})();
