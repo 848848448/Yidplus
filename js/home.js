@@ -3869,3 +3869,124 @@ document.addEventListener('click', function (e) {
     });
   }, { passive: true });
 })();
+
+
+// =============================================
+//  MODERN UI UPGRADE ROUND 2 — 8 Features
+// =============================================
+
+// ── 1. NOTIFICATION BADGE BOUNCE ──
+(function () {
+  window._animateBadge = function (badgeEl) {
+    if (!badgeEl) return;
+    badgeEl.classList.remove('bounce');
+    void badgeEl.offsetWidth;
+    badgeEl.classList.add('bounce');
+  };
+
+  var badgeObserver = new MutationObserver(function (mutations) {
+    mutations.forEach(function (m) {
+      if (m.type === 'childList' || m.type === 'characterData') {
+        var badge = m.target.closest ? m.target.closest('.nav-badge') : m.target.parentElement;
+        if (badge && badge.classList && badge.classList.contains('nav-badge')) {
+          _animateBadge(badge);
+        }
+      }
+    });
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var navs = document.querySelectorAll('.bottom-nav');
+    navs.forEach(function (nav) {
+      badgeObserver.observe(nav, { childList: true, subtree: true, characterData: true });
+    });
+  });
+})();
+
+
+// ── 2. PROFILE PARALLAX COVER ──
+(function () {
+  function initProfileParallax() {
+    var scrollArea = document.getElementById('profile-screen-body');
+    var cover = scrollArea && scrollArea.querySelector('.profile-cover');
+    var avatarWrap = scrollArea && scrollArea.querySelector('.profile-avatar-wrap');
+    if (!scrollArea || !cover) return;
+    if (scrollArea._parallaxBound) return;
+    scrollArea._parallaxBound = true;
+
+    scrollArea.addEventListener('scroll', function () {
+      var y = scrollArea.scrollTop;
+      var parallax = y * 0.4;
+      var coverH = cover.offsetHeight;
+
+      cover.style.transform = 'translateY(' + Math.min(parallax, coverH * 0.5) + 'px) translateZ(0)';
+
+      if (avatarWrap) {
+        var shrink = Math.max(1 - y / 200, 0.6);
+        avatarWrap.style.transform = 'scale(' + shrink + ')';
+      }
+    }, { passive: true });
+  }
+
+  var _pNavTo = window.navTo;
+  if (_pNavTo) {
+    window.navTo = function (name, opts) {
+      var r = _pNavTo(name, opts);
+      if (name === 'profile') {
+        setTimeout(initProfileParallax, 50);
+      }
+      return r;
+    };
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(initProfileParallax, 200);
+  });
+})();
+
+
+// ── 4. IMAGE ZOOM GESTURE ──
+(function () {
+  document.addEventListener('click', function (e) {
+    var img = e.target;
+    if (img.tagName !== 'IMG') return;
+    var isChatImg = img.closest('.bubble.bubble-media') || img.closest('.ig-media');
+    if (!isChatImg) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    var overlay = document.createElement('div');
+    overlay.className = 'img-zoom-overlay';
+    var clone = document.createElement('img');
+    clone.src = img.src;
+    clone.alt = img.alt || '';
+    overlay.appendChild(clone);
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(function () {
+      overlay.classList.add('active');
+    });
+
+    overlay.addEventListener('click', function () {
+      overlay.classList.remove('active');
+      setTimeout(function () { overlay.remove(); }, 300);
+    });
+  });
+})();
+
+
+// ── 8. TAB SWITCH ANIMATION ──
+(function () {
+  function animateTabContent(container) {
+    if (!container) return;
+    container.classList.remove('tab-content-enter');
+    void container.offsetWidth;
+    container.classList.add('tab-content-enter');
+    container.addEventListener('animationend', function handler() {
+      container.classList.remove('tab-content-enter');
+      container.removeEventListener('animationend', handler);
+    });
+  }
+
+  window._animateTabSwitch = animateTabContent;
+})();
