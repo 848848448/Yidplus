@@ -312,6 +312,12 @@ export async function onRequestPost(context) {
 
     const contentType = request.headers.get('content-type') || '';
     let roomId, type, text, replyToId, file, viewOnce, topicId, scheduledFor, disappearSeconds;
+    // Raw streaming upload: the file bytes ARE the request body (no multipart
+    // wrapper), so R2 can stream them straight through instead of the whole
+    // file being buffered in the isolate's memory. This is what lets chat
+    // carry large videos — request.formData() buffers the entire body and
+    // would blow the Worker's memory ceiling well before 500MB.
+    let rawStream = null, rawName = '', rawType = '';
 
     if (contentType.includes('multipart/form-data')) {
       const form = await request.formData();
@@ -324,6 +330,19 @@ export async function onRequestPost(context) {
       topicId   = form.get('topic_id') || null;
       scheduledFor = form.get('scheduled_for') || null;
       disappearSeconds = parseInt(form.get('disappear_seconds') || '0', 10) || 0;
+    } else if (contentType.startsWith('image/') || contentType.startsWith('video/') || contentType.startsWith('audio/') || contentType.startsWith('application/octet-stream')) {
+      const u = new URL(request.url);
+      roomId    = u.searchParams.get('room_id');
+      type      = u.searchParams.get('type') || 'media';
+      text      = u.searchParams.get('text') || '';
+      replyToId = u.searchParams.get('reply_to_id') || null;
+      viewOnce  = u.searchParams.get('view_once') === 'true' || u.searchParams.get('view_once') === '1';
+      topicId   = u.searchParams.get('topic_id') || null;
+      scheduledFor = u.searchParams.get('scheduled_for') || null;
+      disappearSeconds = parseInt(u.searchParams.get('disappear_seconds') || '0', 10) || 0;
+      rawName   = u.searchParams.get('filename') || '';
+      rawType   = contentType;
+      rawStream = request.body;
     } else {
       const body = await request.json();
       roomId    = body.room_id;
@@ -400,7 +419,12 @@ export async function onRequestPost(context) {
     }
 
     let mediaKey = null;
-    if (file && typeof file === 'object' && file.arrayBuffer) {
+    // A file arrives either as a multipart part (small uploads) or as the raw
+    // request body streamed straight through (rawStream, for large media).
+    const hasUpload = (file && typeof file === 'object' && file.arrayBuffer) || rawStream;
+    if (hasUpload) {
+      const upType = rawStream ? rawType : (file.type || '');
+      const upName = rawStream ? rawName : (file.name || '');
       // Enforce "what members can send" permissions for non-admins.
       if (room && room.type === 'group' && room.permissions && !isAdminRole(user, env.OWNER_EMAIL)) {
         let perms = null;
@@ -410,8 +434,8 @@ export async function onRequestPost(context) {
             `SELECT is_group_admin FROM room_members WHERE room_id = ? AND user_id = ?`
           ).bind(roomId, user.id).first();
           if (!mem || !mem.is_group_admin) {
-            const ft = (file.type || '').toLowerCase();
-            const nm = (file.name || '').toLowerCase();
+            const ft = (upType || '').toLowerCase();
+            const nm = (upName || '').toLowerCase();
             let permKey = 'files';
             if (ft.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|svg)$/i.test(nm)) permKey = 'photos';
             else if (ft.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi|m4v|3gp)$/i.test(nm)) permKey = 'videos';
@@ -423,12 +447,12 @@ export async function onRequestPost(context) {
           }
         }
       }
-      let ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop().toLowerCase() : '';
+      let ext = (upName && upName.includes('.')) ? upName.split('.').pop().toLowerCase() : '';
       // Camera captures / blobs often arrive without a usable extension, which
       // left videos stored as ".bin" and mis-rendered as broken images. Derive
       // the extension from the content-type instead.
       if (!ext || ext.length > 5 || /[^a-z0-9]/.test(ext)) {
-        const ct = (file.type || '').toLowerCase();
+        const ct = (upType || '').toLowerCase();
         if (ct === 'video/quicktime') ext = 'mov';
         else if (ct.startsWith('video/')) ext = ct.split('/')[1] || 'mp4';
         else if (ct.startsWith('image/')) ext = (ct.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
@@ -437,8 +461,10 @@ export async function onRequestPost(context) {
       }
       mediaKey = `chat/${roomId}/${Date.now()}_${crypto.randomUUID()}.${ext}`;
       try {
-        await env.MY_BUCKET.put(mediaKey, await file.arrayBuffer(), {
-          httpMetadata: { contentType: file.type || 'application/octet-stream' },
+        // rawStream pipes through R2 without buffering; a multipart part is
+        // already in memory, so read its bytes as before.
+        await env.MY_BUCKET.put(mediaKey, rawStream ? rawStream : await file.arrayBuffer(), {
+          httpMetadata: { contentType: upType || 'application/octet-stream' },
         });
       } catch (uploadErr) {
         return json({ ok: false, error: 'Media upload failed: ' + uploadErr.message }, 500);

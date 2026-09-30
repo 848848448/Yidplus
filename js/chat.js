@@ -3965,13 +3965,17 @@ function _uploadOneFile(file, caption, done) {
   if (!checkFileSize(file, 500, 'File')) { if (done) done(); return; }
 
   watermarkFile(file).then(function (watermarked) {
-    var form = new FormData();
-    form.append('room_id', CHAT_curRoom.id);
-    form.append('type', type);
-    form.append('text', text);
-    form.append('file', watermarked);
-    if (CHAT_curTopicId) form.append('topic_id', CHAT_curTopicId);
-    return api.post('/chat', form, true);
+    // Stream the bytes straight to R2 (see api.postRaw) rather than wrapping
+    // them in a multipart FormData the Worker would have to buffer whole —
+    // that buffering is what capped chat media at ~100MB. Metadata goes in
+    // the query string; the body is the raw file.
+    var qs = '?room_id=' + encodeURIComponent(CHAT_curRoom.id) +
+      '&type=' + encodeURIComponent(type) +
+      '&text=' + encodeURIComponent(text) +
+      '&filename=' + encodeURIComponent(file.name || '') +
+      (CHAT_curTopicId ? '&topic_id=' + encodeURIComponent(CHAT_curTopicId) : '');
+    var ct = watermarked.type || file.type || 'application/octet-stream';
+    return api.postRaw('/chat' + qs, watermarked, ct);
   })
     .then(function () {
       CHAT_messages = CHAT_messages.filter(function (m) { return m.id !== tempId; });
