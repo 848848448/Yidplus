@@ -312,6 +312,9 @@ export async function onRequestPost(context) {
 
     const contentType = request.headers.get('content-type') || '';
     let roomId, type, text, replyToId, file, viewOnce, topicId, scheduledFor, disappearSeconds;
+    // media_key references an object already uploaded via /api/chat/mpu (the
+    // chunked path for large files) — no bytes travel with this request.
+    let preUploadedKey = null;
     // Raw streaming upload: the file bytes ARE the request body (no multipart
     // wrapper), so R2 can stream them straight through instead of the whole
     // file being buffered in the isolate's memory. This is what lets chat
@@ -353,6 +356,7 @@ export async function onRequestPost(context) {
       topicId   = body.topic_id || null;
       scheduledFor = body.scheduled_for || null;
       disappearSeconds = parseInt(body.disappear_seconds || 0, 10) || 0;
+      preUploadedKey = body.media_key || null;
     }
 
     // Validate scheduled time: must be a valid future ISO timestamp, at most
@@ -419,12 +423,24 @@ export async function onRequestPost(context) {
     }
 
     let mediaKey = null;
-    // A file arrives either as a multipart part (small uploads) or as the raw
-    // request body streamed straight through (rawStream, for large media).
-    const hasUpload = (file && typeof file === 'object' && file.arrayBuffer) || rawStream;
+    // A file arrives one of three ways: a multipart part (small uploads), the
+    // raw request body streamed straight through (rawStream, for large media),
+    // or as preUploadedKey — an object already assembled by /api/chat/mpu.
+    const hasUpload = (file && typeof file === 'object' && file.arrayBuffer) || rawStream || preUploadedKey;
     if (hasUpload) {
-      const upType = rawStream ? rawType : (file.type || '');
-      const upName = rawStream ? rawName : (file.name || '');
+      // For a pre-uploaded key we have no live file, so derive the type/name
+      // from the key's extension purely to run the per-type permission gate.
+      let upType, upName;
+      if (rawStream) { upType = rawType; upName = rawName; }
+      else if (preUploadedKey) {
+        upName = preUploadedKey;
+        const kext = preUploadedKey.split('.').pop().toLowerCase();
+        if (/^(mp4|mov|webm|mkv|avi|m4v|3gp)$/.test(kext)) upType = 'video/' + kext;
+        else if (/^(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/.test(kext)) upType = 'image/' + kext;
+        else if (/^(mp3|m4a|aac|wav|flac|ogg|opus|wma)$/.test(kext)) upType = 'audio/' + kext;
+        else upType = '';
+      }
+      else { upType = file.type || ''; upName = file.name || ''; }
       // Enforce "what members can send" permissions for non-admins.
       if (room && room.type === 'group' && room.permissions && !isAdminRole(user, env.OWNER_EMAIL)) {
         let perms = null;
@@ -447,27 +463,39 @@ export async function onRequestPost(context) {
           }
         }
       }
-      let ext = (upName && upName.includes('.')) ? upName.split('.').pop().toLowerCase() : '';
-      // Camera captures / blobs often arrive without a usable extension, which
-      // left videos stored as ".bin" and mis-rendered as broken images. Derive
-      // the extension from the content-type instead.
-      if (!ext || ext.length > 5 || /[^a-z0-9]/.test(ext)) {
-        const ct = (upType || '').toLowerCase();
-        if (ct === 'video/quicktime') ext = 'mov';
-        else if (ct.startsWith('video/')) ext = ct.split('/')[1] || 'mp4';
-        else if (ct.startsWith('image/')) ext = (ct.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
-        else if (ct.startsWith('audio/')) ext = ct.split('/')[1] || 'm4a';
-        else ext = 'bin';
-      }
-      mediaKey = `chat/${roomId}/${Date.now()}_${crypto.randomUUID()}.${ext}`;
-      try {
-        // rawStream pipes through R2 without buffering; a multipart part is
-        // already in memory, so read its bytes as before.
-        await env.MY_BUCKET.put(mediaKey, rawStream ? rawStream : await file.arrayBuffer(), {
-          httpMetadata: { contentType: upType || 'application/octet-stream' },
-        });
-      } catch (uploadErr) {
-        return json({ ok: false, error: 'Media upload failed: ' + uploadErr.message }, 500);
+      if (preUploadedKey) {
+        // Already assembled by /api/chat/mpu. Accept it only if it lives under
+        // this room's prefix (so it can't point at another room's object) and
+        // actually exists in R2 — then reuse it as-is, no new write.
+        if (typeof preUploadedKey !== 'string' || !preUploadedKey.startsWith(`chat/${roomId}/`)) {
+          return json({ ok: false, error: 'Invalid media reference' }, 400);
+        }
+        const head = await env.MY_BUCKET.head(preUploadedKey);
+        if (!head) return json({ ok: false, error: 'Uploaded media not found' }, 400);
+        mediaKey = preUploadedKey;
+      } else {
+        let ext = (upName && upName.includes('.')) ? upName.split('.').pop().toLowerCase() : '';
+        // Camera captures / blobs often arrive without a usable extension, which
+        // left videos stored as ".bin" and mis-rendered as broken images. Derive
+        // the extension from the content-type instead.
+        if (!ext || ext.length > 5 || /[^a-z0-9]/.test(ext)) {
+          const ct = (upType || '').toLowerCase();
+          if (ct === 'video/quicktime') ext = 'mov';
+          else if (ct.startsWith('video/')) ext = ct.split('/')[1] || 'mp4';
+          else if (ct.startsWith('image/')) ext = (ct.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+          else if (ct.startsWith('audio/')) ext = ct.split('/')[1] || 'm4a';
+          else ext = 'bin';
+        }
+        mediaKey = `chat/${roomId}/${Date.now()}_${crypto.randomUUID()}.${ext}`;
+        try {
+          // rawStream pipes through R2 without buffering; a multipart part is
+          // already in memory, so read its bytes as before.
+          await env.MY_BUCKET.put(mediaKey, rawStream ? rawStream : await file.arrayBuffer(), {
+            httpMetadata: { contentType: upType || 'application/octet-stream' },
+          });
+        } catch (uploadErr) {
+          return json({ ok: false, error: 'Media upload failed: ' + uploadErr.message }, 500);
+        }
       }
     }
 

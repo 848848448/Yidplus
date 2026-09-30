@@ -3935,6 +3935,69 @@ window._sendMultiMedia = function () {
   next();
 };
 
+// Send one media blob into the current room and resolve when the message is
+// sent. Small files go in a single streaming request (api.postRaw). Large ones
+// are sliced into parts that R2's multipart API reassembles server-side (see
+// /api/chat/mpu), so even a 500MB video gets through on the Cloudflare Free
+// plan, whose limit is 100MB *per request* — not per file. Once the object is
+// assembled the message is posted to /chat with a media_key referencing it.
+function _sendChatMedia(blob, type, text, filename) {
+  var room = CHAT_curRoom.id;
+  var topic = CHAT_curTopicId || null;
+  var ct = blob.type || 'application/octet-stream';
+  var SINGLE_MAX = 80 * 1024 * 1024; // one request, safely under the 100MB cap
+
+  if (blob.size <= SINGLE_MAX) {
+    var qs = '?room_id=' + encodeURIComponent(room) +
+      '&type=' + encodeURIComponent(type) +
+      '&text=' + encodeURIComponent(text) +
+      '&filename=' + encodeURIComponent(filename) +
+      (topic ? '&topic_id=' + encodeURIComponent(topic) : '');
+    return api.postRaw('/chat' + qs, blob, ct);
+  }
+
+  var CHUNK = 48 * 1024 * 1024; // ≥5MiB (R2's minimum part) and under 100MB/request
+  var key, uploadId;
+  return api.post('/chat/mpu?action=create', {
+    room_id: room, type: type, filename: filename, content_type: ct,
+  }).then(function (res) {
+    key = res.key; uploadId = res.upload_id;
+    var total = blob.size;
+    var partCount = Math.ceil(total / CHUNK);
+    var parts = [];
+    var i = 0;
+    function nextPart() {
+      if (i >= partCount) return null; // all parts sent
+      var start = i * CHUNK;
+      var chunk = blob.slice(start, Math.min(start + CHUNK, total));
+      var partNo = i + 1;
+      return api.postRaw(
+        '/chat/mpu?action=part&key=' + encodeURIComponent(key) +
+        '&upload_id=' + encodeURIComponent(uploadId) + '&part=' + partNo,
+        chunk, ct
+      ).then(function (pr) {
+        parts.push({ partNumber: partNo, etag: pr.etag });
+        i++;
+        return nextPart();
+      });
+    }
+    return Promise.resolve(nextPart()).then(function () {
+      return api.post('/chat/mpu?action=complete', { key: key, upload_id: uploadId, parts: parts });
+    });
+  }).then(function () {
+    // Object is assembled — now send the actual message referencing it.
+    var payload = { room_id: room, type: type, text: text, media_key: key };
+    if (topic) payload.topic_id = topic;
+    return api.post('/chat', payload);
+  }).catch(function (err) {
+    // Best-effort cleanup so a half-finished upload doesn't linger in R2.
+    if (key && uploadId) {
+      try { api.post('/chat/mpu?action=abort', { key: key, upload_id: uploadId }); } catch (e) {}
+    }
+    throw err;
+  });
+}
+
 function _uploadOneFile(file, caption, done) {
   // done() is an optional callback fired (on success OR failure) once this
   // file has settled — used to chain a multi-file batch sequentially.
@@ -3965,17 +4028,7 @@ function _uploadOneFile(file, caption, done) {
   if (!checkFileSize(file, 500, 'File')) { if (done) done(); return; }
 
   watermarkFile(file).then(function (watermarked) {
-    // Stream the bytes straight to R2 (see api.postRaw) rather than wrapping
-    // them in a multipart FormData the Worker would have to buffer whole —
-    // that buffering is what capped chat media at ~100MB. Metadata goes in
-    // the query string; the body is the raw file.
-    var qs = '?room_id=' + encodeURIComponent(CHAT_curRoom.id) +
-      '&type=' + encodeURIComponent(type) +
-      '&text=' + encodeURIComponent(text) +
-      '&filename=' + encodeURIComponent(file.name || '') +
-      (CHAT_curTopicId ? '&topic_id=' + encodeURIComponent(CHAT_curTopicId) : '');
-    var ct = watermarked.type || file.type || 'application/octet-stream';
-    return api.postRaw('/chat' + qs, watermarked, ct);
+    return _sendChatMedia(watermarked, type, text, file.name || '');
   })
     .then(function () {
       CHAT_messages = CHAT_messages.filter(function (m) { return m.id !== tempId; });
