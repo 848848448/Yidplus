@@ -10,10 +10,29 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
+// Create the hot-path indexes once per isolate so the shorts feed doesn't do a
+// full table scan + sort on every load (the admin "Optimize" button adds the
+// same ones, but this way they exist without anyone having to press it).
+let _shortsIdxReady = false;
+async function ensureShortsSchema(env) {
+  if (_shortsIdxReady) return;
+  _shortsIdxReady = true;
+  try {
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_shorts_created ON shorts(created_at)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_shorts_owner_created ON shorts(owner_id, created_at)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_short_likes_short ON short_likes(short_id)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_short_likes_user ON short_likes(user_id)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_short_comments_short ON short_comments(short_id, created_at)').run().catch(() => {});
+    // The feed hides blocked users' shorts via `user_blocks WHERE blocker_id = ?`.
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_blocks_blocker ON user_blocks(blocker_id)').run().catch(() => {});
+  } catch (e) { _shortsIdxReady = false; }
+}
+
 export async function onRequestGet(context) {
   const { request, env } = context;
 
   try {
+    await ensureShortsSchema(env);
     const user = await requireUser(request, env).catch(() => null);
     const url = new URL(request.url);
     const singleId = url.searchParams.get('id');
