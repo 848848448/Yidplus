@@ -170,6 +170,19 @@ export async function onRequestPost(context) {
       if (!key || !uploadId || !partNumber || partNumber < 1) {
         return json({ ok: false, error: 'key, upload_id and part are required' }, 400);
       }
+      // Bound the assembled object server-side so the 500MB limit can't be
+      // bypassed by a crafted client: the browser sends ~48MB chunks, so the
+      // real upload needs ~11 parts. Cap the count and each part's size; the
+      // ceiling (MAX_PARTS * MAX_PART_BYTES) stays comfortably near the limit.
+      const MAX_PARTS = 12;
+      const MAX_PART_BYTES = 52 * 1024 * 1024;
+      if (partNumber > MAX_PARTS) {
+        return json({ ok: false, error: 'File too large (max 500MB)' }, 413);
+      }
+      const partLen = parseInt(request.headers.get('content-length') || '0', 10);
+      if (partLen > MAX_PART_BYTES) {
+        return json({ ok: false, error: 'Chunk too large' }, 413);
+      }
       const auth = await authorizeKey(env, user, key);
       if (auth.error) return auth.error;
       if (!request.body) return json({ ok: false, error: 'Empty chunk' }, 400);

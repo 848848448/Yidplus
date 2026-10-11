@@ -333,20 +333,8 @@ export async function onRequestPost(context) {
       topicId   = form.get('topic_id') || null;
       scheduledFor = form.get('scheduled_for') || null;
       disappearSeconds = parseInt(form.get('disappear_seconds') || '0', 10) || 0;
-    } else if (contentType.startsWith('image/') || contentType.startsWith('video/') || contentType.startsWith('audio/') || contentType.startsWith('application/octet-stream')) {
-      const u = new URL(request.url);
-      roomId    = u.searchParams.get('room_id');
-      type      = u.searchParams.get('type') || 'media';
-      text      = u.searchParams.get('text') || '';
-      replyToId = u.searchParams.get('reply_to_id') || null;
-      viewOnce  = u.searchParams.get('view_once') === 'true' || u.searchParams.get('view_once') === '1';
-      topicId   = u.searchParams.get('topic_id') || null;
-      scheduledFor = u.searchParams.get('scheduled_for') || null;
-      disappearSeconds = parseInt(u.searchParams.get('disappear_seconds') || '0', 10) || 0;
-      rawName   = u.searchParams.get('filename') || '';
-      rawType   = contentType;
-      rawStream = request.body;
-    } else {
+    } else if (!contentType || contentType.includes('application/json')) {
+      // Text message, forward, or a media_key referencing an mpu upload.
       const body = await request.json();
       roomId    = body.room_id;
       type      = body.type || 'text';
@@ -357,6 +345,23 @@ export async function onRequestPost(context) {
       scheduledFor = body.scheduled_for || null;
       disappearSeconds = parseInt(body.disappear_seconds || 0, 10) || 0;
       preUploadedKey = body.media_key || null;
+    } else {
+      // Any other content-type is a raw binary body streamed straight to R2
+      // (images, video, audio, and documents like PDFs alike). Metadata rides
+      // in the query string; the real media type is passed as ?ct= because the
+      // Content-Type header carries the payload's own type.
+      const u = new URL(request.url);
+      roomId    = u.searchParams.get('room_id');
+      type      = u.searchParams.get('type') || 'media';
+      text      = u.searchParams.get('text') || '';
+      replyToId = u.searchParams.get('reply_to_id') || null;
+      viewOnce  = u.searchParams.get('view_once') === 'true' || u.searchParams.get('view_once') === '1';
+      topicId   = u.searchParams.get('topic_id') || null;
+      scheduledFor = u.searchParams.get('scheduled_for') || null;
+      disappearSeconds = parseInt(u.searchParams.get('disappear_seconds') || '0', 10) || 0;
+      rawName   = u.searchParams.get('filename') || '';
+      rawType   = u.searchParams.get('ct') || contentType;
+      rawStream = request.body;
     }
 
     // Validate scheduled time: must be a valid future ISO timestamp, at most

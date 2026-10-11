@@ -67,9 +67,13 @@ export async function onRequest(context) {
     return _deny(405);
   }
 
-  // ── Layer 4: cap request body size (~505MB) against memory exhaustion ──
+  // ── Layer 4: cap request body size (~105MB) against memory exhaustion ──
+  // No single request should exceed this: large chat media is sent either as
+  // one <=80MB streamed body or as <=48MB chunks (see /api/chat/mpu), so a
+  // 500MB video never arrives in one request. Keeping the cap here protects
+  // the still-buffering paths (multipart form uploads) from OOMing the isolate.
   const clen = parseInt(request.headers.get('content-length') || '0', 10);
-  if (clen > 505 * 1024 * 1024) return _deny(413);
+  if (clen > 105 * 1024 * 1024) return _deny(413);
 
   // ── Read-only impersonation guard ──
   // If this session is an owner "viewing as" a user, block every write. The

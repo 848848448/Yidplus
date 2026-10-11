@@ -3776,8 +3776,12 @@ function _sendChatMedia(blob, type, text, filename) {
       '&type=' + encodeURIComponent(type) +
       '&text=' + encodeURIComponent(text) +
       '&filename=' + encodeURIComponent(filename) +
+      '&ct=' + encodeURIComponent(ct) +
       (topic ? '&topic_id=' + encodeURIComponent(topic) : '');
-    return api.postRaw('/chat' + qs, blob, ct);
+    // Always send as octet-stream so the server never mistakes a file whose
+    // own MIME is application/json (a .json attachment) for a JSON message —
+    // the real type travels in ?ct=.
+    return api.postRaw('/chat' + qs, blob, 'application/octet-stream');
   }
 
   var CHUNK = 48 * 1024 * 1024; // ≥5MiB (R2's minimum part) and under 100MB/request
@@ -3815,8 +3819,10 @@ function _sendChatMedia(blob, type, text, filename) {
     return api.post('/chat', payload);
   }).catch(function (err) {
     // Best-effort cleanup so a half-finished upload doesn't linger in R2.
+    // Swallow the abort's own rejection (the network is likely down if we got
+    // here) so it doesn't surface as an unhandled promise rejection.
     if (key && uploadId) {
-      try { api.post('/chat/mpu?action=abort', { key: key, upload_id: uploadId }); } catch (e) {}
+      api.post('/chat/mpu?action=abort', { key: key, upload_id: uploadId }).catch(function () {});
     }
     throw err;
   });
@@ -3847,8 +3853,8 @@ function _uploadOneFile(file, caption, done) {
     scrollToBottom();
   }
 
-  // The request is capped at 505MB before it ever reaches the handler, so a
-  // bigger file is a long upload that can only end in a rejection.
+  // 500MB ceiling. Files over ~80MB are uploaded in chunks (see _sendChatMedia);
+  // the server also enforces this limit on the chunked path.
   if (!checkFileSize(file, 500, 'File')) { if (done) done(); return; }
 
   watermarkFile(file).then(function (watermarked) {
