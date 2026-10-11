@@ -107,6 +107,21 @@ window.api = {
     api.bust(path.split('?')[0]);
     return fetch(CONFIG.API_BASE + path, opts).then(handleRes);
   },
+  // Streaming upload: send the raw file bytes AS the request body (no
+  // multipart wrapper) so the server can pipe them straight into R2 instead
+  // of buffering the whole file in memory. This is what makes large videos
+  // (up to the 500MB cap) actually go through — a multipart FormData upload
+  // is buffered end to end on the Worker and dies on its memory ceiling long
+  // before then. Metadata rides in the query string.
+  postRaw: function (path, blob, contentType) {
+    api.bust(path.split('?')[0]);
+    return fetch(CONFIG.API_BASE + path, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': contentType || 'application/octet-stream' },
+      body: blob,
+    }).then(handleRes);
+  },
   put: function (path, body, isForm) {
     var opts = { method: 'PUT', credentials: 'include' };
     if (isForm) {

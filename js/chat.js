@@ -3223,7 +3223,6 @@ window.toggleVoiceRec = function () {
         CHAT_recStart  = Date.now();
         CHAT_isRecording = true;
         CHAT_recCancelled = false;
-        CHAT_recLocked = false;
         var btn = document.getElementById('voice-rec-btn');
         if (btn) btn.classList.add('rec');
         _showRecordingBar();
@@ -3338,171 +3337,12 @@ window.toggleVoiceRec = function () {
 };
 window.startVoiceRec = window.toggleVoiceRec;
 
-// ── WhatsApp-style hold-to-record with slide gestures ──
-var CHAT_recCancelled      = false;
-var CHAT_recLocked         = false;
-var CHAT_micStartX         = 0;
-var CHAT_micStartY         = 0;
-var CHAT_micDragActive     = false;
-var CHAT_recPendingCancel  = false;
-
-var _CANCEL_THRESHOLD = 100;   // px slide left to cancel
-var _LOCK_THRESHOLD   = 70;    // px slide up to lock
-
-window._micTouchStart = function (e) {
-  var inp = document.getElementById('chat-input');
-  if (inp && (inp.value || '').trim().length > 0) { CHAT_micDragActive = false; return; }
-  e.preventDefault();
-  var t = e.touches[0];
-  CHAT_micStartX = t.clientX;
-  CHAT_micStartY = t.clientY;
-  CHAT_micDragActive = true;
-  CHAT_recPendingCancel = false;
-
-  var btn = document.getElementById('voice-rec-btn');
-  if (btn) btn.classList.add('held');
-
-  if (!CHAT_isRecording) toggleVoiceRec();
-};
-
-window._micTouchMove = function (e) {
-  if (!CHAT_micDragActive || !CHAT_isRecording || CHAT_recLocked) return;
-  e.preventDefault();
-  var t = e.touches[0];
-  var dx = t.clientX - CHAT_micStartX;
-  var dy = t.clientY - CHAT_micStartY;
-
-  // ── Slide LEFT → cancel zone ──
-  var trash = document.getElementById('rec-trash-zone');
-  var hint = document.getElementById('rec-slide-hint');
-  if (dx < -_CANCEL_THRESHOLD) {
-    CHAT_recPendingCancel = true;
-    if (trash) trash.classList.add('active');
-    if (hint) hint.style.opacity = '0';
-  } else {
-    CHAT_recPendingCancel = false;
-    if (trash) trash.classList.remove('active');
-    if (hint) {
-      var progress = Math.min(Math.abs(dx) / _CANCEL_THRESHOLD, 1);
-      hint.style.opacity = String(1 - progress * 0.7);
-      hint.style.transform = 'translateX(' + Math.min(dx * 0.3, 0) + 'px)';
-    }
-  }
-
-  // ── Slide UP → lock ──
-  var lockPill = document.getElementById('rec-lock-pill');
-  if (dy < -_LOCK_THRESHOLD) {
-    _lockVoiceRecording();
-  } else if (lockPill) {
-    var lockProgress = Math.min(Math.abs(Math.min(dy, 0)) / _LOCK_THRESHOLD, 1);
-    if (lockProgress > 0.5) lockPill.classList.add('near');
-    else lockPill.classList.remove('near');
-    var lockIcon = document.getElementById('rec-lock-icon');
-    if (lockIcon) lockIcon.style.transform = 'translateY(' + Math.max(dy * 0.4, -20) + 'px)';
-  }
-};
-
-window._micTouchEnd = function (e) {
-  var btn = document.getElementById('voice-rec-btn');
-  if (btn) btn.classList.remove('held');
-
-  if (!CHAT_micDragActive) return;
-  CHAT_micDragActive = false;
-
-  if (CHAT_recLocked) return;
-  if (!CHAT_isRecording) return;
-
-  if (CHAT_recPendingCancel) {
-    cancelVoiceRec();
-  } else {
-    toggleVoiceRec(); // stop + send
-  }
-  CHAT_recPendingCancel = false;
-};
-
-// Also handle mouse for desktop
-window._micMouseDown = function (e) {
-  var inp = document.getElementById('chat-input');
-  if (inp && (inp.value || '').trim().length > 0) return;
-  e.preventDefault();
-  CHAT_micStartX = e.clientX;
-  CHAT_micStartY = e.clientY;
-  CHAT_micDragActive = true;
-  CHAT_recPendingCancel = false;
-
-  var btn = document.getElementById('voice-rec-btn');
-  if (btn) btn.classList.add('held');
-
-  if (!CHAT_isRecording) toggleVoiceRec();
-
-  function onMove(ev) {
-    if (!CHAT_micDragActive || !CHAT_isRecording || CHAT_recLocked) return;
-    var dx = ev.clientX - CHAT_micStartX;
-    var dy = ev.clientY - CHAT_micStartY;
-
-    var trash = document.getElementById('rec-trash-zone');
-    var hint = document.getElementById('rec-slide-hint');
-    if (dx < -_CANCEL_THRESHOLD) {
-      CHAT_recPendingCancel = true;
-      if (trash) trash.classList.add('active');
-      if (hint) hint.style.opacity = '0';
-    } else {
-      CHAT_recPendingCancel = false;
-      if (trash) trash.classList.remove('active');
-      if (hint) {
-        var progress = Math.min(Math.abs(dx) / _CANCEL_THRESHOLD, 1);
-        hint.style.opacity = String(1 - progress * 0.7);
-      }
-    }
-
-    if (dy < -_LOCK_THRESHOLD) {
-      _lockVoiceRecording();
-    }
-  }
-
-  function onUp() {
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-    var b = document.getElementById('voice-rec-btn');
-    if (b) b.classList.remove('held');
-    if (!CHAT_micDragActive) return;
-    CHAT_micDragActive = false;
-    if (CHAT_recLocked) return;
-    if (!CHAT_isRecording) return;
-    if (CHAT_recPendingCancel) cancelVoiceRec();
-    else toggleVoiceRec();
-    CHAT_recPendingCancel = false;
-  }
-
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
-};
-
-function _lockVoiceRecording() {
-  CHAT_recLocked = true;
-  CHAT_micDragActive = false;
-  var btn = document.getElementById('voice-rec-btn');
-  if (btn) btn.classList.remove('held');
-
-  // Hide the hold-mode overlay and lock pill, show the locked bar
-  var overlay = document.getElementById('rec-overlay');
-  if (overlay) overlay.classList.remove('show');
-  var lockPill = document.getElementById('rec-lock-pill');
-  if (lockPill) { lockPill.classList.remove('show', 'near'); }
-  var inputBar = document.getElementById('chat-input-bar');
-  if (inputBar) inputBar.style.display = 'none';
-  var lockedBar = document.getElementById('rec-locked-bar');
-  if (lockedBar) lockedBar.classList.add('show');
-
-  // Build waveform in locked meter
-  _buildRecWaveform(document.getElementById('rec-locked-meter'));
-}
-
-window._stopLockedRec = function () {
-  // Stop button in locked mode — stop recording but don't send, let user review
-  // For simplicity, just send it (WhatsApp also sends on stop in locked mode)
-  stopVoiceRecAndSend();
-};
+// ── Tap-to-record: tap the mic to start, then Cancel or Send from the bar ──
+// Replaced the old hold-to-record + slide-to-cancel/lock gestures: they were
+// fiddly on touch, didn't work with a mouse, and gave no clear way to cancel.
+// Now a tap starts recording and swaps the input bar for a recording bar that
+// has an explicit trash (cancel) button and a send button.
+var CHAT_recCancelled = false;
 
 window.stopVoiceRecAndSend = function () {
   CHAT_recCancelled = false;
@@ -3517,7 +3357,7 @@ window.cancelVoiceRec = function () {
 // ── Recording bar waveform bars ──
 var REC_BAR_COUNT = 40;
 function _buildRecWaveform(meter) {
-  if (!meter) meter = document.getElementById('rec-live-meter');
+  if (!meter) meter = document.getElementById('rec-locked-meter');
   if (!meter) return;
   meter.innerHTML = '';
   for (var i = 0; i < REC_BAR_COUNT; i++) {
@@ -3528,46 +3368,32 @@ function _buildRecWaveform(meter) {
   }
 }
 
+// Swap the input bar for the recording bar (trash + live waveform + send).
 function _showRecordingBar() {
-  _buildRecWaveform();
-  // Show the overlay inside the input bar
-  var overlay = document.getElementById('rec-overlay');
-  if (overlay) overlay.classList.add('show');
-  // Show the lock pill above the mic button
-  var lockPill = document.getElementById('rec-lock-pill');
-  if (lockPill) { lockPill.classList.add('show'); lockPill.classList.remove('near'); }
-  // Reset slide hint
-  var hint = document.getElementById('rec-slide-hint');
-  if (hint) { hint.style.opacity = '1'; hint.style.transform = 'none'; }
-  // Reset trash zone
-  var trash = document.getElementById('rec-trash-zone');
-  if (trash) trash.classList.remove('active');
+  _recBarVals = new Array(REC_BAR_COUNT).fill(0.05);
+  _buildRecWaveform(document.getElementById('rec-locked-meter'));
+  var lockedTime = document.getElementById('rec-locked-time');
+  if (lockedTime) lockedTime.textContent = '0:00';
+  var inputBar = document.getElementById('chat-input-bar');
+  if (inputBar) inputBar.style.display = 'none';
+  var lockedBar = document.getElementById('rec-locked-bar');
+  if (lockedBar) lockedBar.classList.add('show');
 }
 
 function _hideRecordingBar() {
-  var overlay = document.getElementById('rec-overlay');
-  if (overlay) overlay.classList.remove('show');
-  var lockPill = document.getElementById('rec-lock-pill');
-  if (lockPill) { lockPill.classList.remove('show', 'near'); }
-  var lockIcon = document.getElementById('rec-lock-icon');
-  if (lockIcon) lockIcon.style.transform = '';
-  // Hide locked bar, restore input bar
   var lockedBar = document.getElementById('rec-locked-bar');
   if (lockedBar) lockedBar.classList.remove('show');
   var inputBar = document.getElementById('chat-input-bar');
   if (inputBar) inputBar.style.display = '';
 }
 
-// Shift bars left and add new one — like Telegram/WhatsApp live waveform
+// Shift bars left and add the newest level — a live Telegram/WhatsApp waveform.
 var _recBarVals = new Array(REC_BAR_COUNT).fill(0.05);
 function _updateRecordingBar(level) {
   _recBarVals.shift();
   _recBarVals.push(Math.max(0.04, level));
-  // Update both the hold-mode meter and locked-mode meter
-  var meters = [document.getElementById('rec-live-meter'), document.getElementById('rec-locked-meter')];
-  for (var m = 0; m < meters.length; m++) {
-    var meter = meters[m];
-    if (!meter) continue;
+  var meter = document.getElementById('rec-locked-meter');
+  if (meter) {
     var bars = meter.querySelectorAll('.rec-waveform-bar');
     for (var i = 0; i < bars.length; i++) {
       bars[i].style.height = Math.max(3, Math.round(_recBarVals[i] * 28)) + 'px';
@@ -3576,8 +3402,6 @@ function _updateRecordingBar(level) {
   }
   var elapsed = Math.round((Date.now() - CHAT_recStart) / 1000);
   var timeStr = Math.floor(elapsed / 60) + ':' + String(elapsed % 60).padStart(2, '0');
-  var timeEl = document.getElementById('rec-live-time');
-  if (timeEl) timeEl.textContent = timeStr;
   var lockedTime = document.getElementById('rec-locked-time');
   if (lockedTime) lockedTime.textContent = timeStr;
 }
@@ -3935,6 +3759,75 @@ window._sendMultiMedia = function () {
   next();
 };
 
+// Send one media blob into the current room and resolve when the message is
+// sent. Small files go in a single streaming request (api.postRaw). Large ones
+// are sliced into parts that R2's multipart API reassembles server-side (see
+// /api/chat/mpu), so even a 500MB video gets through on the Cloudflare Free
+// plan, whose limit is 100MB *per request* — not per file. Once the object is
+// assembled the message is posted to /chat with a media_key referencing it.
+function _sendChatMedia(blob, type, text, filename) {
+  var room = CHAT_curRoom.id;
+  var topic = CHAT_curTopicId || null;
+  var ct = blob.type || 'application/octet-stream';
+  var SINGLE_MAX = 80 * 1024 * 1024; // one request, safely under the 100MB cap
+
+  if (blob.size <= SINGLE_MAX) {
+    var qs = '?room_id=' + encodeURIComponent(room) +
+      '&type=' + encodeURIComponent(type) +
+      '&text=' + encodeURIComponent(text) +
+      '&filename=' + encodeURIComponent(filename) +
+      '&ct=' + encodeURIComponent(ct) +
+      (topic ? '&topic_id=' + encodeURIComponent(topic) : '');
+    // Always send as octet-stream so the server never mistakes a file whose
+    // own MIME is application/json (a .json attachment) for a JSON message —
+    // the real type travels in ?ct=.
+    return api.postRaw('/chat' + qs, blob, 'application/octet-stream');
+  }
+
+  var CHUNK = 48 * 1024 * 1024; // ≥5MiB (R2's minimum part) and under 100MB/request
+  var key, uploadId;
+  return api.post('/chat/mpu?action=create', {
+    room_id: room, type: type, filename: filename, content_type: ct,
+  }).then(function (res) {
+    key = res.key; uploadId = res.upload_id;
+    var total = blob.size;
+    var partCount = Math.ceil(total / CHUNK);
+    var parts = [];
+    var i = 0;
+    function nextPart() {
+      if (i >= partCount) return null; // all parts sent
+      var start = i * CHUNK;
+      var chunk = blob.slice(start, Math.min(start + CHUNK, total));
+      var partNo = i + 1;
+      return api.postRaw(
+        '/chat/mpu?action=part&key=' + encodeURIComponent(key) +
+        '&upload_id=' + encodeURIComponent(uploadId) + '&part=' + partNo,
+        chunk, ct
+      ).then(function (pr) {
+        parts.push({ partNumber: partNo, etag: pr.etag });
+        i++;
+        return nextPart();
+      });
+    }
+    return Promise.resolve(nextPart()).then(function () {
+      return api.post('/chat/mpu?action=complete', { key: key, upload_id: uploadId, parts: parts });
+    });
+  }).then(function () {
+    // Object is assembled — now send the actual message referencing it.
+    var payload = { room_id: room, type: type, text: text, media_key: key };
+    if (topic) payload.topic_id = topic;
+    return api.post('/chat', payload);
+  }).catch(function (err) {
+    // Best-effort cleanup so a half-finished upload doesn't linger in R2.
+    // Swallow the abort's own rejection (the network is likely down if we got
+    // here) so it doesn't surface as an unhandled promise rejection.
+    if (key && uploadId) {
+      api.post('/chat/mpu?action=abort', { key: key, upload_id: uploadId }).catch(function () {});
+    }
+    throw err;
+  });
+}
+
 function _uploadOneFile(file, caption, done) {
   // done() is an optional callback fired (on success OR failure) once this
   // file has settled — used to chain a multi-file batch sequentially.
@@ -3960,18 +3853,12 @@ function _uploadOneFile(file, caption, done) {
     scrollToBottom();
   }
 
-  // The request is capped at 105MB before it ever reaches the handler, so a
-  // bigger file is a long upload that can only end in a rejection.
-  if (!checkFileSize(file, 100, 'File')) { if (done) done(); return; }
+  // 500MB ceiling. Files over ~80MB are uploaded in chunks (see _sendChatMedia);
+  // the server also enforces this limit on the chunked path.
+  if (!checkFileSize(file, 500, 'File')) { if (done) done(); return; }
 
   watermarkFile(file).then(function (watermarked) {
-    var form = new FormData();
-    form.append('room_id', CHAT_curRoom.id);
-    form.append('type', type);
-    form.append('text', text);
-    form.append('file', watermarked);
-    if (CHAT_curTopicId) form.append('topic_id', CHAT_curTopicId);
-    return api.post('/chat', form, true);
+    return _sendChatMedia(watermarked, type, text, file.name || '');
   })
     .then(function () {
       CHAT_messages = CHAT_messages.filter(function (m) { return m.id !== tempId; });
