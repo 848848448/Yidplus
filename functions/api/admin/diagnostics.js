@@ -8,7 +8,7 @@
 //
 // status: 'ok' | 'warn' | 'fail' | 'skip'
 
-import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner, getConfig } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -50,12 +50,15 @@ export async function onRequestGet(context) {
               : 'VAPID keys missing — push notifications AND the attack alerts to your phone will not send.',
       vapidOk ? '' : 'Add VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY secrets.');
 
-    const resendOk = has(env.RESEND_API_KEY) && has(env.RESEND_FROM_EMAIL);
-    add('Configuration', 'Email sending (Resend)', resendOk ? 'ok' : 'warn',
+    // Read from env var OR the admin "Config & Keys" panel (same as the senders).
+    const _resendKey = await getConfig(env, 'RESEND_API_KEY');
+    const _resendFrom = await getConfig(env, 'RESEND_FROM_EMAIL');
+    const resendOk = has(_resendKey) && has(_resendFrom);
+    add('Configuration', 'Email sending (Resend)', resendOk ? 'ok' : (has(_resendKey) ? 'warn' : 'warn'),
       resendOk ? 'Email is configured — verification, password resets and blasts can send.'
-               : (has(env.RESEND_API_KEY) ? 'RESEND_FROM_EMAIL is missing — emails will fail to send.'
-                                          : 'RESEND_API_KEY missing — no email (verification, password reset) will send.'),
-      resendOk ? '' : 'Add RESEND_API_KEY and RESEND_FROM_EMAIL secrets.');
+               : (has(_resendKey) ? 'RESEND_FROM_EMAIL is not set — using the resend.dev test address, which only delivers to your own Resend account email. Set a verified From address for real delivery.'
+                                  : 'RESEND_API_KEY missing — no email (verification, password reset, bot) will send. Add it in Admin → Config & Keys.'),
+      resendOk ? '' : 'Set RESEND_API_KEY (and a verified RESEND_FROM_EMAIL) in Admin → Config & Keys or as Cloudflare secrets.');
 
     const googleOk = has(env.GOOGLE_CLIENT_ID) && has(env.GOOGLE_CLIENT_SECRET);
     add('Configuration', 'Google sign-in', googleOk ? 'ok' : 'warn',

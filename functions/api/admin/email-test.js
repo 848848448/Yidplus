@@ -4,7 +4,7 @@
 //   API response (status + body), so delivery problems can be diagnosed
 //   precisely instead of guessing. Also reports which config is present.
 
-import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner, getConfig } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -22,9 +22,12 @@ export async function onRequestPost(context) {
     const to = (body.to || user.email || '').trim();
     if (!to) return json({ ok: false, error: 'No recipient' }, 400);
 
-    const hasKey = !!env.RESEND_API_KEY;
-    const fromConfigured = !!env.RESEND_FROM_EMAIL;
-    const fromAddr = env.RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>';
+    // Resend config can live in a Cloudflare env var OR the admin panel (DB).
+    const RESEND_API_KEY = await getConfig(env, 'RESEND_API_KEY');
+    const RESEND_FROM_EMAIL = await getConfig(env, 'RESEND_FROM_EMAIL');
+    const hasKey = !!RESEND_API_KEY;
+    const fromConfigured = !!RESEND_FROM_EMAIL;
+    const fromAddr = RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>';
 
     // Report config even if we can't send.
     const config = {
@@ -34,13 +37,13 @@ export async function onRequestPost(context) {
     };
 
     if (!hasKey) {
-      return json({ ok: true, delivered: false, config, hint: 'RESEND_API_KEY is not set in Cloudflare — no email can be sent. Add it in Cloudflare > your project > Settings > Environment Variables, then redeploy.' });
+      return json({ ok: true, delivered: false, config, hint: 'RESEND_API_KEY is not set. Add it in Admin → Config & Keys, or as a Cloudflare environment variable, then try again.' });
     }
 
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

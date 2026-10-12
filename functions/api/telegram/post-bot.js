@@ -3,7 +3,7 @@
 // account once (email + emailed code), then sends the bot a photo/video/text and
 // picks — via inline buttons — where to post it. Everything is published UNDER
 // THEIR OWN account. Uses its own token: TELEGRAM_POST_BOT_TOKEN.
-import { json } from '../_helpers.js';
+import { json, getConfig } from '../_helpers.js';
 
 const API = (env) => `https://api.telegram.org/bot${env.TELEGRAM_POST_BOT_TOKEN}`;
 
@@ -35,8 +35,12 @@ async function setState(env, tgId, step, data) {
 const clearState = (env, tgId) => env.DB.prepare('DELETE FROM telegram_bot_state WHERE telegram_user_id = ?').bind(tgId).run().catch(() => {});
 
 async function sendCodeEmail(env, email, code, nick) {
-  if (!env.RESEND_API_KEY) return false;
-  const from = env.RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>';
+  // Read the key from either a Cloudflare env var OR the admin "Config & Keys"
+  // panel (DB) — otherwise a key set only in the panel means the code email
+  // silently never sends and linking the bot looks broken.
+  const RESEND_API_KEY = await getConfig(env, 'RESEND_API_KEY');
+  if (!RESEND_API_KEY) return false;
+  const from = (await getConfig(env, 'RESEND_FROM_EMAIL')) || 'YID PLUS <onboarding@resend.dev>';
   const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:16px">
       <h2 style="color:#14503F">Link your Telegram</h2>
       <p style="font-size:15px;color:#222">Hi ${nick || ''}, your code to connect the YID PLUS posting bot is:</p>
@@ -44,7 +48,7 @@ async function sendCodeEmail(env, email, code, nick) {
       <p style="font-size:13px;color:#888">If you didn't request this, ignore this email.</p></div>`;
   const resp = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ from, to: [email], subject: 'Your YID PLUS bot code', html }),
   }).catch(() => null);
   return !!(resp && resp.ok);

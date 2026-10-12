@@ -2,7 +2,7 @@
 // Owner-only: send an email to every registered user via Resend (batched).
 //   POST { subject, message }  -> { ok, sent, total }
 
-import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isOwnerOrCoOwner, getConfig } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -18,7 +18,8 @@ export async function onRequestPost(context) {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
     if (!isOwnerOrCoOwner(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Owner only' }, 403);
-    if (!env.RESEND_API_KEY) return json({ ok: false, error: 'Email is not configured (RESEND_API_KEY missing)' }, 500);
+    const RESEND_API_KEY = await getConfig(env, 'RESEND_API_KEY');
+    if (!RESEND_API_KEY) return json({ ok: false, error: 'Email is not configured (RESEND_API_KEY missing)' }, 500);
 
     const body = await request.json();
     const subject = (body.subject || '').trim();
@@ -31,7 +32,7 @@ export async function onRequestPost(context) {
     const emails = [...new Set(users.map(u => u.email).filter(Boolean))];
     if (!emails.length) return json({ ok: true, sent: 0, total: 0 });
 
-    const from = env.RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>';
+    const from = (await getConfig(env, 'RESEND_FROM_EMAIL')) || 'YID PLUS <onboarding@resend.dev>';
     const html =
       `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:16px">
          <h2 style="color:#14503F">${esc(subject)}</h2>
@@ -48,7 +49,7 @@ export async function onRequestPost(context) {
         const resp = await fetch('https://api.resend.com/emails/batch', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+            'Authorization': `Bearer ${RESEND_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(chunk),

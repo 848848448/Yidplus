@@ -1,11 +1,14 @@
 // Internal helper, called by register.js — sends a verification email via Resend.
 // Also exposed as POST /api/auth/send-verification { email } for "resend" button.
-import { json, corsHeaders, requireUser } from '../_helpers.js';
+import { json, corsHeaders, requireUser, getConfig } from '../_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
 export async function sendVerificationEmail(env, userId, email, origin) {
-  if (!env.RESEND_API_KEY) {
+  // Key can be a Cloudflare env var OR set in the admin "Config & Keys" panel.
+  const RESEND_API_KEY = await getConfig(env, 'RESEND_API_KEY');
+  const RESEND_FROM_EMAIL = await getConfig(env, 'RESEND_FROM_EMAIL');
+  if (!RESEND_API_KEY) {
     console.warn('[email-verify] RESEND_API_KEY not configured — skipping email');
     return;
   }
@@ -29,13 +32,13 @@ export async function sendVerificationEmail(env, userId, email, origin) {
   const intro    = await setting('email_verify_intro', 'Please confirm your email address to activate your account.');
 
   const fromAddr = fromName
-    ? `${fromName} <${(env.RESEND_FROM_EMAIL || 'onboarding@resend.dev').replace(/^.*<|>.*$/g, '')}>`
-    : (env.RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>');
+    ? `${fromName} <${(RESEND_FROM_EMAIL || 'onboarding@resend.dev').replace(/^.*<|>.*$/g, '')}>`
+    : (RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>');
 
   const resp = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+      'Authorization': `Bearer ${RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({

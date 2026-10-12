@@ -4,7 +4,7 @@
 //   ok:true regardless of whether the email exists, so nobody can use this
 //   to discover which addresses are registered (enumeration).
 
-import { json, corsHeaders, checkRateLimit } from '../_helpers.js';
+import { json, corsHeaders, checkRateLimit, getConfig } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -26,7 +26,9 @@ export async function onRequestPost(context) {
     // Always behave the same whether or not the account exists.
     if (!user) return json({ ok: true });
 
-    if (!env.RESEND_API_KEY) {
+    // Key can be a Cloudflare env var OR set in the admin "Config & Keys" panel.
+    const RESEND_API_KEY = await getConfig(env, 'RESEND_API_KEY');
+    if (!RESEND_API_KEY) {
       console.warn('[password-reset] RESEND_API_KEY not configured — cannot send email');
       return json({ ok: true });
     }
@@ -53,12 +55,12 @@ export async function onRequestPost(context) {
 
     const origin = new URL(request.url).origin;
     const resetUrl = `${origin}/reset-password?token=${token}`;
-    const fromAddr = env.RESEND_FROM_EMAIL || 'YID PLUS <onboarding@resend.dev>';
+    const fromAddr = (await getConfig(env, 'RESEND_FROM_EMAIL')) || 'YID PLUS <onboarding@resend.dev>';
 
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
