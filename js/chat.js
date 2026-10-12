@@ -2848,6 +2848,38 @@ function _reconcileMessages(cont, units, scrollDown) {
   _attachMessageGestures(cont);
 }
 
+// Double-tap / double-click a bubble to ❤️ it (WhatsApp/Instagram comfort).
+var _lastTapT = 0, _lastTapId = null;
+function _floatHeart(x, y) {
+  try {
+    var h = document.createElement('div');
+    h.className = 'tap-heart';
+    h.textContent = '❤️';
+    h.style.left = x + 'px';
+    h.style.top = y + 'px';
+    document.body.appendChild(h);
+    setTimeout(function () { try { h.remove(); } catch (e) {} }, 750);
+  } catch (e) {}
+}
+function _vibrate(ms) { if (navigator.vibrate) { try { navigator.vibrate(ms || 15); } catch (e) {} } }
+// A double-tap on a message reacts with a heart — but never when the tap lands
+// on something interactive (a link, a play button, a video) or on text the user
+// is selecting.
+function _tryDoubleTapReact(bubble, msgId, tgt, x, y) {
+  if (tgt && tgt.closest && tgt.closest('a,button,video,audio,input,textarea,.vn-play-btn,.play-voice,.poll-opt,.reaction-pill')) return false;
+  if (window.getSelection && String(window.getSelection()).length > 0) return false;
+  var now = Date.now();
+  if (_lastTapId === msgId && (now - _lastTapT) < 320) {
+    _lastTapT = 0; _lastTapId = null;
+    _vibrate(18);
+    _floatHeart(x, y);
+    toggleReaction(msgId, '❤️');
+    return true;
+  }
+  _lastTapT = now; _lastTapId = msgId;
+  return false;
+}
+
 // Swipe-right-to-reply + long-press-to-context-menu, both on the same bubble.
 // Telegram pattern: a horizontal drag past ~50px triggers reply on release;
 // a stationary hold past ~500ms opens the context menu instead.
@@ -2865,7 +2897,7 @@ function _attachMessageGestures(cont) {
       dragging = true;
       moved = false;
       longPressTimer = setTimeout(function () {
-        if (!moved) showQuickReact(t, msgId);
+        if (!moved) { _vibrate(15); showQuickReact(t, msgId); }
       }, 500);
     }, { passive: true });
 
@@ -2909,8 +2941,22 @@ function _attachMessageGestures(cont) {
       if (dx < -45) {
         if (window.getSelection && String(window.getSelection()).length > 0) return;
         var msg = CHAT_messages.find(function (m) { return m.id === msgId; });
-        if (msg) _setReply(msg);
+        if (msg) { _vibrate(15); _setReply(msg); }
+        return;
       }
+      // A clean tap (no drag, no long-press) — check for a double-tap ❤️.
+      if (!moved) {
+        var ct = e.changedTouches && e.changedTouches[0];
+        _tryDoubleTapReact(bubble, msgId, (e.target || (ct && document.elementFromPoint(ct.clientX, ct.clientY))), ct ? ct.clientX : 0, ct ? ct.clientY : 0);
+      }
+    });
+
+    // Desktop: double-click a bubble to ❤️ it.
+    bubble.addEventListener('dblclick', function (e) {
+      if (e.target && e.target.closest && e.target.closest('a,button,video,audio,input,textarea,.vn-play-btn,.play-voice,.poll-opt,.reaction-pill')) return;
+      if (window.getSelection && String(window.getSelection()).length > 0) return;
+      _floatHeart(e.clientX, e.clientY);
+      toggleReaction(msgId, '❤️');
     });
 
     // A touch can be cancelled mid-swipe (scroll takeover, incoming call,
