@@ -3742,6 +3742,45 @@ window.uploadCustomSticker = function (file) {
     .finally(function () { document.getElementById('custom-sticker-file-inp').value = ''; });
 };
 
+// Upload a whole pack at once — pick several sticker files together. Each is
+// validated, then uploaded one after another (sequential, so we never fire a
+// dozen requests at once) and the grid refreshes once at the end.
+window.uploadCustomStickers = function (fileList) {
+  var files = Array.prototype.slice.call(fileList || []);
+  var inp = document.getElementById('custom-sticker-file-inp');
+  if (!files.length) { if (inp) inp.value = ''; return; }
+  if (files.length === 1) return uploadCustomSticker(files[0]);
+
+  var valid = files.filter(function (f) {
+    var nm = (f.name || '').toLowerCase();
+    var okType = (f.type && f.type.indexOf('image/') === 0) || /\.(webp|png|gif|apng|jpe?g|avif|bmp|heic|heif)$/i.test(nm);
+    return okType && f.size <= 3 * 1024 * 1024;
+  });
+  var skipped = files.length - valid.length;
+  if (!valid.length) { if (inp) inp.value = ''; return toast('⚠ Choose image stickers (webp, png, gif, jpg) up to 3MB.'); }
+
+  var total = valid.length, failed = 0, i = 0;
+  toast('📤 Uploading ' + total + ' stickers...');
+  function next() {
+    if (i >= valid.length) {
+      if (inp) inp.value = '';
+      _emojiCat(null, 'stickers');
+      var added = total - failed;
+      var msg = '✅ Added ' + added + ' sticker' + (added === 1 ? '' : 's');
+      if (failed) msg += ' · ' + failed + ' failed';
+      if (skipped) msg += ' · ' + skipped + ' skipped';
+      toast(msg);
+      return;
+    }
+    var form = new FormData();
+    form.append('file', valid[i++]);
+    api.post('/chat/stickers', form, true)
+      .catch(function () { failed++; })
+      .finally(next);
+  }
+  next();
+};
+
 window._deleteCustomSticker = function (stickerId) {
   ypConfirm('Delete this sticker?', { danger: true, okText: 'Delete' }).then(function (ok) {
     if (!ok) return;
