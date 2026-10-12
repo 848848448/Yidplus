@@ -3772,9 +3772,12 @@ window.toggleAttach = function (e) {
   document.getElementById('attach-sheet').classList.toggle('open');
 };
 
-window.triggerMediaPick = function (accept, isOnce) {
+window.triggerMediaPick = function (accept, isOnce, capture) {
   var inp = document.getElementById('chat-media-input');
   inp.setAttribute('accept', accept);
+  // capture="environment"/"user" makes the device open its camera directly
+  // instead of the file picker — that's the "Camera" option.
+  if (capture) inp.setAttribute('capture', capture); else inp.removeAttribute('capture');
   inp.dataset.once = isOnce ? '1' : '';
   document.getElementById('attach-sheet').classList.remove('open');
   inp.click();
