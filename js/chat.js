@@ -1263,6 +1263,8 @@ function _mediaViewerLoad(idx) {
   _mediaIdx = idx;
 
   var body = document.getElementById('mv-body');
+  // Quick cross-fade between items so navigating the gallery feels smooth.
+  if (body) { body.style.opacity = '0'; requestAnimationFrame(function () { body.style.opacity = '1'; }); }
   if (item.isVideo) {
     body.innerHTML =
       '<div style="position:relative;width:100%;display:flex;align-items:center;justify-content:center">' +
@@ -2828,6 +2830,9 @@ function _reconcileMessages(cont, units, scrollDown) {
     } else {
       var el = document.createElement('div');
       el.className = 'msg-unit';
+      // Gentle entrance only for messages that arrive while the chat is open —
+      // never the initial history (that would animate the whole list on open).
+      if (!firstRender) el.className += ' msg-in';
       el.dataset.id = u.id;
       el.dataset.sig = u.sig;
       el.innerHTML = u.html;
@@ -3150,6 +3155,15 @@ function _renderTypingBar(typingUsers) {
   if (names.length === 1) text = names[0] + ' is typing...';
   else if (names.length === 2) text = names[0] + ' and ' + names[1] + ' are typing...';
   else text = names.length + ' people are typing...';
+
+  // Show the first typist's avatar (colour + initial, like the message mini-avatars).
+  var av = document.getElementById('typing-av');
+  if (av) {
+    var first = typingUsers[0] || {};
+    av.style.background = avatarColor(first.user_id || first.user_nick || '?');
+    av.textContent = (first.user_nick || '?').slice(0, 1).toUpperCase();
+    av.style.display = 'flex';
+  }
 
   label.textContent = text;
   bar.style.display = 'flex';
