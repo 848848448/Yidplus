@@ -19,6 +19,18 @@ async function ensure(env) {
   ).run().catch(() => {});
 }
 
+// Record the outcome of the LAST incoming message so the owner can see exactly
+// why nothing arrived (the whole chain otherwise fails silently). Surfaced by
+// the "Bot Email diagnostic" admin screen.
+async function recordStatus(env, status, detail) {
+  try {
+    await env.DB.prepare(
+      "INSERT INTO app_settings (key, value, updated_at) VALUES ('bot_email_last_status', ?, datetime('now')) " +
+      "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')"
+    ).bind(JSON.stringify({ at: new Date().toISOString(), status: status, detail: String(detail || '').slice(0, 400) })).run();
+  } catch (e) { /* never break the flow */ }
+}
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   try {
@@ -49,13 +61,14 @@ export async function onRequestPost(context) {
 
     await ensure(env);
     const cfg = await env.DB.prepare('SELECT enabled, recipients FROM bot_email_config WHERE id = 1').first().catch(() => null);
-    if (!cfg || !cfg.enabled) return json({ ok: true });
+    if (!cfg || !cfg.enabled) { await recordStatus(env, 'off', 'Bot email is turned OFF (Admin → Bot Email).'); return json({ ok: true }); }
     let recipients = [];
     try { recipients = JSON.parse(cfg.recipients || '[]'); } catch (e) { recipients = []; }
     const _resendKey = await getConfig(env, 'RESEND_API_KEY');
-    if (!recipients.length || !_resendKey) return json({ ok: true });
+    if (!recipients.length) { await recordStatus(env, 'no_recipients', 'A message arrived but no recipient email is set.'); return json({ ok: true }); }
+    if (!_resendKey) { await recordStatus(env, 'no_key', 'A message arrived but RESEND_API_KEY is not set.'); return json({ ok: true }); }
 
-    context.waitUntil(forwardToEmail(env, msg, recipients).catch(() => {}));
+    context.waitUntil(forwardToEmail(env, msg, recipients).catch((e) => recordStatus(env, 'error', e && e.message)));
     return json({ ok: true });
   } catch (err) {
     return json({ ok: true }); // always 200 to Telegram
@@ -276,13 +289,21 @@ async function forwardToEmail(env, msg, recipients) {
     if (!r.ok) {
       const safe = { from: fromAddr, to: recipients, subject: 'New message from ' + String(from).replace(/[\r\n]+/g, ' ').slice(0, 80), html };
       if (_replyTo) safe.reply_to = _replyTo;
-      await fetch('https://api.resend.com/emails', {
+      r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${_rk}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(safe),
-      }).catch(() => {});
+      }).catch(() => r);
     }
-  } catch (e) { /* best effort */ }
+    // Record the real outcome so the diagnostic can show why mail did/didn't arrive.
+    if (r && r.ok) {
+      await recordStatus(env, 'sent', 'Delivered to Resend (' + recipients.join(', ') + ').');
+    } else {
+      let why = r ? ('HTTP ' + r.status) : 'network error';
+      try { const b = await r.json(); if (b && (b.message || b.error)) why = b.message || b.error; } catch (e) {}
+      await recordStatus(env, 'failed', 'Resend rejected it: ' + why + (String(fromAddr).includes('resend.dev') ? ' — NOTE: the From address is resend.dev, which can ONLY send to your own Resend account email. Set a verified From address.' : ''));
+    }
+  } catch (e) { await recordStatus(env, 'error', e && e.message); }
 }
 
 // Base64-encode bytes in chunks (avoids call-stack limits on big files).
