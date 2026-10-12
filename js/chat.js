@@ -3323,6 +3323,14 @@ window.toggleVoiceRec = function () {
             });
         };
         CHAT_mediaRec.start(250); // collect data every 250ms — prevents cutoff on long recordings
+        // If the finger/mouse was lifted before the mic finished opening (a
+        // quick tap, or a release during the permission prompt), honour that
+        // decision now that we can actually stop.
+        if (_micPendingAction) {
+          var _act = _micPendingAction; _micPendingAction = null;
+          if (_act === 'cancel') CHAT_recCancelled = true;
+          try { CHAT_mediaRec.stop(); } catch (e) {}
+        }
       })
       .catch(function (err) {
         var msg = '⚠ Microphone access denied.';
@@ -3337,12 +3345,124 @@ window.toggleVoiceRec = function () {
 };
 window.startVoiceRec = window.toggleVoiceRec;
 
-// ── Tap-to-record: tap the mic to start, then Cancel or Send from the bar ──
-// Replaced the old hold-to-record + slide-to-cancel/lock gestures: they were
-// fiddly on touch, didn't work with a mouse, and gave no clear way to cancel.
-// Now a tap starts recording and swaps the input bar for a recording bar that
-// has an explicit trash (cancel) button and a send button.
+// ── WhatsApp / Google-style voice notes ──
+// Press and HOLD the mic to record; release to send. While holding: slide
+// LEFT to cancel, or slide UP to lock hands-free (then Send/Cancel from the
+// locked bar). A too-quick tap is discarded with a "hold to record" hint.
+// Built on Pointer Events with pointer capture, so touch and mouse behave
+// identically and the gesture keeps tracking even when the finger slides off
+// the button — that unreliability is what broke the previous versions.
 var CHAT_recCancelled = false;
+var CHAT_recLocked    = false;
+var _micArmed         = false;
+var _micPointerId     = null;
+var _micDownX = 0, _micDownY = 0, _micGestureStart = 0;
+var _micPendingCancel = false;
+var _micPendingAction = null;     // 'send' | 'cancel' if released before the mic opened
+var _MIC_CANCEL_DX = 90;          // px slide left to cancel
+var _MIC_LOCK_DY   = 60;          // px slide up to lock
+var _MIC_MIN_MS    = 500;         // shorter than this = accidental tap, discard
+
+window._micDown = function (e) {
+  if (typeof e.button === 'number' && e.button > 0) return;   // ignore right/middle click
+  var inp = document.getElementById('chat-input');
+  if (inp && (inp.value || '').trim().length > 0) return;      // text present → send button handles it
+  if (e.cancelable) e.preventDefault();
+  var btn = document.getElementById('voice-rec-btn');
+  _micArmed = true;
+  _micPendingCancel = false;
+  _micPendingAction = null;
+  CHAT_recLocked = false;
+  _micDownX = e.clientX; _micDownY = e.clientY;
+  _micGestureStart = Date.now();
+  _micPointerId = (e.pointerId != null) ? e.pointerId : null;
+  try { if (btn && _micPointerId != null && btn.setPointerCapture) btn.setPointerCapture(_micPointerId); } catch (_e) {}
+  if (btn) btn.classList.add('held');
+  if (!CHAT_isRecording) toggleVoiceRec();
+};
+
+window._micMove = function (e) {
+  if (!_micArmed || CHAT_recLocked) return;
+  if (_micPointerId != null && e.pointerId != null && e.pointerId !== _micPointerId) return;
+  var dx = e.clientX - _micDownX;
+  var dy = e.clientY - _micDownY;
+  var trash = document.getElementById('rec-trash-zone');
+  var hint  = document.getElementById('rec-slide-hint');
+  if (dx < -_MIC_CANCEL_DX) {
+    _micPendingCancel = true;
+    if (trash) trash.classList.add('active');
+    if (hint) hint.style.opacity = '0';
+  } else {
+    _micPendingCancel = false;
+    if (trash) trash.classList.remove('active');
+    if (hint) {
+      var p = Math.min(Math.abs(Math.min(dx, 0)) / _MIC_CANCEL_DX, 1);
+      hint.style.opacity = String(1 - p * 0.7);
+      hint.style.transform = 'translateX(' + Math.min(dx * 0.3, 0) + 'px)';
+    }
+  }
+  var pill = document.getElementById('rec-lock-pill');
+  if (dy < -_MIC_LOCK_DY) {
+    _lockVoiceRecording();
+  } else if (pill) {
+    var lp = Math.min(Math.abs(Math.min(dy, 0)) / _MIC_LOCK_DY, 1);
+    if (lp > 0.5) pill.classList.add('near'); else pill.classList.remove('near');
+    var ic = document.getElementById('rec-lock-icon');
+    if (ic) ic.style.transform = 'translateY(' + Math.max(dy * 0.4, -18) + 'px)';
+  }
+};
+
+window._micUp = function (e) {
+  var btn = document.getElementById('voice-rec-btn');
+  if (btn) btn.classList.remove('held');
+  try { if (btn && _micPointerId != null && btn.releasePointerCapture) btn.releasePointerCapture(_micPointerId); } catch (_e) {}
+  if (!_micArmed) return;
+  _micArmed = false;
+  _micPointerId = null;
+  if (CHAT_recLocked) return;    // locked: the Send/Cancel buttons take over
+  var tooShort = (Date.now() - _micGestureStart) < _MIC_MIN_MS;
+  var cancel = _micPendingCancel || tooShort;
+  _micPendingCancel = false;
+  if (!CHAT_isRecording) {
+    // Released before the mic finished opening — apply once it starts.
+    _micPendingAction = cancel ? 'cancel' : 'send';
+    if (tooShort) toast('🎙️ Hold to record, release to send');
+    return;
+  }
+  if (cancel) {
+    cancelVoiceRec();
+    if (tooShort) toast('🎙️ Hold to record, release to send');
+  } else {
+    stopVoiceRecAndSend();
+  }
+};
+
+window._micCancelGesture = function () {
+  var btn = document.getElementById('voice-rec-btn');
+  if (btn) btn.classList.remove('held');
+  if (CHAT_recLocked || !_micArmed) { _micArmed = false; _micPointerId = null; return; }
+  _micArmed = false;
+  _micPointerId = null;
+  if (CHAT_isRecording) cancelVoiceRec(); else _micPendingAction = 'cancel';
+};
+
+// Slide up past the threshold → hands-free. Hide the hold overlay and show the
+// locked bar, which has its own explicit Cancel and Send buttons.
+function _lockVoiceRecording() {
+  if (CHAT_recLocked) return;
+  CHAT_recLocked = true;
+  _micArmed = false;
+  var btn = document.getElementById('voice-rec-btn');
+  if (btn) btn.classList.remove('held');
+  try { if (btn && _micPointerId != null && btn.releasePointerCapture) btn.releasePointerCapture(_micPointerId); } catch (_e) {}
+  _micPointerId = null;
+  var ov = document.getElementById('rec-overlay'); if (ov) ov.classList.remove('show');
+  var pill = document.getElementById('rec-lock-pill'); if (pill) pill.classList.remove('show', 'near');
+  var lockedBar = document.getElementById('rec-locked-bar'); if (lockedBar) lockedBar.classList.add('show');
+  var inputBar = document.getElementById('chat-input-bar'); if (inputBar) inputBar.style.display = 'none';
+  _buildRecWaveform(document.getElementById('rec-locked-meter'));
+}
+window._stopLockedRec = function () { stopVoiceRecAndSend(); };
 
 window.stopVoiceRecAndSend = function () {
   CHAT_recCancelled = false;
@@ -3357,7 +3477,7 @@ window.cancelVoiceRec = function () {
 // ── Recording bar waveform bars ──
 var REC_BAR_COUNT = 40;
 function _buildRecWaveform(meter) {
-  if (!meter) meter = document.getElementById('rec-locked-meter');
+  if (!meter) meter = document.getElementById('rec-live-meter');
   if (!meter) return;
   meter.innerHTML = '';
   for (var i = 0; i < REC_BAR_COUNT; i++) {
@@ -3368,32 +3488,37 @@ function _buildRecWaveform(meter) {
   }
 }
 
-// Swap the input bar for the recording bar (trash + live waveform + send).
+// Hold-mode overlay: red dot, timer, live waveform, "slide to cancel" hint,
+// and the lock pill floating above the mic. The overlay sits on top of the
+// input bar (it isn't hidden) so the mic button keeps receiving the captured
+// pointer events that drive the slide gestures.
 function _showRecordingBar() {
   _recBarVals = new Array(REC_BAR_COUNT).fill(0.05);
-  _buildRecWaveform(document.getElementById('rec-locked-meter'));
-  var lockedTime = document.getElementById('rec-locked-time');
-  if (lockedTime) lockedTime.textContent = '0:00';
-  var inputBar = document.getElementById('chat-input-bar');
-  if (inputBar) inputBar.style.display = 'none';
-  var lockedBar = document.getElementById('rec-locked-bar');
-  if (lockedBar) lockedBar.classList.add('show');
+  _buildRecWaveform(document.getElementById('rec-live-meter'));
+  var t = document.getElementById('rec-live-time'); if (t) t.textContent = '0:00';
+  var ov = document.getElementById('rec-overlay'); if (ov) ov.classList.add('show');
+  var pill = document.getElementById('rec-lock-pill'); if (pill) { pill.classList.add('show'); pill.classList.remove('near'); }
+  var hint = document.getElementById('rec-slide-hint'); if (hint) { hint.style.opacity = '1'; hint.style.transform = 'none'; }
+  var trash = document.getElementById('rec-trash-zone'); if (trash) trash.classList.remove('active');
+  var ic = document.getElementById('rec-lock-icon'); if (ic) ic.style.transform = '';
 }
 
 function _hideRecordingBar() {
-  var lockedBar = document.getElementById('rec-locked-bar');
-  if (lockedBar) lockedBar.classList.remove('show');
-  var inputBar = document.getElementById('chat-input-bar');
-  if (inputBar) inputBar.style.display = '';
+  var ov = document.getElementById('rec-overlay'); if (ov) ov.classList.remove('show');
+  var pill = document.getElementById('rec-lock-pill'); if (pill) pill.classList.remove('show', 'near');
+  var lockedBar = document.getElementById('rec-locked-bar'); if (lockedBar) lockedBar.classList.remove('show');
+  var inputBar = document.getElementById('chat-input-bar'); if (inputBar) inputBar.style.display = '';
 }
 
 // Shift bars left and add the newest level — a live Telegram/WhatsApp waveform.
+// Drives whichever meter is on screen (hold overlay or locked bar).
 var _recBarVals = new Array(REC_BAR_COUNT).fill(0.05);
 function _updateRecordingBar(level) {
   _recBarVals.shift();
   _recBarVals.push(Math.max(0.04, level));
-  var meter = document.getElementById('rec-locked-meter');
-  if (meter) {
+  var meters = [document.getElementById('rec-live-meter'), document.getElementById('rec-locked-meter')];
+  for (var m = 0; m < meters.length; m++) {
+    var meter = meters[m]; if (!meter) continue;
     var bars = meter.querySelectorAll('.rec-waveform-bar');
     for (var i = 0; i < bars.length; i++) {
       bars[i].style.height = Math.max(3, Math.round(_recBarVals[i] * 28)) + 'px';
@@ -3402,8 +3527,8 @@ function _updateRecordingBar(level) {
   }
   var elapsed = Math.round((Date.now() - CHAT_recStart) / 1000);
   var timeStr = Math.floor(elapsed / 60) + ':' + String(elapsed % 60).padStart(2, '0');
-  var lockedTime = document.getElementById('rec-locked-time');
-  if (lockedTime) lockedTime.textContent = timeStr;
+  var lt = document.getElementById('rec-live-time'); if (lt) lt.textContent = timeStr;
+  var kt = document.getElementById('rec-locked-time'); if (kt) kt.textContent = timeStr;
 }
 
 function _downsamplePeaks(peaks, n) {
