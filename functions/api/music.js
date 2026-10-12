@@ -10,10 +10,24 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
+// Create the hot-path indexes once per isolate so the music list and its
+// "did I like this" checks don't full-scan (mirrors the admin Optimize set).
+let _musicIdxReady = false;
+async function ensureMusicSchema(env) {
+  if (_musicIdxReady) return;
+  _musicIdxReady = true;
+  try {
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_music_owner ON music_tracks(owner_id)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_music_likes_track ON music_likes(track_id)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_music_likes_user ON music_likes(user_id)').run().catch(() => {});
+  } catch (e) { _musicIdxReady = false; }
+}
+
 export async function onRequestGet(context) {
   const { request, env } = context;
 
   try {
+    await ensureMusicSchema(env);
     const user = await requireUser(request, env).catch(() => null);
 
     const url = new URL(request.url);

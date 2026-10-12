@@ -1,8 +1,25 @@
 import { json, corsHeaders, requireUser } from './_helpers.js';
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
+
+// The status feed scans a 24h window ordered by user then time, and the profile
+// view filters by user_id; without these indexes both were full table scans.
+// Created once per isolate (same pattern as chat/posts).
+let _statusIdxReady = false;
+async function ensureStatusSchema(env) {
+  if (_statusIdxReady) return;
+  _statusIdxReady = true;
+  try {
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_statuses_created ON statuses(created_at)').run().catch(() => {});
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_statuses_user ON statuses(user_id, created_at)').run().catch(() => {});
+    // Visibility uses `user_follows WHERE follower_id = ?` for every viewer.
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_follows_follower ON user_follows(follower_id)').run().catch(() => {});
+  } catch (e) { _statusIdxReady = false; }
+}
+
 export async function onRequestGet(context) {
   const { request, env } = context;
   try {
+    await ensureStatusSchema(env);
     const user = await requireUser(request, env).catch(() => null);
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const isAdmin = user && ((user.email || '').toLowerCase() === env.OWNER_EMAIL || (user.email || '').toLowerCase() === "jmittelman2@gmail.com" || user.role === 'admin_super' || user.role === 'admin_limited');

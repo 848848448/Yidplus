@@ -8,11 +8,19 @@ import { json, corsHeaders, requireUser } from './_helpers.js';
 
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
+let _notifIdxReady = false;
 async function ensure(env) {
   await env.DB.prepare(
     `CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT, type TEXT,
       actor_id TEXT, actor_nick TEXT, text TEXT, link TEXT, read INTEGER DEFAULT 0, created_at TEXT)`
   ).run().catch(() => {});
+  // Every signed-in user polls this for the bell badge every 45-90s; without an
+  // index the unread count + list were full table scans. Create it once per
+  // isolate (the table create above is idempotent and cheap, the index guard
+  // keeps us from re-issuing it on every poll).
+  if (_notifIdxReady) return;
+  _notifIdxReady = true;
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at)').run().catch(() => {});
 }
 
 export async function onRequestGet(context) {
