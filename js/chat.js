@@ -2537,7 +2537,7 @@ function renderMessages(scrollDown) {
         '<div class="bubble sticker" data-msg-id="' + m.id + '" ' +
           'oncontextmenu="event.preventDefault();showCtx(event,\'' + m.id + '\')">' +
           (isGif
-            ? '<img src="' + escHtml(stickerUrl) + '" style="width:110px;height:110px;border-radius:12px;object-fit:cover;display:block" loading="lazy">'
+            ? '<img src="' + escHtml(stickerUrl) + '" style="width:120px;height:120px;object-fit:contain;display:block" loading="lazy">'
             : escHtml(stickerUrl || '😊')) +
         '</div>' +
       '</div>';
@@ -3724,7 +3724,12 @@ window._deleteSticker = function (stickerId) {
 
 window.uploadCustomSticker = function (file) {
   if (!file) return;
-  if (!file.type.startsWith('image/')) return toast('⚠ Please choose an image.');
+  var nm = (file.name || '').toLowerCase();
+  // Accept by type OR extension — WhatsApp .webp files sometimes arrive with
+  // an empty file.type on mobile.
+  var okType = (file.type && file.type.indexOf('image/') === 0) || /\.(webp|png|gif|apng|jpe?g|avif|bmp|heic|heif)$/i.test(nm);
+  if (!okType) return toast('⚠ Please choose an image sticker (webp, png, gif, jpg).');
+  if (file.size > 3 * 1024 * 1024) return toast('⚠ Sticker too large (max 3MB).');
   toast('📤 Uploading sticker...');
   var form = new FormData();
   form.append('file', file);
