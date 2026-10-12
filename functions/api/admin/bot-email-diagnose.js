@@ -61,6 +61,20 @@ export async function onRequestGet(context) {
       } catch (e) { sendResult = 'error'; add(false, 'Test email error', e.message); }
     }
 
+    // 6) What happened to the LAST real message the bot received (recorded by
+    // the webhook). This is the single most useful line — it says exactly why
+    // the previous incoming message did or didn't turn into an email.
+    try {
+      const ls = await env.DB.prepare("SELECT value, updated_at FROM app_settings WHERE key = 'bot_email_last_status'").first();
+      if (ls && ls.value) {
+        let st = {}; try { st = JSON.parse(ls.value); } catch (e) {}
+        const good = st.status === 'sent';
+        add(good, 'Last incoming message', (st.status ? st.status.toUpperCase() : '?') + (st.detail ? ' — ' + st.detail : '') + (st.at ? ' (' + st.at + ')' : ''));
+      } else {
+        add(true, 'Last incoming message', 'No message has reached the bot yet — send it a test message on Telegram, then re-run this.');
+      }
+    } catch (e) {}
+
     const allOk = checks.every((c) => c.ok);
     return json({ ok: true, all_ok: allOk, send_result: sendResult, checks });
   } catch (e) { return json({ ok: false, error: e.message }, 500); }
