@@ -1,4 +1,6 @@
 (function(){
+var started=Date.now();
+var pageVisits=1;try { pageVisits=Number(sessionStorage.getItem("yp_browse_pages")||0)+1;sessionStorage.setItem("yp_browse_pages",String(pageVisits)); }catch(e){}
 var apply=window._applyFeatureFlags;
 window._applyFeatureFlags=function(s){apply(s);document.documentElement.classList.add("yp-features-ready");};
 Object.assign(PWA,{
@@ -56,7 +58,7 @@ Object.assign(PWA,{
   },
 
   _showBanner: function (mode, manual) {
-    if (PWA.isStandalone() || (!manual && PWA._dismissedRecently())) return;
+    if (PWA.isStandalone() || (!manual && (PWA._dismissedRecently() || pageVisits < 2 || Date.now()-started < 60000 || !/^(home|explore|profile)$/.test(STATE.screen) || /chat|shorts|music|admin/.test(location.pathname)))) return;
     PWA._buildBanner();
     var el  = document.getElementById('pwa-install-banner');
     var host = document.querySelector('.screen.active .scroll-area') || document.body;
