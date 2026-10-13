@@ -52,7 +52,7 @@ export async function onRequestGet(context) {
     : `<div class="av av-initial">${esc((title || '?').replace(/^@/, '').charAt(0).toUpperCase())}</div>`;
 
   const html = `<!DOCTYPE html>
-<html lang="yi">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
