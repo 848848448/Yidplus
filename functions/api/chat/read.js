@@ -20,6 +20,9 @@ export async function onRequestPost(context) {
     const body = await request.json();
     if (!body.room_id) return json({ ok: false, error: 'room_id is required' }, 400);
 
+    const pref = await env.DB.prepare('SELECT read_receipts FROM users WHERE id = ?').bind(user.id).first().catch(() => null);
+    if (body.receipts === false || (pref && pref.read_receipts === 0)) return json({ ok: true, receipts_off: true });
+
     const membership = await env.DB.prepare(
       `SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?`
     ).bind(body.room_id, user.id).first();
