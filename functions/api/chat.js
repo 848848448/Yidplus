@@ -35,15 +35,26 @@ export async function onRequestPut(context) {
     const body = await request.json();
     if (!body.id) return json({ ok: false, error: 'id is required' }, 400);
 
-    const msg = await env.DB.prepare(`SELECT sender_id, view_once, opened FROM messages WHERE id = ?`).bind(body.id).first();
+    const msg = await env.DB.prepare(`SELECT * FROM messages WHERE id = ?`).bind(body.id).first();
     if (!msg) return json({ ok: false, error: 'Message not found' }, 404);
 
     // ── Mark a view-once message as opened (any recipient can trigger this) ──
     if (body.opened === true) {
-      if (!msg.opened) {
-        await env.DB.prepare(`UPDATE messages SET opened = 1 WHERE id = ?`).bind(body.id).run();
-      }
-      return json({ ok: true });
+      const member = await env.DB.prepare('SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?').bind(msg.room_id, user.id).first();
+      if (!member || msg.sender_id === user.id || !msg.view_once) return json({ ok: false, error: 'Forbidden' }, 403);
+      if (msg.expires_at && new Date(msg.expires_at).getTime() <= Date.now()) return json({ ok: false, error: 'Message expired' }, 410);
+      if (msg.scheduled_for && new Date(msg.scheduled_for).getTime() > Date.now()) return json({ ok: false, error: 'Message not available yet' }, 403);
+      await env.DB.prepare('CREATE TABLE IF NOT EXISTS chat_media_grants (token TEXT PRIMARY KEY, message_id TEXT NOT NULL, user_id TEXT NOT NULL, expires_at INTEGER NOT NULL)').run();
+      const token = crypto.randomUUID();
+      const until = Date.now() + 300000;
+      const batch = await env.DB.batch([
+        env.DB.prepare('INSERT INTO chat_media_grants (token, message_id, user_id, expires_at) SELECT ?, id, ?, ? FROM messages WHERE id = ? AND opened = 0').bind(token, user.id, until, body.id),
+        env.DB.prepare('UPDATE messages SET opened = 1 WHERE id = ? AND opened = 0').bind(body.id)
+      ]);
+      const change = batch[1];
+      if (!change.meta || change.meta.changes !== 1) return json({ ok: false, error: 'Message already opened' }, 410);
+      context.waitUntil(env.DB.prepare('DELETE FROM chat_media_grants WHERE expires_at <= ?').bind(Date.now()).run().catch(() => {}));
+      return json({ ok: true, media_url: '/api/media/' + encodeURIComponent(msg.media_key) + '?once=' + token });
     }
 
     // ── Edit message text (sender only) ──
@@ -196,37 +207,39 @@ export async function onRequestGet(context) {
       topicParams = [topicId];
     }
 
+    const beforeTime = url.searchParams.get('before');
+    const beforeId = url.searchParams.get('before_id');
+    if (beforeTime && (!beforeId || isNaN(new Date(beforeTime).getTime()))) return json({ ok: false, error: 'Invalid history cursor' }, 400);
+    const cursorFilter = beforeTime ? ' AND (m.created_at < ? OR (m.created_at = ? AND m.id < ?))' : '';
+    const cursorParams = beforeTime ? [beforeTime, beforeTime, beforeId] : [];
     let results;
     try {
       const res = await env.DB.prepare(
-        `SELECT m.id, m.room_id, m.sender_id, m.sender_nick, m.type, m.text, m.media_key,
-                m.reply_to_id, m.view_once, m.opened, m.edited_at, m.created_at, m.read, m.topic_id,
-                m.scheduled_for, m.expires_at,
-                u.photo_url as sender_photo, rm.title as sender_title
+        `SELECT m.*, u.photo_url as sender_photo, rm.title as sender_title
          FROM messages m
          LEFT JOIN users u ON u.id = m.sender_id
          LEFT JOIN room_members rm ON rm.room_id = m.room_id AND rm.user_id = m.sender_id
-         WHERE m.room_id = ?${topicFilter}
-         ORDER BY m.created_at DESC
+         WHERE m.room_id = ?${topicFilter}${cursorFilter}
+         ORDER BY m.created_at DESC, m.id DESC
          LIMIT 500`
-      ).bind(roomId, ...topicParams).all();
+      ).bind(roomId, ...topicParams, ...cursorParams).all();
       results = (res.results || []).slice().reverse();
     } catch (colErr) {
       // topic_id column doesn't exist yet (migration not run) — fall back to
       // the pre-topics query so normal chat keeps working regardless.
       const res = await env.DB.prepare(
-        `SELECT m.id, m.room_id, m.sender_id, m.sender_nick, m.type, m.text, m.media_key,
-                m.reply_to_id, m.view_once, m.opened, m.edited_at, m.created_at, m.read,
-                u.photo_url as sender_photo
+        `SELECT m.*, u.photo_url as sender_photo
          FROM messages m
          LEFT JOIN users u ON u.id = m.sender_id
-         WHERE m.room_id = ?
-         ORDER BY m.created_at DESC
+         WHERE m.room_id = ?${cursorFilter}
+         ORDER BY m.created_at DESC, m.id DESC
          LIMIT 500`
-      ).bind(roomId).all();
+      ).bind(roomId, ...cursorParams).all();
       results = (res.results || []).slice().reverse();
     }
 
+    const historyHasMore = results.length === 500;
+    const historyCursor = results.length ? { before: results[0].created_at, before_id: results[0].id } : null;
     // ── Scheduled + disappearing messages ──
     // These use the scheduled_for / expires_at columns, which may be absent on
     // an un-migrated DB — in that case the fields are simply undefined and the
@@ -297,7 +310,7 @@ export async function onRequestGet(context) {
       return row;
     });
 
-    return json({ ok: true, messages: out });
+    return json({ ok: true, messages: out, has_more: historyHasMore, next_cursor: historyCursor });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
@@ -527,40 +540,33 @@ export async function onRequestPost(context) {
       expiresAt = new Date(base + disappearSeconds * 1000).toISOString();
     }
 
+    const extra = scheduledFor || expiresAt;
+    const columns = extra ? ', scheduled_for, expires_at' : '';
+    const marks = extra ? ', ?, ?' : '';
+    const extras = extra ? [scheduledFor, expiresAt] : [];
     try {
-      await env.DB.prepare(
-        `INSERT INTO messages
-           (id, room_id, sender_id, sender_nick, type, text, media_key, reply_to_id, view_once, opened, created_at, read, topic_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?)`
-      ).bind(id, roomId, user.id, user.nickname || '', type, text, mediaKey, replyToId, viewOnce ? 1 : 0, now, topicId).run();
+      await env.DB.prepare(`INSERT INTO messages
+        (id, room_id, sender_id, sender_nick, type, text, media_key, reply_to_id, view_once, opened, created_at, read, topic_id${columns})
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?${marks})`)
+        .bind(id, roomId, user.id, user.nickname || '', type, text, mediaKey, replyToId, viewOnce ? 1 : 0, now, topicId, ...extras).run();
     } catch (insertErr) {
-      // The topic_id column may not exist yet if the migration hasn't been
-      // run — fall back to inserting without it rather than failing the
-      // whole send.
-      await env.DB.prepare(
-        `INSERT INTO messages
-           (id, room_id, sender_id, sender_nick, type, text, media_key, reply_to_id, view_once, opened, created_at, read)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0)`
-      ).bind(id, roomId, user.id, user.nickname || '', type, text, mediaKey, replyToId, viewOnce ? 1 : 0, now).run();
-    }
-
-    // Store scheduling / expiry in their own columns if they exist. Done as a
-    // best-effort follow-up UPDATE so a not-yet-migrated DB still sends fine.
-    if (scheduledFor || expiresAt) {
-      await env.DB.prepare('UPDATE messages SET scheduled_for = ?, expires_at = ? WHERE id = ?')
-        .bind(scheduledFor, expiresAt, id).run().catch(() => {});
+      if (extra) return json({ ok: false, error: 'Scheduled or disappearing messages are not available right now. Nothing was sent.' }, 503);
+      await env.DB.prepare(`INSERT INTO messages
+        (id, room_id, sender_id, sender_nick, type, text, media_key, reply_to_id, view_once, opened, created_at, read)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0)`)
+        .bind(id, roomId, user.id, user.nickname || '', type, text, mediaKey, replyToId, viewOnce ? 1 : 0, now).run();
     }
 
     const result = {
       id, room_id: roomId, sender_id: user.id, sender_nick: user.nickname || '',
       type, text, media_key: mediaKey, reply_to_id: replyToId, view_once: viewOnce ? 1 : 0, opened: 0,
-      created_at: now, read: 0, topic_id: topicId,
+      created_at: now, read: 0, topic_id: topicId, scheduled_for: scheduledFor, expires_at: expiresAt, _scheduled_pending: scheduledFor ? 1 : 0,
     };
     if (mediaKey) result.media_url = `/api/media/${encodeURIComponent(mediaKey)}`;
 
     // Fire push notifications to recipients in the background — never let
     // this delay or break the send itself.
-    context.waitUntil((async () => {
+    if (!scheduledFor) context.waitUntil((async () => {
       try {
         const roomRow = await env.DB.prepare('SELECT type, name FROM rooms WHERE id = ?').bind(roomId).first();
         if (!roomRow) return;
