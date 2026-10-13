@@ -1,3 +1,4 @@
+import { authorizeChatMedia } from '../_chat-media.js';
 // Serves R2 objects — catch-all route for /api/media/...
 // Supports HTTP Range requests (206 Partial Content) so video/audio can seek
 // and large files stream instead of downloading whole — Safari in particular
@@ -7,6 +8,8 @@ export async function onRequestGet(context) {
   try {
     const key = decodeURIComponent((params.key || []).join('/'));
     if (!key) return new Response('Not found', { status: 404 });
+    const access = await authorizeChatMedia(request, env, key);
+    if (!access.allowed) return new Response('Media unavailable', { status: access.status, headers: { 'Cache-Control': 'private, no-store' } });
 
     // A thumbnail was requested (?thumb=1) for a video. We don't generate video
     // posters server-side, and serving the full video into an <img> just fails
@@ -58,8 +61,9 @@ export async function onRequestGet(context) {
     }
 
     headers.set('Accept-Ranges', 'bytes');
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('Access-Control-Allow-Origin', '*');
+    headers.set('Cache-Control', access.private ? 'private, no-store' : 'public, max-age=31536000, immutable');
+    if (access.private) headers.set('Vary', 'Cookie');
+    if (!access.private) headers.set('Access-Control-Allow-Origin', '*');
     // ?dl=1 forces a download (used by the email bot's Download button).
     if (new URL(request.url).searchParams.get('dl')) {
       const fname = (key.split('/').pop() || 'file');
