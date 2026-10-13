@@ -121,7 +121,6 @@ window.buildSettingsPage = function () {
       '</div>'),
       _row(_msym('language'), t('Language'), '<select onchange="setLang(this.value)" style="padding:.35rem .5rem;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-family:inherit;font-size:.82rem">' +
         '<option value="en"' + (YP_LANG==='en'?' selected':'') + '>English</option>' +
-        '<option value="yi"' + (YP_LANG==='yi'?' selected':'') + '>ייִדיש</option>' +
         '<option value="he"' + (YP_LANG==='he'?' selected':'') + '>עברית</option>' +
       '</select>'),
     ]) +
@@ -145,7 +144,7 @@ window.buildSettingsPage = function () {
       _row(_msym('public'), 'Website', '<button class="settings-edit-btn" onclick="openEditField(\'website\',\'Website\',\'' + escHtml(p.website||'') + '\',\'url\')">Edit</button>'),
       _row(_msym('photo_camera'), 'Instagram', '<button class="settings-edit-btn" onclick="openEditField(\'instagram\',\'Instagram\',\'' + escHtml(p.instagram||'') + '\')">Edit</button>'),
       _row(_msym('smart_display'), 'YouTube', '<button class="settings-edit-btn" onclick="openEditField(\'youtube\',\'YouTube\',\'' + escHtml(p.youtube||'') + '\',\'url\')">Edit</button>'),
-      _row(_msym('password'), t('Change Password'), '<button class="settings-edit-btn" onclick="openChangePassword()">Change</button>'),
+
     ]) +
     _section(t('Privacy'), [
       _row(_msym('lock'), t('Private Account'), _toggle('is_private', !!p.is_private) + '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">When ON, people must request to follow you before seeing your posts and statuses.</div>'),
@@ -227,10 +226,10 @@ function _msym(name) { return '<span class="material-symbols-rounded">' + name +
 
 function _section(title, rows) {
   var content = Array.isArray(rows) ? rows.join('') : rows;
-  return '<div class="settings-card">' +
-    '<div class="settings-section-title">' + title + '</div>' +
-    content +
-  '</div>';
+  return '<details class="settings-card settings-group"' + (title === t('Appearance') ? ' open' : '') + '>' +
+    '<summary class="settings-section-title">' + title + '</summary>' +
+    '<div class="settings-group-body">' + content + '</div>' +
+  '</details>';
 }
 
 function _row(icon, label, control, extraAttrs) {
