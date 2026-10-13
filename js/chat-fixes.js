@@ -317,6 +317,7 @@ window.toggleReadReceipts=function(el){
 };
 (function(){
   var style=document.createElement('style');style.textContent='#cr-status{white-space:nowrap;overflow:hidden;text-overflow:ellipsis} #cr-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .chatroom-topbar>.icon-btn{flex-shrink:0} #cr-name-wrap{min-width:35px}';document.head.appendChild(style);
+  api.get('/profile').then(function(res){if(res.profile && res.profile.read_receipts===0){try{localStorage.setItem('yp_read_receipts',res.profile.read_receipts?'1':'0');}catch(e){}}}).catch(function(){});
   var ai=document.querySelector('.ai-chat-item');
   // Existing AI row may be added after load, so normalize only the known duplicate.
   var observer=new MutationObserver(function(){document.querySelectorAll('#chat-list-area div').forEach(function(el){if(el.children.length===0 && el.textContent==='Ask me anything · Ask me anything')el.textContent='Ask me anything';});});
