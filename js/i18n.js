@@ -3,30 +3,6 @@
 // screen is just a matter of wrapping its strings in t() and adding entries here.
 (function () {
   var DICT = {
-    yi: {
-      // Nav / common
-      'Home': 'היים', 'Chat': 'טשאט', 'Channels': 'קאנאלן', 'Explore': 'אנטדעקן',
-      'Settings': 'איינשטעלונגען', 'Profile': 'פּראפֿיל', 'Search': 'זוכן', 'Save': 'שפּייכערן',
-      'Cancel': 'אָפּזאגן', 'Delete': 'אויסמעקן', 'Edit': 'רעדאַקטירן', 'Back': 'צוריק',
-      'Change': 'טוישן', 'View': 'זען', 'Manage': 'פֿארוואלטן', 'Export': 'עקספּארטירן',
-      'Message...': 'מעלדונג...', 'Send': 'שיקן', 'Reply': 'ענטפֿערן', 'Forward': 'פֿאָרווערטס',
-      // Settings sections
-      'Appearance': 'אויסזען', 'Color Theme': 'קאליר-טעמע', 'Stats': 'סטאטיסטיק',
-      'Privacy': 'פּריוואטקייט', 'Notifications': 'מעלדונגען', 'Security': 'זיכערהייט',
-      'Help & About': 'הילף & וועגן', 'More': 'מער', 'Verification': 'באשטעטיגונג',
-      // Settings rows
-      'Dark Mode': 'טונקעלער מאָדוס', 'Text Size': 'טעקסט-גרייס',
-      'Private Account': 'פּריוואטער קאָנטע', 'Follow Requests': 'פֿאלג-בקשות',
-      'Active status': 'אקטיווער סטאטוס', 'Read receipts': 'געלייענט-קבלות',
-      'Blocked users': 'געבלאקטע יוזערס', 'Chat wallpaper': 'טשאט-הינטערגרונט',
-      'Muted chats': 'געשטילטע טשאטס', 'Change Password': 'טוישן פּאַסווארט',
-      'Two-factor authentication': 'צוויי-שריט באשטעטיגונג',
-      'Help & Support': 'הילף & שטיצע', 'Send Feedback': 'שיקן אָפּרוף',
-      'Clear cache': 'רייניגן קעש', 'About YID PLUS': 'וועגן YID PLUS',
-      'Download my data': 'אַראָפּלאָדן מיינע דאטן', 'Admin Panel': 'אַדמין-פּאַנעל',
-      'Edit Profile': 'רעדאַקטירן פּראפֿיל', 'Sign Out': 'אַרויסלאָגן',
-      'Who can see my profile': 'ווער קען זען מיין פּראפֿיל', 'Who can message me': 'ווער קען מיר שיקן',
-    },
     he: {
       'Home': 'בית', 'Chat': "צ'אט", 'Channels': 'ערוצים', 'Explore': 'גלה',
       'Settings': 'הגדרות', 'Profile': 'פרופיל', 'Search': 'חיפוש', 'Save': 'שמור',
@@ -50,7 +26,7 @@
     },
   };
 
-  window.YP_LANG = (function () { try { return localStorage.getItem('yp_lang') || 'en'; } catch (e) { return 'en'; } })();
+  window.YP_LANG = (function () { try { var lang = localStorage.getItem('yp_lang') || 'en'; if (lang !== 'en' && lang !== 'he') { lang = 'en'; localStorage.setItem('yp_lang', lang); } return lang; } catch (e) { return 'en'; } })();
 
   window.t = function (s) {
     var lang = window.YP_LANG || 'en';
@@ -59,6 +35,7 @@
   };
 
   window.setLang = function (lang) {
+    if (lang !== 'en' && lang !== 'he') lang = 'en';
     try { localStorage.setItem('yp_lang', lang); } catch (e) {}
     window.YP_LANG = lang;
     location.reload();
