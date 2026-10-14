@@ -6,6 +6,8 @@
 
 import { json, corsHeaders, requireUser, isAdminRole, canDeleteContent, logAudit } from './_helpers.js';
 
+import { channelContentVisible, shortVisible } from './_content-visibility.js';
+
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
@@ -41,6 +43,7 @@ export async function onRequestGet(context) {
     // opening a shared link had no way to actually fetch that specific
     // short — it just silently fell back to the generic top-of-feed list.
     if (singleId) {
+      if (!await shortVisible(env,singleId,user)) return json({ ok:true, shorts:[] });
       const row = await env.DB.prepare(
         `SELECT s.id, s.owner_id, s.media_key, s.caption, s.likes, s.views, s.created_at,
                 u.nickname, u.verified, u.photo_url,
@@ -93,6 +96,7 @@ export async function onRequestGet(context) {
       const r = await (ownerId ? stmt.bind(ownerId) : stmt).all();
       results = r.results;
     } catch (e) {
+      if (!/no such column.*hidden/i.test(String(e.message))) throw e;
       // hidden column not migrated yet
       const stmt = env.DB.prepare(
         `SELECT s.id, s.owner_id, s.media_key, s.caption, s.likes, s.views, s.created_at,
@@ -111,6 +115,10 @@ export async function onRequestGet(context) {
     if (blockedIds.length) {
       results = results.filter(row => blockedIds.indexOf(row.owner_id) === -1);
     }
+
+    const visibleOwners = new Map();
+    for (const row of results) if (!visibleOwners.has(row.owner_id)) visibleOwners.set(row.owner_id, await channelContentVisible(env,row.owner_id,user));
+    results = results.filter(row => visibleOwners.get(row.owner_id));
 
     let likedIds = new Set();
     let savedIds = new Set();
@@ -198,6 +206,8 @@ export async function onRequestPut(context) {
     const { id, like, view } = body;
     if (!id) return json({ ok: false, error: 'id is required' }, 400);
 
+    const viewer = await requireUser(request,env).catch(() => null);
+    if (!await shortVisible(env,id,viewer)) return json({ ok:false,error:'Not found' },404);
     // View tracking — no auth required, anyone can register a view.
     if (view) {
       await env.DB.prepare(`UPDATE shorts SET views = views + 1 WHERE id = ?`).bind(id).run();
@@ -262,4 +272,4 @@ export async function onRequestDelete(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-        }
+}
