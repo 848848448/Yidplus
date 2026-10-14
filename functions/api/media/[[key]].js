@@ -1,3 +1,5 @@
+import { requireUser } from '../_helpers.js';
+import { shortVisible } from '../_content-visibility.js';
 import { authorizeChatMedia } from '../_chat-media.js';
 // Serves R2 objects — catch-all route for /api/media/...
 // Supports HTTP Range requests (206 Partial Content) so video/audio can seek
@@ -8,7 +10,15 @@ export async function onRequestGet(context) {
   try {
     const key = decodeURIComponent((params.key || []).join('/'));
     if (!key) return new Response('Not found', { status: 404 });
+    let shortMedia = false;
+    if (key.startsWith('shorts/')) {
+      const user = await requireUser(request,env).catch(() => null);
+      const short = await env.DB.prepare('SELECT id FROM shorts WHERE media_key=?').bind(key).first();
+      if (!short || !await shortVisible(env,short.id,user)) return new Response('Media unavailable',{status:404,headers:{'Cache-Control':'private, no-store'}});
+      shortMedia = true;
+    }
     const access = await authorizeChatMedia(request, env, key);
+    if (shortMedia) access.private = true;
     if (!access.allowed) return new Response('Media unavailable', { status: access.status, headers: { 'Cache-Control': 'private, no-store' } });
 
     // A thumbnail was requested (?thumb=1) for a video. We don't generate video
@@ -24,8 +34,8 @@ export async function onRequestGet(context) {
       return new Response(px, {
         headers: {
           'Content-Type': 'image/png',
-          'Cache-Control': 'public, max-age=86400',
-          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': access.private ? 'private, no-store' : 'public, max-age=86400',
+          ...(access.private ? {'Vary':'Cookie'} : {'Access-Control-Allow-Origin':'*'}),
         },
       });
     }
