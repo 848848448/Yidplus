@@ -1,3 +1,4 @@
+import {resolveReportTarget} from './_report-target.js';
 // functions/api/reports.js
 // GET  /api/reports                -> list reports (admin only)
 // POST /api/reports                -> { reported_id, reported_nick, room_id, message_id, reason, details }
@@ -35,10 +36,9 @@ export async function onRequestPost(context) {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
 
-    const body = await request.json();
-    const reportedId = body.reported_id;
-    const reason = (body.reason || '').trim();
-    if (!reportedId || !reason) return json({ ok: false, error: 'reported_id and reason are required' }, 400);
+    const body=await resolveReportTarget(env,user,await request.json());
+    if(!body)return json({ok:false,error:'Invalid report or unavailable target'},400);
+    const reportedId=body.reported_id,reason=body.reason;
 
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
