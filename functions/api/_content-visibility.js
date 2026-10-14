@@ -20,3 +20,18 @@ export async function shortVisible(env, id, user) {
     return await channelContentVisible(env,row.owner_id,user);
   } catch { return false; }
 }
+
+// One privacy query for a whole feed, not one round trip per author.
+export async function filterChannelContent(env, rows, user, ownerField='owner_id') {
+  if (!rows.length || (user && isAdminRole(user,env.OWNER_EMAIL))) return rows;
+  const owners=[...new Set(rows.map(row=>row[ownerField]).filter(Boolean))];
+  if (!owners.length) return [];
+  try {
+    const marks=owners.map(()=>'?').join(',');
+    const result=await env.DB.prepare(`SELECT c.owner_id FROM channels c
+      WHERE c.privacy='followers_only' AND c.owner_id IN (${marks})
+      AND c.owner_id!=? AND NOT EXISTS(SELECT 1 FROM channel_followers f WHERE f.channel_owner_id=c.owner_id AND f.follower_id=?)`).bind(...owners,user?user.id:'',user?user.id:'').all();
+    const denied=new Set((result.results||[]).map(row=>row.owner_id));
+    return rows.filter(row=>row[ownerField] && !denied.has(row[ownerField]));
+  } catch { return []; }
+}
