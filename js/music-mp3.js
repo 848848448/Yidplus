@@ -5,8 +5,15 @@
  var busy=false,worker=null,cancelled=false;
  function mp3(bytes){
   var p=0;if(bytes.length>=10&&String.fromCharCode.apply(null,bytes.subarray(0,3))==='ID3'){p=10+((bytes[6]&127)<<21)+((bytes[7]&127)<<14)+((bytes[8]&127)<<7)+(bytes[9]&127);if(bytes[3]===4&&(bytes[5]&16))p+=10;}
-  // MPEG Layer III sync/version/layer/bitrate/sample-rate checks.
-  for(var i=p;i<Math.min(bytes.length-4,p+4096);i++)if(bytes[i]===255&&(bytes[i+1]&224)===224&&(bytes[i+1]&6)===2&&(bytes[i+1]&24)!==8&&(bytes[i+2]&240)!==0&&(bytes[i+2]&240)!==240&&(bytes[i+2]&12)!==12)return true;
+  // Require consecutive complete MPEG Layer III frames, not an isolated sync byte.
+  function frame(i){
+   if(i+4>bytes.length||bytes[i]!==255||(bytes[i+1]&224)!==224||(bytes[i+1]&6)!==2)return null;
+   var v=(bytes[i+1]>>3)&3,b=(bytes[i+2]>>4)&15,r=(bytes[i+2]>>2)&3;
+   if(v===1||b===0||b===15||r===3)return null;
+   var rate=[44100,48000,32000][r]/(v===3?1:v===2?2:4),kb=(v===3?[0,32,40,48,56,64,80,96,112,128,160,192,224,256,320]:[0,8,16,24,32,40,48,56,64,80,96,112,128,144,160])[b];
+   return {length:Math.floor((v===3?144000:72000)*kb/rate)+((bytes[i+2]>>1)&1),version:v,rate:rate};
+  }
+  for(var i=p;i<Math.min(bytes.length-4,p+4096);i++){var a=frame(i);if(!a||i+a.length>bytes.length)continue;var b=frame(i+a.length);if(b&&b.version===a.version&&b.rate===a.rate&&i+a.length+b.length<=bytes.length)return true;}
   return false;
  }
  function panel(){
@@ -19,15 +26,15 @@
   var image=await createImageBitmap(file);try{if(image.width*image.height>40000000)throw Error('Cover is too large');var c=document.createElement('canvas'),s=Math.min(1,800/Math.max(image.width,image.height));c.width=Math.round(image.width*s);c.height=Math.round(image.height*s);var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(image,0,0,c.width,c.height);var blob=await new Promise(function(r){c.toBlob(r,'image/jpeg',.9);});if(!blob)throw Error('Could not prepare cover');return {bytes:await blob.arrayBuffer(),type:'image/jpeg'};}finally{image.close();}
  }
  async function prepare(file,cover,meta){
-  if(busy)throw Error('Another MP3 is being prepared');if(!(file instanceof File))throw Error('Select an audio file');if(file.size>64*1024*1024)throw Error('MP3 preparation supports files up to 64 MB on this device');busy=true;cancelled=false;panel();
+  if(busy)throw Error('Another MP3 is being prepared');if(!(file instanceof File))throw Error('Select an audio file');if(cover&&!(cover instanceof Blob))cover=null;if(file.size>64*1024*1024)throw Error('MP3 preparation supports files up to 64 MB on this device');busy=true;cancelled=false;panel();
   try{
    var data=await file.arrayBuffer(),picture=await coverBytes(cover),payload={audio:data,title:meta.title,artist:meta.artist,album:meta.album,cover:picture&&picture.bytes,coverType:picture&&picture.type};
    if(!mp3(new Uint8Array(data))){
     if(file.size>32*1024*1024)throw Error('Audio conversion supports source files up to 32 MB');
     var context=new (window.AudioContext||window.webkitAudioContext)();try{var decoded=await context.decodeAudioData(data);if(decoded.duration>600||decoded.numberOfChannels>2)throw Error('Conversion supports up to 10 minutes and stereo audio');payload.sampleRate=decoded.sampleRate;payload.channels=[];for(var n=0;n<decoded.numberOfChannels;n++)payload.channels.push(decoded.getChannelData(n).slice());delete payload.audio;}finally{await context.close();}
    }
-   if(cancelled)throw Error('Cancelled');
-   var result=await new Promise(function(resolve,reject){worker=new Worker('/js/music-mp3-worker.js?v=202610141415');var timer=setTimeout(function(){worker.terminate();reject(Error('MP3 preparation timed out'));},180000);var cancel=document.getElementById('mp3-cancel');cancel.onclick=function(){cancelled=true;worker.terminate();clearTimeout(timer);reject(Error('Cancelled'));};worker.onerror=function(){clearTimeout(timer);reject(Error('Could not load the local MP3 encoder'));};worker.onmessage=function(e){if(e.data.error){clearTimeout(timer);reject(Error(e.data.error));}else if(e.data.audio){clearTimeout(timer);resolve(e.data.audio);}else{var label=document.getElementById('mp3-status');if(label)label.textContent='Preparing MP3: '+Math.round(e.data.progress*100)+'%';}};worker.postMessage(payload);});
+   if(cancelled||!document.getElementById('mp3-cancel'))throw Error('Cancelled');
+   var result=await new Promise(function(resolve,reject){worker=new Worker('/js/music-mp3-worker.js?v=202610141412');var timer=setTimeout(function(){worker.terminate();reject(Error('MP3 preparation timed out'));},180000);var cancel=document.getElementById('mp3-cancel');cancel.onclick=function(){cancelled=true;worker.terminate();clearTimeout(timer);reject(Error('Cancelled'));};worker.onerror=function(){clearTimeout(timer);reject(Error('Could not load the local MP3 encoder'));};worker.onmessage=function(e){if(e.data.error){clearTimeout(timer);reject(Error(e.data.error));}else if(e.data.audio){clearTimeout(timer);resolve(e.data.audio);}else{var label=document.getElementById('mp3-status');if(label)label.textContent='Preparing MP3: '+Math.round(e.data.progress*100)+'%';}};worker.postMessage(payload);});
    return new File([result],(meta.title||file.name.replace(/\.[^.]+$/,'')).replace(/[\\/:*?"<>|\u0000-\u001f]/g,'_').slice(0,120)+'.mp3',{type:'audio/mpeg'});
   }finally{if(worker)worker.terminate();worker=null;busy=false;var el=document.getElementById('mp3-progress');if(el)el.remove();}
  }
