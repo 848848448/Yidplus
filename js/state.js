@@ -1561,12 +1561,22 @@ window.PWA = {
     var reg = window.PWA._swReg;
     if (!reg) { toast('Notifications need the app to be open normally'); return Promise.resolve(); }
 
-    // Real VAPID public key (matches VAPID_PRIVATE_KEY Cloudflare secret)
-    var VAPID_PUBLIC = 'BAGqD6PA_r2NR8OxUZzUhavbPTSsWsc7Xp1DTnsanX6lPGL7vemGj-O6GbqVjLynoCMJTkuc1W7d5x8ZZ0IFytQ';
-
-    return reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: PWA._urlBase64ToUint8Array(VAPID_PUBLIC),
+    return api.get('/push/key').then(function (config) {
+      if (!config.public_key) throw new Error('Notifications are not configured');
+      var wanted = PWA._urlBase64ToUint8Array(config.public_key);
+      return reg.pushManager.getSubscription().then(function (current) {
+        if (current) {
+          var actual = current.options && current.options.applicationServerKey;
+          var bytes = actual ? new Uint8Array(actual) : null;
+          var matches = bytes && bytes.length === wanted.length && wanted.every(function (v, i) { return bytes[i] === v; });
+          if (matches) return current;
+          return current.unsubscribe().then(function (removed) {
+            if (!removed) throw new Error('Old subscription could not be replaced');
+            return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: wanted });
+          });
+        }
+        return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: wanted });
+      });
     }).then(function (sub) {
       return api.post('/push/subscribe', sub.toJSON());
     }).then(function () {
