@@ -8,6 +8,10 @@ var SHORTS_data = [];
 var SHORTS_curIdx = 0;
 var SHORTS_observer = null;
 var SHORTS_soundOn = false;       // once unmuted (by any user gesture), stays on for the rest of the session
+var SHORTS_feedEpoch = 0;
+var SHORTS_commentsEpoch = 0;
+var SHORTS_commentBusy = false;
+var SHORTS_uploadBusy = false;
 var SHORTS_pendingFile = null;    // video file waiting on the caption modal before upload
 
 window.init_shorts = function () {
@@ -24,12 +28,14 @@ window.init_shorts = function () {
 function loadShortsFeed() {
   var cont = document.getElementById('swipe-cont');
   if (!cont) return;
+  var epoch = ++SHORTS_feedEpoch;
   // Lock scroll to snap exactly one slide at a time
   cont.style.cssText = 'height:100dvh;width:100%;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:none';
   cont.innerHTML = '<div class="feed-state" style="height:100dvh;color:#fff"><div class="spinner"></div><div>Loading shorts...</div></div>';
 
   api.get('/shorts')
     .then(function (res) {
+      if (epoch !== SHORTS_feedEpoch) return;
       SHORTS_data = res.shorts || [];
       var sharedId = (window.location.hash || '').replace('#', '');
       if (sharedId && !SHORTS_data.some(function (s) { return s.id === sharedId; })) {
@@ -38,15 +44,17 @@ function loadShortsFeed() {
         // the short that was shared, not just the generic feed top.
         return api.get('/shorts?id=' + encodeURIComponent(sharedId))
           .then(function (r2) {
+            if (epoch !== SHORTS_feedEpoch) return;
             if (r2.shorts && r2.shorts.length) SHORTS_data.unshift(r2.shorts[0]);
           })
           .catch(function () {})
-          .then(function () { renderShorts(); _scrollToSharedShort(sharedId); });
+          .then(function () { if (epoch === SHORTS_feedEpoch) { renderShorts(); _scrollToSharedShort(sharedId); } });
       }
       renderShorts();
       if (sharedId) _scrollToSharedShort(sharedId);
     })
     .catch(function (err) {
+      if (epoch !== SHORTS_feedEpoch) return;
       cont.innerHTML = '<div class="feed-state" style="height:100dvh;color:#fff">' +
         '<div style="font-size:2.5rem">⚠️</div><div>Could not load shorts</div>' +
         '<div style="font-size:.75rem;opacity:.7">' + escHtml(err.message) + '</div>' +
@@ -269,13 +277,15 @@ function setupShortsObserver() {
       var idx = parseInt(entry.target.dataset.idx, 10);
 
       if (entry.isIntersecting && entry.intersectionRatio > 0.85) {
+        if (document.hidden) { video.pause(); return; }
+        document.querySelectorAll('.slide-video').forEach(function (v) { if (v !== video) v.pause(); });
         SHORTS_curIdx = idx;
         // Preload this video immediately when it becomes active
         if (video.preload === 'none') video.preload = 'auto';
         // Warm up the NEXT slide too, so swiping to it plays instantly
         // instead of showing a black frame while it loads.
         var nextSlide = entry.target.nextElementSibling;
-        if (nextSlide) {
+        if (nextSlide && !(navigator.connection && (navigator.connection.saveData || /(^|-)2g$/.test(navigator.connection.effectiveType || '')))) {
           var nextVid = nextSlide.querySelector('.slide-video');
           if (nextVid && nextVid.preload === 'none') { nextVid.preload = 'auto'; nextVid.load(); }
         }
@@ -345,6 +355,8 @@ function doubleTapLike(i, slide) {
 window.toggleShortLike = function (i) {
   if (!STATE.user) return toast('⚠ Please sign in first.');
   var s = SHORTS_data[i];
+  if (!s || s._likeBusy) return;
+  s._likeBusy = true;
   var newLiked = !s.liked;
 
   api.put('/shorts', { id: s.id, like: newLiked })
@@ -354,28 +366,33 @@ window.toggleShortLike = function (i) {
       var el = document.getElementById('like-' + i);
       var icon = document.getElementById('like-icon-' + i);
       var count = document.getElementById('like-count-' + i);
+      if (!icon || !el || !count || SHORTS_data[i] !== s) return;
       icon.innerHTML = newLiked ? ICON_HEART_FILLED : ICON_HEART_OUTLINE;
       el.classList.toggle('liked', newLiked);
       count.textContent = fmtN(s.likes);
     })
-    .catch(function (err) { toast('❌ ' + err.message); });
+    .catch(function (err) { toast('❌ ' + err.message); })
+    .finally(function () { s._likeBusy = false; });
 };
 
 window.toggleShortSave = function (i) {
   if (!STATE.user) return toast('⚠ Please sign in first.');
   var s = SHORTS_data[i];
+  if (!s || s._saveBusy) return;
+  s._saveBusy = true;
   var newSaved = !s.saved;
   var req = newSaved
     ? api.post('/saves', { item_type: 'short', item_id: s.id })
     : api.del('/saves?item_type=short&item_id=' + encodeURIComponent(s.id));
   req.then(function () {
     s.saved = newSaved;
+    if (SHORTS_data[i] !== s) return;
     var icon = document.getElementById('save-icon-' + i);
     var el = document.getElementById('save-' + i);
     if (icon) icon.textContent = newSaved ? '🔖' : '🏷️';
     if (el) el.classList.toggle('liked', newSaved);
     toast(newSaved ? '🔖 Saved!' : 'Removed from saved');
-  }).catch(function (err) { toast('❌ ' + err.message); });
+  }).catch(function (err) { toast('❌ ' + err.message); }).finally(function () { s._saveBusy = false; });
 };
 
 // ── CHANNEL ──
@@ -422,8 +439,10 @@ window.deleteShort = function (id, i) {
 // COMMENTS DRAWER
 // ============================================================
 window.openComments = function (idx) {
+  var epoch = ++SHORTS_commentsEpoch;
   SHORTS_curIdx = idx;
   var s = SHORTS_data[idx];
+  if (!s) return;
   var list = document.getElementById('cmt-list');
   var countEl = document.getElementById('cmt-count');
   list.innerHTML = '<div class="feed-state" style="color:var(--muted)"><div class="spinner"></div></div>';
@@ -431,6 +450,7 @@ window.openComments = function (idx) {
 
   api.get('/shorts/comments?short_id=' + encodeURIComponent(s.id))
     .then(function (res) {
+      if (epoch !== SHORTS_commentsEpoch) return;
       var comments = res.comments || [];
       countEl.textContent = '(' + comments.length + ')';
       _updateCmtBadge(idx, comments.length);
@@ -450,11 +470,13 @@ window.openComments = function (idx) {
       }).join('');
     })
     .catch(function (err) {
+      if (epoch !== SHORTS_commentsEpoch) return;
       list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--red);font-size:.85rem">' + escHtml(err.message) + '</div>';
     });
 };
 
 window.closeCmts = function () {
+  ++SHORTS_commentsEpoch;
   document.getElementById('cmt-drawer').classList.remove('open');
 };
 
@@ -483,22 +505,35 @@ window.sendCmt = function () {
   if (!STATE.user) return toast('⚠ Please sign in first.');
   var input = document.getElementById('cmt-input');
   var text = (input.value || '').trim();
-  if (!text) return;
-  var s = SHORTS_data[SHORTS_curIdx];
+  if (!text || SHORTS_commentBusy) return;
+  var idx = SHORTS_curIdx, s = SHORTS_data[idx];
+  if (!s) return;
+  SHORTS_commentBusy = true;
 
   api.post('/shorts/comments', { short_id: s.id, text: text })
     .then(function () {
-      input.value = '';
-      openComments(SHORTS_curIdx);
+      if (input.value.trim() === text) input.value = '';
+      if (SHORTS_curIdx === idx && document.getElementById('cmt-drawer').classList.contains('open')) openComments(idx);
     })
-    .catch(function (err) { toast('❌ ' + err.message); });
+    .catch(function (err) { toast('❌ ' + err.message); })
+    .finally(function () { SHORTS_commentBusy = false; });
 };
+
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) document.querySelectorAll('.slide-video').forEach(function (v) { v.pause(); });
+});
+window.addEventListener('pagehide', function () {
+  ++SHORTS_feedEpoch; ++SHORTS_commentsEpoch;
+  if (SHORTS_observer) SHORTS_observer.disconnect();
+  document.querySelectorAll('.slide-video').forEach(function (v) { v.pause(); });
+});
 
 // ============================================================
 // UPLOAD — picking a video opens a caption modal (no blocking prompt()),
 // then the actual upload happens on "Post Short".
 // ============================================================
 window.handleVidUpload = function (e) {
+  if (SHORTS_uploadBusy) return;
   var file = e.target.files[0];
   if (!file) return;
   if (!STATE.user) return toast('⚠ Please sign in first.');
@@ -506,42 +541,60 @@ window.handleVidUpload = function (e) {
   SHORTS_pendingFile = file;
   document.getElementById('upload-modal').classList.remove('open');
   document.getElementById('caption-input').value = '';
+  var status = document.getElementById('short-upload-status');
+  if (status) status.textContent = '';
   document.getElementById('caption-modal').classList.add('open');
   e.target.value = '';
 };
 
 window.cancelShortUpload = function () {
+  if (SHORTS_uploadBusy) return;
   SHORTS_pendingFile = null;
   document.getElementById('caption-modal').classList.remove('open');
 };
 
 window.confirmShortUpload = function () {
-  if (!SHORTS_pendingFile) { document.getElementById('caption-modal').classList.remove('open'); return; }
+  if (SHORTS_uploadBusy || !SHORTS_pendingFile) return;
   var caption = (document.getElementById('caption-input').value || '').trim();
   var file = SHORTS_pendingFile;
-  SHORTS_pendingFile = null;
-
-  // Shorts are the biggest thing anyone uploads here, and this is where waiting
-  // through a doomed upload hurts most.
   if (!checkFileSize(file, 100, 'Video')) return;
-
-  document.getElementById('caption-modal').classList.remove('open');
-  toast('📤 Uploading short...');
-
+  SHORTS_uploadBusy = true;
+  var modal = document.getElementById('caption-modal');
+  var status = document.getElementById('short-upload-status');
+  if (!status) { status = document.createElement('div'); status.id = 'short-upload-status'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite'); status.style.cssText = 'font-size:.85rem;line-height:1.5;margin-bottom:.75rem;color:#fff'; document.getElementById('caption-input').after(status); }
+  modal.querySelectorAll('button,textarea').forEach(function (el) { el.disabled = true; });
+  status.textContent = 'Preparing video...';
   watermarkFile(file).then(function (watermarked) {
     var form = new FormData();
-    form.append('file', watermarked);
-    form.append('caption', caption);
-    return api.post('/shorts', form, true);
-  })
-    .then(function (res) {
-      toast('✅ Uploaded!');
-      SHORTS_data.unshift(res.short);
-      renderShorts();
-    })
-    .catch(function (err) { toast('❌ ' + err.message); });
+    form.append('file', watermarked); form.append('caption', caption);
+    return new Promise(function (resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', CONFIG.API_BASE + '/shorts'); xhr.withCredentials = true;
+      xhr.upload.onprogress = function (e) {
+        status.textContent = e.lengthComputable ? ('Uploading ' + Math.round(100 * e.loaded / e.total) + '%' + (e.loaded === e.total ? ' - processing...' : '')) : 'Uploading video...';
+      };
+      xhr.onload = function () {
+        handleRes(new Response(xhr.responseText, {status: xhr.status})).then(resolve, reject);
+      };
+      // A disconnected response may still have committed. Never auto-retry.
+      xhr.onerror = xhr.onabort = function () { var err = new Error('Connection lost. Check your channel before uploading again to avoid a duplicate.'); err.uncertain = true; reject(err); };
+      api.bust('/shorts'); status.textContent = 'Uploading video...'; xhr.send(form);
+    });
+  }).then(function (res) {
+    SHORTS_pendingFile = null; modal.classList.remove('open');
+    toast('Uploaded!'); SHORTS_data.unshift(res.short); renderShorts();
+  }).catch(function (err) {
+    status.textContent = err.message;
+    toast(err.message);
+    if (err.uncertain) {
+      SHORTS_pendingFile = null;
+      status.textContent += ' Choose the file again only after checking.';
+    }
+  }).finally(function () {
+    SHORTS_uploadBusy = false;
+    modal.querySelectorAll('button,textarea').forEach(function (el) { el.disabled = false; });
+  });
 };
-
 
 // Reload a short's video once if it hits a transient load error (common when
 // scrolling fast in the feed before it finishes buffering).
