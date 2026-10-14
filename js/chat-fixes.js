@@ -250,7 +250,7 @@ window.loadOlderMessages = function () {
   var roomId = CHAT_curRoom.id, topicId = CHAT_curTopicId, cursor = CHAT_historyCursor;
   var host = document.getElementById('chat-msgs'), height = host.scrollHeight, top = host.scrollTop;
   CHAT_historyBusy = true; updateHistoryButton();
-  api.get('/chat?room_id='+encodeURIComponent(roomId)+'&before='+encodeURIComponent(cursor.before)+'&before_id='+encodeURIComponent(cursor.before_id)+(topicId?'&topic_id='+encodeURIComponent(topicId):''))
+  return api.get('/chat?room_id='+encodeURIComponent(roomId)+'&before='+encodeURIComponent(cursor.before)+'&before_id='+encodeURIComponent(cursor.before_id)+(topicId?'&topic_id='+encodeURIComponent(topicId):''))
   .then(function(res){
     if (!CHAT_curRoom || CHAT_curRoom.id !== roomId || CHAT_curTopicId !== topicId) return;
     var ids = new Set(CHAT_messages.map(function(m){return m.id;}));
