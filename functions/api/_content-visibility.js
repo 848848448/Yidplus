@@ -35,3 +35,13 @@ export async function filterChannelContent(env, rows, user, ownerField='owner_id
     return rows.filter(row=>row[ownerField] && !denied.has(row[ownerField]));
   } catch { return []; }
 }
+export async function postVisible(env,id,user) {
+  try {
+    let row;
+    try {row=await env.DB.prepare('SELECT id,user_id,hidden FROM posts WHERE id=?').bind(id).first();}
+    catch(e){if(!legacyColumn(e))return false;row=await env.DB.prepare('SELECT id,user_id FROM posts WHERE id=?').bind(id).first();}
+    if(!row || row.hidden)return false;
+    if(user && await env.DB.prepare('SELECT 1 FROM user_blocks WHERE blocker_id=? AND blocked_id=?').bind(user.id,row.user_id).first())return false;
+    return await channelContentVisible(env,row.user_id,user);
+  }catch{return false;}
+}
