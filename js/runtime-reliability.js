@@ -103,7 +103,7 @@ function _runGSearch(q) {
       if (g.kind === 'content') {
         html += g.items.map(function(item){
           var target=item.content_type==='short'?'/shorts#'+encodeURIComponent(item.id):'/?channel='+encodeURIComponent(item.user_id);
-          return '<a href="'+target+'" style="display:block;padding:.65rem .5rem;border-bottom:1px solid var(--border);color:var(--text);text-decoration:none"><div style="font-size:.7rem;color:var(--muted)">'+(item.content_type==='short'?'Short':'Post on channel')+'</div><div>'+escHtml((item.caption||'Matching post').slice(0,120))+'</div></a>';
+          return '<a href="'+target+'" style="display:block;padding:.65rem .5rem;border-bottom:1px solid var(--border);color:var(--site-ink,var(--text));text-decoration:none"><div style="font-size:.7rem;color:var(--muted)">'+(item.content_type==='short'?'Short':'Post on channel')+'</div><div>'+escHtml((item.caption||'Matching post').slice(0,120))+'</div></a>';
         }).join('');
       } else if (g.kind === 'chats') {
         html += g.items.map(function (r) {
