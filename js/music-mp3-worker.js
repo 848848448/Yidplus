@@ -1,4 +1,4 @@
-importScripts('vendor/lame-1.2.1.min.js','vendor/mp3tag-3.17.0.min.js');
+importScripts('vendor/1-lame-1.2.1.min.js','vendor/2-mp3tag-3.17.0.min.js');
 self.onmessage=function(e){
  try{
   var d=e.data,audio=d.audio;
