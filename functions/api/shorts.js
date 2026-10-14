@@ -6,7 +6,7 @@
 
 import { json, corsHeaders, requireUser, isAdminRole, canDeleteContent, logAudit } from './_helpers.js';
 
-import { channelContentVisible, shortVisible } from './_content-visibility.js';
+import { filterChannelContent, shortVisible } from './_content-visibility.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -116,9 +116,7 @@ export async function onRequestGet(context) {
       results = results.filter(row => blockedIds.indexOf(row.owner_id) === -1);
     }
 
-    const visibleOwners = new Map();
-    for (const row of results) if (!visibleOwners.has(row.owner_id)) visibleOwners.set(row.owner_id, await channelContentVisible(env,row.owner_id,user));
-    results = results.filter(row => visibleOwners.get(row.owner_id));
+    results = await filterChannelContent(env,results,user);
 
     let likedIds = new Set();
     let savedIds = new Set();
