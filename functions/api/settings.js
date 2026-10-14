@@ -3,7 +3,7 @@
 // PUT /api/settings { key, value } -> upsert one setting (Owner / Super Admin only)
 // PUT /api/settings (multipart: key, file) -> upload a file (e.g. logo) to R2 and save its URL as the setting value
 
-import { json, corsHeaders, requireUser, isOwnerOrCoOwner } from './_helpers.js';
+import { json, corsHeaders, logAudit, requireUser, isOwnerOrCoOwner } from './_helpers.js';
 import { activateDueScheduledBroadcasts } from './_scheduled.js';
 
 export async function onRequestOptions() {
@@ -90,6 +90,7 @@ export async function onRequestPut(context) {
        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
     ).bind(key, String(value), new Date().toISOString()).run();
 
+    await logAudit(env,user,'change_setting','setting',String(key),'Setting updated');
     return json({ ok: true, key, value });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
