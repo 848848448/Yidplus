@@ -129,3 +129,24 @@ html:not(.dark-mode) .modal-sheet,html:not(.dark-mode) .attach-sheet{background:
 #global-search-modal>div:first-child>div{background:var(--chat-canvas)!important;border-radius:12px}
 #global-search-modal button{background:var(--chat-soft)!important;color:var(--chat-muted)!important;border:1px solid transparent;border-radius:9px}
 #global-search-modal button.active{color:var(--chat-accent)!important;border-color:var(--chat-accent)!important}
+/* Voice recording: finger-led hold mode and a compact hands-free review bar. */
+#rec-overlay {pointer-events:none;right:70px;border-radius:26px;background:var(--cd-panel,var(--surface));overflow:visible;}
+#rec-overlay .rec-trash-zone{background:none;width:24px;}
+#rec-overlay .rec-waveform{display:none;}
+#rec-overlay .rec-center{flex:0;}
+#rec-overlay .rec-slide-hint{margin-left:auto;font-size:12px;animation:none;}
+#voice-rec-btn.held{z-index:8;background:#20c572;color:white;box-shadow:0 5px 20px #0003;animation:none;transition:none;}
+#rec-lock-pill{width:42px;min-height:92px;right:12px;left:auto;bottom:calc(100% + 12px);border-radius:24px;justify-content:space-between;background:var(--surface);color:var(--text);}
+#rec-lock-pill.near{background:#d6f8df;}
+.voice-lock-label{position:absolute;right:52px;top:18px;width:130px;font-size:12px;color:var(--muted);text-align:right;}
+#rec-locked-bar{position:relative;flex-wrap:wrap;gap:10px;padding:12px 14px;background:var(--surface);min-height:96px;}
+#voice-record-status{width:100%;font-size:12px;color:var(--muted);min-height:16px;}
+#rec-locked-bar .rec-locked-delete{background:none;color:var(--muted);}
+#rec-locked-bar .rec-locked-send{background:#20aa62;box-shadow:none;}
+#rec-locked-bar .rec-locked-center{min-width:0;}
+.voice-pause{width:42px;height:42px;border:0;background:none;color:#df344f;border-radius:50%;font-size:26px;font-weight:700;cursor:pointer;flex-shrink:0;}
+#voice-local-preview{flex:1;width:110px;min-width:0;height:40px;}
+#rec-locked-bar button:disabled{opacity:.45;cursor:wait;}
+#rec-locked-bar button:focus-visible{outline:3px solid var(--accent);outline-offset:3px;}
+@media(prefers-reduced-motion:reduce){.rec-dot,.rec-lock-chevron{animation:none;}}
+.voice-lock-label{background:var(--surface);border-radius:16px;padding:7px 10px;top:8px;width:auto;white-space:nowrap;box-shadow:0 2px 8px #0001;color:var(--text);}
