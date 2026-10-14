@@ -66,8 +66,8 @@ export async function onRequestPost(context) {
     const failKey = 'login_fail_' + ip.replace(/[^0-9a-f:.]/gi, '');
     const recentFails = await env.DB.prepare(
       `SELECT COUNT(*) as cnt FROM login_logs
-       WHERE ip = ? AND action = 'fail' AND created_at > datetime('now', '-15 minutes')`
-    ).bind(ip).first().catch(() => ({ cnt: 0 }));
+       WHERE ip = ? AND action = 'fail' AND julianday(created_at) > julianday('now', '-15 minutes')`
+    ).bind(ip).first();
 
     // Deliberately NOT exempting the owner/co-owner email here — that exemption
     // exists above for maintenance/lockdown/device-bans (so the owner can't be
@@ -126,7 +126,7 @@ export async function onRequestPost(context) {
           // check above is the only thing that was ever logged/rate-limited).
           await env.DB.prepare(
             `INSERT INTO login_logs (id, user_id, ip, fingerprint, action, created_at) VALUES (?, ?, ?, ?, 'fail', ?)`
-          ).bind(crypto.randomUUID(), user.id, ip, fingerprint || null, new Date().toISOString()).run().catch(() => {});
+          ).bind(crypto.randomUUID(), user.id, ip, fingerprint || null, new Date().toISOString()).run();
           return json({ ok: false, need_2fa: true, error: 'That code is not correct.' }, 401);
         }
       }
