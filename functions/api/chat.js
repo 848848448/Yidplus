@@ -1,3 +1,4 @@
+import { validateTopic } from './_topic-policy.js';
 import { eligibleChatRecipients, chatPushPayload } from './_chat-push-policy.js';
 // functions/api/chat.js
 // GET    /api/chat?room_id=xxx  -> list messages for a room (auto-joins user to room)
@@ -400,6 +401,10 @@ export async function onRequestPost(context) {
 
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
 
+    const topicAccess=await validateTopic(env,user,roomId,topicId);
+    if (!topicAccess.ok) return json({ok:false,error:topicAccess.error},topicAccess.status);
+    topicId=topicAccess.topicId;
+
     // For private DMs: if either side has blocked the other, sending is disallowed.
     const room = await env.DB.prepare(`SELECT type, read_only, visibility, permissions FROM rooms WHERE id = ?`).bind(roomId).first();
     if (room && room.type === 'private') {
@@ -656,4 +661,4 @@ async function ensureMember(env, roomId, userId) {
       ).bind(roomId, userId, new Date().toISOString()).run();
     }
   }
-      }
+}
