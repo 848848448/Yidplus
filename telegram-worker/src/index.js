@@ -432,7 +432,7 @@ async function fileLocation(env, mtproto, username, msgId, force, forDownload) {
   const key = `loc:${username}:${msgId}`;
   if (!force) {
     const hit = await env.TG_SESSION.get(key);
-    if (hit) { try { const cached=locParse(hit);if(!forDownload)return cached;if(cached.download_allowed===false)throw new Error('Saving protected content or voice notes is not allowed');if(cached.download_allowed===true)return cached; } catch (e) { if(/not allowed/.test(e.message))throw e; /* refetch */ } }
+    if (hit) { try { const cached=locParse(hit);if(!forDownload)return cached;if(cached.protected===true)throw new Error('Saving protected content is not allowed');if(cached.protected===false){if(forDownload==='mp3'&&(cached.kind!=='audio'||cached.voice))throw new Error('Only music files can be downloaded as MP3');return cached;} } catch (e) { if(/not allowed/.test(e.message))throw e; /* refetch */ } }
   }
 
   const resolved = await call(mtproto, 'contacts.resolveUsername', { username });
@@ -448,10 +448,10 @@ async function fileLocation(env, mtproto, username, msgId, force, forDownload) {
 
   if (forDownload && (chat.noforwards || msg.noforwards)) throw new Error('Saving protected content is not allowed');
   const info = mediaInfo(msg);
-  if (forDownload && (!info || info.kind !== 'audio' || info.voice)) throw new Error('Only music files can be downloaded as MP3');
+  if (forDownload==='mp3' && (!info || info.kind !== 'audio' || info.voice)) throw new Error('Only music files can be downloaded as MP3');
   if (!info) throw new Error('post has no media');
 
-  const out = { location: info.location, size: Number(info.size) || 0, mime: info.mime, kind: info.kind, thumb_type: info.thumb_type || '', download_allowed: !chat.noforwards && !msg.noforwards && info.kind==='audio' && !info.voice };
+  const out = { location: info.location, size: Number(info.size) || 0, mime: info.mime, kind: info.kind, thumb_type: info.thumb_type || '', protected: !!(chat.noforwards || msg.noforwards), voice: !!info.voice };
   try { await env.TG_SESSION.put(key, locStringify(out), { expirationTtl: 1800 }); } catch (e) { /* serving matters more than caching */ }
   return out;
 }
@@ -569,7 +569,7 @@ async function streamMedia(env, request, ctx) {
   const mtproto = makeClient(env);
   let info;
   try {
-    info = await fileLocation(env, mtproto, username, msgId, url.searchParams.has('download') && (!request.headers.get('Range') || /^bytes=0-/.test(request.headers.get('Range'))), url.searchParams.has('download')); 
+    info = await fileLocation(env, mtproto, username, msgId, url.searchParams.has('download') && (!request.headers.get('Range') || /^bytes=0-/.test(request.headers.get('Range'))), url.searchParams.get('download')); 
   } catch (e) {
     return new Response('Not available: ' + (e.error_message || e.message), { status: /protected|Only music/.test(e.message||'')?403:404, headers:{'Access-Control-Allow-Origin':'*','Cache-Control':'no-store'} });
   }
@@ -640,7 +640,7 @@ async function streamMedia(env, request, ctx) {
     // A stale file_reference is the usual cause — rebuild it once and retry.
     if (/FILE_REFERENCE/i.test(msg)) {
       try {
-        info = await fileLocation(env, mtproto, username, msgId, true, url.searchParams.has('download'));
+        info = await fileLocation(env, mtproto, username, msgId, true, url.searchParams.get('download'));
         bytes = await readSlice(env, mtproto, info, username, msgId, alignedStart);
       } catch (e2) {
         return new Response('Stream error: ' + (e2.error_message || e2.message || ''), { status: 502 });
