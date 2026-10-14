@@ -118,11 +118,11 @@ export async function onRequestGet(context) {
     await ensureTable(env);
     const settings = await readAiSettings(env);
     const { results } = await env.DB.prepare(
-      'SELECT role, content, created_at FROM ai_messages WHERE user_id = ? ORDER BY created_at ASC LIMIT 200'
+      'SELECT role, content, created_at FROM ai_messages WHERE user_id = ? ORDER BY created_at DESC LIMIT 200'
     ).bind(user.id).all();
     return json({
       ok: true,
-      messages: results || [],
+      messages: (results || []).reverse(),
       configured: !!(env.ANTHROPIC_API_KEY || env.AI),
       enabled: settings.enabled,
       name: settings.name,
@@ -160,8 +160,8 @@ export async function onRequestPost(context) {
     // ── Rate limit: cap messages per user per hour to control cost/abuse ──
     const HOURLY_CAP = settings.hourly_limit;
     const recent = await env.DB.prepare(
-      "SELECT COUNT(*) AS c FROM ai_messages WHERE user_id = ? AND role = 'user' AND created_at > datetime('now','-1 hours')"
-    ).bind(user.id).first().catch(() => ({ c: 0 }));
+      "SELECT COUNT(*) AS c FROM ai_messages WHERE user_id = ? AND role = 'user' AND created_at > ?"
+    ).bind(user.id,new Date(Date.now()-3600000).toISOString()).first();
     if ((recent?.c || 0) >= HOURLY_CAP) {
       return json({ ok: false, error: 'rate_limited',
         message: 'You\'ve reached the hourly limit. Please try again a little later.' }, 429);
@@ -172,12 +172,12 @@ export async function onRequestPost(context) {
     if (isImageRequest(message)) {
       if (!env.AI) {
         return json({ ok: false, error: 'no_image',
-          message: 'בילד-מאכן פֿאדערט די פֿרייע Cloudflare Workers AI — דער אייגנטומער דארף עס אנצינדן.' }, 503);
+          message: 'Image generation is not configured. The site owner needs to enable it.' }, 503);
       }
       try {
         const prompt = await toImagePrompt(env, message);
         const imgUrl = await generateImage(env, prompt);
-        const caption = 'אָט איז דיין בילד 🎨';
+        const caption = 'Your image';
         const content = caption + '\n[img:' + imgUrl + ']';
         const nowI = new Date();
         await env.DB.prepare('INSERT INTO ai_messages (id, user_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)')
@@ -187,7 +187,7 @@ export async function onRequestPost(context) {
         return json({ ok: true, reply: caption, image: imgUrl });
       } catch (e) {
         return json({ ok: false, error: 'image_failed',
-          message: 'איך האב נישט געקענט מאכן דאס בילד. פרוביר נאכאמאל מיט אן אנדער באשרייבונג.',
+          message: 'Could not generate the image. Try a different description.',
           detail: String((e && e.message) || e).slice(0, 200) }, 502);
       }
     }
@@ -211,7 +211,7 @@ export async function onRequestPost(context) {
         detail: (gen.detail || '').slice(0, 300) }, gen.status || 502);
     }
     let reply = (gen.reply || '').trim();
-    if (!reply) reply = 'איך האב נישט געקענט ענטפערן דערויף. פרוביר נאכאמאל.';
+    if (!reply) return json({ok:false,error:'empty_reply',message:'The AI returned an empty response. Try again.'},502);
 
     // ── Persist both turns ──
     const now = new Date();
@@ -273,13 +273,14 @@ async function generateReply(env, system, messages) {
       // Guard against a hung inference: if the model doesn't answer in time,
       // fail cleanly with JSON instead of letting the Function hit a platform
       // limit and return a raw 502 page.
-      const timeout = new Promise((_, rej) =>
-        setTimeout(() => rej(new Error('AI timed out')), 25000));
+      let timer;
+      const timeout = new Promise((_, rej) => { timer=setTimeout(() => rej(new Error('AI timed out')), 25000); });
       const run = env.AI.run(model, {
         messages: [{ role: 'system', content: system }].concat(messages),
         max_tokens: 800,
       });
-      const out = await Promise.race([run, timeout]);
+      let out;
+      try { out = await Promise.race([run, timeout]); } finally { clearTimeout(timer); }
       // Workers AI text models return { response: "..." }; be defensive.
       let reply = '';
       if (typeof out === 'string') reply = out;
@@ -287,9 +288,8 @@ async function generateReply(env, system, messages) {
       else if (out && out.result && typeof out.result.response === 'string') reply = out.result.response;
       return { ok: true, reply: String(reply || '') };
     } catch (e) {
-      return { ok: false, error: 'ai_error', status: 200,
-        message: 'The free AI model errored: ' + String((e && e.message) || e) + '. Please try again in a moment.',
-        detail: String((e && e.stack) || '') };
+      return { ok: false, error: 'ai_error', status: 502,
+        message: 'The AI service could not answer. Please try again in a moment.' };
     }
   }
 
@@ -309,4 +309,4 @@ export async function onRequestDelete(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-}
+    }
