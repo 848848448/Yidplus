@@ -1,3 +1,4 @@
+import { postVisible } from '../_content-visibility.js';
 // GET    /api/posts/comments?post_id=X -> list comments (with like counts + my_liked)
 // POST   /api/posts/comments            -> add comment { post_id, text }
 // PUT    /api/posts/comments            -> toggle like { comment_id }
@@ -22,10 +23,11 @@ export async function onRequestGet(context) {
     if (!postId) return json({ ok: false, error: 'post_id required' }, 400);
 
     const user = await requireUser(request, env).catch(() => null);
+    if (!await postVisible(env,postId,user)) return json({ok:false,error:"Not found"},404);
     await ensureLikesTable(env);
 
     const { results } = await env.DB.prepare(
-      'SELECT id, user_id, nickname, text, created_at FROM post_comments WHERE post_id = ? ORDER BY created_at ASC LIMIT 100'
+      'SELECT id, user_id, nickname, text, created_at FROM post_comments WHERE post_id = ? ORDER BY created_at ASC LIMIT 99'
     ).bind(postId).all();
 
     const ids = results.map(c => c.id);
@@ -62,12 +64,13 @@ export async function onRequestPost(context) {
     const user = await requireUser(request, env);
     if (!user) return json({ ok: false, error: 'Not signed in' }, 401);
     const { post_id, text } = await request.json();
-    if (!post_id || !text?.trim()) return json({ ok: false, error: 'post_id and text required' }, 400);
+    if (typeof text!=='string' || !post_id || !text.trim()) return json({ ok: false, error: 'post_id and text required' }, 400);
     if (text.length > 500) return json({ ok: false, error: 'Comment too long' }, 400);
 
+    if (!await postVisible(env,post_id,user)) return json({ok:false,error:'Not found'},404);
     const recentCount = await env.DB.prepare(
-      "SELECT COUNT(*) as cnt FROM post_comments WHERE user_id = ? AND created_at > datetime('now', '-1 minute')"
-    ).bind(user.id).first().catch(() => ({ cnt: 0 }));
+      "SELECT COUNT(*) as cnt FROM post_comments WHERE user_id = ? AND created_at > ?"
+    ).bind(user.id,new Date(Date.now()-60000).toISOString()).first();
     if ((recentCount?.cnt || 0) >= 5) return json({ ok: false, error: 'Too many comments. Please wait.' }, 429);
 
     const id = crypto.randomUUID();
@@ -93,6 +96,8 @@ export async function onRequestPut(context) {
     const { comment_id } = await request.json();
     if (!comment_id) return json({ ok: false, error: 'comment_id required' }, 400);
 
+    const comment=await env.DB.prepare('SELECT post_id FROM post_comments WHERE id=?').bind(comment_id).first();
+    if (!comment || !await postVisible(env,comment.post_id,user)) return json({ok:false,error:'Not found'},404);
     await ensureLikesTable(env);
     const existing = await env.DB.prepare(
       'SELECT 1 FROM comment_likes WHERE comment_id = ? AND user_id = ?'
