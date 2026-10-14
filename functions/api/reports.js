@@ -4,7 +4,7 @@ import {resolveReportTarget} from './_report-target.js';
 // POST /api/reports                -> { reported_id, reported_nick, room_id, message_id, reason, details }
 // PUT  /api/reports                -> { id, resolved } mark resolved (admin only)
 
-import { json, corsHeaders, requireUser, isAdminRole, notifyAdmin } from './_helpers.js';
+import { json, corsHeaders, logAudit, requireUser, isAdminRole, notifyAdmin } from './_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -92,6 +92,7 @@ export async function onRequestPut(context) {
     await env.DB.prepare(`UPDATE reports SET resolved = ? WHERE id = ?`)
       .bind(body.resolved ? 1 : 0, body.id).run();
 
+    await logAudit(env,user,'resolve_report','report',body.id,body.resolved?'Resolved':'Reopened');
     return json({ ok: true });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
