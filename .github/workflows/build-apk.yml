@@ -18,6 +18,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.5'
+      - name: Bundle public UI
+        run: python3 android/scripts/bundle.py
       - name: Validate unsigned build only
         working-directory: android
         run: gradle assembleRelease --no-daemon
