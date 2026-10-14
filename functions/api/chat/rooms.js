@@ -91,20 +91,29 @@ export async function onRequestGet(context) {
     //    current top-bar one) ──
     const pinnedHistoryRoomId = url.searchParams.get('pinned_history');
     if (pinnedHistoryRoomId) {
+      const room = await env.DB.prepare('SELECT type, visibility FROM rooms WHERE id = ?').bind(pinnedHistoryRoomId).first();
+      if (!room) return json({ ok: false, error: 'Room not found' }, 404);
+      const member = await env.DB.prepare('SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?').bind(pinnedHistoryRoomId, user.id).first();
+      const owner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
+      const admin = isAdminRole(user, env.OWNER_EMAIL);
+      if (!member && !(room.type === 'private' ? owner : admin)) return json({ ok: false, error: 'Forbidden' }, 403);
+      const disabled = await env.DB.prepare('SELECT 1 FROM disabled_rooms WHERE room_id = ?').bind(pinnedHistoryRoomId).first();
+      if (disabled && !admin) return json({ ok: false, error: 'Room unavailable' }, 403);
       try {
         const { results } = await env.DB.prepare(
-          `SELECT pm.message_id, pm.pinned_at, pm.pinned_by, u.nickname as pinned_by_nick,
-                  m.text, m.type, m.sender_nick, m.created_at
-           FROM pinned_messages pm
-           LEFT JOIN messages m ON m.id = pm.message_id
+          `SELECT m.*, pm.message_id, pm.pinned_at, pm.pinned_by, u.nickname as pinned_by_nick
+           FROM pinned_messages pm JOIN messages m ON m.id = pm.message_id AND m.room_id = pm.room_id
            LEFT JOIN users u ON u.id = pm.pinned_by
-           WHERE pm.room_id = ?
-           ORDER BY pm.pinned_at DESC`
+           WHERE pm.room_id = ? ORDER BY pm.pinned_at DESC LIMIT 100`
         ).bind(pinnedHistoryRoomId).all();
-        return json({ ok: true, pinned: results });
-      } catch (e) {
-        return json({ ok: true, pinned: [] }); // table not migrated yet
-      }
+        const now = Date.now();
+        const pinned = (results || []).filter(m => !m.hidden && !m.view_once &&
+          (!m.scheduled_for || (Number.isFinite(Date.parse(m.scheduled_for)) && Date.parse(m.scheduled_for) <= now)) &&
+          (!m.expires_at || (Number.isFinite(Date.parse(m.expires_at)) && Date.parse(m.expires_at) > now)))
+          .map(m => ({ message_id: m.message_id, pinned_at: m.pinned_at, pinned_by: m.pinned_by,
+            pinned_by_nick: m.pinned_by_nick, text: m.text, type: m.type, sender_nick: m.sender_nick, created_at: m.created_at }));
+        return json({ ok: true, pinned });
+      } catch (e) { return json({ ok: false, error: 'Pinned history is temporarily unavailable' }, 503); }
     }
 
     // ── Search public groups by name (used by Explore) ──
