@@ -6,6 +6,7 @@
 
 import { json, corsHeaders, requireUser, canDeleteContent, isAdminRole, logAudit, notifyAdmin, notifyUser, notifyChannelFollowers } from './_helpers.js';
 
+import { channelContentVisible } from './_content-visibility.js';
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
@@ -34,6 +35,7 @@ export async function onRequestGet(context) {
     const user = await requireUser(request, env).catch(() => null);
     const url = new URL(request.url);
     const filterUserId = url.searchParams.get('user_id');
+    if (filterUserId && !await channelContentVisible(env,filterUserId,user)) return json({ok:true,posts:[]});
     // One-time (per worker) schema + index setup so the feed query is fast and
     // we don't run DDL on every request.
     await ensurePostsSchema(env);
@@ -51,6 +53,7 @@ export async function onRequestGet(context) {
           ).all();
       results = r.results;
     } catch (e) {
+      if (!/no such column.*hidden/i.test(String(e.message))) throw e;
       const r = filterUserId
         ? await env.DB.prepare(
             `SELECT id, username, user_id, caption, content, likes, comments, created_at
@@ -85,7 +88,7 @@ export async function onRequestGet(context) {
           const ph = authorIds.map(() => '?').join(',');
           const privRows = await env.DB.prepare(
             `SELECT owner_id FROM channels WHERE privacy = 'followers_only' AND owner_id IN (${ph})`
-          ).bind(...authorIds).all().catch(() => ({ results: [] }));
+          ).bind(...authorIds).all();
           const privateOwners = new Set((privRows.results || []).map(r => r.owner_id));
 
           if (privateOwners.size) {
@@ -95,7 +98,7 @@ export async function onRequestGet(context) {
               allowed.add(user.id); // your own private posts still show to you
               const followRows = await env.DB.prepare(
                 `SELECT channel_owner_id FROM channel_followers WHERE follower_id = ? AND channel_owner_id IN (${ph})`
-              ).bind(user.id, ...authorIds).all().catch(() => ({ results: [] }));
+              ).bind(user.id, ...authorIds).all();
               (followRows.results || []).forEach(r => allowed.add(r.channel_owner_id));
             }
             results = results.filter(p => !privateOwners.has(p.user_id) || allowed.has(p.user_id));
@@ -256,4 +259,4 @@ export async function onRequestDelete(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-        }
+}
