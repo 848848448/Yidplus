@@ -115,46 +115,58 @@ export async function onRequestGet(context) {
       } catch (e) {
         // Older DB without hidden/scheduled/expires columns.
         const r2 = await env.DB.prepare(
-          `SELECT m.id, m.room_id, m.sender_id, m.sender_nick, m.type, m.text, m.media_key,
-                  m.reply_to_id, m.view_once, m.opened, m.created_at,
-                  u.photo_url AS sender_photo
+          `SELECT m.*, u.photo_url AS sender_photo
            FROM messages m LEFT JOIN users u ON u.id = m.sender_id
            WHERE m.room_id = ? ORDER BY m.created_at DESC LIMIT 500`
         ).bind(roomId).all().catch(() => ({ results: [] }));
         gMsgs = (r2.results || []).slice().reverse();
       }
-      const guestMsgs = (gMsgs || []).map(function (r) {
+      const guestMsgs = (gMsgs || []).filter(function(r){
+        if (r.hidden || r.view_once) return false;
+        if (r.scheduled_for && (!Number.isFinite(Date.parse(r.scheduled_for)) || Date.parse(r.scheduled_for) > Date.now())) return false;
+        if (r.expires_at && (!Number.isFinite(Date.parse(r.expires_at)) || Date.parse(r.expires_at) <= Date.now())) return false;
+        return true;
+      }).map(function (r) {
         if (r.media_key) r.media_url = '/api/media/' + encodeURIComponent(r.media_key);
         return r;
       });
       return json({ ok: true, messages: guestMsgs, guest_view: true });
     }
 
-    // ── Search mode: look across every room the user is a member of ──
+    // Search respects the same visibility clock as message history. Fetch
+    // existing row fields rather than requiring a schema migration here.
     if (searchQ && searchQ.trim()) {
-      // Only the two owner accounts can search across EVERY room, including
-      // private DMs between other people. Everyone else — regular members
-      // and moderators alike — only searches rooms they're actually in.
       const isOwner = isOwnerOrCoOwner(user, env.OWNER_EMAIL);
-      let rows;
-      if (isOwner) {
-        rows = await env.DB.prepare(
-          `SELECT m.id, m.room_id, m.sender_nick, m.text, m.created_at, r.name as room_name, r.type as room_type
-           FROM messages m JOIN rooms r ON r.id = m.room_id
-           WHERE m.text LIKE ? AND m.type = 'text'
-           ORDER BY m.created_at DESC LIMIT 50`
-        ).bind('%' + searchQ.trim() + '%').all();
-      } else {
-        rows = await env.DB.prepare(
-          `SELECT m.id, m.room_id, m.sender_nick, m.text, m.created_at, r.name as room_name, r.type as room_type
-           FROM messages m
-           JOIN rooms r ON r.id = m.room_id
-           JOIN room_members rm ON rm.room_id = m.room_id AND rm.user_id = ?
-           WHERE m.text LIKE ? AND m.type = 'text'
-           ORDER BY m.created_at DESC LIMIT 50`
-        ).bind(user.id, '%' + searchQ.trim() + '%').all();
-      }
-      return json({ ok: true, messages: rows.results || [] });
+      const textQuery = searchQ.trim().slice(0, 200);
+      const cursor = url.searchParams.get('search_before');
+      const cursorId = url.searchParams.get('search_before_id');
+      if (cursor && (!cursorId || isNaN(Date.parse(cursor)))) return json({ ok: false, error: 'Invalid search cursor' }, 400);
+      const conditions = ["m.text LIKE ? AND m.type = 'text'"];
+      const params = [user.id, '%' + textQuery + '%'];
+      if (roomId) { conditions.push('m.room_id = ?'); params.push(roomId); }
+      if (cursor) { conditions.push('(m.created_at < ? OR (m.created_at = ? AND m.id < ?))'); params.push(cursor, cursor, cursorId); }
+      const result = await env.DB.prepare(
+        `SELECT m.*, r.name as room_name, r.type as room_type,
+                CASE WHEN dr.room_id IS NULL THEN 0 ELSE 1 END as room_disabled
+         FROM messages m JOIN rooms r ON r.id = m.room_id
+         LEFT JOIN disabled_rooms dr ON dr.room_id = m.room_id
+         WHERE (? IN (SELECT user_id FROM room_members WHERE room_id = m.room_id)${isOwner ? ' OR 1=1' : ''})
+           AND ${conditions.join(' AND ')}
+         ORDER BY m.created_at DESC, m.id DESC LIMIT 100`
+      ).bind(...params).all();
+      const raw = result.results || [];
+      const now = Date.now();
+      const visible = raw.filter(m => {
+        if (m.room_disabled && !isAdminRole(user, env.OWNER_EMAIL)) return false;
+        if (m.hidden || m.view_once) return false;
+        if (m.expires_at && (!Number.isFinite(Date.parse(m.expires_at)) || Date.parse(m.expires_at) <= now)) return false;
+        if (m.scheduled_for && (!Number.isFinite(Date.parse(m.scheduled_for)) || Date.parse(m.scheduled_for) > now)) return false;
+        return true;
+      }).map(m => ({ id: m.id, room_id: m.room_id, sender_nick: m.sender_nick,
+        text: m.text, created_at: m.created_at, room_name: m.room_name, room_type: m.room_type }));
+      const tail = raw[raw.length - 1];
+      return json({ ok: true, messages: visible, has_more: raw.length === 100,
+        next_cursor: tail ? { before: tail.created_at, before_id: tail.id } : null });
     }
 
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
@@ -225,6 +237,7 @@ export async function onRequestGet(context) {
       ).bind(roomId, ...topicParams, ...cursorParams).all();
       results = (res.results || []).slice().reverse();
     } catch (colErr) {
+      if (topicId) return json({ ok: false, error: 'Topics are temporarily unavailable.' }, 503);
       // topic_id column doesn't exist yet (migration not run) — fall back to
       // the pre-topics query so normal chat keeps working regardless.
       const res = await env.DB.prepare(
