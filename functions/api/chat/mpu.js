@@ -202,6 +202,7 @@ export async function onRequestPost(context) {
       if (!key || !uploadId || !parts || !parts.length) {
         return json({ ok: false, error: 'key, upload_id and parts are required' }, 400);
       }
+      if (parts.length>12 || parts.some((p,i)=>!p || p.partNumber!==i+1 || typeof p.etag!=='string' || !p.etag || p.etag.length>256)) return json({ok:false,error:'Invalid upload parts'},400);
       const auth = await authorizeKey(env, user, key);
       if (auth.error) return auth.error;
 
@@ -211,6 +212,8 @@ export async function onRequestPost(context) {
       } catch (e) {
         return json({ ok: false, error: 'Could not assemble upload: ' + e.message }, 400);
       }
+      const assembled=await env.MY_BUCKET.head(key);
+      if (!assembled || assembled.size>500*1024*1024) return json({ok:false,error:'Assembled file exceeds 500MB or could not be verified'},413);
       // The caller now posts /api/chat with { media_key: key } to send the message.
       return json({ ok: true, key });
     }
