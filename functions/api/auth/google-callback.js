@@ -1,5 +1,6 @@
 // GET /api/auth/google-callback?code=...&state=...
 // Exchanges the Google auth code for tokens, creates/logs in the user, sets session cookie.
+import { validateState, stateCookie } from './_oauth-state.js';
 import { json, generateSessionToken, notifyAdmin, isOwnerEmail, GOOGLE_OAUTH_SENTINEL } from '../_helpers.js';
 
 export async function onRequestGet(context) {
@@ -11,18 +12,15 @@ export async function onRequestGet(context) {
   const stateRaw = url.searchParams.get('state');
   const error = url.searchParams.get('error');
 
-  if (error) {
-    return Response.redirect(`${origin}/index.html?error=google_${encodeURIComponent(error)}`, 302);
-  }
-  if (!code) {
-    return Response.redirect(`${origin}/index.html?error=google_no_code`, 302);
-  }
-
-  let returnTo = '/';
-  try {
-    const state = JSON.parse(atob(stateRaw || ''));
-    if (state && state.returnTo) returnTo = state.returnTo;
-  } catch (e) {}
+  // Reject unsolicited or mismatched callbacks before any token exchange or DB work.
+  const checkedState = validateState(request, stateRaw, origin);
+  const redirect = (path) => new Response(null, { status: 302, headers: {
+    Location: new URL(path, origin).toString(), 'Set-Cookie': stateCookie('', 0), 'Cache-Control': 'no-store'
+  } });
+  if (!checkedState) return redirect('/index.html?error=google_invalid_state');
+  if (error) return redirect('/index.html?error=google_cancelled');
+  if (!code) return redirect('/index.html?error=google_no_code');
+  const returnTo = checkedState.returnTo;
 
   try {
     const redirectUri = `${origin}/api/auth/google-callback`;
@@ -41,8 +39,8 @@ export async function onRequestGet(context) {
     });
 
     const tokenData = await tokenRes.json();
-    if (!tokenData.id_token) {
-      return Response.redirect(`${origin}/index.html?error=google_token_failed`, 302);
+    if (!tokenRes.ok || !tokenData.id_token) {
+      return redirect('/index.html?error=google_token_failed');
     }
 
     // ── Decode the ID token (JWT) to get user info ──
@@ -52,13 +50,15 @@ export async function onRequestGet(context) {
     const payloadJson = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
     const profile = JSON.parse(payloadJson);
 
+    if (profile.aud !== env.GOOGLE_CLIENT_ID || !['accounts.google.com', 'https://accounts.google.com'].includes(profile.iss) || !Number.isFinite(profile.exp) || profile.exp * 1000 <= Date.now() || !profile.sub) return redirect('/index.html?error=google_invalid_token');
+
     const email = (profile.email || '').toLowerCase().trim();
     const emailVerified = profile.email_verified;
     const googlePhoto = profile.picture;
     const googleName = profile.name || (email ? email.split('@')[0] : 'user');
 
-    if (!email || !emailVerified) {
-      return Response.redirect(`${origin}/index.html?error=google_email_unverified`, 302);
+    if (!email || emailVerified !== true) {
+      return redirect('/index.html?error=google_email_unverified');
     }
 
     // ── Check Maintenance Mode ──
@@ -67,7 +67,7 @@ export async function onRequestGet(context) {
     ).first().catch(() => null);
     if (maintRow && maintRow.value === 'true') {
       if (!isOwnerEmail(email, env.OWNER_EMAIL)) {
-        return Response.redirect(`${origin}/?error=maintenance`, 302);
+        return redirect('/?error=maintenance');
       }
     }
 
@@ -77,7 +77,7 @@ export async function onRequestGet(context) {
 
     if (!emailIsOwner && ip && ip !== '0.0.0.0') {
       const ipBan = await env.DB.prepare(`SELECT id FROM device_bans WHERE ip = ? LIMIT 1`).bind(ip).first().catch(() => null);
-      if (ipBan) return Response.redirect(`${origin}/index.html?error=banned`, 302);
+      if (ipBan) return redirect('/index.html?error=banned');
     }
 
     // ── Sign-in lockdown (same rule as email login/register) ──
@@ -91,7 +91,7 @@ export async function onRequestGet(context) {
         'SELECT email FROM access_allowlist WHERE email = ?'
       ).bind(email).first().catch(() => null);
       if (!allowed) {
-        return Response.redirect(`${origin}/?error=signin_disabled`, 302);
+        return redirect('/?error=signin_disabled');
       }
     }
 
@@ -101,7 +101,7 @@ export async function onRequestGet(context) {
     ).bind(email).first();
 
     if (user && user.blocked) {
-      return Response.redirect(`${origin}/index.html?error=suspended`, 302);
+      return redirect('/index.html?error=suspended');
     }
 
     if (!user) {
@@ -153,14 +153,11 @@ export async function onRequestGet(context) {
     const successUrl = new URL(`${origin}${returnTo}`);
     successUrl.searchParams.set('welcome', '1');
 
-    return new Response(null, {
-      status: 302,
-      headers: {
-        'Location': successUrl.toString(),
-        'Set-Cookie': cookie,
-      },
-    });
+    const headers = new Headers({ Location: successUrl.toString(), 'Cache-Control': 'no-store' });
+    headers.append('Set-Cookie', cookie);
+    headers.append('Set-Cookie', stateCookie('', 0));
+    return new Response(null, { status: 302, headers });
   } catch (err) {
-    return Response.redirect(`${origin}/index.html?error=google_failed&msg=${encodeURIComponent(err.message)}`, 302);
+    return redirect('/index.html?error=google_failed');
   }
-                             }
+}
