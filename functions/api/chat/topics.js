@@ -48,6 +48,14 @@ export async function onRequestGet(context) {
     const lastMsgByTopic = {};
     const unreadByTopic = {};
 
+    const schema = await env.DB.prepare("SELECT name FROM pragma_table_info('messages')").all();
+    const columns = new Set((schema.results || []).map(c => c.name));
+    const visibilitySql = [
+      columns.has('hidden') ? 'COALESCE(hidden,0) = 0' : '1=1',
+      columns.has('view_once') ? 'COALESCE(view_once,0) = 0' : '1=1',
+      columns.has('scheduled_for') ? "(scheduled_for IS NULL OR julianday(scheduled_for) <= julianday('now'))" : '1=1',
+      columns.has('expires_at') ? "(expires_at IS NULL OR julianday(expires_at) > julianday('now'))" : '1=1',
+    ].join(' AND ');
     async function fillFor(topicId, whereClause, bindArgs) {
       const rows = await env.DB.prepare(
         `SELECT * FROM messages WHERE room_id = ? AND ${whereClause} ORDER BY created_at DESC LIMIT 100`
@@ -58,11 +66,8 @@ export async function onRequestGet(context) {
         (!m.expires_at || (Number.isFinite(Date.parse(m.expires_at)) && Date.parse(m.expires_at) > now)));
       lastMsgByTopic[topicId] = visible[0] || null;
       const unread = await env.DB.prepare(`SELECT COUNT(*) AS c FROM messages
-        WHERE room_id = ? AND ${whereClause} AND sender_id != ? AND read = 0
-          AND COALESCE(hidden,0) = 0 AND COALESCE(view_once,0) = 0
-          AND (scheduled_for IS NULL OR scheduled_for <= ?)
-          AND (expires_at IS NULL OR expires_at > ?)`
-      ).bind(...bindArgs, user.id, new Date(now).toISOString(), new Date(now).toISOString()).first();
+        WHERE room_id = ? AND ${whereClause} AND sender_id != ? AND read = 0 AND ${visibilitySql}`
+      ).bind(...bindArgs, user.id).first();
       unreadByTopic[topicId] = unread ? unread.c : 0;
 
     }
@@ -230,4 +235,4 @@ export async function onRequestDelete(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-}
+      }
