@@ -1,7 +1,6 @@
 // POST /api/push/send -> send a real Web Push notification to a specific user or all users
 // Body: { user_id?, title, body, url?, tag? }
-// Only admins can broadcast to all users; any signed-in user can trigger a
-// notification to a specific user_id (e.g. "you got a new message").
+// Manual push is admin-only. Chat notifications are generated from authorized messages.
 import { json, corsHeaders, requireUser, isAdminRole } from '../_helpers.js';
 import { sendWebPush } from '../_webpush.js';
 
@@ -16,7 +15,7 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { user_id, title, body: msgBody, url, tag } = body;
 
-    if (!user_id && !isAdminRole(user, env.OWNER_EMAIL)) {
+    if (!isAdminRole(user, env.OWNER_EMAIL)) {
       return json({ ok: false, error: 'Forbidden' }, 403);
     }
 
