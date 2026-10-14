@@ -38,3 +38,31 @@ html.dark-mode{--yp-ground:#111c19;--yp-card:#1b2b25;--yp-ink:#edf4ef;--yp-secon
 #screen-home .hh-badge{color:var(--yp-ring);background:var(--yp-tint);border-color:var(--yp-rule)}
 #screen-music .track-name{font-size:15px;line-height:1.5}
 #screen-music .track-artist{font-size:13px;line-height:1.4;color:var(--yp-secondary)}
+/* Dynamic renderer parity and loading placeholders. */
+#screen-home .ig-post{margin:12px 0;border:1px solid var(--yp-rule);border-radius:18px;overflow:hidden;background:var(--yp-card)}
+#screen-home .ig-post::after{display:none}
+#screen-home .ig-post-caption{font-size:15px;line-height:1.65;padding:8px 16px}
+#screen-home .ig-act,#screen-home .ig-post-menu{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+#screen-home .ig-post-comments{min-height:44px;display:flex;align-items:center}
+#screen-music .album-cover{border-radius:16px;border-color:var(--yp-rule)}
+#screen-music .album-name{font-size:14px;line-height:1.5}
+#screen-music .album-artist{font-size:13px;line-height:1.5}
+#screen-music .track-item{min-height:72px;padding:10px 12px;gap:8px;border-color:var(--yp-rule)}
+#screen-music .track-info{min-width:0}
+#screen-music .track-thumb{width:44px;height:44px;flex-shrink:0;border-radius:12px}
+#screen-music .track-heart,#screen-music .track-more{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;padding:0}
+#screen-music .track-dur{font-size:12px}
+.yp-skeleton{padding:16px;pointer-events:none}
+.yp-skeleton .yp-sk{background:var(--bg3);border-radius:12px;animation:yp-pulse 1.8s ease-in-out infinite}
+.yp-sk-row{display:flex;gap:12px;margin-bottom:16px;align-items:center}
+.yp-sk-avatar{width:44px;height:44px;flex-shrink:0}
+.yp-sk-lines{flex:1}
+.yp-sk-line{height:12px;margin:8px 0;width:80%}
+.yp-sk-line.short{width:55%}
+.yp-sk-cover{height:136px;margin-bottom:20px}
+@keyframes yp-pulse{50%{opacity:.45}}
+@media(prefers-reduced-motion:reduce){.yp-skeleton .yp-sk{animation:none}}
+#screen-profile .topbar{background:var(--yp-card);border-color:var(--yp-rule)}
+#screen-profile .profile-stat-lbl{font-size:12px;line-height:1.5}
+#screen-profile .ctab{min-height:44px;font-size:14px}
+#screen-profile :is(button,a):focus-visible{outline:3px solid var(--yp-ring);outline-offset:3px}
