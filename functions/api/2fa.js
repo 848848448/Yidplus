@@ -29,7 +29,7 @@ export async function onRequestPost(context) {
 
     const current = await env.DB.prepare('SELECT totp_secret, totp_enabled FROM users WHERE id = ?').bind(user.id).first();
     if (!current) return json({ ok: false, error: 'Security settings unavailable' }, 503);
-    const recent = await env.DB.prepare("SELECT COUNT(*) as cnt FROM login_logs WHERE user_id = ? AND action = '2fa_fail' AND created_at > datetime('now', '-15 minutes')").bind(user.id).first();
+    const recent = await env.DB.prepare("SELECT COUNT(*) as cnt FROM login_logs WHERE user_id = ? AND action = '2fa_fail' AND julianday(created_at) > julianday('now', '-15 minutes')").bind(user.id).first();
     if ((recent && recent.cnt || 0) >= 10) return json({ ok: false, error: 'Too many attempts. Wait 15 minutes.' }, 429);
     const failed = async () => { await env.DB.prepare("INSERT INTO login_logs (id, user_id, ip, fingerprint, action, created_at) VALUES (?, ?, ?, NULL, '2fa_fail', ?)").bind(crypto.randomUUID(), user.id, request.headers.get('CF-Connecting-IP') || '0.0.0.0', new Date().toISOString()).run(); };
 
@@ -37,7 +37,8 @@ export async function onRequestPost(context) {
       if (current.totp_enabled) return json({ ok: false, error: 'Two-factor authentication is already on. Turn it off with a current code before setting it up again.' }, 409);
       const secret = generateTotpSecret();
       // Stash the pending secret but don't enable until a code is confirmed.
-      await env.DB.prepare('UPDATE users SET totp_secret = ? WHERE id = ?').bind(secret, user.id).run();
+      const saved = await env.DB.prepare('UPDATE users SET totp_secret = ? WHERE id = ? AND COALESCE(totp_enabled, 0) = 0').bind(secret, user.id).run();
+      if (saved.meta?.changes === 0) return json({ ok: false, error: 'Security settings changed. Refresh and try again.' }, 409);
       return json({ ok: true, secret, otpauth: otpauthUrl(secret, user.email || user.nickname || 'account', 'YID PLUS') });
     }
 
@@ -48,7 +49,8 @@ export async function onRequestPost(context) {
       const code = body.code;
       if (!secret || !code) return json({ ok: false, error: 'Secret and code required' }, 400);
       if (!(await verifyTotp(secret, code))) { await failed(); return json({ ok: false, error: 'That code is not correct. Try again.' }, 400); }
-      await env.DB.prepare('UPDATE users SET totp_secret = ?, totp_enabled = 1 WHERE id = ?').bind(secret, user.id).run();
+      const saved = await env.DB.prepare('UPDATE users SET totp_enabled = 1 WHERE id = ? AND totp_secret = ? AND COALESCE(totp_enabled, 0) = 0').bind(user.id, secret).run();
+      if (saved.meta?.changes === 0) return json({ ok: false, error: 'Setup changed. Begin setup again.' }, 409);
       return json({ ok: true, enabled: true });
     }
 
@@ -60,7 +62,8 @@ export async function onRequestPost(context) {
           return json({ ok: false, error: 'Enter a valid code to turn off 2FA.' }, 400);
         }
       }
-      await env.DB.prepare('UPDATE users SET totp_secret = NULL, totp_enabled = 0 WHERE id = ?').bind(user.id).run();
+      const saved = await env.DB.prepare('UPDATE users SET totp_secret = NULL, totp_enabled = 0 WHERE id = ? AND totp_secret IS ? AND COALESCE(totp_enabled, 0) = ?').bind(user.id, row.totp_secret, row.totp_enabled ? 1 : 0).run();
+      if (saved.meta?.changes === 0) return json({ ok: false, error: 'Security settings changed. Refresh and try again.' }, 409);
       return json({ ok: true, enabled: false });
     }
 
