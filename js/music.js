@@ -30,9 +30,11 @@ window.init_music = function () {
 
 function loadMusicLibrary() {
   var scroll = document.getElementById('music-scroll');
-  if (scroll) {
-    document.getElementById('sec-albums').style.opacity = '.4';
-    document.getElementById('sec-singles').innerHTML = document.getElementById('sec-singles').innerHTML; // no-op, keep structure
+  if (scroll && !MUSIC_allTracks.length) {
+    ['albums-row', 'singles-list', 'mv-row', 'liked-list'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = '<div class="yp-skeleton" role="status" aria-label="Loading music"><div class="yp-sk-row"><div class="yp-sk yp-sk-avatar"></div><div class="yp-sk-lines"><div class="yp-sk yp-sk-line"></div><div class="yp-sk yp-sk-line short"></div></div></div></div>';
+    });
   }
 
   api.get('/music')
@@ -46,8 +48,10 @@ function loadMusicLibrary() {
       if (document.getElementById('sec-albums')) document.getElementById('sec-albums').style.opacity = '1';
     })
     .catch(function (err) {
-      var el = document.getElementById('singles-list');
-      if (el) el.innerHTML = '<div class="feed-state"><div style="font-size:2rem">⚠️</div><div>Could not load music</div><div style="font-size:.75rem">' + escHtml(err.message) + '</div></div>';
+      ['albums-row', 'singles-list', 'mv-row', 'liked-list'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.innerHTML = '<div class="feed-state">Could not load music. ' + escHtml(err.message) + '</div>';
+      });
     });
 }
 window.loadMusicLibrary = loadMusicLibrary;
@@ -598,4 +602,3 @@ window.submitMusicUpload = function () {
     })
     .catch(function (err) { toast('❌ ' + err.message); });
 };
-
