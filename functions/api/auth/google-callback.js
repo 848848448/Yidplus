@@ -1,3 +1,4 @@
+import { createGoogleChallenge, challengeCookie } from './_google-challenge.js';
 // GET /api/auth/google-callback?code=...&state=...
 // Exchanges the Google auth code for tokens, creates/logs in the user, sets session cookie.
 import { validateState, stateCookie } from './_oauth-state.js';
@@ -134,6 +135,17 @@ export async function onRequestGet(context) {
     } else if (googlePhoto && !user.photo_url) {
       // Backfill photo if missing
       await env.DB.prepare('UPDATE users SET photo_url = ? WHERE id = ?').bind(googlePhoto, user.id).run().catch(() => {});
+    }
+
+    // Local authenticator protection applies to Google sign-in as well.
+    const security = await env.DB.prepare('SELECT totp_secret, totp_enabled FROM users WHERE id = ?').bind(user.id).first();
+    if (!security || (security.totp_enabled && !security.totp_secret)) return redirect('/index.html?error=google_failed');
+    if (security.totp_enabled) {
+      const token = await createGoogleChallenge(env, user.id, ip, returnTo);
+      const headers = new Headers({ Location: new URL('/api/auth/google-2fa', origin).toString(), 'Cache-Control': 'no-store' });
+      headers.append('Set-Cookie', challengeCookie(token));
+      headers.append('Set-Cookie', stateCookie('', 0));
+      return new Response(null, { status: 302, headers });
     }
 
     // ── Create session ──
