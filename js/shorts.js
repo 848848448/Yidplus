@@ -561,7 +561,7 @@ window.confirmShortUpload = function () {
   SHORTS_uploadBusy = true;
   var modal = document.getElementById('caption-modal');
   var status = document.getElementById('short-upload-status');
-  if (!status) { status = document.createElement('div'); status.id = 'short-upload-status'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite'); status.style.cssText = 'font-size:.85rem;line-height:1.5;margin-bottom:.75rem;color:#fff'; document.getElementById('caption-input').after(status); }
+  if (!status) { status = document.createElement('div'); status.id = 'short-upload-status'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite'); status.style.cssText = 'font-size:.85rem;line-height:1.5;margin-bottom:.75rem;color:var(--text)'; document.getElementById('caption-input').after(status); }
   modal.querySelectorAll('button,textarea').forEach(function (el) { el.disabled = true; });
   status.textContent = 'Preparing video...';
   watermarkFile(file).then(function (watermarked) {
