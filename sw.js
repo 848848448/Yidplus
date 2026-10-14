@@ -1,5 +1,5 @@
 // YID PLUS Service Worker v8
-const CACHE_NAME = 'yidplus-v11';
+const CACHE_NAME = 'yidplus-v12';
 const CACHE_CSS  = 'yidplus-css-v9';
 const CACHE_JS   = 'yidplus-js-v2';
 
@@ -19,6 +19,10 @@ const CSS_PATTERNS = ['.css'];
 
 // Static assets — cache aggressively
 const IMMUTABLE = ['/images/', '/icons/', '.woff', '.woff2', '.ttf'];
+
+function offlinePage() {
+  return new Response('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline | YID PLUS</title><style>body{margin:0;min-height:100dvh;display:grid;place-items:center;font:16px system-ui;background:#f2f5f9;color:#172337;padding:24px;box-sizing:border-box}main{width:min(100%,380px);background:#fff;padding:28px;border-radius:22px;box-sizing:border-box}p{line-height:1.6;color:#526277}a{color:#087c91;display:inline-block;padding:12px 0;font-weight:700}@media(prefers-color-scheme:dark){body{background:#101823;color:#edf3fa}main{background:#192432}p{color:#bdc9d7}a{color:#78d5e3}}</style><main><h1>You are offline</h1><p>Reconnect to load YID PLUS. Your messages and private media are not saved in the offline cache.</p><a href="/chat">Try again</a></main></html>', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
 
 self.addEventListener('install', function (e) {
   self.skipWaiting();
@@ -61,7 +65,11 @@ self.addEventListener('push', function (event) {
 // a new one to the relevant URL.
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
-  var targetUrl = (event.notification.data && event.notification.data.url) || '/chat';
+  var targetUrl = '/chat';
+  try {
+    var requested = new URL((event.notification.data && event.notification.data.url) || '/chat', self.location.origin);
+    if (requested.origin === self.location.origin && /^https?:$/.test(requested.protocol)) targetUrl = requested.href;
+  } catch (e) {}
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
@@ -79,7 +87,11 @@ self.addEventListener('notificationclick', function (event) {
 
 self.addEventListener('fetch', function (e) {
   var url = e.request.url;
-  var path = new URL(url).pathname;
+  var parsedUrl = new URL(url);
+  var path = parsedUrl.pathname;
+  // Never intercept writes, third-party traffic, or authenticated media.
+  // Offline support must never persist private messages or signed media.
+  if (e.request.method !== 'GET' || parsedUrl.origin !== self.location.origin) return;
 
   // HTML page loads (including clean URLs like /yidplus-admin that have no
   // ".html" in them) — ALWAYS go to the network so a new deploy shows up right
@@ -89,7 +101,7 @@ self.addEventListener('fetch', function (e) {
     e.respondWith(
       fetch(e.request).catch(function () {
         return caches.match(e.request).then(function (c) {
-          return c || new Response('Offline', { status: 503 });
+          return c || offlinePage();
         });
       })
     );
@@ -103,7 +115,7 @@ self.addEventListener('fetch', function (e) {
   if ((e.request.headers.get('accept') || '').includes('text/html')) {
     e.respondWith(
       fetch(e.request).catch(function () {
-        return caches.match(e.request).then(function (c) { return c || new Response('Offline', { status: 503 }); });
+        return caches.match(e.request).then(function (c) { return c || offlinePage(); });
       })
     );
     return;
@@ -129,7 +141,7 @@ self.addEventListener('fetch', function (e) {
           if (cached) return cached;
           return fetch(e.request).then(function (res) {
             if (res && res.status === 200) {
-              cache.put(e.request, res.clone());
+              e.waitUntil(cache.put(e.request, res.clone()).catch(function () {}));
               // Each deploy is a new URL, so without this the cache would grow
               // by the whole bundle every time and never let go. Drop older
               // builds of this same file.
@@ -154,10 +166,11 @@ self.addEventListener('fetch', function (e) {
       caches.open(CACHE_CSS).then(function (cache) {
         return cache.match(e.request).then(function (cached) {
           var networkFetch = fetch(e.request).then(function (res) {
-            if (res && res.status === 200) cache.put(e.request, res.clone());
+            if (res && res.status === 200) return cache.put(e.request, res.clone()).catch(function () {}).then(function () { return res; });
             return res;
           });
-          return cached || networkFetch;
+          if (cached) { e.waitUntil(networkFetch.catch(function () {})); return cached; }
+          return networkFetch;
         });
       })
     );
@@ -180,5 +193,5 @@ self.addEventListener('fetch', function (e) {
   }
 
   // Everything else — network first
-  e.respondWith(fetch(e.request).catch(function () { return caches.match(e.request); }));
+  e.respondWith(fetch(e.request).catch(function () { return new Response('Network unavailable. Please try again.', { status: 503, headers: { 'Cache-Control': 'no-store' } }); }));
 });
