@@ -428,7 +428,7 @@ function locParse(s) {
 
 // Resolving a message costs two round-trips, so cache the file's location.
 // file_reference goes stale after a while, hence the short TTL and the retry.
-async function fileLocation(env, mtproto, username, msgId, force) {
+async function fileLocation(env, mtproto, username, msgId, force, forDownload) {
   const key = `loc:${username}:${msgId}`;
   if (!force) {
     const hit = await env.TG_SESSION.get(key);
@@ -446,7 +446,9 @@ async function fileLocation(env, mtproto, username, msgId, force) {
   const msg = (res.messages || [])[0];
   if (!msg) throw new Error('post not found');
 
+  if (forDownload && (chat.noforwards || msg.noforwards)) throw new Error('Saving protected content is not allowed');
   const info = mediaInfo(msg);
+  if (forDownload && (!info || info.kind !== 'audio' || info.voice)) throw new Error('Only music files can be downloaded as MP3');
   if (!info) throw new Error('post has no media');
 
   const out = { location: info.location, size: Number(info.size) || 0, mime: info.mime, kind: info.kind, thumb_type: info.thumb_type || '' };
@@ -566,7 +568,7 @@ async function streamMedia(env, request, ctx) {
   const mtproto = makeClient(env);
   let info;
   try {
-    info = await fileLocation(env, mtproto, username, msgId, false);
+    info = await fileLocation(env, mtproto, username, msgId, url.searchParams.has('download'), url.searchParams.has('download')); 
   } catch (e) {
     return new Response('Not available: ' + (e.error_message || e.message), { status: 404 });
   }
