@@ -1,3 +1,5 @@
+// Current first-party Telegram streaming endpoint.
+TG_STREAM_BASE='https://yidplus-telegram-worker.abdeveloping.workers.dev';
 // Download only explicit shared audio files, never voice notes.
 (function(){
  function canSave(){var u=STATE.user;return !CHAT_curRoom||CHAT_curRoom.allow_saving!==false||CHAT_curRoom.is_group_admin||u&&(u.role==='admin_super'||u.is_owner);}
