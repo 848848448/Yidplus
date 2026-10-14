@@ -5,7 +5,7 @@
 // PUT  /api/channel-follows { request_id, action: 'approve'|'reject' }  -> owner responds
 // DELETE /api/channel-follows?channel_owner_id=X  -> unfollow / cancel request
 
-import { json, corsHeaders, requireUser } from './_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole } from './_helpers.js';
 
 // Channel-following and person-following were two entirely separate systems
 // (channel_followers vs user_follows), and Status visibility only checks
@@ -16,6 +16,13 @@ import { json, corsHeaders, requireUser } from './_helpers.js';
 async function _syncUserFollow(env, followerId, followingId, isFollowing) {
   try {
     if (isFollowing) {
+      const target = await env.DB.prepare('SELECT is_private FROM users WHERE id = ?').bind(followingId).first();
+      if (!target) return;
+      if (target.is_private) {
+        const already = await env.DB.prepare('SELECT 1 FROM user_follows WHERE follower_id=? AND following_id=?').bind(followerId,followingId).first();
+        if (!already) await env.DB.prepare('INSERT OR IGNORE INTO follow_requests(id,requester_id,target_id,created_at) VALUES(?,?,?,?)').bind(crypto.randomUUID(),followerId,followingId,new Date().toISOString()).run();
+        return;
+      }
       await env.DB.prepare(
         `INSERT OR IGNORE INTO user_follows (id, follower_id, following_id, created_at) VALUES (?, ?, ?, ?)`
       ).bind(crypto.randomUUID(), followerId, followingId, new Date().toISOString()).run();
@@ -57,7 +64,7 @@ export async function onRequestGet(context) {
     }
 
     // Only the channel owner or an admin can see the pending list
-    const isAdmin = user.role === 'admin_super' || user.role === 'admin_limited';
+    const isAdmin = isAdminRole(user,env.OWNER_EMAIL);
     if (user.id !== ownerId && !isAdmin) return json({ ok: false, error: 'Forbidden' }, 403);
 
     const { results } = await env.DB.prepare(
@@ -85,8 +92,13 @@ export async function onRequestPost(context) {
     if (!ownerId) return json({ ok: false, error: 'channel_owner_id is required' }, 400);
     if (ownerId === user.id) return json({ ok: false, error: 'You cannot follow your own channel' }, 400);
 
+    const channel = await env.DB.prepare('SELECT privacy FROM channels WHERE owner_id = ?').bind(ownerId).first();
+    if (!channel) return json({ok:false,error:'Channel not found'},404);
+    const blocked=await env.DB.prepare('SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').bind(user.id,ownerId,ownerId,user.id).first();
+    if (blocked) return json({ok:false,error:'Cannot follow this channel'},403);
+
     // Admins are auto-approved — never need to request
-    const isAdmin = user.role === 'admin_super' || user.role === 'admin_limited';
+    const isAdmin = isAdminRole(user,env.OWNER_EMAIL);
     if (isAdmin) {
       await env.DB.prepare(
         `INSERT OR REPLACE INTO channel_followers (channel_owner_id, follower_id, followed_at) VALUES (?, ?, ?)`
@@ -101,14 +113,9 @@ export async function onRequestPost(context) {
     ).bind(ownerId, user.id).first();
     if (already) return json({ ok: true, status: 'already_following' });
 
-    // Check channel privacy — if public, auto-approve
-    const channel = await env.DB.prepare(
-      `SELECT privacy FROM channels WHERE owner_id = ?`
-    ).bind(ownerId).first();
-
     const now = new Date().toISOString();
 
-    if (!channel || channel.privacy !== 'followers_only') {
+    if (channel.privacy !== 'followers_only') {
       // Public channel — just follow directly, no request needed
       await env.DB.prepare(
         `INSERT OR REPLACE INTO channel_followers (channel_owner_id, follower_id, followed_at) VALUES (?, ?, ?)`
@@ -122,7 +129,11 @@ export async function onRequestPost(context) {
       `SELECT status FROM channel_follow_requests WHERE channel_owner_id = ? AND requester_id = ?`
     ).bind(ownerId, user.id).first();
 
-    if (existing) return json({ ok: true, status: existing.status });
+    if (existing && existing.status !== 'rejected') return json({ ok: true, status: existing.status });
+    if (existing) {
+      await env.DB.prepare("UPDATE channel_follow_requests SET status='pending',requester_nick=?,updated_at=? WHERE channel_owner_id=? AND requester_id=? AND status='rejected'").bind(user.nickname||'',now,ownerId,user.id).run();
+      return json({ok:true,status:'pending'});
+    }
 
     const id = crypto.randomUUID();
     await env.DB.prepare(
@@ -155,22 +166,20 @@ export async function onRequestPut(context) {
     if (!req) return json({ ok: false, error: 'Request not found' }, 404);
 
     // Only the channel owner or an admin can respond
-    const isAdmin = user.role === 'admin_super' || user.role === 'admin_limited';
+    const isAdmin = isAdminRole(user,env.OWNER_EMAIL);
     if (user.id !== req.channel_owner_id && !isAdmin) return json({ ok: false, error: 'Forbidden' }, 403);
 
+    if (req.status !== 'pending') return json({ok:false,error:'Request already handled'},409);
+    const blocked=await env.DB.prepare('SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').bind(req.requester_id,req.channel_owner_id,req.channel_owner_id,req.requester_id).first();
+    if (blocked && action==='approve') return json({ok:false,error:'Cannot approve a blocked account'},403);
     const now = new Date().toISOString();
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
 
-    await env.DB.prepare(
-      `UPDATE channel_follow_requests SET status = ?, updated_at = ? WHERE id = ?`
-    ).bind(newStatus, now, request_id).run();
-
-    if (action === 'approve') {
-      await env.DB.prepare(
-        `INSERT OR REPLACE INTO channel_followers (channel_owner_id, follower_id, followed_at) VALUES (?, ?, ?)`
-      ).bind(req.channel_owner_id, req.requester_id, now).run();
-      await _syncUserFollow(env, req.requester_id, req.channel_owner_id, true);
-    }
+    const ops=[env.DB.prepare("UPDATE channel_follow_requests SET status=?,updated_at=? WHERE id=? AND status='pending'").bind(newStatus,now,request_id)];
+    if (action==='approve') ops.push(env.DB.prepare("INSERT OR IGNORE INTO channel_followers(channel_owner_id,follower_id,followed_at) SELECT channel_owner_id,requester_id,? FROM channel_follow_requests WHERE id=? AND status='approved'").bind(now,request_id));
+    const results=await env.DB.batch(ops);
+    if (!results[0].meta.changes) return json({ok:false,error:'Request already handled'},409);
+    if (action==='approve') await _syncUserFollow(env,req.requester_id,req.channel_owner_id,true);
 
     return json({ ok: true, status: newStatus });
   } catch (err) {
