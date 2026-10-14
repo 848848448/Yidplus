@@ -17,7 +17,7 @@ export async function eligibleChatRecipients(env, message, onlyUserId = null) {
   const members = await env.DB.prepare('SELECT u.*, rm.* FROM room_members rm JOIN users u ON u.id = rm.user_id WHERE rm.room_id = ?' + (onlyUserId ? ' AND rm.user_id = ?' : '')).bind(message.room_id, ...(onlyUserId ? [onlyUserId] : [])).all();
   const rows = members.results || [];
   const blocks = await env.DB.prepare('SELECT blocker_id, blocked_id FROM user_blocks WHERE blocker_id = ? OR blocked_id = ?').bind(message.sender_id, message.sender_id).all();
-  return rows.filter(m => m.user_id !== message.sender_id && !m.muted && !m.blocked &&
+  return rows.filter(m => m.user_id !== message.sender_id && !m.muted && !m.blocked && m.notif_messages!==0 && m.notif_messages!==false && m.notif_messages!=='0' &&
     (!m.muted_until || (Number.isFinite(Date.parse(m.muted_until)) && Date.parse(m.muted_until) <= Date.now())) &&
     !(blocks.results || []).some(b => b.blocker_id === m.user_id || b.blocked_id === m.user_id)).map(m => m.user_id);
 }
