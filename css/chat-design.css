@@ -124,3 +124,8 @@ html:not(.dark-mode) .modal-sheet,html:not(.dark-mode) .attach-sheet{background:
 .chat-item-wrap{background:var(--chat-card)}
 .chat-item-delete{visibility:hidden}.chat-item-wrap:has(.swiped) .chat-item-delete{visibility:visible}
 .chat-item.design-selected{box-shadow:none}
+.modal-title,.modal-sheet{color:var(--chat-ink)!important}
+#global-search-modal input{color:var(--chat-ink)!important;background:var(--chat-canvas)!important}
+#global-search-modal>div:first-child>div{background:var(--chat-canvas)!important;border-radius:12px}
+#global-search-modal button{background:var(--chat-soft)!important;color:var(--chat-muted)!important;border:1px solid transparent;border-radius:9px}
+#global-search-modal button.active{color:var(--chat-accent)!important;border-color:var(--chat-accent)!important}
