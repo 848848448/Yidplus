@@ -46,7 +46,7 @@ export async function onRequestGet(context) {
 
     const vapidOk = has(env.VAPID_PUBLIC_KEY) && has(env.VAPID_PRIVATE_KEY);
     add('Configuration', 'Push notifications (VAPID)', vapidOk ? 'ok' : 'warn',
-      vapidOk ? 'Push keys are configured — notifications and attack alerts can be sent.'
+      vapidOk ? 'Push keys are configured. Device subscription and delivery still need verification.'
               : 'VAPID keys missing — push notifications AND the attack alerts to your phone will not send.',
       vapidOk ? '' : 'Add VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY secrets.');
 
@@ -118,6 +118,27 @@ export async function onRequestGet(context) {
                          : 'All core tables exist.',
       missingCore.length ? 'These tables should be created by the app\'s schema — a deploy/migration may be incomplete.' : '');
 
+    // Report readiness honestly: keys alone do not prove device delivery.
+    if (existing.has('messages')) {
+      try {
+        const columns=await env.DB.prepare("PRAGMA table_info(messages)").all();
+        const names=new Set((columns.results||[]).map(r=>r.name));
+        add('Scheduling','Message schedule fields',names.has('scheduled_for') && names.has('expires_at')?'ok':'warn',
+          names.has('scheduled_for') && names.has('expires_at')?'Scheduled and expiry fields are present.':'Scheduled or expiry fields are missing.');
+      }catch{add('Scheduling','Message schedule fields','skip','Could not verify schedule fields.');}
+    }
+    const schedulerTables=['notification_outbox','scheduled_message_dispatch','chat_media_cleanup','chat_media_tombstones'];
+    const missingScheduler=schedulerTables.filter(t=>!existing.has(t));
+    add('Scheduling','Background scheduler schema',missingScheduler.length?'warn':'ok',
+      missingScheduler.length?'Background delivery/cleanup is not ready: missing '+missingScheduler.join(', ')+'.':'Scheduler tables exist. This does not verify a running cron or successful delivery.');
+    if(existing.has('notification_outbox')) {
+      try {
+        const jobs=await env.DB.prepare("SELECT state,COUNT(*) AS c FROM notification_outbox GROUP BY state").all();
+        const summary=(jobs.results||[]).map(r=>r.state+': '+r.c).join(', ')||'No jobs';
+        add('Scheduling','Notification queue','ok',summary+'; no recipient data is shown.');
+      }catch{add('Scheduling','Notification queue','skip','Could not read aggregate queue counts.');}
+    }
+
     /* ── DATA INTEGRITY (best-effort; skip on error) ─────────── */
     const countQuery = async (category, label, sql, warnAtOne, fixText) => {
       try {
@@ -170,7 +191,7 @@ export async function onRequestGet(context) {
         ).bind(...ids).first().catch(() => ({ c: 0 }));
         const n = sub ? (sub.c || 0) : 0;
         add('Alerts', 'Your phone is subscribed for alerts', n > 0 ? 'ok' : 'warn',
-          n > 0 ? (n + ' device(s) will receive attack alerts.')
+          n > 0 ? (n + ' device subscription(s) exist. This does not confirm delivery.')
                 : 'No owner device is subscribed — attack alerts have nowhere to go.',
           n > 0 ? '' : 'Open the app on your phone and enable notifications, then use "Send test" in the Attacks panel.');
       }
@@ -183,4 +204,4 @@ export async function onRequestGet(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-}
+        }
