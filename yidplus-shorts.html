@@ -87,6 +87,7 @@ html, body { background: #000 !important; }
   <div class="upload-sheet">
     <div class="upload-title">Add a caption</div>
     <textarea id="caption-input" placeholder="Write a caption for your short... (optional)" maxlength="200" rows="3" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:.75rem;color:#fff;font-family:inherit;font-size:.88rem;resize:none;outline:none;margin-bottom:1rem"></textarea>
+    <div id="short-upload-status" role="status" aria-live="polite" style="font-size:.85rem;line-height:1.5;margin-bottom:.75rem;color:#fff"></div>
     <button class="upload-cancel" style="background:var(--blue);color:#fff;border:none;margin-bottom:.5rem" onclick="confirmShortUpload()">Post Short</button>
     <button class="upload-cancel" onclick="cancelShortUpload()">Cancel</button>
   </div>
@@ -99,7 +100,7 @@ html, body { background: #000 !important; }
 <script defer src="js/ux-behavior.js?v=202610132300"></script>
 <script defer src="js/theme.js?v=202610132200"></script>
 <script defer src="js/app.js?v=202607291705"></script>
-<script defer src="js/shorts.js?v=202608090135"></script>
+<script defer src="js/shorts.js?v=202610140820"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
