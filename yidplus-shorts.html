@@ -86,8 +86,8 @@ html, body { background: #000 !important; }
 <div class="upload-modal" id="caption-modal">
   <div class="upload-sheet">
     <div class="upload-title">Add a caption</div>
-    <textarea id="caption-input" placeholder="Write a caption for your short... (optional)" maxlength="200" rows="3" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:.75rem;color:#fff;font-family:inherit;font-size:.88rem;resize:none;outline:none;margin-bottom:1rem"></textarea>
-    <div id="short-upload-status" role="status" aria-live="polite" style="font-size:.85rem;line-height:1.5;margin-bottom:.75rem;color:#fff"></div>
+    <textarea id="caption-input" placeholder="Write a caption for your short... (optional)" maxlength="200" rows="3" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:.75rem;color:#fff;font-family:inherit;font-size:.88rem;resize:none;outline:none;margin-bottom:1rem;color:var(--text);background:var(--bg);border-color:var(--line)"></textarea>
+    <div id="short-upload-status" role="status" aria-live="polite" style="font-size:.85rem;line-height:1.5;margin-bottom:.75rem;color:var(--text)"></div>
     <button class="upload-cancel" style="background:var(--blue);color:#fff;border:none;margin-bottom:.5rem" onclick="confirmShortUpload()">Post Short</button>
     <button class="upload-cancel" onclick="cancelShortUpload()">Cancel</button>
   </div>
