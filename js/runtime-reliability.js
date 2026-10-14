@@ -46,7 +46,7 @@ api.bust = function (path) {
 var GSEARCH_epoch = 0;
 (function () {
   var open = window.openGlobalSearch, search = window.doGlobalSearch;
-  if (open) window.openGlobalSearch = function () { ++GSEARCH_epoch; return open.apply(this, arguments); };
+  if (open) window.openGlobalSearch = function () { ++GSEARCH_epoch; var result=open.apply(this, arguments); var input=document.getElementById('global-search-inp'); if(input)input.placeholder='Search chats, channels, posts and shorts'; return result; };
   if (search) window.doGlobalSearch = function () { ++GSEARCH_epoch; return search.apply(this, arguments); };
 })();
 function _runGSearch(q) {
@@ -86,6 +86,7 @@ function _runGSearch(q) {
       .catch(function () { return { kind: 'users', items: [] }; }));
   }
   if (tab === 'all') {
+    calls.push(api.get('/search?q=' + encodeURIComponent(q), true).then(function(res){ return {kind:'content',items:(res.posts||[]).map(function(p){return Object.assign({content_type:'post'},p);}).concat((res.shorts||[]).map(function(p){return Object.assign({content_type:'short'},p);} ))}; }).catch(function(){return {kind:'content',items:[],failed:true};}));
     calls.push(api.get('/chat?search=' + encodeURIComponent(q), true)
       .then(function (res) { return { kind: 'messages', items: res.messages || [] }; })
       .catch(function () { return { kind: 'messages', items: [] }; }));
@@ -95,10 +96,16 @@ function _runGSearch(q) {
     if (epoch !== GSEARCH_epoch || document.getElementById('global-search-results') !== el) return;
     var html = '';
     groups.forEach(function (g) {
+      if (g.failed) { html += '<div role="status" style="padding:.75rem;color:var(--muted)">Post and Shorts search is unavailable. Try again.</div>'; return; }
       if (!g.items.length) return;
-      var label = { chats: 'Your Chats', groups: 'Groups', channels: 'Channels', tgchannels: 'Telegram Channels', users: 'Users', messages: 'Messages' }[g.kind];
+      var label = { chats: 'Your Chats', groups: 'Groups', channels: 'Channels', tgchannels: 'Telegram Channels', users: 'Users', messages: 'Messages', content: 'Posts and Shorts' }[g.kind];
       html += '<div style="font-size:.68rem;color:var(--muted);font-weight:700;text-transform:uppercase;padding:.5rem .5rem .2rem">' + label + '</div>';
-      if (g.kind === 'chats') {
+      if (g.kind === 'content') {
+        html += g.items.map(function(item){
+          var target=item.content_type==='short'?'/shorts#'+encodeURIComponent(item.id):'/?channel='+encodeURIComponent(item.user_id);
+          return '<a href="'+target+'" style="display:block;padding:.65rem .5rem;border-bottom:1px solid var(--border);color:var(--text);text-decoration:none"><div style="font-size:.7rem;color:var(--muted)">'+(item.content_type==='short'?'Short':'Post on channel')+'</div><div>'+escHtml((item.caption||'Matching post').slice(0,120))+'</div></a>';
+        }).join('');
+      } else if (g.kind === 'chats') {
         html += g.items.map(function (r) {
           return '<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .5rem;cursor:pointer" onclick="document.getElementById(\'global-search-modal\').remove();openChatRoom(\'' + r.id + '\')">' +
             '<div class="chat-av" style="width:38px;height:38px;font-size:.9rem;background:' + avatarColor(r.other_user_id || r.id) + '">' + escHtml((r.nick || '?').slice(0, 1).toUpperCase()) + '</div>' +
