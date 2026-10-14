@@ -471,6 +471,7 @@ async function streamThumb(env, mtproto, info, username, msgId) {
         'Content-Length': String(bytes.length),
         'Cache-Control': 'public, max-age=86400',
         'Access-Control-Allow-Origin': '*',
+        'Access-Control-Expose-Headers': 'Content-Range, Content-Length',
       },
     });
   } catch (e) {
@@ -570,7 +571,7 @@ async function streamMedia(env, request, ctx) {
   try {
     info = await fileLocation(env, mtproto, username, msgId, url.searchParams.has('download'), url.searchParams.has('download')); 
   } catch (e) {
-    return new Response('Not available: ' + (e.error_message || e.message), { status: 404 });
+    return new Response('Not available: ' + (e.error_message || e.message), { status: /protected|Only music/.test(e.message||'')?403:404, headers:{'Access-Control-Allow-Origin':'*','Cache-Control':'no-store'} });
   }
 
   const total = info.size || 0;
@@ -598,8 +599,9 @@ async function streamMedia(env, request, ctx) {
               'Content-Type': info.mime || 'application/octet-stream',
               'Content-Length': String(bytes.length),
               'Accept-Ranges': 'bytes',
-              'Cache-Control': 'public, max-age=86400',
+              'Cache-Control': url.searchParams.has('download') ? 'no-store' : 'public, max-age=86400',
               'Access-Control-Allow-Origin': '*',
+        'Access-Control-Expose-Headers': 'Content-Range, Content-Length',
             },
           });
         }
@@ -638,7 +640,7 @@ async function streamMedia(env, request, ctx) {
     // A stale file_reference is the usual cause — rebuild it once and retry.
     if (/FILE_REFERENCE/i.test(msg)) {
       try {
-        info = await fileLocation(env, mtproto, username, msgId, true);
+        info = await fileLocation(env, mtproto, username, msgId, true, url.searchParams.has('download'));
         bytes = await readSlice(env, mtproto, info, username, msgId, alignedStart);
       } catch (e2) {
         return new Response('Stream error: ' + (e2.error_message || e2.message || ''), { status: 502 });
@@ -664,7 +666,7 @@ async function streamMedia(env, request, ctx) {
   // Because it reuses this request's single mtproto client sequentially, the
   // auth key is never used from two connections at once — so this can't trigger
   // the AUTH_KEY_DUPLICATED that the old parallel-subrequest prefetch did.
-  if (ctx && !url.searchParams.has('nopf')) {
+  if (ctx && !url.searchParams.has('nopf') && !url.searchParams.has('download')) {
     ctx.waitUntil((async () => {
       try {
         for (let i = 1; i <= 6; i++) {
@@ -701,8 +703,9 @@ async function streamMedia(env, request, ctx) {
       'Accept-Ranges': 'bytes',
       // Nothing is stored our side, but letting the browser keep what it has
       // already pulled saves re-decrypting the same slice on a replay.
-      'Cache-Control': 'public, max-age=86400',
+      'Cache-Control': url.searchParams.has('download') ? 'no-store' : 'public, max-age=86400',
       'Access-Control-Allow-Origin': '*',
+        'Access-Control-Expose-Headers': 'Content-Range, Content-Length',
     },
   });
 }
@@ -726,6 +729,7 @@ export default {
       if (request.method === 'OPTIONS') {
         return new Response(null, { status: 204, headers: {
           'Access-Control-Allow-Origin': '*',
+        'Access-Control-Expose-Headers': 'Content-Range, Content-Length',
           'Access-Control-Allow-Headers': 'Range',
           'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         } });
