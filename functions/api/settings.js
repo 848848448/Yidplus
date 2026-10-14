@@ -22,7 +22,7 @@ export async function onRequestGet(context) {
     // them to every visitor (e.g. the AI's custom instructions / system prompt).
     const PRIVATE_KEYS = { ai_instructions: 1 };
     for (const row of results) {
-      if (PRIVATE_KEYS[row.key]) continue;
+      if (PRIVATE_KEYS[row.key] || /(?:token|secret|password|api_key|private_key)/i.test(row.key)) continue;
       settings[row.key] = row.value;
     }
 
@@ -94,4 +94,4 @@ export async function onRequestPut(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-  }
+}
