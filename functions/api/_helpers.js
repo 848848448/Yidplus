@@ -232,9 +232,9 @@ export async function requireUser(request, env) {
   if (!token) return null;
 
   const session = await env.DB.prepare(
-    `SELECT user_id, impersonator_id FROM sessions WHERE id = ?`
+    `SELECT user_id, impersonator_id FROM sessions WHERE id = ? AND julianday(created_at) > julianday('now', '-30 days')`
   ).bind(token).first().catch(() =>
-    env.DB.prepare(`SELECT user_id FROM sessions WHERE id = ?`).bind(token).first()
+    env.DB.prepare(`SELECT user_id FROM sessions WHERE id = ? AND julianday(created_at) > julianday('now', '-30 days')`).bind(token).first()
   );
 
   if (!session) return null;
@@ -752,4 +752,4 @@ export async function notifyChannelFollowers(env, ctx, channelOwnerId, ownerNick
     } catch (e) {}
   };
   if (ctx && ctx.waitUntil) ctx.waitUntil(run()); else run();
-}
+      }
