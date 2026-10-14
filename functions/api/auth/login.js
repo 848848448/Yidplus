@@ -112,8 +112,10 @@ export async function onRequestPost(context) {
     // If this account has 2FA on, a valid TOTP code is required before we issue
     // a session. Missing code → tell the client to prompt for one.
     try {
-      const tf = await env.DB.prepare('SELECT totp_secret, totp_enabled FROM users WHERE id = ?').bind(user.id).first().catch(() => null);
-      if (tf && tf.totp_enabled && tf.totp_secret) {
+      const tf = await env.DB.prepare('SELECT totp_secret, totp_enabled FROM users WHERE id = ?').bind(user.id).first();
+      if (!tf) throw new Error('Missing authentication state');
+      if (tf.totp_enabled && !tf.totp_secret) throw new Error('Invalid authentication state');
+      if (tf.totp_enabled && tf.totp_secret) {
         const { verifyTotp } = await import('../_totp.js');
         const code = (body.totp_code || '').toString().trim();
         if (!code) return json({ ok: false, need_2fa: true, error: 'Enter your 6-digit authentication code.' }, 401);
@@ -128,7 +130,7 @@ export async function onRequestPost(context) {
           return json({ ok: false, need_2fa: true, error: 'That code is not correct.' }, 401);
         }
       }
-    } catch (e) { /* if the 2FA check errors, don't lock the user out */ }
+    } catch (e) { return json({ ok: false, error: 'Security check is temporarily unavailable. Try again shortly.' }, 503); }
 
 
     // Email verification is a soft reminder now, not a hard gate — signing in
@@ -159,4 +161,4 @@ export async function onRequestPost(context) {
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
   }
-          }
+      }
