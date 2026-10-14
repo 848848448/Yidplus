@@ -5,6 +5,8 @@
 
 import { json, corsHeaders, requireUser, hashPassword, cleanupUserReferences, isOwnerOrCoOwner } from './_helpers.js';
 
+import { validateProfileInput, validateProfileFile } from './_profile-input.js';
+
 export async function onRequestOptions() { return new Response(null, { status: 204, headers: corsHeaders }); }
 
 export async function onRequestGet(context) {
@@ -117,9 +119,13 @@ export async function onRequestPut(context) {
     let body = {};
     if (ct.includes('multipart')) {
       const form = await request.formData();
+      // Validate all media before the first storage write.
+      for (const key of ['photo','banner']) { const f=form.get(key); if (f && typeof f.arrayBuffer==='function') { const error=validateProfileFile(f); if(error)return json({ok:false,error},400); } }
+      const fields={}; for(const [k,v] of form.entries())if(k!=='photo' && k!=='banner')fields[k]=v;
+      const fieldError=validateProfileInput(fields);if(fieldError)return json({ok:false,error:fieldError},400);
       for (const [k, v] of form.entries()) {
         if (k === 'photo' && v instanceof File) {
-          const key = `avatars/${user.id}.${v.name.split('.').pop() || 'jpg'}`;
+          const key = `avatars/${user.id}.${(v.name.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g,'').slice(0,8) || 'jpg'}`;
           await env.MY_BUCKET.put(key, await v.arrayBuffer(), { httpMetadata: { contentType: v.type } });
           // Media is served through our own /api/media/<key> route (the R2
           // bucket itself isn't publicly reachable at its raw storage URL).
@@ -129,7 +135,7 @@ export async function onRequestPut(context) {
           // key would keep showing the old cached image forever.
           body.photo_url = `/api/media/${encodeURIComponent(key)}?v=${Date.now()}`;
         } else if (k === 'banner' && v instanceof File) {
-          const key = `banners/${user.id}.${v.name.split('.').pop() || 'jpg'}`;
+          const key = `banners/${user.id}.${(v.name.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g,'').slice(0,8) || 'jpg'}`;
           await env.MY_BUCKET.put(key, await v.arrayBuffer(), { httpMetadata: { contentType: v.type } });
           body.banner_url = `/api/media/${encodeURIComponent(key)}?v=${Date.now()}`;
         } else { body[k] = v; }
@@ -137,6 +143,9 @@ export async function onRequestPut(context) {
     } else {
       body = await request.json();
     }
+
+    const validationError=validateProfileInput(body);
+    if(validationError)return json({ok:false,error:validationError},400);
 
     const ALLOWED = ['bio','location','birthday','website','instagram','youtube','profile_color',
                      'privacy_profile','privacy_messages','notif_messages','notif_likes',
