@@ -1,0 +1,10 @@
+// Download only explicit shared audio files, never voice notes.
+(function(){
+ function canSave(){var u=STATE.user;return !CHAT_curRoom||CHAT_curRoom.allow_saving!==false||CHAT_curRoom.is_group_admin||u&&(u.role==='admin_super'||u.is_owner);}
+ function music(m){return m&&m.type==='file'&&m.media_url&&/\.(mp3|m4a|aac|ogg|wav|flac|opus)(\?|$|\s)/i.test((m.text||'')+' '+(m.media_key||m.media_url||''));}
+ function save(out){var url=URL.createObjectURL(out),a=document.createElement('a');a.href=url;a.download=out.name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},60000);toast('MP3 ready. Original unchanged.');}
+ var loading=false;
+ async function download(url,title,artist,cover,expected,coverExpected){if(loading)return toast('Another audio download is being prepared');loading=true;try{toast('Loading audio for local MP3 download...');var f=await MUSIC_getMP3File(url,'audio',64*1024*1024,expected),c=cover?await MUSIC_getMP3File(cover,'cover',12*1024*1024,coverExpected):null;save(await MUSIC_prepareMP3(f,c,{title:title||'Audio',artist:artist}));}catch(e){toast(e.message||'Could not prepare MP3');}finally{loading=false;}}
+ window.chatDownloadMP3=function(id){var m=CHAT_messages.find(function(m){return m.id===id;});if(!music(m)||!canSave())return toast('Downloading is not allowed for this message');return download(m.media_url,(m.text||'Audio').replace(/\.(mp3|m4a|aac|ogg|wav|flac|opus)$/i,''),null,null);};
+ var render=window.renderMessages;window.renderMessages=function(){render.apply(this,arguments);if(!canSave())return;document.querySelectorAll('.music-card').forEach(function(card){if(card.querySelector('.chat-mp3'))return;var bubble=card.closest('[data-msg-id]'),m=bubble&&CHAT_messages.find(function(m){return m.id===bubble.dataset.msgId;});if(!music(m))return;var b=document.createElement('button');b.className='chat-mp3';b.textContent='MP3';b.title='Download as MP3';b.style.cssText='min-width:44px;min-height:44px;border:0;background:transparent;color:var(--blue);font-size:12px;flex-shrink:0';b.onclick=function(e){e.stopPropagation();chatDownloadMP3(m.id);};card.appendChild(b);});};
+})();
