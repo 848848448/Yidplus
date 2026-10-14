@@ -19,6 +19,7 @@ export async function onRequestGet(context) {
       status: 200,
       headers: {
         'Content-Type': 'text/csv',
+        'Cache-Control': 'private, no-store',
         'Content-Disposition': 'attachment; filename="yidplus-users.csv"',
         'Access-Control-Allow-Origin': '*',
       },
@@ -26,4 +27,4 @@ export async function onRequestGet(context) {
   } catch (err) {
     return new Response(JSON.stringify({ ok: false, error: err.message }), { status: 500, headers: corsHeaders });
   }
-      }
+}
