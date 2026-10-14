@@ -100,9 +100,7 @@ self.addEventListener('fetch', function (e) {
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request).catch(function () {
-        return caches.match(e.request).then(function (c) {
-          return c || offlinePage();
-        });
+        return offlinePage();
       })
     );
     return;
@@ -115,7 +113,7 @@ self.addEventListener('fetch', function (e) {
   if ((e.request.headers.get('accept') || '').includes('text/html')) {
     e.respondWith(
       fetch(e.request).catch(function () {
-        return caches.match(e.request).then(function (c) { return c || offlinePage(); });
+        return offlinePage();
       })
     );
     return;
