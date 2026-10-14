@@ -2,8 +2,8 @@
   "name": "YID PLUS",
   "short_name": "YID+",
   "description": "The Jewish social platform",
-  "lang": "yi",
-  "dir": "rtl",
+  "lang": "en",
+  "dir": "ltr",
   "id": "/",
   "start_url": "/chat",
   "scope": "/",
@@ -20,7 +20,6 @@
   "categories": ["social", "entertainment"],
   "shortcuts": [
     { "name": "Chats", "url": "/chat" },
-    { "name": "Music", "url": "/music" },
     { "name": "Channels", "url": "/?goto=explore" },
     { "name": "Shorts", "url": "/shorts" }
   ],
