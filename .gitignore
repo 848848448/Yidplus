@@ -24,3 +24,10 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Android generated files and private signing material
+android/.gradle/
+android/local.properties
+android/app/src/main/assets/site/
+*.jks
+*.keystore
