@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.yidplus.app",
+      "sha256_cert_fingerprints": [
+        "FF:F4:5B:0D:71:49:39:68:F9:D7:64:F6:10:1B:CF:8D:54:82:C8:30:F1:B7:19:FB:5A:12:AF:36:DF:EB:DE:68"
+      ]
+    }
+  }
+]
