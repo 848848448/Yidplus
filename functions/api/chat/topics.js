@@ -4,7 +4,7 @@
 // PUT    /api/chat/topics              -> rename/close a topic { id, name?, emoji?, closed? } (group admin only)
 // DELETE /api/chat/topics?id=X         -> delete a topic and its messages (group admin only)
 
-import { json, corsHeaders, requireUser } from '../_helpers.js';
+import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner } from '../_helpers.js';
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -29,6 +29,13 @@ export async function onRequestGet(context) {
     const url = new URL(request.url);
     const roomId = url.searchParams.get('room_id');
     if (!roomId) return json({ ok: false, error: 'room_id is required' }, 400);
+    const room = await env.DB.prepare('SELECT type, visibility FROM rooms WHERE id = ?').bind(roomId).first();
+    if (!room || room.type !== 'group') return json({ ok: false, error: 'Group not found' }, 404);
+    const membership = await env.DB.prepare('SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?').bind(roomId, user.id).first();
+    if (!membership && !isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Join this group to view topics.' }, 403);
+    const disabled = await env.DB.prepare('SELECT 1 FROM disabled_rooms WHERE room_id = ?').bind(roomId).first();
+    if (disabled && !isAdminRole(user, env.OWNER_EMAIL)) return json({ ok: false, error: 'Group unavailable' }, 403);
+
 
     const { results: topics } = await env.DB.prepare(
       `SELECT id, room_id, name, emoji, created_by, created_at, closed FROM topics
@@ -42,16 +49,22 @@ export async function onRequestGet(context) {
     const unreadByTopic = {};
 
     async function fillFor(topicId, whereClause, bindArgs) {
-      const lastMsg = await env.DB.prepare(
-        `SELECT text, type, sender_nick, created_at FROM messages
-         WHERE room_id = ? AND ${whereClause} ORDER BY created_at DESC LIMIT 1`
-      ).bind(...bindArgs).first();
-      const unread = await env.DB.prepare(
-        `SELECT COUNT(*) AS c FROM messages
-         WHERE room_id = ? AND ${whereClause} AND sender_id != ? AND read = 0`
-      ).bind(...bindArgs, user.id).first();
-      lastMsgByTopic[topicId] = lastMsg || null;
+      const rows = await env.DB.prepare(
+        `SELECT * FROM messages WHERE room_id = ? AND ${whereClause} ORDER BY created_at DESC LIMIT 100`
+      ).bind(...bindArgs).all();
+      const now = Date.now();
+      const visible = (rows.results || []).filter(m => !m.hidden && !m.view_once &&
+        (!m.scheduled_for || (Number.isFinite(Date.parse(m.scheduled_for)) && Date.parse(m.scheduled_for) <= now)) &&
+        (!m.expires_at || (Number.isFinite(Date.parse(m.expires_at)) && Date.parse(m.expires_at) > now)));
+      lastMsgByTopic[topicId] = visible[0] || null;
+      const unread = await env.DB.prepare(`SELECT COUNT(*) AS c FROM messages
+        WHERE room_id = ? AND ${whereClause} AND sender_id != ? AND read = 0
+          AND COALESCE(hidden,0) = 0 AND COALESCE(view_once,0) = 0
+          AND (scheduled_for IS NULL OR scheduled_for <= ?)
+          AND (expires_at IS NULL OR expires_at > ?)`
+      ).bind(...bindArgs, user.id, new Date(now).toISOString(), new Date(now).toISOString()).first();
       unreadByTopic[topicId] = unread ? unread.c : 0;
+
     }
 
     // General (no topic assigned)
@@ -111,6 +124,8 @@ export async function onRequestPost(context) {
     const isMember = await env.DB.prepare(
       'SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?'
     ).bind(roomId, user.id).first();
+    const topicRoom = await env.DB.prepare('SELECT type FROM rooms WHERE id = ?').bind(roomId).first();
+    if (!topicRoom || topicRoom.type !== 'group') return json({ ok: false, error: 'Group not found' }, 404);
     if (!isMember) return json({ ok: false, error: 'You must be a member of this group' }, 403);
 
     // A regular group does NOT have Topics by default, and it should never
