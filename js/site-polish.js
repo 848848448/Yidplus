@@ -73,5 +73,22 @@
     enhance(document.documentElement);
     new MutationObserver(function (changes) { changes.forEach(function (change) { change.addedNodes.forEach(enhance); }); }).observe(document.body, { childList: true, subtree: true });
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+  if (document.readyState !== 'complete') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+// Replace initial directory/chat spinners only. Keep refresh data and callbacks.
+(function () {
+  function placeholder(label) {
+    return '<div class="yp-skeleton" role="status" aria-label="' + label + '">' + [1,2,3,4].map(function () { return '<div class="yp-sk-row"><div class="yp-sk yp-sk-avatar"></div><div class="yp-sk-lines"><div class="yp-sk yp-sk-line"></div><div class="yp-sk yp-sk-line short"></div></div></div>'; }).join('') + '</div>';
+  }
+  function wrap(name, id) {
+    var original = window[name];
+    if (typeof original !== 'function') return;
+    window[name] = function () {
+      var result = original.apply(this, arguments), el = document.getElementById(id);
+      if (el && el.querySelector('.spinner')) el.innerHTML = placeholder(id === 'chat-list-area' ? 'Loading chats' : 'Loading channels');
+      return result;
+    };
+  }
+  function init() { wrap('_doExploreSearch','explore-body'); wrap('_loadExploreAll','explore-body'); wrap('loadChatRooms','chat-list-area'); }
+  if (document.readyState !== 'complete') document.addEventListener('DOMContentLoaded', init); else init();
 })();
