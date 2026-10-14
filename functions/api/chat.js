@@ -1,3 +1,4 @@
+import { eligibleChatRecipients, chatPushPayload } from './_chat-push-policy.js';
 // functions/api/chat.js
 // GET    /api/chat?room_id=xxx  -> list messages for a room (auto-joins user to room)
 // POST   /api/chat              -> send a message (json or multipart)
@@ -288,12 +289,8 @@ export async function onRequestGet(context) {
     results.forEach(function (m) {
       if (m.scheduled_for && new Date(m.scheduled_for).getTime() > nowMs) m._scheduled_pending = 1;
     });
-    // Best-effort: physically delete messages that have already expired, so the
-    // table doesn't accumulate them. Never blocks the response.
-    context.waitUntil(
-      env.DB.prepare(`DELETE FROM messages WHERE expires_at IS NOT NULL AND expires_at <= ?`)
-        .bind(new Date().toISOString()).run().catch(() => {})
-    );
+    // Expired rows remain hidden. Do not erase their media keys here:
+    // delayed, reference-safe cleanup must preserve the key before deletion.
     // created_at. Requires the last_read_at column on room_members; if that
     // migration hasn't been run yet, this simply yields no seen counts.
     let memberReads = [];
@@ -584,27 +581,7 @@ export async function onRequestPost(context) {
         const roomRow = await env.DB.prepare('SELECT type, name FROM rooms WHERE id = ?').bind(roomId).first();
         if (!roomRow) return;
 
-        let recipientIds = [];
-        if (roomRow.type === 'private') {
-          const other = await env.DB.prepare(
-            'SELECT user_id FROM room_members WHERE room_id = ? AND user_id != ?'
-          ).bind(roomId, user.id).first();
-          if (other) recipientIds = [other.user_id];
-        } else if (roomRow.type === 'group') {
-          let members;
-          try {
-            const res = await env.DB.prepare(
-              'SELECT user_id FROM room_members WHERE room_id = ? AND user_id != ? AND (muted IS NULL OR muted = 0)'
-            ).bind(roomId, user.id).all();
-            members = res.results;
-          } catch (e) {
-            const res = await env.DB.prepare(
-              'SELECT user_id FROM room_members WHERE room_id = ? AND user_id != ?'
-            ).bind(roomId, user.id).all();
-            members = res.results;
-          }
-          recipientIds = members.map(m => m.user_id);
-        }
+        const recipientIds = await eligibleChatRecipients(env, result);
         if (!recipientIds.length) return;
 
         const placeholders = recipientIds.map(() => '?').join(',');
@@ -612,15 +589,11 @@ export async function onRequestPost(context) {
           `SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id IN (${placeholders})`
         ).bind(...recipientIds).all();
 
-        const notifText = type === 'text' ? text.slice(0, 100) : `[${type}]`;
-        const notifTitle = roomRow.type === 'group' ? (roomRow.name || 'Group') : (user.nickname || 'New message');
-        const notifBody = roomRow.type === 'group' ? `${user.nickname || 'Someone'}: ${notifText}` : notifText;
-
         for (const sub of subs) {
           try {
             await sendWebPush(
               { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-              { title: notifTitle, body: notifBody, icon: '/images/logo.png', badge: '/images/logo.png', url: '/chat', tag: 'yidplus-msg-' + roomId },
+              chatPushPayload(result, roomRow),
               env
             );
           } catch (e) { /* one bad subscription shouldn't stop the rest */ }
@@ -683,4 +656,4 @@ async function ensureMember(env, roomId, userId) {
       ).bind(roomId, userId, new Date().toISOString()).run();
     }
   }
-        }
+      }
