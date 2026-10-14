@@ -9,6 +9,7 @@ import { eligibleChatRecipients, chatPushPayload } from './_chat-push-policy.js'
 
 import { json, corsHeaders, requireUser, isAdminRole, isOwnerOrCoOwner, canDeleteContent, logAudit } from './_helpers.js';
 import { sendWebPush } from './_webpush.js';
+import { sendNativePush } from './_native-push.js';
 
 // Runs once per worker: the message list query relies on these indexes, so
 // create them automatically instead of waiting for a manual "Optimize DB".
@@ -588,6 +589,7 @@ export async function onRequestPost(context) {
 
         const recipientIds = await eligibleChatRecipients(env, result);
         if (!recipientIds.length) return;
+        await sendNativePush(env, recipientIds, chatPushPayload(result, roomRow));
 
         const placeholders = recipientIds.map(() => '?').join(',');
         const { results: subs } = await env.DB.prepare(

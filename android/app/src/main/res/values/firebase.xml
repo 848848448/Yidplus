@@ -1,0 +1,6 @@
+<resources>
+ <string name="google_app_id" translatable="false">1:677889813755:android:7b958a7f2834ff17fc545e</string>
+ <string name="gcm_defaultSenderId" translatable="false">677889813755</string>
+ <string name="project_id" translatable="false">shorts-e05cc</string>
+ <string name="google_api_key" translatable="false">AIzaSyDjGmskzkMi3FNu02RomBPUyp45zhPEhEY</string>
+</resources>
