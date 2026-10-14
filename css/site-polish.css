@@ -1,0 +1,40 @@
+/* Shared Home, Music and profile surfaces. No feature or permission changes. */
+:root{--yp-space:16px;--yp-radius:18px;--yp-ring:#167b69;--yp-ground:#f2f5f3;--yp-card:#fff;--yp-ink:#192d28;--yp-secondary:#5a7168;--yp-rule:#dfe8e2;--yp-tint:#e7f2ed}
+html.dark-mode{--yp-ground:#111c19;--yp-card:#1b2b25;--yp-ink:#edf4ef;--yp-secondary:#abc0b4;--yp-rule:#32473d;--yp-tint:#263e33;--yp-ring:#77dab4}
+#screen-home,#screen-music,#screen-profile,#screen-user-profile{--bg:var(--yp-ground);--bg2:var(--yp-ground);--bg3:var(--yp-tint);--surface:var(--yp-card);--text:var(--yp-ink);--muted:var(--yp-secondary);--border:var(--yp-rule);--accent:var(--yp-ring);--blue:var(--yp-ring);background:var(--yp-ground);color:var(--yp-ink)}
+#screen-home .topbar,#screen-music .ym-topbar{background:var(--yp-card);border-bottom:1px solid var(--yp-rule);min-height:64px}
+#screen-home .home-hero{border-radius:22px;box-shadow:none;border:1px solid var(--yp-rule);background:var(--yp-card);color:var(--yp-ink)}
+#screen-home .home-hero h1,#screen-home .home-hero h2{letter-spacing:-.03em;color:var(--yp-ink)}
+#screen-home .feed-post{border:1px solid var(--yp-rule);border-radius:var(--yp-radius);background:var(--yp-card);box-shadow:0 2px 8px #0b241c05}
+#screen-home .post-caption{font-size:15px;line-height:1.65;padding:12px 16px}
+#screen-home .post-action{min-height:44px;min-width:44px;padding:8px;color:var(--yp-secondary)}
+#screen-home .post-action.liked{color:var(--red)}
+#screen-home .section-title,#screen-music .ym-section-title{font-size:17px;font-weight:700;letter-spacing:-.02em}
+#screen-music{--ym-red:var(--yp-ring);--ym-bg:var(--yp-ground);--ym-surface:var(--yp-card);--ym-surface2:var(--yp-tint);--ym-muted:var(--yp-secondary)}
+#screen-music .ym-tabs{background:var(--yp-card);border-color:var(--yp-rule);padding:10px 16px;gap:8px}
+#screen-music .ym-tab{min-height:44px;padding:10px 16px;border-radius:12px;background:var(--yp-card);border:1px solid var(--yp-rule);color:var(--yp-ink);font-size:14px}
+#screen-music .ym-tab.active{background:var(--yp-tint);border-color:var(--yp-ring);color:var(--yp-ring)}
+#screen-music .ym-section-hdr{padding:20px 16px 12px}
+#screen-music .ym-album-art{border-radius:16px;box-shadow:0 4px 14px #0b241c12;border:1px solid var(--yp-rule)}
+#screen-music .ym-album-name{font-size:14px;line-height:1.5}
+#screen-music .ym-album-sub{font-size:12px;line-height:1.5}
+#screen-music .ym-track{min-height:68px;padding:10px 14px;gap:12px;border-radius:14px;margin:2px 8px}
+#screen-music .ym-track-thumb{width:48px;height:48px;border-radius:12px}
+#screen-music .ym-track-title{font-size:15px;line-height:1.5}
+#screen-music .ym-track-artist{font-size:13px;line-height:1.4}
+#screen-music .ym-see-all{min-height:44px;display:flex;align-items:center;font-size:13px}
+.profile-card,.profile-stats-row{border-color:var(--yp-rule);border-radius:18px}
+.profile-bio{line-height:1.65;font-size:15px}
+.profile-action-btn{min-height:44px;border-radius:12px}
+#screen-home .bottom-nav,#screen-music .bottom-nav{background:var(--yp-card)!important;border-top:1px solid var(--yp-rule)!important;padding-bottom:env(safe-area-inset-bottom);box-shadow:none}
+#screen-home .nav-item,#screen-music .nav-item{min-height:56px;min-width:44px;color:var(--yp-secondary)}
+#screen-home .nav-item.active,#screen-music .nav-item.active{color:var(--yp-ring)}
+#screen-home :is(button,input,a):focus-visible,#screen-music :is(button,input,a):focus-visible{outline:3px solid var(--yp-ring);outline-offset:3px}
+#screen-home :is(button,.feed-post),#screen-music :is(button,.ym-track){transition:background-color .16s ease,border-color .16s ease,box-shadow .16s ease}
+@media(max-width:420px){#screen-home .post-caption{padding:12px;font-size:15px}#screen-music .ym-track{margin:2px 4px;padding:10px 12px}.profile-stats-row{gap:12px}}
+@media(prefers-reduced-motion:reduce){#screen-home *,#screen-music *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+#screen-home .hh-greet{color:var(--yp-ink);text-shadow:none;font-family:inherit;font-weight:750;letter-spacing:-.03em}
+#screen-home .hh-date,#screen-home .hh-quote{color:var(--yp-secondary)}
+#screen-home .hh-badge{color:var(--yp-ring);background:var(--yp-tint);border-color:var(--yp-rule)}
+#screen-music .track-name{font-size:15px;line-height:1.5}
+#screen-music .track-artist{font-size:13px;line-height:1.4;color:var(--yp-secondary)}
